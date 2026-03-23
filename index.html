@@ -6,6 +6,7 @@
 <title>Chelbourne — Property Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -222,6 +223,13 @@ textarea{resize:vertical;min-height:70px;}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.loading-overlay{position:fixed;inset:0;background:rgba(244,242,238,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;}
+.loading-overlay h2{font-family:'Playfair Display',serif;font-size:22px;color:var(--accent2);}
+.loading-overlay p{font-size:12px;color:var(--text3);}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-left:6px;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 @media(max-width:768px){
   .header,.toolbar,.table-wrap,.arch-section,.dash-wrap,.report-wrap{padding-left:14px;padding-right:14px;}
   .stat-card{padding:10px 14px;min-width:85px;}
@@ -232,10 +240,14 @@ textarea{resize:vertical;min-height:70px;}
 </style>
 </head>
 <body>
-
-<header class="header">
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <h2>Chelbourne</h2>
+  <p>Connecting to database…</p>
+</div>
   <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
+    <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
   </div>
@@ -431,7 +443,7 @@ textarea{resize:vertical;min-height:70px;}
 // ══════════════════════════════════════════════════════
 //  DATA
 // ══════════════════════════════════════════════════════
-let data = JSON.parse(localStorage.getItem('propdesk_data')||'null') || [
+const SEED_DATA = [
   {id:1,apt:"223",owner:"ERA LT",name:"Chris Kennedy",type:"long-term",rent:2600.0,balance:2600.0,due:"2026-03-10",note:"Via: Booking | Tel: 2134141259",history:[],archived:false},
   {id:2,apt:"314",owner:"ERA LT",name:"Amira Glover",type:"short-stay",rent:823.44,balance:0.0,due:"2026-03-23",note:"Via: Vrbo | Tel: 14455445925 | Email: amiraglover@yahoo.com",history:[],archived:false},
   {id:3,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"short-stay",rent:2984.44,balance:0.0,due:"2026-03-24",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
@@ -512,13 +524,91 @@ let data = JSON.parse(localStorage.getItem('propdesk_data')||'null') || [
   {id:78,apt:"Garage 5",owner:"Montgomery Garages",name:"Deborah Massaud",type:"month-to-month",rent:74.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (215) 696-3732 | Email: ndzajs6@comcast.net",history:[],archived:false},
   {id:79,apt:"205",owner:"ERA LT",name:"Kate Bergan",type:"long-term",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false}
 ];
-let archived = JSON.parse(localStorage.getItem('propdesk_archived')||'[]');
-let nextId = Math.max(80,...data.map(d=>d.id),...(archived.length?archived.map(d=>d.id):[0]))+1;
+let data = [];
+let archived = [];
+let nextId = 80;
 let currentStatFilter='all', currentTypeFilter='all', detailId=null, payType='full';
 let reportMonth=new Date().getMonth(), reportYear=new Date().getFullYear();
 let typeChartInst=null, collChartInst=null, trendChartInst=null;
 
-function save(){localStorage.setItem('propdesk_data',JSON.stringify(data));localStorage.setItem('propdesk_archived',JSON.stringify(archived));}
+// ── SUPABASE ───────────────────────────────────────
+const SUPA_URL = 'https://iwohrvkcodqvyoooxzmt.supabase.co';
+const SUPA_KEY = 'sb_publishable_WklQ-t86PnXN5u_kHyeoow_kWESXQ6f';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+function dbRow(r) {
+  return {
+    id: r.id,
+    apt: r.apt,
+    owner: r.owner,
+    name: r.name,
+    type: r.type,
+    rent: r.rent,
+    balance: r.balance,
+    due: r.due || null,
+    note: r.note,
+    history: r.history || [],
+    archived: r.archived || false,
+    archived_date: r.archivedDate || null
+  };
+}
+
+function fromRow(r) {
+  return {
+    id: r.id,
+    apt: r.apt || '',
+    owner: r.owner || '',
+    name: r.name || '',
+    type: r.type || 'available',
+    rent: parseFloat(r.rent) || 0,
+    balance: parseFloat(r.balance) || 0,
+    due: r.due || '',
+    note: r.note || '',
+    history: Array.isArray(r.history) ? r.history : [],
+    archived: r.archived || false,
+    archivedDate: r.archived_date || ''
+  };
+}
+
+async function save(record) {
+  const row = dbRow(record);
+  const { error } = await sb.from('units').upsert(row, { onConflict: 'id' });
+  if (error) { console.error('Save error:', error); toast('Sync error — check console','error'); }
+}
+
+async function saveAll(records) {
+  const rows = records.map(dbRow);
+  const { error } = await sb.from('units').upsert(rows, { onConflict: 'id' });
+  if (error) { console.error('Save error:', error); toast('Sync error','error'); }
+}
+
+async function deleteRecord(id) {
+  const { error } = await sb.from('units').delete().eq('id', id);
+  if (error) console.error('Delete error:', error);
+}
+
+async function loadAll() {
+  const { data: rows, error } = await sb.from('units').select('*').order('id');
+  if (error) { console.error('Load error:', error); return false; }
+  const all = rows.map(fromRow);
+  data = all.filter(r => !r.archived);
+  archived = all.filter(r => r.archived);
+  nextId = Math.max(80, ...all.map(r => r.id)) + 1;
+  return true;
+}
+
+// Real-time subscription — refresh when any change comes in from another user
+function subscribeRealtime() {
+  sb.channel('units-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'units' }, async () => {
+      await loadAll();
+      renderTable();
+      const page = document.querySelector('.page.active');
+      if (page && page.id === 'page-dashboard') renderDashboard();
+      if (page && page.id === 'page-reports') renderReports();
+    })
+    .subscribe();
+}
 
 // ── DATE ───────────────────────────────────────────
 function today(){return new Date().toISOString().split('T')[0];}
@@ -571,23 +661,24 @@ function toggleArchive(){const w=document.getElementById('archiveTableWrap'),ch=
 // ── ADD/EDIT ───────────────────────────────────────
 function openAddModal(){document.getElementById('editId').value='';document.getElementById('modalTitle').textContent='Add Unit / Tenant';document.getElementById('modalAptLabel').textContent='—';['fApt','fOwner','fName','fRent','fBalance','fNote'].forEach(i=>document.getElementById(i).value='');document.getElementById('fType').value='available';document.getElementById('fDue').value='';openModal('editModal');}
 function openEditModal(id){const r=data.find(x=>x.id===id);if(!r)return;document.getElementById('editId').value=id;document.getElementById('modalTitle').textContent='Edit Unit / Tenant';document.getElementById('modalAptLabel').textContent=r.apt;document.getElementById('fApt').value=r.apt;document.getElementById('fOwner').value=r.owner||'';document.getElementById('fName').value=r.name||'';document.getElementById('fType').value=r.type||'available';document.getElementById('fRent').value=r.rent||'';document.getElementById('fDue').value=r.due||'';document.getElementById('fBalance').value=r.balance||'';document.getElementById('fNote').value=r.note||'';openModal('editModal');}
-function saveTenant(){const id=document.getElementById('editId').value;const apt=document.getElementById('fApt').value.trim();if(!apt){toast('Apartment # required','error');return;}const rec={apt,owner:document.getElementById('fOwner').value.trim(),name:document.getElementById('fName').value.trim(),type:document.getElementById('fType').value,rent:parseFloat(document.getElementById('fRent').value)||0,due:document.getElementById('fDue').value,balance:parseFloat(document.getElementById('fBalance').value)||0,note:document.getElementById('fNote').value.trim()};if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};toast(`Apt ${apt} updated ✓`,'success');}else{data.push({id:nextId++,...rec,history:[],archived:false});toast(`Apt ${apt} added ✓`,'success');}save();closeModal('editModal');renderTable();}
+async function saveTenant(){const id=document.getElementById('editId').value;const apt=document.getElementById('fApt').value.trim();if(!apt){toast('Apartment # required','error');return;}const rec={apt,owner:document.getElementById('fOwner').value.trim(),name:document.getElementById('fName').value.trim(),type:document.getElementById('fType').value,rent:parseFloat(document.getElementById('fRent').value)||0,due:document.getElementById('fDue').value,balance:parseFloat(document.getElementById('fBalance').value)||0,note:document.getElementById('fNote').value.trim()};if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}else{const newRec={id:nextId++,...rec,history:[],archived:false};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}closeModal('editModal');renderTable();}
 
 // ── PAYMENT ────────────────────────────────────────
 function openPayModal(id){const r=data.find(x=>x.id===id);if(!r)return;payType='full';['full','partial','extend'].forEach(t=>document.getElementById('rb-'+t).classList.toggle('selected',t==='full'));document.getElementById('extendDateRow').style.display='none';document.getElementById('payPreviewRow').style.display='none';document.getElementById('payId').value=id;document.getElementById('payAptLabel').textContent=r.apt;document.getElementById('payAmount').value=r.balance>0?r.balance:r.rent;document.getElementById('payDate').value=today();document.getElementById('payNote').value='';document.getElementById('payNewDate').value=r.due||'';const s=dueStatus(r);document.getElementById('payInfoBox').innerHTML=`<div class="pay-info-item"><div class="pi-label">Tenant</div><div class="pi-value">${r.name||'—'}</div></div><div class="pay-info-item"><div class="pi-label">Monthly Rent</div><div class="pi-value">$${(r.rent||0).toLocaleString()}</div></div><div class="pay-info-item"><div class="pi-label">Balance Owed</div><div class="pi-value ${r.balance>0?'overdue':'ok'}">${r.balance>0?'$'+r.balance.toLocaleString():'✓ Paid'}</div></div><div class="pay-info-item"><div class="pi-label">Due Date</div><div class="pi-value ${s==='overdue'?'overdue':''}">${fmtDate(r.due)}</div></div>`;updatePayPreview();openModal('payModal');}
 function selectPayType(t){payType=t;['full','partial','extend'].forEach(x=>document.getElementById('rb-'+x).classList.toggle('selected',x===t));document.getElementById('extendDateRow').style.display=t==='extend'?'':'none';updatePayPreview();}
 function updatePayPreview(){const id=document.getElementById('payId').value;const r=data.find(x=>x.id==id);if(!r)return;const amt=parseFloat(document.getElementById('payAmount').value)||0;let msg='';if(payType==='full'){const nd=nextMonth(r.due);msg=amt>=r.rent?`✓ Full payment. Due → <strong>${fmtDate(nd)}</strong>`:`⚠ $${amt} < rent $${r.rent}. Balance: <strong>$${(r.rent-amt).toFixed(2)}</strong>`;}else if(payType==='partial'){msg=`Partial. New balance: <strong>$${Math.max(0,(r.balance||r.rent)-amt).toFixed(2)}</strong>`;}else if(payType==='extend'){const nd=document.getElementById('payNewDate').value;msg=nd?`Extended to <strong>${fmtDate(nd)}</strong>`:'Select new checkout date.';}document.getElementById('payPreview').innerHTML=msg;document.getElementById('payPreviewRow').style.display=msg?'':'none';}
-function confirmPayment(){const id=document.getElementById('payId').value;const idx=data.findIndex(x=>x.id==id);if(idx<0)return;const r=data[idx];const amt=parseFloat(document.getElementById('payAmount').value)||0;const note=document.getElementById('payNote').value;const dateStr=document.getElementById('payDate').value||today();r.history=r.history||[];r.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — ${payType}${note?' | '+note:''}`});if(payType==='full'){r.balance=amt>=r.rent?0:Math.max(0,r.rent-amt);if(amt>=r.rent)r.due=nextMonth(r.due);}else if(payType==='partial'){r.balance=Math.max(0,(r.balance>0?r.balance:r.rent)-amt);}else if(payType==='extend'){const nd=document.getElementById('payNewDate').value;if(nd)r.due=nd;r.balance=Math.max(0,(r.balance||0)-amt);}save();closeModal('payModal');renderTable();toast(`Payment recorded for Apt ${r.apt} ✓`,'success');if(detailId===r.id)openDetail(r.id);}
+async function confirmPayment(){const id=document.getElementById('payId').value;const idx=data.findIndex(x=>x.id==id);if(idx<0)return;const r=data[idx];const amt=parseFloat(document.getElementById('payAmount').value)||0;const note=document.getElementById('payNote').value;const dateStr=document.getElementById('payDate').value||today();r.history=r.history||[];r.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — ${payType}${note?' | '+note:''}`});if(payType==='full'){r.balance=amt>=r.rent?0:Math.max(0,r.rent-amt);if(amt>=r.rent)r.due=nextMonth(r.due);}else if(payType==='partial'){r.balance=Math.max(0,(r.balance>0?r.balance:r.rent)-amt);}else if(payType==='extend'){const nd=document.getElementById('payNewDate').value;if(nd)r.due=nd;r.balance=Math.max(0,(r.balance||0)-amt);}await save(r);closeModal('payModal');renderTable();toast(`Payment recorded for Apt ${r.apt} ✓`,'success');if(detailId===r.id)openDetail(r.id);}
 
 // ── ARCHIVE ────────────────────────────────────────
-function archiveTenant(id){if(!confirm('Move to archive? Apartment will be marked available.'))return;const idx=data.findIndex(x=>x.id===id);const r=data[idx];archived.unshift({...r,archivedDate:today()});data[idx]={id:r.id,apt:r.apt,owner:r.owner,name:'',type:'available',rent:r.rent,balance:0,due:'',note:'',history:[],archived:false};save();renderTable();toast(`${r.name||'Tenant'} archived. Apt ${r.apt} available.`,'success');if(detailId===id)closeDetail();}
-function restoreTenant(id){const idx=archived.findIndex(x=>x.id===id);if(idx<0)return;const r=archived[idx];const slot=data.findIndex(x=>x.apt===r.apt&&x.type==='available');const res={...r,archived:false,archivedDate:undefined};if(slot>=0)data[slot]=res;else data.push(res);archived.splice(idx,1);save();renderTable();toast(`${r.name||'Tenant'} restored to Apt ${r.apt}`,'success');}
-function deletePermanent(id){if(!confirm('Permanently delete? Cannot be undone.'))return;archived=archived.filter(x=>x.id!==id);save();renderTable();toast('Record deleted.','error');}
+async function archiveTenant(id){if(!confirm('Move to archive? Apartment will be marked available.'))return;const idx=data.findIndex(x=>x.id===id);const r=data[idx];const archivedRec={...r,archived:true,archivedDate:today()};archived.unshift(archivedRec);const blankRec={id:r.id,apt:r.apt,owner:r.owner,name:'',type:'available',rent:r.rent,balance:0,due:'',note:'',history:[],archived:false,archivedDate:''};data[idx]=blankRec;// Save archived version with new id
+const archCopy={...archivedRec,id:nextId++};archived[0]=archCopy;await saveAll([blankRec,archCopy]);renderTable();toast(`${r.name||'Tenant'} archived. Apt ${r.apt} available.`,'success');if(detailId===id)closeDetail();}
+async function restoreTenant(id){const idx=archived.findIndex(x=>x.id===id);if(idx<0)return;const r=archived[idx];const slot=data.findIndex(x=>x.apt===r.apt&&x.type==='available');const res={...r,archived:false,archivedDate:''};if(slot>=0)data[slot]=res;else data.push(res);archived.splice(idx,1);await saveAll([res]);await deleteRecord(id);renderTable();toast(`${r.name||'Tenant'} restored to Apt ${r.apt}`,'success');}
+async function deletePermanent(id){if(!confirm('Permanently delete? Cannot be undone.'))return;archived=archived.filter(x=>x.id!==id);await deleteRecord(id);renderTable();toast('Record deleted.','error');}
 
 // ── DETAIL ─────────────────────────────────────────
 function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id;document.getElementById('dApt').textContent=r.apt;document.getElementById('dName').textContent=r.name||'Vacant';document.getElementById('dOwner').textContent='Owner: '+(r.owner||'—');document.getElementById('dNote').value=r.note||'';const s=dueStatus(r);document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Monthly Rent',r.rent?`$${r.rent.toLocaleString()}`:'—'],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Due / Checkout',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
-function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;save();renderTable();}}
+async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{['editModal','payModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
@@ -760,7 +851,31 @@ function renderReports(){
 
 // ── INIT ───────────────────────────────────────────
 document.getElementById('sortSel').value='due';
-renderTable();
+
+async function boot() {
+  const overlay = document.getElementById('loadingOverlay');
+  try {
+    const ok = await loadAll();
+    if (!ok) {
+      overlay.querySelector('p').textContent = 'Database connection failed. Check console.';
+      return;
+    }
+    // If table is empty, seed with the CSV data
+    if (data.length === 0 && archived.length === 0) {
+      overlay.querySelector('p').textContent = 'First run — loading your data…';
+      const seedData = SEED_DATA;
+      await saveAll(seedData);
+      await loadAll();
+    }
+    overlay.style.display = 'none';
+    renderTable();
+    subscribeRealtime();
+  } catch(e) {
+    console.error('Boot error:', e);
+    overlay.querySelector('p').textContent = 'Connection error: ' + e.message;
+  }
+}
+boot();
 </script>
 </body>
 </html>
