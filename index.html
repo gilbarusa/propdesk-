@@ -1363,17 +1363,17 @@ const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
 function dbRow(r) {
   return {
     id: r.id,
-    apt: r.apt,
-    owner: r.owner,
-    name: r.name,
-    type: r.type,
-    rent: r.rent,
-    balance: r.balance,
+    apt: r.apt || null,
+    owner: r.owner || null,
+    name: r.name || null,
+    type: r.type || 'available',
+    rent: r.rent || 0,
+    balance: r.balance || 0,
     due: r.due || null,
-    note: r.note,
+    note: r.note || null,
     history: r.history || [],
     archived: r.archived || false,
-    archived_date: r.archivedDate || null
+    archived_date: r.archivedDate || r.archived_date || null
   };
 }
 
@@ -1403,7 +1403,11 @@ async function save(record) {
 async function saveAll(records) {
   const rows = records.map(dbRow);
   const { error } = await sb.from('units').upsert(rows, { onConflict: 'id' });
-  if (error) { console.error('Save error:', error); toast('Sync error','error'); }
+  if (error) {
+    console.error('SaveAll error:', error);
+    console.error('First record was:', rows[0]);
+    toast('Sync error: ' + error.message, 'error');
+  }
 }
 
 async function deleteRecord(id) {
@@ -1749,9 +1753,9 @@ async function boot() {
     const ok = await loadAll();
     if (!ok) throw new Error('Failed to load records');
 
-    // Seed active units if empty
-    if (data.length === 0) {
-      msg.textContent = 'First run — seeding 79 active units…';
+    // Seed active units if too few (less than 10 means not properly seeded)
+    if (data.length < 10) {
+      msg.textContent = 'Seeding 79 active units…';
       await saveAll(SEED_DATA);
       await loadAll();
     }
