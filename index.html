@@ -366,6 +366,9 @@ textarea{resize:vertical;min-height:70px;}
           <option value="all">All Years</option>
           <option value="2026">2026</option>
           <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
         </select>
         <select id="histMonth" onchange="renderHistory()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;">
           <option value="all">All Months</option>
@@ -400,13 +403,15 @@ textarea{resize:vertical;min-height:70px;}
         <table id="histTable" style="width:100%;border-collapse:collapse;">
           <thead>
             <tr>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Apt</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Tenant</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Owner</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Type</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Revenue</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Checkout</th>
+              <th onclick="histSort('apt')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-apt">Apt ↕</th>
+              <th onclick="histSort('name')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-name">Tenant ↕</th>
+              <th onclick="histSort('owner')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-owner">Owner ↕</th>
+              <th onclick="histSort('type')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-type">Type ↕</th>
+              <th onclick="histSort('rent')" style="background:var(--surface);padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-rent">Rent ↕</th>
+              <th onclick="histSort('checkin')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkin">Check In ↕</th>
+              <th onclick="histSort('checkout')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkout">Check Out ↕</th>
               <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Note</th>
+              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Edit</th>
             </tr>
           </thead>
           <tbody id="histBody"></tbody>
@@ -414,6 +419,41 @@ textarea{resize:vertical;min-height:70px;}
       </div>
       <div id="histEmpty" style="text-align:center;padding:40px;color:var(--text3);display:none;">No records match your filter.</div>
       <div id="histFooter" style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);background:var(--surface2);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ARCHIVE EDIT MODAL -->
+<div class="modal-overlay" id="archEditModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="apt-badge" id="archEditAptLabel">—</div><h2>Edit Archive Record</h2></div>
+      <button class="modal-close" onclick="closeModal('archEditModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="archEditId">
+      <div class="form-grid">
+        <div class="form-row"><label>Apartment #</label><input type="text" id="aeFApt" oninput="document.getElementById('archEditAptLabel').textContent=this.value||'—'"></div>
+        <div class="form-row"><label>Owner</label><input type="text" id="aeFOwner"></div>
+      </div>
+      <div class="form-row"><label>Tenant Name</label><input type="text" id="aeFName"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Lease Type</label>
+          <select id="aeFType"><option value="long-term">Long Term</option><option value="month-to-month">Month-to-Month</option><option value="short-stay">Short Stay</option></select>
+        </div>
+        <div class="form-row"><label>Rent / Amount</label><input type="number" id="aeFRent" step="0.01"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Check In</label><input type="date" id="aeFCheckin"></div>
+        <div class="form-row"><label>Check Out</label><input type="date" id="aeFCheckout"></div>
+      </div>
+      <div class="form-row"><label>Note</label><textarea id="aeFNote"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="deleteArchiveRecord()">🗑 Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-secondary" onclick="closeModal('archEditModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveArchiveRecord()">Save</button>
     </div>
   </div>
 </div>
@@ -655,7 +695,7 @@ const ARCHIVED_SEED = [
   {id:1057,apt:"426-2",owner:"ERA LT",name:"Archil Shengelia",type:"short-stay",rent:570.0,balance:0,due:"2022-09-26",note:"Via: abnb | Tel: 848-298-4074",history:[{"date": "2022-09-19", "text": "$570.00 \u2014 stay (2022-09-19 \u2192 2022-09-26)"}],archived:true,archived_date:"2022-09-26"},
   {id:1058,apt:"426-4",owner:"ERA LT",name:"Eugene Myatt",type:"short-stay",rent:560.0,balance:0,due:"2022-09-23",note:"Via: abnb | Tel: 267-528-9150",history:[{"date": "2022-09-16", "text": "$560.00 \u2014 stay (2022-09-16 \u2192 2022-09-23)"}],archived:true,archived_date:"2022-09-23"},
   {id:1059,apt:"127",owner:"ERA LT",name:"Shonya Payne-",type:"long-term",rent:1092.0,balance:0,due:"2022-10-07",note:"Via: Lindy | Tel: 215-439-8102",history:[{"date": "2022-06-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$1,092 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-07"},
-  {id:1060,apt:"212",owner:"ERA LT",name:"Metzgar Delanie/Johnson Brandon",type:"long-term",rent:19001839.0,balance:0,due:"2022-10-31",note:"Via: Facebook | Tel: 267-800-5861 | Email: dmetzgar12@gmail.com",history:[{"date": "2022-03-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-04-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-05-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-06-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$19,001,839 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-31"},
+  {id:1060,apt:"212",owner:"ERA LT",name:"Metzgar Delanie/Johnson Brandon",type:"long-term",rent:1900,balance:0,due:"2022-10-31",note:"Via: Facebook | Tel: 267-800-5861 | Email: dmetzgar12@gmail.com",history:[{"date": "2022-03-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-04-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-05-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-06-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$19,001,839 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-31"},
   {id:1061,apt:"225",owner:"ERA LT",name:"Darlyne Ryan",type:"long-term",rent:1076.0,balance:0,due:"2022-11-13",note:"Via: Lindy | Tel: 215-554-4898 | Email: ryan-darlene@aramark.com",history:[{"date": "2022-06-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-11-01", "text": "$1,076 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-11-13"},
   {id:1062,apt:"219",owner:"ERA LT",name:"Atif Nehvi",type:"short-stay",rent:1330.0,balance:0,due:"2022-10-01",note:"Via: abnb | Tel: 647-808-0947",history:[{"date": "2022-09-15", "text": "$1,330.00 \u2014 stay (2022-09-15 \u2192 2022-10-01)"}],archived:true,archived_date:"2022-10-01"},
   {id:1063,apt:"426-1",owner:"ERA LT",name:"Mariana Peralta",type:"long-term",rent:9600.0,balance:0,due:"2022-10-01",note:"Via: abnb | Tel: 347-220-4646",history:[{"date": "2022-06-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$9,600 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-01"},
@@ -900,7 +940,7 @@ const ARCHIVED_SEED = [
   {id:1302,apt:"202",owner:"ERA LT",name:"Francisca Ronay",type:"short-stay",rent:1816.9,balance:0,due:"2024-07-09",note:"Via: abnb | Tel: 9545405855",history:[{"date": "2024-06-25", "text": "$1,816.90 \u2014 stay (2024-06-25 \u2192 2024-07-09)"}],archived:true,archived_date:"2024-07-09"},
   {id:1303,apt:"330",owner:"ERA LT",name:"Lamanda Davis",type:"short-stay",rent:767.16,balance:0,due:"2024-07-09",note:"Via: abnb | Tel: 4843007241",history:[{"date": "2024-06-21", "text": "$767.16 \u2014 stay (2024-06-21 \u2192 2024-07-09)"}],archived:true,archived_date:"2024-07-09"},
   {id:1304,apt:"314",owner:"ERA LT",name:"Joseph Dinkel",type:"short-stay",rent:2477.57,balance:0,due:"2024-07-10",note:"Via: abnb | Tel: 727-643-9982",history:[{"date": "2024-06-10", "text": "$2,477.57 \u2014 stay (2024-06-10 \u2192 2024-07-10)"}],archived:true,archived_date:"2024-07-10"},
-  {id:1305,apt:"331",owner:"ERA LT",name:"Fatiha",type:"long-term",rent:1200628180705.0,balance:0,due:"2024-07-13",note:"",history:[{"date": "2024-06-01", "text": "$1,200,628,180,705 \u2014 monthly (est.)"}, {"date": "2024-07-01", "text": "$1,200,628,180,705 \u2014 monthly (est.)"}],archived:true,archived_date:"2024-07-13"},
+  {id:1305,apt:"331",owner:"ERA LT",name:"Fatiha",type:"long-term",rent:1200,balance:0,due:"2024-07-13",note:"",history:[{"date": "2024-06-01", "text": "$1,200,628,180,705 \u2014 monthly (est.)"}, {"date": "2024-07-01", "text": "$1,200,628,180,705 \u2014 monthly (est.)"}],archived:true,archived_date:"2024-07-13"},
   {id:1306,apt:"Melrose B2",owner:"Melrose Properties",name:"Gustavo Gomez",type:"short-stay",rent:3425.6,balance:0,due:"2024-07-13",note:"Via: abnb | Tel: 7544572683",history:[{"date": "2024-06-16", "text": "$3,425.60 \u2014 stay (2024-06-16 \u2192 2024-07-13)"}],archived:true,archived_date:"2024-07-13"},
   {id:1307,apt:"426-4",owner:"ERA LT",name:"Nicole Gambone",type:"short-stay",rent:809.04,balance:0,due:"2024-07-14",note:"Via: abnb | Tel: 6098458895",history:[{"date": "2024-07-06", "text": "$809.04 \u2014 stay (2024-07-06 \u2192 2024-07-14)"}],archived:true,archived_date:"2024-07-14"},
   {id:1308,apt:"230",owner:"ERA LT",name:"Amnon Saad",type:"long-term",rent:900.0,balance:0,due:"2024-07-15",note:"",history:[{"date": "2024-07-01", "text": "$900 \u2014 monthly (est.)"}],archived:true,archived_date:"2024-07-15"},
@@ -1528,51 +1568,156 @@ function showPage(p,el){
 }
 
 // ── ARCHIVE HISTORY ────────────────────────────────
+// ── ARCHIVE HISTORY ────────────────────────────────
+let histSortCol = 'checkout';
+let histSortDir = -1; // -1 = desc (newest first)
+
+function histSort(col) {
+  if (histSortCol === col) histSortDir *= -1;
+  else { histSortCol = col; histSortDir = col === 'checkin' || col === 'checkout' ? -1 : 1; }
+  // update header indicators
+  document.querySelectorAll('[id^="hth-"]').forEach(th => {
+    const c = th.id.replace('hth-','');
+    th.style.color = c === histSortCol ? 'var(--accent2)' : 'var(--text3)';
+    th.textContent = th.textContent.replace(/ [↑↓↕]$/,'') + (c === histSortCol ? (histSortDir === 1 ? ' ↑' : ' ↓') : ' ↕');
+  });
+  renderHistory();
+}
+
 function renderHistory(){
-  const q=(document.getElementById('histSearch').value||'').toLowerCase();
-  const yr=document.getElementById('histYear').value;
-  const mo=document.getElementById('histMonth').value;
-  const tp=document.getElementById('histType').value;
-  const ow=document.getElementById('histOwner').value;
+  const q  = (document.getElementById('histSearch').value||'').toLowerCase();
+  const yr = document.getElementById('histYear').value;
+  const mo = document.getElementById('histMonth').value;
+  const tp = document.getElementById('histType').value;
+  const ow = document.getElementById('histOwner').value;
 
-  let rows=[...archived];
-  if(q)rows=rows.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.apt||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
-  if(yr!=='all')rows=rows.filter(r=>(r.archivedDate||'').startsWith(yr));
-  if(mo!=='all')rows=rows.filter(r=>{const d=r.archivedDate||'';return d.length>=7&&d.substring(5,7)===mo;});
-  if(tp!=='all')rows=rows.filter(r=>r.type===tp);
-  if(ow!=='all')rows=rows.filter(r=>r.owner===ow);
+  let rows = [...archived];
 
-  rows.sort((a,b)=>(b.archivedDate||'').localeCompare(a.archivedDate||''));
+  if(q) rows = rows.filter(r =>
+    (r.name||'').toLowerCase().includes(q) ||
+    (r.apt||'').toLowerCase().includes(q) ||
+    (r.owner||'').toLowerCase().includes(q));
 
-  const totalRev=rows.reduce((s,r)=>{
-    const hist=r.history||[];
-    return s+hist.reduce((hs,h)=>{const m=h.text.match(/\$([\d,]+)/);return hs+(m?parseInt(m[1].replace(/,/g,''),10):0);},0);
-  },0);
+  // Filter by checkin date (stored in r.due field for archived = checkout, checkin in note or history)
+  // Use archivedDate as checkout, due as checkout, checkin derived from history first date
+  const getCheckin = r => {
+    const hist = r.history || [];
+    if (hist.length) return hist[hist.length-1].date || '';
+    return r.archivedDate || '';
+  };
+  const getCheckout = r => r.archivedDate || r.due || '';
+
+  if(yr !== 'all') {
+    rows = rows.filter(r => {
+      const ci = getCheckin(r); const co = getCheckout(r);
+      return ci.startsWith(yr) || co.startsWith(yr);
+    });
+  }
+  if(mo !== 'all') {
+    const pad = mo.padStart(2,'0');
+    rows = rows.filter(r => {
+      const ci = getCheckin(r); const co = getCheckout(r);
+      return (ci.length>=7 && ci.substring(5,7)===pad) ||
+             (co.length>=7 && co.substring(5,7)===pad);
+    });
+  }
+  if(tp !== 'all') rows = rows.filter(r => r.type === tp);
+  if(ow !== 'all') rows = rows.filter(r => r.owner === ow);
+
+  // Sort
+  rows.sort((a,b) => {
+    let va, vb;
+    if(histSortCol==='apt')    { va=a.apt||''; vb=b.apt||''; return histSortDir*va.localeCompare(vb,undefined,{numeric:true}); }
+    if(histSortCol==='name')   { va=a.name||''; vb=b.name||''; return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='owner')  { va=a.owner||''; vb=b.owner||''; return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='type')   { va=a.type||''; vb=b.type||''; return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='rent')   { return histSortDir*((a.rent||0)-(b.rent||0)); }
+    if(histSortCol==='checkin'){ va=getCheckin(a); vb=getCheckin(b); return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='checkout'){ va=getCheckout(a); vb=getCheckout(b); return histSortDir*va.localeCompare(vb); }
+    return 0;
+  });
+
+  const totalRev = rows.reduce((s,r) => s + (r.rent||0), 0);
 
   document.getElementById('histKpis').innerHTML=`
     <div class="kpi-card kv-accent"><div class="kpi-label">Filtered Records</div><div class="kpi-value">${rows.length}</div><div class="kpi-sub">past stays / tenants</div></div>
-    <div class="kpi-card kv-green"><div class="kpi-label">Total Revenue</div><div class="kpi-value">${fmtMoney(totalRev)}</div><div class="kpi-sub">from payment history</div></div>
+    <div class="kpi-card kv-green"><div class="kpi-label">Total Revenue</div><div class="kpi-value">${fmtMoney(totalRev)}</div><div class="kpi-sub">sum of rent amounts</div></div>
     <div class="kpi-card kv-blue"><div class="kpi-label">Short Stays</div><div class="kpi-value">${rows.filter(r=>r.type==='short-stay').length}</div><div class="kpi-sub">in filtered set</div></div>
     <div class="kpi-card kv-orange"><div class="kpi-label">Long / M-to-M</div><div class="kpi-value">${rows.filter(r=>r.type!=='short-stay').length}</div><div class="kpi-sub">in filtered set</div></div>`;
 
-  const tbody=document.getElementById('histBody');
-  document.getElementById('histEmpty').style.display=rows.length?'none':'';
-  tbody.innerHTML=rows.map(r=>{
-    const hist=r.history||[];
-    const rev=hist.reduce((s,h)=>{const m=h.text.match(/\$([\d,]+)/);return s+(m?parseInt(m[1].replace(/,/g,''),10):0);},0);
-    const histTip=hist.slice(0,3).map(h=>`${h.date}: ${h.text}`).join('\n');
-    return`<tr style="border-bottom:1px solid var(--border);transition:background .1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+  document.getElementById('histEmpty').style.display = rows.length ? 'none' : '';
+  document.getElementById('histBody').innerHTML = rows.map(r => {
+    const ci = getCheckin(r);
+    const co = getCheckout(r);
+    return `<tr style="border-bottom:1px solid var(--border);transition:background .1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 12px;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2)">${r.apt}</td>
-      <td style="padding:10px 12px;font-size:12px;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
-      <td style="padding:10px 12px;font-size:11px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.owner}</td>
+      <td style="padding:10px 12px;font-size:12px;font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
+      <td style="padding:10px 12px;font-size:11px;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.owner||'—'}</td>
       <td style="padding:10px 12px">${typeBadge(r.type)}</td>
-      <td style="padding:10px 12px;text-align:right;color:var(--green);font-weight:500;font-size:12px" title="${histTip}">${rev>0?fmtMoney(rev):'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;color:var(--text3)">${fmtDate(r.archivedDate)}</td>
-      <td style="padding:10px 12px;font-size:11px;color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic">${r.note||''}</td>
+      <td style="padding:10px 12px;text-align:right;color:var(--green);font-weight:500;font-size:12px">${r.rent?fmtMoney(r.rent):'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--text3)">${fmtDate(ci)}</td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--text3)">${fmtDate(co)}</td>
+      <td style="padding:10px 12px;font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic">${r.note||''}</td>
+      <td style="padding:10px 12px">
+        <button class="icon-btn ib-edit" title="Edit" onclick="openArchiveEdit(${r.id})" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;">✏️</button>
+      </td>
     </tr>`;
   }).join('');
 
-  document.getElementById('histFooter').textContent=`Showing ${rows.length} records · Total revenue: ${fmtMoney(totalRev)}`;
+  document.getElementById('histFooter').textContent = `Showing ${rows.length} records · Total: ${fmtMoney(totalRev)}`;
+}
+
+function openArchiveEdit(id) {
+  const r = archived.find(x => x.id === id); if(!r) return;
+  document.getElementById('archEditId').value = id;
+  document.getElementById('archEditAptLabel').textContent = r.apt;
+  document.getElementById('aeFApt').value     = r.apt||'';
+  document.getElementById('aeFOwner').value   = r.owner||'';
+  document.getElementById('aeFName').value    = r.name||'';
+  document.getElementById('aeFType').value    = r.type||'short-stay';
+  document.getElementById('aeFRent').value    = r.rent||'';
+  document.getElementById('aeFNote').value    = r.note||'';
+  // checkin from history last entry, checkout from archivedDate
+  const hist = r.history||[];
+  const ci = hist.length ? hist[hist.length-1].date : '';
+  document.getElementById('aeFCheckin').value  = ci||'';
+  document.getElementById('aeFCheckout').value = r.archivedDate||r.due||'';
+  openModal('archEditModal');
+}
+
+async function saveArchiveRecord() {
+  const id  = document.getElementById('archEditId').value;
+  const idx = archived.findIndex(x=>x.id==id); if(idx<0) return;
+  const r   = archived[idx];
+  const checkout = document.getElementById('aeFCheckout').value;
+  const checkin  = document.getElementById('aeFCheckin').value;
+  const rent     = parseFloat(document.getElementById('aeFRent').value)||0;
+  archived[idx] = {
+    ...r,
+    apt:          document.getElementById('aeFApt').value.trim(),
+    owner:        document.getElementById('aeFOwner').value.trim(),
+    name:         document.getElementById('aeFName').value.trim(),
+    type:         document.getElementById('aeFType').value,
+    rent,
+    note:         document.getElementById('aeFNote').value.trim(),
+    archivedDate: checkout,
+    due:          checkout,
+    history:      checkin ? [{date:checkin, text:`$${rent.toLocaleString()} — stay`}] : r.history,
+  };
+  await save(archived[idx]);
+  closeModal('archEditModal');
+  renderHistory();
+  toast('Archive record updated ✓','success');
+}
+
+async function deleteArchiveRecord() {
+  const id = document.getElementById('archEditId').value;
+  if(!confirm('Permanently delete this archive record?')) return;
+  archived = archived.filter(x=>x.id!=id);
+  await deleteRecord(parseInt(id));
+  closeModal('archEditModal');
+  renderHistory();
+  toast('Record deleted.','error');
 }
 
 // ══════════════════════════════════════════════════════
