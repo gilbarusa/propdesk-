@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PropDesk — Property Manager</title>
+<title>Chelbourne — Property Manager</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
@@ -234,7 +234,7 @@ textarea{resize:vertical;min-height:70px;}
 <body>
 
 <header class="header">
-  <div class="brand"><h1>PropDesk</h1><span class="brand-sub">Property Manager</span></div>
+  <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
@@ -432,19 +432,88 @@ textarea{resize:vertical;min-height:70px;}
 //  DATA
 // ══════════════════════════════════════════════════════
 let data = JSON.parse(localStorage.getItem('propdesk_data')||'null') || [
-  {id:1,apt:'1A',owner:'Cohen Properties', name:'Sarah Mitchell',type:'long-term',     rent:2200,balance:0,   due:'2025-04-01',note:'Quiet tenant',history:[{date:'2025-03-01',text:'$2,200 — full'}],archived:false},
-  {id:2,apt:'1B',owner:'Cohen Properties', name:'James Rivera',  type:'month-to-month',rent:1850,balance:1850,due:'2025-03-15',note:'',history:[],archived:false},
-  {id:3,apt:'2A',owner:'Levi Holdings',    name:'',              type:'available',     rent:2100,balance:0,   due:'',          note:'Freshly painted',history:[],archived:false},
-  {id:4,apt:'2B',owner:'Levi Holdings',    name:'Maria Santos',  type:'short-stay',    rent:3200,balance:800, due:'2025-04-10',note:'Check-in 3/1',history:[{date:'2025-03-01',text:'$2,400 — partial'}],archived:false},
-  {id:5,apt:'3A',owner:'Green Realty',     name:'David Kim',     type:'long-term',     rent:1950,balance:0,   due:'2025-04-01',note:'',history:[{date:'2025-03-01',text:'$1,950 — full'}],archived:false},
-  {id:6,apt:'3B',owner:'Green Realty',     name:'Emily Chen',    type:'month-to-month',rent:2000,balance:500, due:'2025-03-20',note:'Wants to extend',history:[{date:'2025-03-01',text:'$1,500 — partial'}],archived:false},
-  {id:7,apt:'4A',owner:'BNY Investments',  name:'',              type:'available',     rent:2400,balance:0,   due:'',          note:'',history:[],archived:false},
-  {id:8,apt:'4B',owner:'BNY Investments',  name:'Michael Torres',type:'short-stay',    rent:2750,balance:0,   due:'2025-04-05',note:'Extended once',history:[{date:'2025-03-01',text:'$2,750 — full'}],archived:false},
-  {id:9,apt:'5A',owner:'Rosenberg LLC',    name:'Anna Novak',    type:'long-term',     rent:2300,balance:2300,due:'2025-03-10',note:'Call before visiting',history:[],archived:false},
-  {id:10,apt:'5B',owner:'Rosenberg LLC',   name:'Robert Johnson',type:'month-to-month',rent:1800,balance:0,   due:'2025-04-01',note:'',history:[{date:'2025-03-01',text:'$1,800 — full'}],archived:false},
+  {id:1,apt:"223",owner:"ERA LT",name:"Chris Kennedy",type:"long-term",rent:2600.0,balance:2600.0,due:"2026-03-10",note:"Via: Booking | Tel: 2134141259",history:[],archived:false},
+  {id:2,apt:"314",owner:"ERA LT",name:"Amira Glover",type:"short-stay",rent:823.44,balance:0.0,due:"2026-03-23",note:"Via: Vrbo | Tel: 14455445925 | Email: amiraglover@yahoo.com",history:[],archived:false},
+  {id:3,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"short-stay",rent:2984.44,balance:0.0,due:"2026-03-24",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
+  {id:4,apt:"Montg 5",owner:"Elkins LT",name:"Dr Shradha Kakde",type:"short-stay",rent:1762.41,balance:0.0,due:"2026-03-24",note:"Via: Airbnb | Tel: 6892504273 | Email: Meghnathkakde11@gmail.com",history:[],archived:false},
+  {id:5,apt:"215",owner:"ERA LT",name:"Irina Stesel",type:"short-stay",rent:1903.2,balance:0.0,due:"2026-03-25",note:"Via: Airbnb | Tel: 17732970907 | Email: Istesel@gmail.com",history:[],archived:false},
+  {id:6,apt:"426-3",owner:"ERA LT",name:"Danene Bowman",type:"short-stay",rent:1504.75,balance:0.0,due:"2026-03-27",note:"Via: Airbnb | Tel: 12675842987 | Email: Warritlam@gmail.com",history:[],archived:false},
+  {id:7,apt:"317",owner:"ERA LT",name:"Carol Tyndale",type:"month-to-month",rent:2700.0,balance:0.0,due:"2026-03-27",note:"Via: Airbnb | Tel: 2675951099 | Email: Carol6@comcost.net",history:[],archived:false},
+  {id:8,apt:"207",owner:"ERA LT",name:"Jerry",type:"short-stay",rent:770.0,balance:0.0,due:"2026-03-29",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
+  {id:9,apt:"208",owner:"ERA LT",name:"Thomas",type:"short-stay",rent:770.0,balance:0.0,due:"2026-03-29",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
+  {id:10,apt:"205",owner:"ERA LT",name:"Jerry",type:"short-stay",rent:770.0,balance:0.0,due:"2026-03-29",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
+  {id:11,apt:"232",owner:"ERA LT",name:"Oleh Chubatiuk",type:"month-to-month",rent:2300.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 258-8686 | Email: olehchubatiuk@gmail.com",history:[],archived:false},
+  {id:12,apt:"426-4",owner:"ERA LT",name:"Dajana Ford",type:"long-term",rent:1830.0,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: (215) 669-4696 /2156694696 | Email: daybella126@gmail.com",history:[],archived:false},
+  {id:13,apt:"Montg 6",owner:"Elkins LT",name:"Victoria Deans",type:"long-term",rent:1650.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (484) 250-9741 | Email: deansvictoria5@gmail.com",history:[],archived:false},
+  {id:14,apt:"Montg 4",owner:"Elkins LT",name:"Lashaie N. Lee Lewis",type:"long-term",rent:1930.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (267) 824-0067 | Email: lashaielee@gmail.com",history:[],archived:false},
+  {id:15,apt:"323",owner:"ERA LT",name:"Lesia Riabkova",type:"long-term",rent:1800.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (773) 499-2003 | Email: lesyariabkova80@gmail.com",history:[],archived:false},
+  {id:16,apt:"121",owner:"ERA LT",name:"Amnon Saad",type:"long-term",rent:1200.0,balance:0.0,due:"2026-03-31",note:"Via: Lindy",history:[],archived:false},
+  {id:17,apt:"Melrose CH",owner:"Melrose Properties",name:"Otar Khaniashvili",type:"long-term",rent:2350.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (551) 587-4824 | Email: otootookh@gmail.com",history:[],archived:false},
+  {id:18,apt:"426-1",owner:"ERA LT",name:"Pavel Artyshevskii",type:"long-term",rent:2070.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 437-1645 | Email: freedom202244@gmail.com",history:[],archived:false},
+  {id:19,apt:"329",owner:"ERA LT",name:"Vitalii Savonenko",type:"month-to-month",rent:1835.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (215) 960-6999 | Email: vitaly1974s@gmail.com",history:[],archived:false},
+  {id:20,apt:"311",owner:"ERA LT",name:"Vladimir Fominykh",type:"long-term",rent:1830.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: 845-873-2725 | Email: vovowner@gmail.com",history:[],archived:false},
+  {id:21,apt:"Montg Studio B",owner:"Elkins LT",name:"Sergey Lobodin",type:"long-term",rent:1000.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (215) 3076841 | Email: kachuyea@arcadia.edu",history:[],archived:false},
+  {id:22,apt:"211",owner:"ERA LT",name:"Giorgi Devnosadze",type:"long-term",rent:1600.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (732) 228-2069 | Email: devnosadze91@gmail.com",history:[],archived:false},
+  {id:23,apt:"127",owner:"ERA LT",name:"Maksim Fursov",type:"long-term",rent:1850.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 336-3421 | Email: maksonf1259@gmail.com",history:[],archived:false},
+  {id:24,apt:"Montg 1",owner:"Elkins LT",name:"Deborah Massaud",type:"long-term",rent:1650.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (215) 696-3732 | Email: ndzajs6@comcast.net",history:[],archived:false},
+  {id:25,apt:"Montg  10",owner:"Elkins LT",name:"Danielle Corrado",type:"long-term",rent:2100.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (561) 578-2873 | Email: daniellencorrado@gmail.com",history:[],archived:false},
+  {id:26,apt:"Melrose A2",owner:"Melrose Properties",name:"Renat Sakiev",type:"long-term",rent:1600.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (717) 434-0879 Nargiza 445-500-93-33, 717-885-42-58 | Email: tonimontana0009@icloud.com",history:[],archived:false},
+  {id:27,apt:"222",owner:"ERA LT",name:"Kevin Smith",type:"long-term",rent:2400.0,balance:0.0,due:"2026-03-31",note:"Via: apartments com | Tel: (267) 253-1289 | Email: kevin_8379@msn.com",history:[],archived:false},
+  {id:28,apt:"122",owner:"ERA LT",name:"Ekaterina Shakhova",type:"long-term",rent:2060.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: 215-509-8997 | Email: shakhova.katarina@gmail.com",history:[],archived:false},
+  {id:29,apt:"325",owner:"ERA LT",name:"Naijeya Shykye Lyons",type:"long-term",rent:1450.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (267) 588-3026 | Email: n.lyons6998@gmail.com",history:[],archived:false},
+  {id:30,apt:"219",owner:"ERA LT",name:"SiNing Wang",type:"long-term",rent:3350.0,balance:0.0,due:"2026-03-31",note:"Tel: (646) 881-8428 | Email: 3273215917@qq.com",history:[],archived:false},
+  {id:31,apt:"Montg #1A",owner:"Elkins LT",name:"Marissa Bluestine / Joshua Bluestine",type:"month-to-month",rent:1220.0,balance:0.0,due:"2026-03-31",note:"Via: Facebook | Tel: (215) 740-8211 | Email: joshbforschool@gmail.com",history:[],archived:false},
+  {id:32,apt:"230",owner:"ERA LT",name:"Farrukh Kurbanov",type:"long-term",rent:1800.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (445) 888-1315 | Email: kurbanovfarrukh662@gmail.com",history:[],archived:false},
+  {id:33,apt:"Montg 7",owner:"Elkins LT",name:"Kristina Newton",type:"long-term",rent:1820.0,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: (267) 983-8094 | Email: knewton37@gmail.com",history:[],archived:false},
+  {id:34,apt:"203",owner:"ERA LT",name:"Franz Noel",type:"long-term",rent:2450.0,balance:0.0,due:"2026-03-31",note:"Via: renter.com | Tel: (267) 408-7982 | Email: FRANTZN686@GMAIL.COM",history:[],archived:false},
+  {id:35,apt:"Montg 1B",owner:"Elkins LT",name:"Bhargavkumar Chaudhary",type:"long-term",rent:1275.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (215) 385-4685 | Email: bhargavchaudhary395@gmail.com",history:[],archived:false},
+  {id:36,apt:"220",owner:"ERA LT",name:"David Zarandia",type:"month-to-month",rent:1450.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 979-4540 | Email: datazarandia@yahoo.com",history:[],archived:false},
+  {id:37,apt:"128",owner:"ERA LT",name:"Dawn Mccoy",type:"short-stay",rent:1722.02,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: 2157677174 | Email: Dawnmccoy3288@yahoo.com",history:[],archived:false},
+  {id:38,apt:"225",owner:"ERA LT",name:"Tyvesha Jackson",type:"short-stay",rent:3700.04,balance:0.0,due:"2026-03-31",note:"Via: Vrbo | Tel: 2673063019 | Email: chocolatethai27@gmail.com",history:[],archived:false},
+  {id:39,apt:"Montg 3",owner:"Elkins LT",name:"Darron Wilson",type:"short-stay",rent:2884.7,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: 12156178005 | Email: darron.wilson@comhar.org",history:[],archived:false},
+  {id:40,apt:"111",owner:"ERA LT",name:"Kristen Brooker",type:"month-to-month",rent:2500.0,balance:0.0,due:"2026-04-02",note:"Via: Zillow | Tel: (603) 359-0916 | Email: kristenbrooker323@gmail.com",history:[],archived:false},
+  {id:41,apt:"Montg 2",owner:"Elkins LT",name:"Gina Krier",type:"month-to-month",rent:2850.0,balance:0.0,due:"2026-04-04",note:"Via: Airbnb | Tel: (267) 716-5106 | Email: gmkrier@gmail.com",history:[],archived:false},
+  {id:42,apt:"Montg 5B",owner:"Elkins LT",name:"Hider Shaaban",type:"short-stay",rent:1894.76,balance:0.0,due:"2026-04-06",note:"Via: Airbnb | Tel: 2157895616 | Email: aloffreda23@gmail.com",history:[],archived:false},
+  {id:43,apt:"Montg 8",owner:"Elkins LT",name:"Justin Krebs",type:"month-to-month",rent:1100.0,balance:0.0,due:"2026-04-09",note:"Via: FF | Tel: (605) 430-6888 | Email: jtk1996@hotmail.com",history:[],archived:false},
+  {id:44,apt:"Retail Fox Chase",owner:"Fox Chase Properties",name:"Maryam Gurbandurdyyeva",type:"long-term",rent:1175.0,balance:0.0,due:"2026-04-11",note:"Via: facebook | Tel: (267) 779-0102 | Email: evangelinas1210@gmail.com",history:[],archived:false},
+  {id:45,apt:"Fox Chase  2",owner:"Fox Chase Properties",name:"Gabrielle Pereira",type:"short-stay",rent:1846.32,balance:0.0,due:"2026-04-13",note:"Via: Airbnb | Tel: 12039196929 | Email: Arthur.oliveira0294@gmail.com",history:[],archived:false},
+  {id:46,apt:"426-Office",owner:"ERA LT",name:"Clamira Smith",type:"long-term",rent:1450.0,balance:0.0,due:"2026-04-15",note:"Via: facebook | Tel: (267) 597-4656 | Email: clamirasmith@icloud.com",history:[],archived:false},
+  {id:47,apt:"112",owner:"ERA LT",name:"Damaris Suyapa Bejarano Reyes",type:"short-stay",rent:2535.84,balance:0.0,due:"2026-04-17",note:"Via: Airbnb | Email: Afaby8224@gmail.com",history:[],archived:false},
+  {id:48,apt:"221",owner:"ERA LT",name:"Miesha Sassone",type:"month-to-month",rent:1750.0,balance:0.0,due:"2026-04-21",note:"Via: FF | Tel: (724) 504-2775 | Email: mieshasassone@gmail.com",history:[],archived:false},
+  {id:49,apt:"Montg 9",owner:"Elkins LT",name:"Whitney Diane Rustin",type:"long-term",rent:2250.0,balance:0.0,due:"2026-04-25",note:"Via: Zillow | Tel: (267) 267-1173 | Email: whitneyrustin@gmail.com",history:[],archived:false},
+  {id:50,apt:"330",owner:"ERA LT",name:"Tetiana Holoborodko",type:"short-stay",rent:2986.91,balance:0.0,due:"2026-04-30",note:"Via: Airbnb | Tel: 380674923971 | Email: kiri4enkototiana@gmail.com",history:[],archived:false},
+  {id:51,apt:"Fox Chase  1",owner:"Fox Chase Properties",name:"Richard Odonnell",type:"short-stay",rent:8296.24,balance:0.0,due:"2026-04-30",note:"Via: Vrbo | Tel: 14046260337 | Email: Rodonnell3560dows@gmail.com",history:[],archived:false},
+  {id:52,apt:"210",owner:"ERA LT",name:"Joe Masalta",type:"short-stay",rent:7191.96,balance:0.0,due:"2026-06-01",note:"Via: Airbnb | Tel: 267-615-4780 | Email: joemasalta5326@gmail.com",history:[],archived:false},
+  {id:53,apt:"Melrose C2",owner:"Melrose Properties",name:"Brian Rodger",type:"long-term",rent:7346.42,balance:0.0,due:"2026-06-28",note:"Via: Airbnb | Tel: 17633398361 | Email: Brian.rodger@astontech.com",history:[],archived:false},
+  {id:54,apt:"206",owner:"ERA LT",name:"Maureen Kacillas",type:"long-term",rent:7600.95,balance:0.0,due:"2026-06-30",note:"Via: Airbnb | Tel: 15705924712 | Email: Salim.Akbar.2025@gmail.com",history:[],archived:false},
+  {id:55,apt:"131",owner:"ERA LT",name:"Randy / Robert Keppler",type:"long-term",rent:2500.0,balance:0.0,due:"2026-12-12",note:"Tel: (267) 680-5837 | Email: rschumacher148@gmail.com",history:[],archived:false},
+  {id:56,apt:"132",owner:"ERA LT",name:"Sheriie Panichelli",type:"long-term",rent:0.0,balance:0.0,due:"",note:"Tel: 2674081128 | Email: sherriepanic18@gmail.com",history:[],archived:false},
+  {id:57,apt:"320",owner:"ERA LT",name:"Taron Stokes",type:"long-term",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:58,apt:"Melrose B1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:59,apt:"331",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:60,apt:"115",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:61,apt:"202",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:62,apt:"318",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:63,apt:"212",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:64,apt:"301",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:65,apt:"332",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:66,apt:"305",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:67,apt:"310",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:68,apt:"302",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:69,apt:"Melrose C1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:70,apt:"Melrose A1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:71,apt:"Melrose B2",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:72,apt:"426-2",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:73,apt:"426-Studio",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:74,apt:"Garage 1",owner:"Montgomery Garages",name:"Mark Levitt",type:"month-to-month",rent:90.0,balance:90.0,due:"2024-09-30",note:"Via: original | Tel: (267) 968-9968 | Email: makoesq@gmail.com",history:[],archived:false},
+  {id:75,apt:"Garage 2",owner:"Montgomery Garages",name:"Andrea Berger Bratman",type:"month-to-month",rent:80.0,balance:80.0,due:"2025-10-31",note:"Via: original | Tel: (610) 304-8590 | Email: endlessideas@att.net",history:[],archived:false},
+  {id:76,apt:"Garage 3",owner:"Montgomery Garages",name:"Andrea Berger Bratman",type:"month-to-month",rent:80.0,balance:80.0,due:"2025-10-31",note:"Via: original | Tel: (610) 304-8590 | Email: endlessideas@att.net",history:[],archived:false},
+  {id:77,apt:"Garage 4",owner:"Montgomery Garages",name:"",type:"month-to-month",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
+  {id:78,apt:"Garage 5",owner:"Montgomery Garages",name:"Deborah Massaud",type:"month-to-month",rent:74.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (215) 696-3732 | Email: ndzajs6@comcast.net",history:[],archived:false},
+  {id:79,apt:"205",owner:"ERA LT",name:"Kate Bergan",type:"long-term",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false}
 ];
 let archived = JSON.parse(localStorage.getItem('propdesk_archived')||'[]');
-let nextId = Math.max(10,...data.map(d=>d.id),...(archived.length?archived.map(d=>d.id):[0]))+1;
+let nextId = Math.max(80,...data.map(d=>d.id),...(archived.length?archived.map(d=>d.id):[0]))+1;
 let currentStatFilter='all', currentTypeFilter='all', detailId=null, payType='full';
 let reportMonth=new Date().getMonth(), reportYear=new Date().getFullYear();
 let typeChartInst=null, collChartInst=null, trendChartInst=null;
