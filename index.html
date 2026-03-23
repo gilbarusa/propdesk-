@@ -1418,6 +1418,9 @@ function dbRow(r) {
 }
 
 function fromRow(r) {
+  const hist = Array.isArray(r.history) ? r.history : [];
+  // For short stays, checkin = first history entry date; for long-term = first history date
+  const checkinDate = hist.length ? hist[0].date : '';
   return {
     id: r.id,
     apt: r.apt || '',
@@ -1428,9 +1431,10 @@ function fromRow(r) {
     balance: parseFloat(r.balance) || 0,
     due: r.due || '',
     note: r.note || '',
-    history: Array.isArray(r.history) ? r.history : [],
+    history: hist,
     archived: r.archived || false,
-    archivedDate: r.archived_date || ''
+    archivedDate: r.archived_date || r.due || '',
+    checkinDate: checkinDate,
   };
 }
 
@@ -1598,13 +1602,7 @@ function renderHistory(){
     (r.apt||'').toLowerCase().includes(q) ||
     (r.owner||'').toLowerCase().includes(q));
 
-  // Filter by checkin date (stored in r.due field for archived = checkout, checkin in note or history)
-  // Use archivedDate as checkout, due as checkout, checkin derived from history first date
-  const getCheckin = r => {
-    const hist = r.history || [];
-    if (hist.length) return hist[hist.length-1].date || '';
-    return r.archivedDate || '';
-  };
+  const getCheckin  = r => r.checkinDate || r.archivedDate || '';
   const getCheckout = r => r.archivedDate || r.due || '';
 
   if(yr !== 'all') {
@@ -1898,7 +1896,16 @@ async function boot() {
     const ok = await loadAll();
     if (!ok) throw new Error('Failed to load records');
 
-    // Seed active units if too few (less than 10 means not properly seeded)
+    // Fix any bad records (rent > 50000 = phone number was grabbed instead)
+    const badRecs = archived.filter(r => r.rent > 50000);
+    if (badRecs.length > 0) {
+      for (const r of badRecs) {
+        await sb.from('units').update({ rent: 0 }).eq('id', r.id);
+      }
+      await loadAll();
+    }
+
+    // Seed active units if too few
     if (data.length < 10) {
       msg.textContent = 'Seeding 79 active units…';
       await saveAll(SEED_DATA);
