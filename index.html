@@ -534,7 +534,9 @@ let typeChartInst=null, collChartInst=null, trendChartInst=null;
 // ── SUPABASE ───────────────────────────────────────
 const SUPA_URL = 'https://iwohrvkcodqvyoooxzmt.supabase.co';
 const SUPA_KEY = 'sb_publishable_WklQ-t86PnXN5u_kHyeoow_kWESXQ6f';
-const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false }
+});
 
 function dbRow(r) {
   return {
@@ -589,11 +591,14 @@ async function deleteRecord(id) {
 
 async function loadAll() {
   const { data: rows, error } = await sb.from('units').select('*').order('id');
-  if (error) { console.error('Load error:', error); return false; }
+  if (error) {
+    console.error('Load error:', error);
+    throw new Error(error.message || 'Failed to load from database');
+  }
   const all = rows.map(fromRow);
   data = all.filter(r => !r.archived);
   archived = all.filter(r => r.archived);
-  nextId = Math.max(80, ...all.map(r => r.id)) + 1;
+  nextId = Math.max(80, ...all.map(r => r.id), 80) + 1;
   return true;
 }
 
@@ -854,17 +859,18 @@ document.getElementById('sortSel').value='due';
 
 async function boot() {
   const overlay = document.getElementById('loadingOverlay');
+  const msg = overlay.querySelector('p');
   try {
+    msg.textContent = 'Connecting to Supabase…';
     const ok = await loadAll();
     if (!ok) {
-      overlay.querySelector('p').textContent = 'Database connection failed. Check console.';
+      msg.innerHTML = '❌ Could not connect to database.<br><small>Make sure the table exists and RLS policy is set.</small><br><br><button onclick="boot()" style="margin-top:8px;padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">Retry</button>';
       return;
     }
-    // If table is empty, seed with the CSV data
     if (data.length === 0 && archived.length === 0) {
-      overlay.querySelector('p').textContent = 'First run — loading your data…';
-      const seedData = SEED_DATA;
-      await saveAll(seedData);
+      msg.textContent = 'First run — seeding your 79 units…';
+      await saveAll(SEED_DATA);
+      msg.textContent = 'Data loaded! Starting up…';
       await loadAll();
     }
     overlay.style.display = 'none';
@@ -872,7 +878,7 @@ async function boot() {
     subscribeRealtime();
   } catch(e) {
     console.error('Boot error:', e);
-    overlay.querySelector('p').textContent = 'Connection error: ' + e.message;
+    msg.innerHTML = `❌ ${e.message}<br><br><button onclick="boot()" style="margin-top:8px;padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">Retry</button>`;
   }
 }
 boot();
