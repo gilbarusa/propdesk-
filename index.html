@@ -1793,34 +1793,59 @@ async function archiveTenant(id){
   const r=data[idx];
   const todayStr=today();
 
-  // Determine checkout/lease_end for archive record
+  // Determine lease_end for archive record
   let archLeaseEnd = r.lease_end || r.due || todayStr;
-  // For MTM/LT with no lease_end, set to end of current month
   if((r.type==='long-term'||r.type==='month-to-month')&&!r.lease_end){
     const now=new Date();
     archLeaseEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split('T')[0];
   }
 
+  const newId = nextId++;
   const archCopy={
-    ...r, id:nextId++,
-    archived:true, archivedDate:todayStr,
-    archived_date:todayStr,
-    lease_end:archLeaseEnd,
-    due:archLeaseEnd,
-    checkin: r.checkin || r.checkinDate || '',
+    id: newId,
+    apt: r.apt, owner: r.owner||null, name: r.name,
+    type: r.type, rent: r.rent, balance: r.balance||0,
+    due: archLeaseEnd,
+    lease_end: archLeaseEnd,
+    checkin: r.checkin||r.checkinDate||null,
+    note: r.note||null,
+    history: r.history||[],
+    archived: true,
+    archived_date: todayStr,
+    archivedDate: todayStr,
   };
   const blankRec={
     id:r.id, apt:r.apt, owner:r.owner, name:'', type:'available',
-    rent:r.rent, balance:0, due:'', lease_end:'', note:'', history:[], archived:false, archivedDate:''
+    rent:r.rent, balance:0, due:'', lease_end:'', checkin:'',
+    note:'', history:[], archived:false, archived_date:null, archivedDate:''
   };
-  archived.unshift({...archCopy, archivedDate:todayStr, checkinDate:r.checkinDate||''});
+
   data[idx]=blankRec;
-  await saveAll([blankRec, archCopy]);
+  await save(blankRec);
+  await save(archCopy);
+
+  // Reload from Supabase so archive tab is immediately up to date
+  await loadAll();
   renderTable();
-  toast(`${r.name||'Tenant'} archived. Apt ${r.apt} available.`,'success');
+  // If archive tab is open, refresh it too
+  const histPage = document.getElementById('page-history');
+  if(histPage && histPage.classList.contains('active')) renderHistory();
+  toast(`${r.name||'Tenant'} archived. Find them in 🗄 Archive tab → Year 2026, Month March.`,'success');
   if(detailId===id)closeDetail();
 }
-async function restoreTenant(id){const idx=archived.findIndex(x=>x.id===id);if(idx<0)return;const r=archived[idx];const slot=data.findIndex(x=>x.apt===r.apt&&x.type==='available');const res={...r,archived:false,archivedDate:''};if(slot>=0)data[slot]=res;else data.push(res);archived.splice(idx,1);await saveAll([res]);await deleteRecord(id);renderTable();toast(`${r.name||'Tenant'} restored to Apt ${r.apt}`,'success');}
+async function restoreTenant(id){
+  const idx=archived.findIndex(x=>x.id===id);if(idx<0)return;
+  const r=archived[idx];
+  const slot=data.findIndex(x=>x.apt===r.apt&&x.type==='available');
+  const res={...r,archived:false,archived_date:null,archivedDate:'',lease_end:r.lease_end||''};
+  if(slot>=0)data[slot]=res;else data.push(res);
+  archived.splice(idx,1);
+  await save(res);
+  await deleteRecord(id);
+  await loadAll();
+  renderTable();
+  toast(`${r.name||'Tenant'} restored to Apt ${r.apt}`,'success');
+}
 async function deletePermanent(id){if(!confirm('Permanently delete? Cannot be undone.'))return;archived=archived.filter(x=>x.id!==id);await deleteRecord(id);renderTable();toast('Record deleted.','error');}
 
 // ── DETAIL ─────────────────────────────────────────
@@ -1873,7 +1898,8 @@ function renderHistory(){
   if(q) rows = rows.filter(r =>
     (r.name||'').toLowerCase().includes(q) ||
     (r.apt||'').toLowerCase().includes(q) ||
-    (r.owner||'').toLowerCase().includes(q));
+    (r.owner||'').toLowerCase().includes(q) ||
+    (r.note||'').toLowerCase().includes(q));
 
   const getCheckin  = r => r.checkin || r.checkinDate || r.archivedDate || '';
   const getCheckout = r => r.lease_end || r.archivedDate || r.due || '';
