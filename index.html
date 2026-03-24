@@ -282,19 +282,29 @@ textarea{resize:vertical;min-height:70px;}
       <button class="pill" data-type="available" onclick="filterType(this)">Available</button>
     </div>
     <div class="spacer"></div>
-    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <button class="btn btn-secondary btn-sm" onclick="openUnitsGraph()" style="white-space:nowrap;">📊 Graphs</button>
+    <button id="undoBtn" onclick="performUndo()" style="display:none;background:var(--orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px;">↩ Undo</button>
+  <button onclick="showAuditLog()" style="background:transparent;color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;" title="View audit log">🕐 Log</button>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
     <label style="color:var(--text3);font-size:11px;margin:0;white-space:nowrap">Sort:</label>
     <select class="sort-sel" id="sortSel" onchange="renderTable()">
       <option value="due">Due Date ↑</option><option value="due-desc">Due Date ↓</option>
+      <option value="checkin">Check-in</option>
+      <option value="lease_end">Lease End</option>
       <option value="apt">Apt #</option><option value="name">Name</option><option value="amount">Amount</option>
     </select>
     </div>
   </div>
   <div class="table-wrap">
     <table><thead><tr>
-      <th onclick="setSortSel('apt')">Apt #</th><th onclick="setSortSel('name')">Tenant</th>
-      <th>Owner</th><th>Type</th><th onclick="setSortSel('due')">Due / Checkout</th>
-      <th onclick="setSortSel('amount')">Rent</th><th>Balance</th><th>Note</th><th style="min-width:100px">Actions</th>
+      <th onclick="setSortSel('apt')" style="cursor:pointer" title="Sort by Apt #">Apt # ↕</th>
+      <th onclick="setSortSel('name')" style="cursor:pointer" title="Sort by Tenant">Tenant ↕</th>
+      <th>Owner</th><th>Type</th>
+      <th onclick="setSortSel('checkin')" style="cursor:pointer" title="Sort by Check-in">Check-in ↕</th>
+      <th onclick="setSortSel('due')" style="cursor:pointer" title="Sort by Due Date">Due Date ↕</th>
+      <th onclick="setSortSel('lease_end')" style="cursor:pointer" title="Sort by Lease End">Lease End ↕</th>
+      <th onclick="setSortSel('amount')" style="cursor:pointer" title="Sort by Rent">Rent ↕</th>
+      <th>Balance</th><th>Note</th><th style="min-width:100px">Actions</th>
     </tr></thead><tbody id="tableBody"></tbody></table>
     <div id="emptyState" class="empty-state" style="display:none"><div class="ei">🏠</div><p>No units match your filter.</p></div>
   </div>
@@ -304,7 +314,7 @@ textarea{resize:vertical;min-height:70px;}
       Archived / Moved Out <span class="arch-count" id="archCount">0</span>
     </div>
     <div id="archiveTableWrap" style="display:none;overflow-x:auto">
-      <table><thead><tr><th>Apt #</th><th>Tenant</th><th>Owner</th><th>Type</th><th>Archived</th><th>Note</th><th>Actions</th></tr></thead>
+      <table><thead><tr><th>Apt #</th><th>Tenant</th><th>Owner</th><th>Type</th><th>Check-in</th><th>Lease End</th><th>Note</th><th>Actions</th></tr></thead>
       <tbody id="archiveBody"></tbody></table>
     </div>
   </div>
@@ -313,6 +323,15 @@ textarea{resize:vertical;min-height:70px;}
 <!-- ═══ DASHBOARD PAGE ═══ -->
 <div class="page" id="page-dashboard">
   <div class="dash-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--accent2);">Dashboard</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="backupStatus" style="font-size:11px;color:var(--text3);">No backup yet</div>
+        <button id="backupBtn" onclick="runBackup()" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
+          💾 Backup Now
+        </button>
+      </div>
+    </div>
     <div class="dash-kpi-grid" id="dashKpis"></div>
     <div class="dash-two-col">
       <div class="dash-panel"><h3>🚨 Needs Attention</h3><div id="dashUrgency"></div></div>
@@ -366,6 +385,9 @@ textarea{resize:vertical;min-height:70px;}
           <option value="all">All Years</option>
           <option value="2026">2026</option>
           <option value="2025">2025</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
         </select>
         <select id="histMonth" onchange="renderHistory()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;">
           <option value="all">All Months</option>
@@ -388,6 +410,9 @@ textarea{resize:vertical;min-height:70px;}
           <option value="Fox Chase Properties">Fox Chase Properties</option>
           <option value="Montgomery Garages">Montgomery Garages</option>
         </select>
+        <button class="btn btn-secondary btn-sm" onclick="openHistGraphs()" style="white-space:nowrap;">📊 Graphs</button>
+        <button class="btn btn-secondary btn-sm" onclick="seedLT2025()" style="white-space:nowrap;border-color:var(--blue);color:var(--blue);" title="Generate monthly archive records for 2025">⚙ Gen 2025 LT</button>
+        <button class="btn btn-secondary btn-sm" onclick="seedLT2026()" style="white-space:nowrap;border-color:var(--green);color:var(--green);" title="Generate Jan–Mar 2026 monthly archive records">⚙ Gen 2026 LT</button>
       </div>
     </div>
 
@@ -400,13 +425,15 @@ textarea{resize:vertical;min-height:70px;}
         <table id="histTable" style="width:100%;border-collapse:collapse;">
           <thead>
             <tr>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Apt</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Tenant</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Owner</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Type</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Revenue</th>
-              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Checkout</th>
+              <th onclick="histSort('apt')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-apt">Apt ↕</th>
+              <th onclick="histSort('name')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-name">Tenant ↕</th>
+              <th onclick="histSort('owner')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-owner">Owner ↕</th>
+              <th onclick="histSort('type')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-type">Type ↕</th>
+              <th onclick="histSort('rent')" style="background:var(--surface);padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-rent">Rent ↕</th>
+              <th onclick="histSort('checkin')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkin">Check In ↕</th>
+              <th onclick="histSort('checkout')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkout">Lease End ↕</th>
               <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Note</th>
+              <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Edit</th>
             </tr>
           </thead>
           <tbody id="histBody"></tbody>
@@ -414,6 +441,130 @@ textarea{resize:vertical;min-height:70px;}
       </div>
       <div id="histEmpty" style="text-align:center;padding:40px;color:var(--text3);display:none;">No records match your filter.</div>
       <div id="histFooter" style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);background:var(--surface2);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- GRAPHS MODAL (Archive) -->
+<div class="modal-overlay" id="histGraphModal">
+  <div class="modal" style="max-width:800px;width:95%;">
+    <div class="modal-header">
+      <h2 id="histGraphTitle">📊 Archive Charts</h2>
+      <button class="modal-close" onclick="closeModal('histGraphModal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Revenue by Month</div>
+          <canvas id="gByMonth" height="180"></canvas>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Revenue by Owner</div>
+          <canvas id="gByOwner" height="180"></canvas>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Stays by Type</div>
+          <canvas id="gByType" height="180"></canvas>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Top Apts by Revenue</div>
+          <canvas id="gByApt" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GRAPHS MODAL (Units/Live) -->
+<div class="modal-overlay" id="unitsGraphModal">
+  <div class="modal" style="max-width:800px;width:95%;">
+    <div class="modal-header">
+      <h2>📊 Live Units Charts</h2>
+      <button class="modal-close" onclick="closeModal('unitsGraphModal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Rent by Owner</div>
+          <canvas id="ugByOwner" height="180"></canvas>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Units by Type</div>
+          <canvas id="ugByType" height="180"></canvas>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Balance by Apt (top 10)</div>
+          <canvas id="ugByBalance" height="180"></canvas>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Occupancy</div>
+          <canvas id="ugOccupancy" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT LOG MODAL -->
+<div class="modal-overlay" id="auditModal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h2>🕐 Audit Log</h2>
+      <button class="modal-close" onclick="closeModal('auditModal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;max-height:500px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:var(--surface2);">
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Time</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Action</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Apt</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Tenant</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Undo</th>
+          </tr>
+        </thead>
+        <tbody id="auditBody"></tbody>
+      </table>
+      <div id="auditEmpty" style="text-align:center;padding:40px;color:var(--text3);">No changes logged yet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ARCHIVE EDIT MODAL -->
+<div class="modal-overlay" id="archEditModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div><div class="apt-badge" id="archEditAptLabel">—</div><h2>Edit Archive Record</h2></div>
+      <button class="modal-close" onclick="closeModal('archEditModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="archEditId">
+      <div class="form-grid">
+        <div class="form-row"><label>Apartment #</label><input type="text" id="aeFApt" oninput="document.getElementById('archEditAptLabel').textContent=this.value||'—'"></div>
+        <div class="form-row"><label>Owner</label><input type="text" id="aeFOwner"></div>
+      </div>
+      <div class="form-row"><label>Tenant Name</label><input type="text" id="aeFName"></div>
+      <div class="form-grid">
+        <div class="form-row"><label>Lease Type</label>
+          <select id="aeFType"><option value="long-term">Long Term</option><option value="month-to-month">Month-to-Month</option><option value="short-stay">Short Stay</option></select>
+        </div>
+        <div class="form-row"><label>Rent / Amount</label><input type="number" id="aeFRent" step="0.01"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Check In</label><input type="date" id="aeFCheckin"></div>
+        <div class="form-row"><label>Lease End / Check Out</label><input type="date" id="aeFCheckout"></div>
+      </div>
+      <div class="form-row"><label>Note</label><textarea id="aeFNote"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger btn-sm" onclick="deleteArchiveRecord()">🗑 Delete</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-secondary" onclick="closeModal('archEditModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveArchiveRecord()">Save</button>
     </div>
   </div>
 </div>
@@ -436,11 +587,15 @@ textarea{resize:vertical;min-height:70px;}
         <div class="form-row"><label>Lease Type</label>
           <select id="fType"><option value="available">Available</option><option value="long-term">Long Term</option><option value="month-to-month">Month-to-Month</option><option value="short-stay">Short Stay</option></select>
         </div>
-        <div class="form-row"><label>Monthly Rent</label><input type="number" id="fRent" placeholder="0.00" step="0.01"></div>
+        <div class="form-row"><label>Balance Owed</label><input type="number" id="fBalance" placeholder="0.00" step="0.01"><div class="form-hint">0 = fully paid</div></div>
       </div>
       <div class="form-grid">
-        <div class="form-row"><label>Due / Checkout Date</label><input type="date" id="fDue"></div>
-        <div class="form-row"><label>Balance Owed</label><input type="number" id="fBalance" placeholder="0.00" step="0.01"><div class="form-hint">0 = fully paid</div></div>
+        <div class="form-row"><label>Check-in / Agreement Start</label><input type="date" id="fCheckin"><div class="form-hint">Move-in or stay start date</div></div>
+        <div class="form-row"><label>Monthly Rent / Stay Amount</label><input type="number" id="fRent" placeholder="0.00" step="0.01"></div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Next Payment Due</label><input type="date" id="fDue"><div class="form-hint">Advances each month on payment</div></div>
+        <div class="form-row"><label>Lease End / Checkout Date</label><input type="date" id="fLeaseEnd"><div class="form-hint">Agreement end or short stay checkout</div></div>
       </div>
       <div class="form-row"><label>Note (tenant)</label><textarea id="fNote" placeholder="Any notes about this person…"></textarea></div>
     </div>
@@ -471,6 +626,15 @@ textarea{resize:vertical;min-height:70px;}
           <div class="radio-btn selected" id="rb-full" onclick="selectPayType('full')">Full Month</div>
           <div class="radio-btn" id="rb-partial" onclick="selectPayType('partial')">Partial</div>
           <div class="radio-btn" id="rb-extend" onclick="selectPayType('extend')">Extend Stay</div>
+        </div>
+      </div>
+      <div class="form-row" id="prorateRow" style="display:none">
+        <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:12px;font-size:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;text-transform:none;letter-spacing:0;font-size:12px;color:var(--blue);">
+            <input type="checkbox" id="prorateCheck" onchange="updatePayPreview()" style="width:auto;margin:0;cursor:pointer;">
+            <strong>Full payment for entire stay</strong> — auto-split by month
+          </label>
+          <div id="prorateBreakdown" style="margin-top:8px;color:var(--text2);font-size:11px;line-height:1.8;"></div>
         </div>
       </div>
       <div class="form-row" id="extendDateRow" style="display:none">
@@ -514,85 +678,87 @@ textarea{resize:vertical;min-height:70px;}
 //  DATA
 // ══════════════════════════════════════════════════════
 const SEED_DATA = [
-  {id:1,apt:"223",owner:"ERA LT",name:"Chris Kennedy",type:"long-term",rent:2600.0,balance:2600.0,due:"2026-03-10",note:"Via: Booking | Tel: 2134141259",history:[],archived:false},
-  {id:2,apt:"314",owner:"ERA LT",name:"Amira Glover",type:"short-stay",rent:823.44,balance:0.0,due:"2026-03-23",note:"Via: Vrbo | Tel: 14455445925 | Email: amiraglover@yahoo.com",history:[],archived:false},
-  {id:3,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"short-stay",rent:2984.44,balance:0.0,due:"2026-03-24",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
-  {id:4,apt:"Montg 5",owner:"Elkins LT",name:"Dr Shradha Kakde",type:"short-stay",rent:1762.41,balance:0.0,due:"2026-03-24",note:"Via: Airbnb | Tel: 6892504273 | Email: Meghnathkakde11@gmail.com",history:[],archived:false},
-  {id:5,apt:"215",owner:"ERA LT",name:"Irina Stesel",type:"short-stay",rent:1903.2,balance:0.0,due:"2026-03-25",note:"Via: Airbnb | Tel: 17732970907 | Email: Istesel@gmail.com",history:[],archived:false},
-  {id:6,apt:"426-3",owner:"ERA LT",name:"Danene Bowman",type:"short-stay",rent:1504.75,balance:0.0,due:"2026-03-27",note:"Via: Airbnb | Tel: 12675842987 | Email: Warritlam@gmail.com",history:[],archived:false},
-  {id:7,apt:"317",owner:"ERA LT",name:"Carol Tyndale",type:"month-to-month",rent:2700.0,balance:0.0,due:"2026-03-27",note:"Via: Airbnb | Tel: 2675951099 | Email: Carol6@comcost.net",history:[],archived:false},
-  {id:8,apt:"207",owner:"ERA LT",name:"Jerry",type:"short-stay",rent:770.0,balance:0.0,due:"2026-03-29",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
-  {id:9,apt:"208",owner:"ERA LT",name:"Thomas",type:"short-stay",rent:770.0,balance:0.0,due:"2026-03-29",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
-  {id:10,apt:"205",owner:"ERA LT",name:"Jerry",type:"short-stay",rent:770.0,balance:0.0,due:"2026-03-29",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
-  {id:11,apt:"232",owner:"ERA LT",name:"Oleh Chubatiuk",type:"month-to-month",rent:2300.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 258-8686 | Email: olehchubatiuk@gmail.com",history:[],archived:false},
-  {id:12,apt:"426-4",owner:"ERA LT",name:"Dajana Ford",type:"long-term",rent:1830.0,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: (215) 669-4696 /2156694696 | Email: daybella126@gmail.com",history:[],archived:false},
-  {id:13,apt:"Montg 6",owner:"Elkins LT",name:"Victoria Deans",type:"long-term",rent:1650.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (484) 250-9741 | Email: deansvictoria5@gmail.com",history:[],archived:false},
-  {id:14,apt:"Montg 4",owner:"Elkins LT",name:"Lashaie N. Lee Lewis",type:"long-term",rent:1930.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (267) 824-0067 | Email: lashaielee@gmail.com",history:[],archived:false},
-  {id:15,apt:"323",owner:"ERA LT",name:"Lesia Riabkova",type:"long-term",rent:1800.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (773) 499-2003 | Email: lesyariabkova80@gmail.com",history:[],archived:false},
-  {id:16,apt:"121",owner:"ERA LT",name:"Amnon Saad",type:"long-term",rent:1200.0,balance:0.0,due:"2026-03-31",note:"Via: Lindy",history:[],archived:false},
-  {id:17,apt:"Melrose CH",owner:"Melrose Properties",name:"Otar Khaniashvili",type:"long-term",rent:2350.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (551) 587-4824 | Email: otootookh@gmail.com",history:[],archived:false},
-  {id:18,apt:"426-1",owner:"ERA LT",name:"Pavel Artyshevskii",type:"long-term",rent:2070.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 437-1645 | Email: freedom202244@gmail.com",history:[],archived:false},
-  {id:19,apt:"329",owner:"ERA LT",name:"Vitalii Savonenko",type:"month-to-month",rent:1835.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (215) 960-6999 | Email: vitaly1974s@gmail.com",history:[],archived:false},
-  {id:20,apt:"311",owner:"ERA LT",name:"Vladimir Fominykh",type:"long-term",rent:1830.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: 845-873-2725 | Email: vovowner@gmail.com",history:[],archived:false},
-  {id:21,apt:"Montg Studio B",owner:"Elkins LT",name:"Sergey Lobodin",type:"long-term",rent:1000.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (215) 3076841 | Email: kachuyea@arcadia.edu",history:[],archived:false},
-  {id:22,apt:"211",owner:"ERA LT",name:"Giorgi Devnosadze",type:"long-term",rent:1600.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (732) 228-2069 | Email: devnosadze91@gmail.com",history:[],archived:false},
-  {id:23,apt:"127",owner:"ERA LT",name:"Maksim Fursov",type:"long-term",rent:1850.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 336-3421 | Email: maksonf1259@gmail.com",history:[],archived:false},
-  {id:24,apt:"Montg 1",owner:"Elkins LT",name:"Deborah Massaud",type:"long-term",rent:1650.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (215) 696-3732 | Email: ndzajs6@comcast.net",history:[],archived:false},
-  {id:25,apt:"Montg  10",owner:"Elkins LT",name:"Danielle Corrado",type:"long-term",rent:2100.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (561) 578-2873 | Email: daniellencorrado@gmail.com",history:[],archived:false},
-  {id:26,apt:"Melrose A2",owner:"Melrose Properties",name:"Renat Sakiev",type:"long-term",rent:1600.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (717) 434-0879 Nargiza 445-500-93-33, 717-885-42-58 | Email: tonimontana0009@icloud.com",history:[],archived:false},
-  {id:27,apt:"222",owner:"ERA LT",name:"Kevin Smith",type:"long-term",rent:2400.0,balance:0.0,due:"2026-03-31",note:"Via: apartments com | Tel: (267) 253-1289 | Email: kevin_8379@msn.com",history:[],archived:false},
-  {id:28,apt:"122",owner:"ERA LT",name:"Ekaterina Shakhova",type:"long-term",rent:2060.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: 215-509-8997 | Email: shakhova.katarina@gmail.com",history:[],archived:false},
-  {id:29,apt:"325",owner:"ERA LT",name:"Naijeya Shykye Lyons",type:"long-term",rent:1450.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (267) 588-3026 | Email: n.lyons6998@gmail.com",history:[],archived:false},
-  {id:30,apt:"219",owner:"ERA LT",name:"SiNing Wang",type:"long-term",rent:3350.0,balance:0.0,due:"2026-03-31",note:"Tel: (646) 881-8428 | Email: 3273215917@qq.com",history:[],archived:false},
-  {id:31,apt:"Montg #1A",owner:"Elkins LT",name:"Marissa Bluestine / Joshua Bluestine",type:"month-to-month",rent:1220.0,balance:0.0,due:"2026-03-31",note:"Via: Facebook | Tel: (215) 740-8211 | Email: joshbforschool@gmail.com",history:[],archived:false},
-  {id:32,apt:"230",owner:"ERA LT",name:"Farrukh Kurbanov",type:"long-term",rent:1800.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (445) 888-1315 | Email: kurbanovfarrukh662@gmail.com",history:[],archived:false},
-  {id:33,apt:"Montg 7",owner:"Elkins LT",name:"Kristina Newton",type:"long-term",rent:1820.0,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: (267) 983-8094 | Email: knewton37@gmail.com",history:[],archived:false},
-  {id:34,apt:"203",owner:"ERA LT",name:"Franz Noel",type:"long-term",rent:2450.0,balance:0.0,due:"2026-03-31",note:"Via: renter.com | Tel: (267) 408-7982 | Email: FRANTZN686@GMAIL.COM",history:[],archived:false},
-  {id:35,apt:"Montg 1B",owner:"Elkins LT",name:"Bhargavkumar Chaudhary",type:"long-term",rent:1275.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (215) 385-4685 | Email: bhargavchaudhary395@gmail.com",history:[],archived:false},
-  {id:36,apt:"220",owner:"ERA LT",name:"David Zarandia",type:"month-to-month",rent:1450.0,balance:0.0,due:"2026-03-31",note:"Via: facebook | Tel: (267) 979-4540 | Email: datazarandia@yahoo.com",history:[],archived:false},
-  {id:37,apt:"128",owner:"ERA LT",name:"Dawn Mccoy",type:"short-stay",rent:1722.02,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: 2157677174 | Email: Dawnmccoy3288@yahoo.com",history:[],archived:false},
-  {id:38,apt:"225",owner:"ERA LT",name:"Tyvesha Jackson",type:"short-stay",rent:3700.04,balance:0.0,due:"2026-03-31",note:"Via: Vrbo | Tel: 2673063019 | Email: chocolatethai27@gmail.com",history:[],archived:false},
-  {id:39,apt:"Montg 3",owner:"Elkins LT",name:"Darron Wilson",type:"short-stay",rent:2884.7,balance:0.0,due:"2026-03-31",note:"Via: Airbnb | Tel: 12156178005 | Email: darron.wilson@comhar.org",history:[],archived:false},
-  {id:40,apt:"111",owner:"ERA LT",name:"Kristen Brooker",type:"month-to-month",rent:2500.0,balance:0.0,due:"2026-04-02",note:"Via: Zillow | Tel: (603) 359-0916 | Email: kristenbrooker323@gmail.com",history:[],archived:false},
-  {id:41,apt:"Montg 2",owner:"Elkins LT",name:"Gina Krier",type:"month-to-month",rent:2850.0,balance:0.0,due:"2026-04-04",note:"Via: Airbnb | Tel: (267) 716-5106 | Email: gmkrier@gmail.com",history:[],archived:false},
-  {id:42,apt:"Montg 5B",owner:"Elkins LT",name:"Hider Shaaban",type:"short-stay",rent:1894.76,balance:0.0,due:"2026-04-06",note:"Via: Airbnb | Tel: 2157895616 | Email: aloffreda23@gmail.com",history:[],archived:false},
-  {id:43,apt:"Montg 8",owner:"Elkins LT",name:"Justin Krebs",type:"month-to-month",rent:1100.0,balance:0.0,due:"2026-04-09",note:"Via: FF | Tel: (605) 430-6888 | Email: jtk1996@hotmail.com",history:[],archived:false},
-  {id:44,apt:"Retail Fox Chase",owner:"Fox Chase Properties",name:"Maryam Gurbandurdyyeva",type:"long-term",rent:1175.0,balance:0.0,due:"2026-04-11",note:"Via: facebook | Tel: (267) 779-0102 | Email: evangelinas1210@gmail.com",history:[],archived:false},
-  {id:45,apt:"Fox Chase  2",owner:"Fox Chase Properties",name:"Gabrielle Pereira",type:"short-stay",rent:1846.32,balance:0.0,due:"2026-04-13",note:"Via: Airbnb | Tel: 12039196929 | Email: Arthur.oliveira0294@gmail.com",history:[],archived:false},
-  {id:46,apt:"426-Office",owner:"ERA LT",name:"Clamira Smith",type:"long-term",rent:1450.0,balance:0.0,due:"2026-04-15",note:"Via: facebook | Tel: (267) 597-4656 | Email: clamirasmith@icloud.com",history:[],archived:false},
-  {id:47,apt:"112",owner:"ERA LT",name:"Damaris Suyapa Bejarano Reyes",type:"short-stay",rent:2535.84,balance:0.0,due:"2026-04-17",note:"Via: Airbnb | Email: Afaby8224@gmail.com",history:[],archived:false},
-  {id:48,apt:"221",owner:"ERA LT",name:"Miesha Sassone",type:"month-to-month",rent:1750.0,balance:0.0,due:"2026-04-21",note:"Via: FF | Tel: (724) 504-2775 | Email: mieshasassone@gmail.com",history:[],archived:false},
-  {id:49,apt:"Montg 9",owner:"Elkins LT",name:"Whitney Diane Rustin",type:"long-term",rent:2250.0,balance:0.0,due:"2026-04-25",note:"Via: Zillow | Tel: (267) 267-1173 | Email: whitneyrustin@gmail.com",history:[],archived:false},
-  {id:50,apt:"330",owner:"ERA LT",name:"Tetiana Holoborodko",type:"short-stay",rent:2986.91,balance:0.0,due:"2026-04-30",note:"Via: Airbnb | Tel: 380674923971 | Email: kiri4enkototiana@gmail.com",history:[],archived:false},
-  {id:51,apt:"Fox Chase  1",owner:"Fox Chase Properties",name:"Richard Odonnell",type:"short-stay",rent:8296.24,balance:0.0,due:"2026-04-30",note:"Via: Vrbo | Tel: 14046260337 | Email: Rodonnell3560dows@gmail.com",history:[],archived:false},
-  {id:52,apt:"210",owner:"ERA LT",name:"Joe Masalta",type:"short-stay",rent:7191.96,balance:0.0,due:"2026-06-01",note:"Via: Airbnb | Tel: 267-615-4780 | Email: joemasalta5326@gmail.com",history:[],archived:false},
-  {id:53,apt:"Melrose C2",owner:"Melrose Properties",name:"Brian Rodger",type:"long-term",rent:7346.42,balance:0.0,due:"2026-06-28",note:"Via: Airbnb | Tel: 17633398361 | Email: Brian.rodger@astontech.com",history:[],archived:false},
-  {id:54,apt:"206",owner:"ERA LT",name:"Maureen Kacillas",type:"long-term",rent:7600.95,balance:0.0,due:"2026-06-30",note:"Via: Airbnb | Tel: 15705924712 | Email: Salim.Akbar.2025@gmail.com",history:[],archived:false},
-  {id:55,apt:"131",owner:"ERA LT",name:"Randy / Robert Keppler",type:"long-term",rent:2500.0,balance:0.0,due:"2026-12-12",note:"Tel: (267) 680-5837 | Email: rschumacher148@gmail.com",history:[],archived:false},
-  {id:56,apt:"132",owner:"ERA LT",name:"Sheriie Panichelli",type:"long-term",rent:0.0,balance:0.0,due:"",note:"Tel: 2674081128 | Email: sherriepanic18@gmail.com",history:[],archived:false},
-  {id:57,apt:"320",owner:"ERA LT",name:"Taron Stokes",type:"long-term",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:58,apt:"Melrose B1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:59,apt:"331",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:60,apt:"115",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:61,apt:"202",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:62,apt:"318",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:63,apt:"212",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:64,apt:"301",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:65,apt:"332",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:66,apt:"305",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:67,apt:"310",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:68,apt:"302",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:69,apt:"Melrose C1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:70,apt:"Melrose A1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:71,apt:"Melrose B2",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:72,apt:"426-2",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:73,apt:"426-Studio",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:74,apt:"Garage 1",owner:"Montgomery Garages",name:"Mark Levitt",type:"month-to-month",rent:90.0,balance:90.0,due:"2024-09-30",note:"Via: original | Tel: (267) 968-9968 | Email: makoesq@gmail.com",history:[],archived:false},
-  {id:75,apt:"Garage 2",owner:"Montgomery Garages",name:"Andrea Berger Bratman",type:"month-to-month",rent:80.0,balance:80.0,due:"2025-10-31",note:"Via: original | Tel: (610) 304-8590 | Email: endlessideas@att.net",history:[],archived:false},
-  {id:76,apt:"Garage 3",owner:"Montgomery Garages",name:"Andrea Berger Bratman",type:"month-to-month",rent:80.0,balance:80.0,due:"2025-10-31",note:"Via: original | Tel: (610) 304-8590 | Email: endlessideas@att.net",history:[],archived:false},
-  {id:77,apt:"Garage 4",owner:"Montgomery Garages",name:"",type:"month-to-month",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false},
-  {id:78,apt:"Garage 5",owner:"Montgomery Garages",name:"Deborah Massaud",type:"month-to-month",rent:74.0,balance:0.0,due:"2026-03-31",note:"Via: Zillow | Tel: (215) 696-3732 | Email: ndzajs6@comcast.net",history:[],archived:false},
-  {id:79,apt:"205",owner:"ERA LT",name:"Kate Bergan",type:"long-term",rent:0.0,balance:0.0,due:"",note:"",history:[],archived:false}
+  {id:1,apt:"n",owner:"ERA LT",name:"Name",type:"long-term",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"Notes | Via: VIa | Tel: Phone No | Email: Email",history:[],archived:false},
+  {id:2,apt:"223",owner:"ERA LT",name:"Chris Kennedy",type:"long-term",rent:2600.0,balance:0,due:"2026-03-10",lease_end:"2025-10-10",checkin:"2025-10-10",note:"Via: Booking | Tel: 2134141259",history:[{"date": "2025-10-10", "text": "Move-in 2025-10-10"}],archived:false},
+  {id:3,apt:"314",owner:"ERA LT",name:"Amira Glover",type:"short-stay",rent:823.44,balance:0,due:"2026-03-23",lease_end:"2026-03-23",checkin:"2026-01-05",note:"Via: Vrbo | Tel: 14455445925 | Email: amiraglover@yahoo.com",history:[],archived:false},
+  {id:4,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"short-stay",rent:2984.44,balance:0,due:"2026-03-24",lease_end:"2026-03-24",checkin:"2026-02-23",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
+  {id:5,apt:"Montg 5",owner:"Elkins LT",name:"Dr Shradha Kakde",type:"short-stay",rent:1762.41,balance:0,due:"2026-03-24",lease_end:"2026-03-24",checkin:"2026-03-09",note:"Via: Airbnb | Tel: 6892504273 | Email: Meghnathkakde11@gmail.com",history:[],archived:false},
+  {id:6,apt:"215",owner:"ERA LT",name:"Irina Stesel",type:"short-stay",rent:1903.2,balance:0,due:"2026-03-25",lease_end:"2026-03-25",checkin:"2026-03-15",note:"Via: Airbnb | Tel: 17732970907 | Email: Istesel@gmail.com",history:[],archived:false},
+  {id:7,apt:"426-3",owner:"ERA LT",name:"Danene Bowman",type:"short-stay",rent:1504.75,balance:0,due:"2026-03-27",lease_end:"2026-03-27",checkin:"2026-02-21",note:"Via: Airbnb | Tel: 12675842987 | Email: Warritlam@gmail.com",history:[],archived:false},
+  {id:8,apt:"317",owner:"ERA LT",name:"Carol Tyndale",type:"month-to-month",rent:2700.0,balance:0,due:"2026-03-27",lease_end:"",checkin:"2026-02-02",note:"Via: Airbnb | Tel: 2675951099 | Email: Carol6@comcost.net",history:[{"date": "2026-02-02", "text": "Move-in 2026-02-02"}],archived:false},
+  {id:9,apt:"207",owner:"ERA LT",name:"Jerry",type:"short-stay",rent:770.0,balance:0,due:"2026-03-29",lease_end:"2026-03-29",checkin:"2026-03-08",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
+  {id:10,apt:"208",owner:"ERA LT",name:"Thomas",type:"short-stay",rent:770.0,balance:0,due:"2026-03-29",lease_end:"2026-03-29",checkin:"2026-03-08",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
+  {id:11,apt:"205",owner:"ERA LT",name:"Jerry",type:"short-stay",rent:770.0,balance:0,due:"2026-03-29",lease_end:"2026-03-29",checkin:"2026-03-08",note:"Via: Airbnb | Tel: 3312713679",history:[],archived:false},
+  {id:12,apt:"232",owner:"ERA LT",name:"Oleh Chubatiuk",type:"month-to-month",rent:2300.0,balance:0,due:"2026-03-31",lease_end:"",checkin:"2024-12-01",note:"Via: facebook | Tel: (267) 258-8686 | Email: olehchubatiuk@gmail.com",history:[{"date": "2024-12-01", "text": "Move-in 2024-12-01"}],archived:false},
+  {id:13,apt:"426-4",owner:"ERA LT",name:"Dajana Ford",type:"long-term",rent:1830.0,balance:0,due:"2026-03-31",lease_end:"2026-09-30",checkin:"2024-10-09",note:"Via: Airbnb | Tel: (215) 669-4696 /2156694696 | Email: daybella126@gmail.com",history:[{"date": "2024-10-09", "text": "Move-in 2024-10-09"}],archived:false},
+  {id:14,apt:"Montg 6",owner:"Elkins LT",name:"Victoria Deans",type:"long-term",rent:1650.0,balance:0,due:"2026-03-31",lease_end:"2027-01-31",checkin:"2026-01-23",note:"Via: Zillow | Tel: (484) 250-9741 | Email: deansvictoria5@gmail.com",history:[{"date": "2026-01-23", "text": "Move-in 2026-01-23"}],archived:false},
+  {id:15,apt:"Montg 4",owner:"Elkins LT",name:"Lashaie N. Lee Lewis",type:"long-term",rent:1930.0,balance:0,due:"2026-03-31",lease_end:"2026-09-30",checkin:"2025-11-01",note:"Via: Zillow | Tel: (267) 824-0067 | Email: lashaielee@gmail.com",history:[{"date": "2025-11-01", "text": "Move-in 2025-11-01"}],archived:false},
+  {id:16,apt:"323",owner:"ERA LT",name:"Lesia Riabkova",type:"long-term",rent:1800.0,balance:0,due:"2026-03-31",lease_end:"2027-01-31",checkin:"2025-02-01",note:"Via: facebook | Tel: (773) 499-2003 | Email: lesyariabkova80@gmail.com",history:[{"date": "2025-02-01", "text": "Move-in 2025-02-01"}],archived:false},
+  {id:17,apt:"121",owner:"ERA LT",name:"Amnon Saad",type:"long-term",rent:1200.0,balance:0,due:"2026-03-31",lease_end:"2025-03-31",checkin:"2022-06-01",note:"Via: Lindy",history:[{"date": "2022-06-01", "text": "Move-in 2022-06-01"}],archived:false},
+  {id:18,apt:"Melrose CH",owner:"Melrose Properties",name:"Otar Khaniashvili",type:"long-term",rent:2350.0,balance:0,due:"2026-03-31",lease_end:"2026-04-30",checkin:"2024-05-03",note:"Via: facebook | Tel: (551) 587-4824 | Email: otootookh@gmail.com",history:[{"date": "2024-05-03", "text": "Move-in 2024-05-03"}],archived:false},
+  {id:19,apt:"426-1",owner:"ERA LT",name:"Pavel Artyshevskii",type:"long-term",rent:2070.0,balance:0,due:"2026-03-31",lease_end:"2026-12-15",checkin:"2022-12-14",note:"Via: facebook | Tel: (267) 437-1645 | Email: freedom202244@gmail.com",history:[{"date": "2022-12-14", "text": "Move-in 2022-12-14"}],archived:false},
+  {id:20,apt:"329",owner:"ERA LT",name:"Vitalii Savonenko",type:"month-to-month",rent:1835.0,balance:0,due:"2026-03-31",lease_end:"",checkin:"2023-09-18",note:"Via: facebook | Tel: (215) 960-6999 | Email: vitaly1974s@gmail.com",history:[{"date": "2023-09-18", "text": "Move-in 2023-09-18"}],archived:false},
+  {id:21,apt:"311",owner:"ERA LT",name:"Vladimir Fominykh",type:"long-term",rent:1830.0,balance:0,due:"2026-03-31",lease_end:"2026-09-30",checkin:"2022-08-17",note:"Via: facebook | Tel: 845-873-2725 | Email: vovowner@gmail.com",history:[{"date": "2022-08-17", "text": "Move-in 2022-08-17"}],archived:false},
+  {id:22,apt:"Montg Studio B",owner:"Elkins LT",name:"Sergey Lobodin",type:"long-term",rent:1000.0,balance:0,due:"2026-03-31",lease_end:"2026-11-30",checkin:"2025-11-18",note:"Via: facebook | Tel: (215) 3076841 | Email: kachuyea@arcadia.edu",history:[{"date": "2025-11-18", "text": "Move-in 2025-11-18"}],archived:false},
+  {id:23,apt:"211",owner:"ERA LT",name:"Giorgi Devnosadze",type:"long-term",rent:1600.0,balance:0,due:"2026-03-31",lease_end:"2027-01-31",checkin:"2026-02-06",note:"Via: facebook | Tel: (732) 228-2069 | Email: devnosadze91@gmail.com",history:[{"date": "2026-02-06", "text": "Move-in 2026-02-06"}],archived:false},
+  {id:24,apt:"127",owner:"ERA LT",name:"Maksim Fursov",type:"long-term",rent:1850.0,balance:0,due:"2026-03-31",lease_end:"2026-08-31",checkin:"2023-09-01",note:"Via: facebook | Tel: (267) 336-3421 | Email: maksonf1259@gmail.com",history:[{"date": "2023-09-01", "text": "Move-in 2023-09-01"}],archived:false},
+  {id:25,apt:"Montg 1",owner:"Elkins LT",name:"Deborah Massaud",type:"long-term",rent:1650.0,balance:0,due:"2026-03-31",lease_end:"2026-09-30",checkin:"2025-09-09",note:"Via: Zillow | Tel: (215) 696-3732 | Email: ndzajs6@comcast.net",history:[{"date": "2025-09-09", "text": "Move-in 2025-09-09"}],archived:false},
+  {id:26,apt:"Montg  10",owner:"Elkins LT",name:"Danielle Corrado",type:"long-term",rent:2100.0,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2024-04-01",note:"Via: Zillow | Tel: (561) 578-2873 | Email: daniellencorrado@gmail.com",history:[{"date": "2024-04-01", "text": "Move-in 2024-04-01"}],archived:false},
+  {id:27,apt:"Melrose A2",owner:"Melrose Properties",name:"Renat Sakiev",type:"long-term",rent:1600.0,balance:0,due:"2026-03-31",lease_end:"2026-07-31",checkin:"2025-08-01",note:"Via: facebook | Tel: (717) 434-0879 Nargiza 445-500-93-33, 717-885-42-58 | Email: tonimontana0009@icloud.com",history:[{"date": "2025-08-01", "text": "Move-in 2025-08-01"}],archived:false},
+  {id:28,apt:"222",owner:"ERA LT",name:"Kevin Smith",type:"long-term",rent:2400.0,balance:0,due:"2026-03-31",lease_end:"2026-03-02",checkin:"2023-02-24",note:"Via: apartments com | Tel: (267) 253-1289 | Email: kevin_8379@msn.com",history:[{"date": "2023-02-24", "text": "Move-in 2023-02-24"}],archived:false},
+  {id:29,apt:"122",owner:"ERA LT",name:"Ekaterina Shakhova",type:"long-term",rent:2060.0,balance:0,due:"2026-03-31",lease_end:"2026-05-31",checkin:"2022-05-01",note:"Via: facebook | Tel: 215-509-8997 | Email: shakhova.katarina@gmail.com",history:[{"date": "2022-05-01", "text": "Move-in 2022-05-01"}],archived:false},
+  {id:30,apt:"325",owner:"ERA LT",name:"Naijeya Shykye Lyons",type:"long-term",rent:1450.0,balance:0,due:"2026-03-31",lease_end:"2027-01-31",checkin:"2026-02-08",note:"Via: Zillow | Tel: (267) 588-3026 | Email: n.lyons6998@gmail.com",history:[{"date": "2026-02-08", "text": "Move-in 2026-02-08"}],archived:false},
+  {id:31,apt:"219",owner:"ERA LT",name:"SiNing Wang",type:"long-term",rent:3350.0,balance:0,due:"2026-03-31",lease_end:"2026-08-31",checkin:"2025-08-23",note:"Tel: (646) 881-8428 | Email: 3273215917@qq.com",history:[{"date": "2025-08-23", "text": "Move-in 2025-08-23"}],archived:false},
+  {id:32,apt:"Montg #1A",owner:"Elkins LT",name:"Marissa Bluestine / Joshua Bluestine",type:"month-to-month",rent:1220.0,balance:0,due:"2026-03-31",lease_end:"",checkin:"2024-02-01",note:"Via: Facebook | Tel: (215) 740-8211 | Email: joshbforschool@gmail.com",history:[{"date": "2024-02-01", "text": "Move-in 2024-02-01"}],archived:false},
+  {id:33,apt:"230",owner:"ERA LT",name:"Farrukh Kurbanov",type:"long-term",rent:1800.0,balance:0,due:"2026-03-31",lease_end:"2027-01-31",checkin:"2026-02-01",note:"Via: facebook | Tel: (445) 888-1315 | Email: kurbanovfarrukh662@gmail.com",history:[{"date": "2026-02-01", "text": "Move-in 2026-02-01"}],archived:false},
+  {id:34,apt:"Montg 7",owner:"Elkins LT",name:"Kristina Newton",type:"long-term",rent:1820.0,balance:0,due:"2026-03-31",lease_end:"2026-06-30",checkin:"2025-04-02",note:"Via: Airbnb | Tel: (267) 983-8094 | Email: knewton37@gmail.com",history:[{"date": "2025-04-02", "text": "Move-in 2025-04-02"}],archived:false},
+  {id:35,apt:"203",owner:"ERA LT",name:"Franz Noel",type:"long-term",rent:2450.0,balance:0,due:"2026-03-31",lease_end:"2026-05-31",checkin:"2023-06-01",note:"Via: renter.com | Tel: (267) 408-7982 | Email: FRANTZN686@GMAIL.COM",history:[{"date": "2023-06-01", "text": "Move-in 2023-06-01"}],archived:false},
+  {id:36,apt:"Montg 1B",owner:"Elkins LT",name:"Bhargavkumar Chaudhary",type:"long-term",rent:1275.0,balance:0,due:"2026-03-31",lease_end:"2026-08-31",checkin:"2025-09-01",note:"Via: Zillow | Tel: (215) 385-4685 | Email: bhargavchaudhary395@gmail.com",history:[{"date": "2025-09-01", "text": "Move-in 2025-09-01"}],archived:false},
+  {id:37,apt:"220",owner:"ERA LT",name:"David Zarandia",type:"month-to-month",rent:1450.0,balance:0,due:"2026-03-31",lease_end:"",checkin:"2024-03-01",note:"Via: facebook | Tel: (267) 979-4540 | Email: datazarandia@yahoo.com",history:[{"date": "2024-03-01", "text": "Move-in 2024-03-01"}],archived:false},
+  {id:38,apt:"128",owner:"ERA LT",name:"Dawn Mccoy",type:"short-stay",rent:1722.02,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2026-02-28",note:"Via: Airbnb | Tel: 2157677174 | Email: Dawnmccoy3288@yahoo.com",history:[],archived:false},
+  {id:39,apt:"225",owner:"ERA LT",name:"Tyvesha Jackson",type:"long-term",rent:3700.04,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2025-06-08",note:"Via: Vrbo | Tel: 2673063019 | Email: chocolatethai27@gmail.com",history:[{"date": "2025-06-08", "text": "Move-in 2025-06-08"}],archived:false},
+  {id:40,apt:"Montg 3",owner:"Elkins LT",name:"Darron Wilson",type:"short-stay",rent:2884.7,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2026-02-25",note:"Via: Airbnb | Tel: 12156178005 | Email: darron.wilson@comhar.org",history:[],archived:false},
+  {id:41,apt:"111",owner:"ERA LT",name:"Kristen Brooker",type:"month-to-month",rent:2500.0,balance:0,due:"2026-04-02",lease_end:"",checkin:"2025-10-02",note:"Via: Zillow | Tel: (603) 359-0916 | Email: kristenbrooker323@gmail.com",history:[{"date": "2025-10-02", "text": "Move-in 2025-10-02"}],archived:false},
+  {id:42,apt:"Montg 2",owner:"Elkins LT",name:"Gina Krier",type:"month-to-month",rent:2850.0,balance:0,due:"2026-04-04",lease_end:"",checkin:"2026-02-04",note:"Via: Airbnb | Tel: (267) 716-5106 | Email: gmkrier@gmail.com",history:[{"date": "2026-02-04", "text": "Move-in 2026-02-04"}],archived:false},
+  {id:43,apt:"Montg 5B",owner:"Elkins LT",name:"Hider Shaaban",type:"short-stay",rent:1894.76,balance:0,due:"2026-04-06",lease_end:"2026-04-06",checkin:"2026-03-08",note:"Via: Airbnb | Tel: 2157895616 | Email: aloffreda23@gmail.com",history:[],archived:false},
+  {id:44,apt:"Montg 8",owner:"Elkins LT",name:"Justin Krebs",type:"month-to-month",rent:1100.0,balance:0,due:"2026-04-09",lease_end:"",checkin:"2026-03-09",note:"Via: FF | Tel: (605) 430-6888 | Email: jtk1996@hotmail.com",history:[{"date": "2026-03-09", "text": "Move-in 2026-03-09"}],archived:false},
+  {id:45,apt:"Retail Fox Chase",owner:"Fox Chase Properties",name:"Maryam Gurbandurdyyeva",type:"long-term",rent:0.0,balance:0,due:"2026-04-11",lease_end:"2027-01-11",checkin:"2025-01-12",note:"Tel: (267) 779-0102 | Email: evangelinas1210@gmail.com",history:[{"date": "2025-01-12", "text": "Move-in 2025-01-12"}],archived:false},
+  {id:46,apt:",facebook,$1",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:47,apt:"Fox Chase  2",owner:"Fox Chase Properties",name:"Gabrielle Pereira",type:"short-stay",rent:1846.32,balance:0,due:"2026-04-13",lease_end:"2026-04-13",checkin:"2026-03-13",note:"Via: Airbnb | Tel: 12039196929 | Email: Arthur.oliveira0294@gmail.com",history:[],archived:false},
+  {id:48,apt:"426-Office",owner:"ERA LT",name:"Clamira Smith",type:"long-term",rent:1450.0,balance:0,due:"2026-04-15",lease_end:"2026-06-15",checkin:"2025-05-15",note:"Via: facebook | Tel: (267) 597-4656 | Email: clamirasmith@icloud.com",history:[{"date": "2025-05-15", "text": "Move-in 2025-05-15"}],archived:false},
+  {id:49,apt:"112",owner:"ERA LT",name:"Damaris Suyapa Bejarano Reyes",type:"short-stay",rent:2535.84,balance:0,due:"2026-04-17",lease_end:"2026-04-17",checkin:"2026-03-17",note:"Via: Airbnb | Email: Afaby8224@gmail.com",history:[],archived:false},
+  {id:50,apt:"221",owner:"ERA LT",name:"Miesha Sassone",type:"month-to-month",rent:1750.0,balance:0,due:"2026-04-21",lease_end:"",checkin:"2026-03-21",note:"Via: FF | Tel: (724) 504-2775 | Email: mieshasassone@gmail.com",history:[{"date": "2026-03-21", "text": "Move-in 2026-03-21"}],archived:false},
+  {id:51,apt:"Montg 9",owner:"Elkins LT",name:"Whitney Diane Rustin",type:"long-term",rent:2250.0,balance:0,due:"2026-04-25",lease_end:"2026-04-25",checkin:"2025-04-26",note:"Via: Zillow | Tel: (267) 267-1173 | Email: whitneyrustin@gmail.com",history:[{"date": "2025-04-26", "text": "Move-in 2025-04-26"}],archived:false},
+  {id:52,apt:"330",owner:"ERA LT",name:"Tetiana Holoborodko",type:"short-stay",rent:2986.91,balance:0,due:"2026-04-30",lease_end:"2026-04-30",checkin:"2026-03-14",note:"Via: Airbnb | Tel: 380674923971 | Email: kiri4enkototiana@gmail.com",history:[],archived:false},
+  {id:53,apt:"Fox Chase  1",owner:"Fox Chase Properties",name:"Richard Odonnell",type:"long-term",rent:8296.24,balance:0,due:"2026-04-30",lease_end:"2026-04-30",checkin:"2026-01-13",note:"Via: Vrbo | Tel: 14046260337 | Email: Rodonnell3560dows@gmail.com",history:[{"date": "2026-01-13", "text": "Move-in 2026-01-13"}],archived:false},
+  {id:54,apt:"210",owner:"ERA LT",name:"Joe Masalta",type:"long-term",rent:7191.96,balance:0,due:"2026-06-01",lease_end:"2026-06-01",checkin:"2026-03-01",note:"Via: Airbnb | Tel: 267-615-4780 | Email: joemasalta5326@gmail.com",history:[{"date": "2026-03-01", "text": "Move-in 2026-03-01"}],archived:false},
+  {id:55,apt:"Melrose C2",owner:"Melrose Properties",name:"Brian Rodger",type:"long-term",rent:7346.42,balance:0,due:"2026-06-28",lease_end:"2026-06-28",checkin:"2026-03-20",note:"Via: Airbnb | Tel: 17633398361 | Email: Brian.rodger@astontech.com",history:[{"date": "2026-03-20", "text": "Move-in 2026-03-20"}],archived:false},
+  {id:56,apt:"206",owner:"ERA LT",name:"Maureen Kacillas",type:"long-term",rent:7600.95,balance:0,due:"2026-06-30",lease_end:"2026-06-30",checkin:"2026-02-24",note:"Via: Airbnb | Tel: 15705924712 | Email: Salim.Akbar.2025@gmail.com",history:[{"date": "2026-02-24", "text": "Move-in 2026-02-24"}],archived:false},
+  {id:57,apt:"131",owner:"ERA LT",name:"Randy / Robert Keppler",type:"long-term",rent:2500.0,balance:0,due:"2026-12-12",lease_end:"2026-12-12",checkin:"2025-08-07",note:"Tel: (267) 680-5837 | Email: rschumacher148@gmail.com",history:[{"date": "2025-08-07", "text": "Move-in 2025-08-07"}],archived:false},
+  {id:58,apt:"132",owner:"ERA LT",name:"Sheriie Panichelli",type:"long-term",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"Tel: 2674081128 | Email: sherriepanic18@gmail.com",history:[],archived:false},
+  {id:59,apt:"320",owner:"ERA LT",name:"Taron Stokes",type:"long-term",rent:0.0,balance:0,due:"",lease_end:"",checkin:"2026-04-01",note:"",history:[{"date": "2026-04-01", "text": "Move-in 2026-04-01"}],archived:false},
+  {id:60,apt:"Melrose B1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:61,apt:"331",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:62,apt:"115",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:63,apt:"202",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:64,apt:"318",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:65,apt:"212",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:66,apt:"301",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:67,apt:"332",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:68,apt:"305",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:69,apt:"310",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:70,apt:"302",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:71,apt:"Melrose C1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:72,apt:"Melrose A1",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:73,apt:"Melrose B2",owner:"Melrose Properties",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:74,apt:"426-2",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:75,apt:"426-Studio",owner:"ERA LT",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:76,apt:"Garage 1",owner:"Montgomery Garages",name:"Mark Levitt",type:"month-to-month",rent:90.0,balance:0,due:"2024-09-30",lease_end:"",checkin:"",note:"Via: original | Tel: (267) 968-9968 | Email: makoesq@gmail.com",history:[],archived:false},
+  {id:77,apt:"Garage 2",owner:"Montgomery Garages",name:"Andrea Berger Bratman",type:"month-to-month",rent:80.0,balance:0,due:"2025-10-31",lease_end:"",checkin:"",note:"Via: original | Tel: (610) 304-8590 | Email: endlessideas@att.net",history:[],archived:false},
+  {id:78,apt:"Garage 3",owner:"Montgomery Garages",name:"Andrea Berger Bratman",type:"month-to-month",rent:80.0,balance:0,due:"2025-10-31",lease_end:"",checkin:"",note:"Via: original | Tel: (610) 304-8590 | Email: endlessideas@att.net",history:[],archived:false},
+  {id:79,apt:"Garage 4",owner:"Montgomery Garages",name:"",type:"available",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false},
+  {id:80,apt:"Garage 5",owner:"Montgomery Garages",name:"Deborah Massaud",type:"long-term",rent:74.0,balance:0,due:"2026-03-31",lease_end:"2026-09-30",checkin:"2025-10-01",note:"Via: Zillow | Tel: (215) 696-3732 | Email: ndzajs6@comcast.net",history:[{"date": "2025-10-01", "text": "Move-in 2025-10-01"}],archived:false},
+  {id:81,apt:"205",owner:"ERA LT",name:"Kate Bergan",type:"long-term",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"",history:[],archived:false}
 ];
 const ARCHIVED_SEED = [
   {id:1000,apt:"Unknown",owner:"ERA LT",name:"Antonio Benvenuti",type:"short-stay",rent:3400.0,balance:0,due:"2023-07-31",note:"Via: abnb | Tel: 917-763-4706 | Email: benvenutiant@gmail.com",history:[{"date": "2023-07-01", "text": "$3,400.00 \u2014 stay (2023-07-01 \u2192 2023-07-31)"}],archived:true,archived_date:"2023-07-31"},
@@ -655,7 +821,7 @@ const ARCHIVED_SEED = [
   {id:1057,apt:"426-2",owner:"ERA LT",name:"Archil Shengelia",type:"short-stay",rent:570.0,balance:0,due:"2022-09-26",note:"Via: abnb | Tel: 848-298-4074",history:[{"date": "2022-09-19", "text": "$570.00 \u2014 stay (2022-09-19 \u2192 2022-09-26)"}],archived:true,archived_date:"2022-09-26"},
   {id:1058,apt:"426-4",owner:"ERA LT",name:"Eugene Myatt",type:"short-stay",rent:560.0,balance:0,due:"2022-09-23",note:"Via: abnb | Tel: 267-528-9150",history:[{"date": "2022-09-16", "text": "$560.00 \u2014 stay (2022-09-16 \u2192 2022-09-23)"}],archived:true,archived_date:"2022-09-23"},
   {id:1059,apt:"127",owner:"ERA LT",name:"Shonya Payne-",type:"long-term",rent:1092.0,balance:0,due:"2022-10-07",note:"Via: Lindy | Tel: 215-439-8102",history:[{"date": "2022-06-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$1,092 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$1,092 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-07"},
-  {id:1060,apt:"212",owner:"ERA LT",name:"Metzgar Delanie/Johnson Brandon",type:"long-term",rent:19001839.0,balance:0,due:"2022-10-31",note:"Via: Facebook | Tel: 267-800-5861 | Email: dmetzgar12@gmail.com",history:[{"date": "2022-03-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-04-01", "text": "$2,001,839 \u2014 monthly (est.)"}, {"date": "2022-05-01", "text": "$2,001,839 \u2014 monthly (est.)"}, {"date": "2022-06-01", "text": "$2,001,839 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$2,001,839 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$2,001,839 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$2,001,839 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$2,001,839 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-31"},
+  {id:1060,apt:"212",owner:"ERA LT",name:"Metzgar Delanie/Johnson Brandon",type:"long-term",rent:1900,balance:0,due:"2022-10-31",note:"Via: Facebook | Tel: 267-800-5861 | Email: dmetzgar12@gmail.com",history:[{"date": "2022-03-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-04-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-05-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-06-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$19,001,839 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$19,001,839 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-31"},
   {id:1061,apt:"225",owner:"ERA LT",name:"Darlyne Ryan",type:"long-term",rent:1076.0,balance:0,due:"2022-11-13",note:"Via: Lindy | Tel: 215-554-4898 | Email: ryan-darlene@aramark.com",history:[{"date": "2022-06-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$1,076 \u2014 monthly (est.)"}, {"date": "2022-11-01", "text": "$1,076 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-11-13"},
   {id:1062,apt:"219",owner:"ERA LT",name:"Atif Nehvi",type:"short-stay",rent:1330.0,balance:0,due:"2022-10-01",note:"Via: abnb | Tel: 647-808-0947",history:[{"date": "2022-09-15", "text": "$1,330.00 \u2014 stay (2022-09-15 \u2192 2022-10-01)"}],archived:true,archived_date:"2022-10-01"},
   {id:1063,apt:"426-1",owner:"ERA LT",name:"Mariana Peralta",type:"long-term",rent:9600.0,balance:0,due:"2022-10-01",note:"Via: abnb | Tel: 347-220-4646",history:[{"date": "2022-06-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-07-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-08-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-09-01", "text": "$9,600 \u2014 monthly (est.)"}, {"date": "2022-10-01", "text": "$9,600 \u2014 monthly (est.)"}],archived:true,archived_date:"2022-10-01"},
@@ -900,7 +1066,7 @@ const ARCHIVED_SEED = [
   {id:1302,apt:"202",owner:"ERA LT",name:"Francisca Ronay",type:"short-stay",rent:1816.9,balance:0,due:"2024-07-09",note:"Via: abnb | Tel: 9545405855",history:[{"date": "2024-06-25", "text": "$1,816.90 \u2014 stay (2024-06-25 \u2192 2024-07-09)"}],archived:true,archived_date:"2024-07-09"},
   {id:1303,apt:"330",owner:"ERA LT",name:"Lamanda Davis",type:"short-stay",rent:767.16,balance:0,due:"2024-07-09",note:"Via: abnb | Tel: 4843007241",history:[{"date": "2024-06-21", "text": "$767.16 \u2014 stay (2024-06-21 \u2192 2024-07-09)"}],archived:true,archived_date:"2024-07-09"},
   {id:1304,apt:"314",owner:"ERA LT",name:"Joseph Dinkel",type:"short-stay",rent:2477.57,balance:0,due:"2024-07-10",note:"Via: abnb | Tel: 727-643-9982",history:[{"date": "2024-06-10", "text": "$2,477.57 \u2014 stay (2024-06-10 \u2192 2024-07-10)"}],archived:true,archived_date:"2024-07-10"},
-  {id:1305,apt:"331",owner:"ERA LT",name:"Fatiha",type:"long-term",rent:1200628180705.0,balance:0,due:"2024-07-13",note:"",history:[{"date": "2024-06-01", "text": "$1,200 \u2014 monthly (est.)"}, {"date": "2024-07-01", "text": "$1,200 \u2014 monthly (est.)"}],archived:true,archived_date:"2024-07-13"},
+  {id:1305,apt:"331",owner:"ERA LT",name:"Fatiha",type:"long-term",rent:1200,balance:0,due:"2024-07-13",note:"",history:[{"date": "2024-06-01", "text": "$1,200,628,180,705 \u2014 monthly (est.)"}, {"date": "2024-07-01", "text": "$1,200,628,180,705 \u2014 monthly (est.)"}],archived:true,archived_date:"2024-07-13"},
   {id:1306,apt:"Melrose B2",owner:"Melrose Properties",name:"Gustavo Gomez",type:"short-stay",rent:3425.6,balance:0,due:"2024-07-13",note:"Via: abnb | Tel: 7544572683",history:[{"date": "2024-06-16", "text": "$3,425.60 \u2014 stay (2024-06-16 \u2192 2024-07-13)"}],archived:true,archived_date:"2024-07-13"},
   {id:1307,apt:"426-4",owner:"ERA LT",name:"Nicole Gambone",type:"short-stay",rent:809.04,balance:0,due:"2024-07-14",note:"Via: abnb | Tel: 6098458895",history:[{"date": "2024-07-06", "text": "$809.04 \u2014 stay (2024-07-06 \u2192 2024-07-14)"}],archived:true,archived_date:"2024-07-14"},
   {id:1308,apt:"230",owner:"ERA LT",name:"Amnon Saad",type:"long-term",rent:900.0,balance:0,due:"2024-07-15",note:"",history:[{"date": "2024-07-01", "text": "$900 \u2014 monthly (est.)"}],archived:true,archived_date:"2024-07-15"},
@@ -1370,6 +1536,8 @@ function dbRow(r) {
     rent: r.rent || 0,
     balance: r.balance || 0,
     due: r.due || null,
+    lease_end: r.lease_end || null,
+    checkin: r.checkin || null,
     note: r.note || null,
     history: r.history || [],
     archived: r.archived || false,
@@ -1378,6 +1546,9 @@ function dbRow(r) {
 }
 
 function fromRow(r) {
+  const hist = Array.isArray(r.history) ? r.history : [];
+  // checkin: use dedicated field first, then first history entry
+  const checkinDate = r.checkin || (hist.length ? hist[0].date : '');
   return {
     id: r.id,
     apt: r.apt || '',
@@ -1387,17 +1558,84 @@ function fromRow(r) {
     rent: parseFloat(r.rent) || 0,
     balance: parseFloat(r.balance) || 0,
     due: r.due || '',
+    lease_end: r.lease_end || '',
+    checkin: r.checkin || '',
     note: r.note || '',
-    history: Array.isArray(r.history) ? r.history : [],
+    history: hist,
     archived: r.archived || false,
-    archivedDate: r.archived_date || ''
+    archivedDate: r.archived_date || r.due || '',
+    checkinDate: checkinDate,
   };
 }
 
+// ── AUDIT LOG ──────────────────────────────────────
+let lastUndo = null; // {action, record_id, old_data, new_data}
+
+async function auditLog(action, apt, name, recordId, oldData, newData) {
+  try {
+    await sb.from('audit_log').insert({
+      action, apt, name,
+      record_id: recordId,
+      old_data: oldData ? JSON.stringify(oldData) : null,
+      new_data: newData ? JSON.stringify(newData) : null,
+    });
+    // Keep last undo in memory for instant undo
+    lastUndo = { action, record_id: recordId, old_data: oldData, new_data: newData, apt, name };
+    document.getElementById('undoBtn').style.display = '';
+    document.getElementById('undoBtn').title = `Undo: ${action} — ${apt} ${name||''}`;
+  } catch(e) {
+    console.warn('Audit log failed:', e);
+  }
+}
+
+async function performUndo() {
+  if(!lastUndo) return;
+  const u = lastUndo;
+  if(!confirm(`Undo "${u.action}" for ${u.apt} ${u.name||''}?`)) return;
+  try {
+    if(u.action === 'delete') {
+      // Restore deleted record
+      if(u.old_data) {
+        const rec = typeof u.old_data === 'string' ? JSON.parse(u.old_data) : u.old_data;
+        await sb.from('units').insert(rec);
+      }
+    } else if(u.action === 'archive') {
+      // Restore archived unit and delete archive copy
+      if(u.old_data) {
+        const rec = typeof u.old_data === 'string' ? JSON.parse(u.old_data) : u.old_data;
+        await sb.from('units').upsert(rec, {onConflict:'id'});
+      }
+      if(u.new_data) {
+        const newRec = typeof u.new_data === 'string' ? JSON.parse(u.new_data) : u.new_data;
+        await sb.from('units').delete().eq('id', newRec.id);
+      }
+    } else {
+      // Restore previous state of record
+      if(u.old_data) {
+        const rec = typeof u.old_data === 'string' ? JSON.parse(u.old_data) : u.old_data;
+        await sb.from('units').upsert(rec, {onConflict:'id'});
+      }
+    }
+    lastUndo = null;
+    document.getElementById('undoBtn').style.display = 'none';
+    await loadAll();
+    renderTable();
+    toast('↩ Undo successful', 'success');
+  } catch(e) {
+    console.error('Undo failed:', e);
+    toast('Undo failed: ' + e.message, 'error');
+  }
+}
+
 async function save(record) {
+  // Get old state for audit
+  const old = [...data, ...archived].find(x => x.id === record.id);
   const row = dbRow(record);
   const { error } = await sb.from('units').upsert(row, { onConflict: 'id' });
-  if (error) { console.error('Save error:', error); toast('Sync error — check console','error'); }
+  if (error) { console.error('Save error:', error); toast('Sync error — check console','error'); return; }
+  // Log to audit
+  await auditLog('edit', record.apt||'', record.name||'', record.id,
+    old ? dbRow(old) : null, row);
 }
 
 async function saveAll(records) {
@@ -1405,26 +1643,45 @@ async function saveAll(records) {
   const { error } = await sb.from('units').upsert(rows, { onConflict: 'id' });
   if (error) {
     console.error('SaveAll error:', error);
-    console.error('First record was:', rows[0]);
     toast('Sync error: ' + error.message, 'error');
+  }
+  // Log first record as representative (bulk operations)
+  if(rows.length && rows[0]) {
+    await auditLog('bulk-save', rows[0].apt||'', rows[0].name||'', rows[0].id, null, {count: rows.length});
   }
 }
 
 async function deleteRecord(id) {
+  const old = [...data, ...archived].find(x => x.id === id);
   const { error } = await sb.from('units').delete().eq('id', id);
-  if (error) console.error('Delete error:', error);
+  if (error) { console.error('Delete error:', error); return; }
+  if(old) await auditLog('delete', old.apt||'', old.name||'', id, dbRow(old), null);
 }
 
 async function loadAll() {
-  const { data: rows, error } = await sb.from('units').select('*').order('id');
-  if (error) {
-    console.error('Load error:', error);
-    throw new Error(error.message || 'Failed to load from database');
+  let allRows = [];
+  const pageSize = 500;
+  let page = 0;
+  while(true) {
+    const from = page * pageSize;
+    const to   = from + pageSize - 1;
+    const { data: rows, error } = await sb
+      .from('units').select('*').order('id').range(from, to);
+    if (error) {
+      console.error('Load error:', error);
+      throw new Error(error.message || 'Failed to load from database');
+    }
+    if (!rows || rows.length === 0) break;
+    allRows = allRows.concat(rows);
+    console.log(`Page ${page}: loaded ${rows.length} rows (total so far: ${allRows.length})`);
+    if (rows.length < pageSize) break;
+    page++;
   }
-  const all = rows.map(fromRow);
-  data = all.filter(r => !r.archived);
-  archived = all.filter(r => r.archived);
-  nextId = Math.max(80, ...all.map(r => r.id), 80) + 1;
+  const all = allRows.map(fromRow);
+  data     = all.filter(r => !r.archived);
+  archived = all.filter(r =>  r.archived);
+  nextId   = Math.max(80, ...all.map(r => r.id), 80) + 1;
+  console.log(`loadAll complete: ${data.length} active, ${archived.length} archived`);
   return true;
 }
 
@@ -1470,7 +1727,15 @@ function getFiltered(){
   if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>r.type==='available');}
   if(currentTypeFilter!=='all')rows=rows.filter(r=>r.type===currentTypeFilter);
   const sel=document.getElementById('sortSel').value;
-  rows.sort((a,b)=>{if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}if(sel==='apt')return a.apt.localeCompare(b.apt,undefined,{numeric:true});if(sel==='name')return(a.name||'zzz').localeCompare(b.name||'zzz');if(sel==='amount')return(b.rent||0)-(a.rent||0);return 0;});
+  rows.sort((a,b)=>{
+    if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}
+    if(sel==='lease_end'||sel==='lease_end-desc'){const da=a.lease_end||'9999',db=b.lease_end||'9999';return sel==='lease_end'?da.localeCompare(db):db.localeCompare(da);}
+    if(sel==='checkin'||sel==='checkin-desc'){const da=a.checkin||'9999',db=b.checkin||'9999';return sel==='checkin'?da.localeCompare(db):db.localeCompare(da);}
+    if(sel==='apt'||sel==='apt-desc'){const r=a.apt.localeCompare(b.apt,undefined,{numeric:true});return sel==='apt'?r:-r;}
+    if(sel==='name'||sel==='name-desc'){const r=(a.name||'zzz').localeCompare(b.name||'zzz');return sel==='name'?r:-r;}
+    if(sel==='amount'||sel==='amount-desc'){return sel==='amount'?(b.rent||0)-(a.rent||0):(a.rent||0)-(b.rent||0);}
+    return 0;
+  });
   return rows;
 }
 function renderTable(){
@@ -1479,40 +1744,315 @@ function renderTable(){
   document.getElementById('tableBody').innerHTML=rows.map(r=>{
     const s=dueStatus(r),rc=r.type==='available'?'row-available':s==='overdue'?'row-overdue':s==='soon'?'row-soon':'';
     const bc=r.type==='available'?'<span class="amount-none">—</span>':r.balance>0?`<span style="color:var(--red);font-weight:500">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>';
-    return`<tr class="apt-row ${rc}" onclick="openDetail(${r.id})"><td class="apt-num">${r.apt}</td><td>${r.name?`<div class="tenant-name">${r.name}</div>`:'<div class="tenant-empty">Vacant</div>'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${typeBadge(r.type)}</td><td>${dueCell(r)}</td><td>${r.rent?`<span class="amount-cell">$${r.rent.toLocaleString()}</span>`:'<span class="amount-none">—</span>'}</td><td>${bc}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell" onclick="event.stopPropagation()">${r.type!=='available'?`<button class="icon-btn ib-pay" title="Payment" onclick="openPayModal(${r.id})">💰</button>`:''}<button class="icon-btn ib-edit" title="Edit" onclick="openEditModal(${r.id})">✏️</button><button class="icon-btn ib-arch" title="Archive" onclick="archiveTenant(${r.id})">📦</button></td></tr>`;
+    const proration = currentMonthProration(r);
+    const rentCell = r.type==='short-stay' && proration
+      ? `<span class="amount-cell" title="Full stay: $${r.rent.toLocaleString()} — ${proration.days} days this month" style="cursor:help">$${proration.portion.toLocaleString()}<small style="color:var(--text3);font-size:9px;margin-left:2px">/${proration.days}d</small></span>`
+      : r.rent ? `<span class="amount-cell">$${r.rent.toLocaleString()}</span>` : '<span class="amount-none">—</span>';
+    return`<tr class="apt-row ${rc}" onclick="openDetail(${r.id})"><td class="apt-num">${r.apt}</td><td>${r.name?`<div class="tenant-name">${r.name}</div>`:'<div class="tenant-empty">Vacant</div>'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${typeBadge(r.type)}</td><td style="font-size:12px;color:var(--text2);white-space:nowrap">${r.checkin?fmtDate(r.checkin):'<span style="color:var(--text3)">—</span>'}</td><td>${dueCell(r)}</td><td style="font-size:12px;color:var(--blue);white-space:nowrap">${r.type!=='short-stay'&&r.lease_end?fmtDate(r.lease_end):'<span style="color:var(--text3)">—</span>'}</td><td>${rentCell}</td><td>${bc}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell" onclick="event.stopPropagation()">${r.type!=='available'?`<button class="icon-btn ib-pay" title="Payment" onclick="openPayModal(${r.id})">💰</button>`:''}<button class="icon-btn ib-edit" title="Edit" onclick="openEditModal(${r.id})">✏️</button><button class="icon-btn ib-arch" title="Archive" onclick="archiveTenant(${r.id})">📦</button></td></tr>`;
   }).join('');
-  document.getElementById('archiveBody').innerHTML=archived.map(r=>`<tr style="opacity:.75"><td class="apt-num" style="font-size:15px">${r.apt}</td><td class="tenant-name">${r.name||'—'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${typeBadge(r.type)}</td><td style="color:var(--text3)">${fmtDate(r.archivedDate||r.due)}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell"><button class="icon-btn ib-restore" title="Restore" onclick="restoreTenant(${r.id})">↩️</button><button class="icon-btn ib-del" title="Delete" onclick="deletePermanent(${r.id})">🗑️</button></td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px">No archived tenants</td></tr>';
+  document.getElementById('archiveBody').innerHTML=archived.filter(r=>r.archived).map(r=>`<tr style="opacity:.75"><td class="apt-num" style="font-size:15px">${r.apt}</td><td class="tenant-name">${r.name||'—'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${typeBadge(r.type)}</td><td style="color:var(--text3);font-size:12px">${fmtDate(r.checkin||r.checkinDate||'')}</td><td style="color:var(--blue);font-size:12px">${fmtDate(r.lease_end||r.archivedDate||r.due||'')}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell"><button class="icon-btn ib-restore" title="Restore" onclick="restoreTenant(${r.id})">↩️</button><button class="icon-btn ib-del" title="Delete" onclick="deletePermanent(${r.id})">🗑️</button></td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">No archived tenants</td></tr>';
 }
 
 function filterStat(el,f){document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));currentStatFilter=currentStatFilter===f?'all':f;if(currentStatFilter==='all')document.querySelector('.s-total').classList.add('active');else el.classList.add('active');renderTable();}
 function filterType(el){document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));el.classList.add('active');currentTypeFilter=el.dataset.type;renderTable();}
-function setSortSel(v){document.getElementById('sortSel').value=v;renderTable();}
+function setSortSel(v){
+  const sel = document.getElementById('sortSel');
+  // Toggle desc if clicking same column
+  if(sel.value === v) sel.value = v+'-desc';
+  else if(sel.value === v+'-desc') sel.value = v;
+  else sel.value = v;
+  // Highlight active header
+  document.querySelectorAll('thead th[onclick]').forEach(th => {
+    const col = th.getAttribute('onclick').match(/'([^']+)'/)?.[1];
+    const isActive = sel.value === col || sel.value === col+'-desc';
+    th.style.color = isActive ? 'var(--accent2)' : '';
+  });
+  renderTable();
+}
 function toggleArchive(){const w=document.getElementById('archiveTableWrap'),ch=document.getElementById('archChevron');const o=w.style.display!=='none';w.style.display=o?'none':'';ch.classList.toggle('open',!o);}
 
 // ── ADD/EDIT ───────────────────────────────────────
-function openAddModal(){document.getElementById('editId').value='';document.getElementById('modalTitle').textContent='Add Unit / Tenant';document.getElementById('modalAptLabel').textContent='—';['fApt','fOwner','fName','fRent','fBalance','fNote'].forEach(i=>document.getElementById(i).value='');document.getElementById('fType').value='available';document.getElementById('fDue').value='';openModal('editModal');}
-function openEditModal(id){const r=data.find(x=>x.id===id);if(!r)return;document.getElementById('editId').value=id;document.getElementById('modalTitle').textContent='Edit Unit / Tenant';document.getElementById('modalAptLabel').textContent=r.apt;document.getElementById('fApt').value=r.apt;document.getElementById('fOwner').value=r.owner||'';document.getElementById('fName').value=r.name||'';document.getElementById('fType').value=r.type||'available';document.getElementById('fRent').value=r.rent||'';document.getElementById('fDue').value=r.due||'';document.getElementById('fBalance').value=r.balance||'';document.getElementById('fNote').value=r.note||'';openModal('editModal');}
-async function saveTenant(){const id=document.getElementById('editId').value;const apt=document.getElementById('fApt').value.trim();if(!apt){toast('Apartment # required','error');return;}const rec={apt,owner:document.getElementById('fOwner').value.trim(),name:document.getElementById('fName').value.trim(),type:document.getElementById('fType').value,rent:parseFloat(document.getElementById('fRent').value)||0,due:document.getElementById('fDue').value,balance:parseFloat(document.getElementById('fBalance').value)||0,note:document.getElementById('fNote').value.trim()};if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}else{const newRec={id:nextId++,...rec,history:[],archived:false};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}closeModal('editModal');renderTable();}
+function openAddModal(){document.getElementById('editId').value='';document.getElementById('modalTitle').textContent='Add Unit / Tenant';document.getElementById('modalAptLabel').textContent='—';['fApt','fOwner','fName','fRent','fBalance','fNote','fCheckin'].forEach(i=>document.getElementById(i).value='');document.getElementById('fType').value='available';document.getElementById('fDue').value='';document.getElementById('fLeaseEnd').value='';openModal('editModal');}
+function openEditModal(id){const r=data.find(x=>x.id===id);if(!r)return;document.getElementById('editId').value=id;document.getElementById('modalTitle').textContent='Edit Unit / Tenant';document.getElementById('modalAptLabel').textContent=r.apt;document.getElementById('fApt').value=r.apt;document.getElementById('fOwner').value=r.owner||'';document.getElementById('fName').value=r.name||'';document.getElementById('fType').value=r.type||'available';document.getElementById('fRent').value=r.rent||'';document.getElementById('fDue').value=r.due||'';document.getElementById('fLeaseEnd').value=r.lease_end||'';document.getElementById('fCheckin').value=r.checkin||'';document.getElementById('fBalance').value=r.balance||'';document.getElementById('fNote').value=r.note||'';openModal('editModal');}
+async function saveTenant(){const id=document.getElementById('editId').value;const apt=document.getElementById('fApt').value.trim();if(!apt){toast('Apartment # required','error');return;}const rec={apt,owner:document.getElementById('fOwner').value.trim(),name:document.getElementById('fName').value.trim(),type:document.getElementById('fType').value,rent:parseFloat(document.getElementById('fRent').value)||0,due:document.getElementById('fDue').value,lease_end:document.getElementById('fLeaseEnd').value,checkin:document.getElementById('fCheckin').value,balance:parseFloat(document.getElementById('fBalance').value)||0,note:document.getElementById('fNote').value.trim()};if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}else{const newRec={id:nextId++,...rec,history:[],archived:false};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}closeModal('editModal');renderTable();}
 
 // ── PAYMENT ────────────────────────────────────────
-function openPayModal(id){const r=data.find(x=>x.id===id);if(!r)return;payType='full';['full','partial','extend'].forEach(t=>document.getElementById('rb-'+t).classList.toggle('selected',t==='full'));document.getElementById('extendDateRow').style.display='none';document.getElementById('payPreviewRow').style.display='none';document.getElementById('payId').value=id;document.getElementById('payAptLabel').textContent=r.apt;document.getElementById('payAmount').value=r.balance>0?r.balance:r.rent;document.getElementById('payDate').value=today();document.getElementById('payNote').value='';document.getElementById('payNewDate').value=r.due||'';const s=dueStatus(r);document.getElementById('payInfoBox').innerHTML=`<div class="pay-info-item"><div class="pi-label">Tenant</div><div class="pi-value">${r.name||'—'}</div></div><div class="pay-info-item"><div class="pi-label">Monthly Rent</div><div class="pi-value">$${(r.rent||0).toLocaleString()}</div></div><div class="pay-info-item"><div class="pi-label">Balance Owed</div><div class="pi-value ${r.balance>0?'overdue':'ok'}">${r.balance>0?'$'+r.balance.toLocaleString():'✓ Paid'}</div></div><div class="pay-info-item"><div class="pi-label">Due Date</div><div class="pi-value ${s==='overdue'?'overdue':''}">${fmtDate(r.due)}</div></div>`;updatePayPreview();openModal('payModal');}
+function openPayModal(id){
+  const r=data.find(x=>x.id===id);if(!r)return;
+  payType='full';
+  ['full','partial','extend'].forEach(t=>document.getElementById('rb-'+t).classList.toggle('selected',t==='full'));
+  document.getElementById('extendDateRow').style.display='none';
+  document.getElementById('payPreviewRow').style.display='none';
+  document.getElementById('payId').value=id;
+  document.getElementById('payAptLabel').textContent=r.apt;
+  document.getElementById('payAmount').value=r.balance>0?r.balance:r.rent;
+  document.getElementById('payDate').value=today();
+  document.getElementById('payNote').value='';
+  document.getElementById('payNewDate').value=r.due||'';
+  document.getElementById('prorateCheck').checked=false;
+  document.getElementById('prorateBreakdown').innerHTML='';
+  // Show prorate option for short stays with checkin+lease_end
+  const showProrate = r.type==='short-stay' && r.checkin && (r.lease_end||r.due);
+  document.getElementById('prorateRow').style.display = showProrate ? '' : 'none';
+  const s=dueStatus(r);
+  document.getElementById('payInfoBox').innerHTML=`
+    <div class="pay-info-item"><div class="pi-label">Tenant</div><div class="pi-value">${r.name||'—'}</div></div>
+    <div class="pay-info-item"><div class="pi-label">Amount</div><div class="pi-value">$${(r.rent||0).toLocaleString()}</div></div>
+    <div class="pay-info-item"><div class="pi-label">Balance Owed</div><div class="pi-value ${r.balance>0?'overdue':'ok'}">${r.balance>0?'$'+r.balance.toLocaleString():'✓ Paid'}</div></div>
+    <div class="pay-info-item"><div class="pi-label">Check-in → Checkout</div><div class="pi-value" style="font-size:12px">${fmtDate(r.checkin||r.due)} → ${fmtDate(r.lease_end||r.due)}</div></div>`;
+  updatePayPreview();
+  openModal('payModal');
+}
 function selectPayType(t){payType=t;['full','partial','extend'].forEach(x=>document.getElementById('rb-'+x).classList.toggle('selected',x===t));document.getElementById('extendDateRow').style.display=t==='extend'?'':'none';updatePayPreview();}
-function updatePayPreview(){const id=document.getElementById('payId').value;const r=data.find(x=>x.id==id);if(!r)return;const amt=parseFloat(document.getElementById('payAmount').value)||0;let msg='';if(payType==='full'){const nd=nextMonth(r.due);msg=amt>=r.rent?`✓ Full payment. Due → <strong>${fmtDate(nd)}</strong>`:`⚠ $${amt} < rent $${r.rent}. Balance: <strong>$${(r.rent-amt).toFixed(2)}</strong>`;}else if(payType==='partial'){msg=`Partial. New balance: <strong>$${Math.max(0,(r.balance||r.rent)-amt).toFixed(2)}</strong>`;}else if(payType==='extend'){const nd=document.getElementById('payNewDate').value;msg=nd?`Extended to <strong>${fmtDate(nd)}</strong>`:'Select new checkout date.';}document.getElementById('payPreview').innerHTML=msg;document.getElementById('payPreviewRow').style.display=msg?'':'none';}
-async function confirmPayment(){const id=document.getElementById('payId').value;const idx=data.findIndex(x=>x.id==id);if(idx<0)return;const r=data[idx];const amt=parseFloat(document.getElementById('payAmount').value)||0;const note=document.getElementById('payNote').value;const dateStr=document.getElementById('payDate').value||today();r.history=r.history||[];r.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — ${payType}${note?' | '+note:''}`});if(payType==='full'){r.balance=amt>=r.rent?0:Math.max(0,r.rent-amt);if(amt>=r.rent)r.due=nextMonth(r.due);}else if(payType==='partial'){r.balance=Math.max(0,(r.balance>0?r.balance:r.rent)-amt);}else if(payType==='extend'){const nd=document.getElementById('payNewDate').value;if(nd)r.due=nd;r.balance=Math.max(0,(r.balance||0)-amt);}await save(r);closeModal('payModal');renderTable();toast(`Payment recorded for Apt ${r.apt} ✓`,'success');if(detailId===r.id)openDetail(r.id);}
+function calcProration(checkin, checkout, totalAmt) {
+  // Split totalAmt across calendar months proportionally by days
+  if(!checkin || !checkout) return [];
+  const ci = new Date(checkin+'T00:00:00');
+  const co = new Date(checkout+'T00:00:00');
+  const totalDays = Math.round((co - ci) / 86400000);
+  if(totalDays <= 0) return [];
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const result = [];
+  let cur = new Date(ci);
+  while(cur < co) {
+    const y = cur.getFullYear(), m = cur.getMonth();
+    const monthEnd = new Date(y, m+1, 0);
+    const periodEnd = co < monthEnd ? co : monthEnd;
+    const days = Math.round((periodEnd - cur) / 86400000);
+    const portion = Math.round(totalAmt * days / totalDays * 100) / 100;
+    result.push({ month:`${MONTHS[m]} ${y}`, monthStr:`${y}-${String(m+1).padStart(2,'0')}`, days, portion });
+    cur = new Date(y, m+1, 1);
+  }
+  return result;
+}
+
+function currentMonthProration(r) {
+  if(r.type !== 'short-stay') return null;
+  const ci = r.checkin;
+  const co = r.lease_end || r.due;  // use lease_end or fall back to due
+  if(!ci || !co) return null;
+  const ciD = new Date(ci+'T00:00:00');
+  const coD = new Date(co+'T00:00:00');
+  if(coD <= ciD) return null;  // same day or invalid
+  const now = new Date();
+  const curMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const splits = calcProration(ci, co, r.rent);
+  const thisMonth = splits.find(s => s.monthStr === curMonthStr);
+  return thisMonth || null;
+}
+
+function updatePayPreview(){
+  const id=document.getElementById('payId').value;
+  const r=data.find(x=>x.id==id);if(!r)return;
+  const amt=parseFloat(document.getElementById('payAmount').value)||0;
+  const isProrate = document.getElementById('prorateCheck')?.checked;
+  let msg='';
+
+  if(isProrate && r.type==='short-stay'){
+    const ci = r.checkin || r.due;
+    const co = r.lease_end || r.due;
+    const splits = calcProration(ci, co, amt);
+    if(splits.length){
+      const breakdown = splits.map(s=>`${s.month}: <strong>$${s.portion.toLocaleString()}</strong> (${s.days} days)`).join('<br>');
+      document.getElementById('prorateBreakdown').innerHTML = breakdown;
+      msg = `✓ Total $${amt.toLocaleString()} split across ${splits.length} month${splits.length>1?'s':''} — archive lines created per month.`;
+    }
+  } else if(payType==='full'){
+    const nd=nextMonth(r.due);
+    msg=amt>=r.rent?`✓ Full payment. Due → <strong>${fmtDate(nd)}</strong>`:`⚠ $${amt} < rent $${r.rent}. Balance: <strong>$${(r.rent-amt).toFixed(2)}</strong>`;
+  } else if(payType==='partial'){
+    msg=`Partial. New balance: <strong>$${Math.max(0,(r.balance||r.rent)-amt).toFixed(2)}</strong>`;
+  } else if(payType==='extend'){
+    const nd=document.getElementById('payNewDate').value;
+    msg=nd?`Extended to <strong>${fmtDate(nd)}</strong>`:'Select new checkout date.';
+  }
+  document.getElementById('payPreview').innerHTML=msg;
+  document.getElementById('payPreviewRow').style.display=msg?'':'none';
+}
+async function confirmPayment(){
+  const id=document.getElementById('payId').value;
+  const idx=data.findIndex(x=>x.id==id);if(idx<0)return;
+  const r=data[idx];
+  const amt=parseFloat(document.getElementById('payAmount').value)||0;
+  const note=document.getElementById('payNote').value;
+  const dateStr=document.getElementById('payDate').value||today();
+  const isProrate = document.getElementById('prorateCheck')?.checked && r.type==='short-stay';
+
+  r.history=r.history||[];
+  r.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — ${isProrate?'full stay (prorated)':payType}${note?' | '+note:''}`});
+
+  if(!isProrate){
+    if(payType==='full'){r.balance=amt>=r.rent?0:Math.max(0,r.rent-amt);if(amt>=r.rent)r.due=nextMonth(r.due);}
+    else if(payType==='partial'){r.balance=Math.max(0,(r.balance>0?r.balance:r.rent)-amt);}
+    else if(payType==='extend'){const nd=document.getElementById('payNewDate').value;if(nd)r.due=nd;r.balance=Math.max(0,(r.balance||0)-amt);}
+  } else {
+    r.balance=0; // fully paid
+  }
+
+  await save(r);
+
+  // ── AUTO-ARCHIVE LINES ─────────────────────────────
+  if(isProrate && r.type==='short-stay'){
+    // Prorated: create one archive line per month
+    const ci = r.checkin || r.due;
+    const co = r.lease_end || r.due;
+    const splits = calcProration(ci, co, amt);
+    let uid = Math.max(2000,...archived.map(a=>a.id),...data.map(d=>d.id))+1;
+    for(const s of splits){
+      const alreadyExists = archived.some(a=>
+        a.apt===r.apt && (a.name||'').toLowerCase()===r.name.toLowerCase() &&
+        (a.archived_date||a.archivedDate||'').substring(0,7)===s.monthStr
+      );
+      if(!alreadyExists){
+        const archRec={
+          id:uid++, apt:r.apt, owner:r.owner||null, name:r.name,
+          type:r.type, rent:s.portion, balance:0,
+          due:`${s.monthStr}-01`,
+          lease_end:new Date(parseInt(s.monthStr.split('-')[0]),parseInt(s.monthStr.split('-')[1]),0).toISOString().split('T')[0],
+          checkin: ci,
+          note:`${r.name} — ${s.month} — $${s.portion.toLocaleString()} (${s.days} days)${note?' | '+note:''}`,
+          history:[{date:dateStr,text:`$${s.portion.toLocaleString()} — ${s.month} prorated (${s.days} days)`}],
+          archived:true, archived_date:`${s.monthStr}-01`,
+        };
+        await save(archRec);
+        archived.unshift({...archRec,archivedDate:`${s.monthStr}-01`,checkinDate:ci});
+      }
+    }
+  } else if(r.type==='long-term'||r.type==='month-to-month'){
+    // Regular LT/MTM: one line for the month
+    const monthStr=dateStr.substring(0,7);
+    const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mIdx=parseInt(monthStr.split('-')[1])-1;
+    const yr=monthStr.split('-')[0];
+    const alreadyExists=archived.some(a=>
+      a.apt===r.apt&&(a.name||'').toLowerCase()===r.name.toLowerCase()&&
+      (a.archived_date||a.archivedDate||'').substring(0,7)===monthStr
+    );
+    if(!alreadyExists){
+      const newId=Math.max(2000,...archived.map(a=>a.id),...data.map(d=>d.id))+1;
+      const archRec={
+        id:newId, apt:r.apt, owner:r.owner||null, name:r.name,
+        type:r.type, rent:amt, balance:0,
+        due:`${monthStr}-01`,
+        lease_end:new Date(parseInt(yr),mIdx+1,0).toISOString().split('T')[0],
+        checkin:r.checkin||'',
+        note:`${r.name} — ${MONTHS[mIdx]} ${yr} — $${amt.toLocaleString()}${note?' | '+note:''}`,
+        history:[{date:dateStr,text:`$${amt.toLocaleString()} — payment received${note?' | '+note:''}`}],
+        archived:true, archived_date:`${monthStr}-01`,
+      };
+      await save(archRec);
+      archived.unshift({...archRec,archivedDate:`${monthStr}-01`,checkinDate:r.checkin||''});
+    }
+  }
+
+  closeModal('payModal');renderTable();
+  toast(`Payment recorded for Apt ${r.apt} ✓`,'success');
+  if(detailId===r.id)openDetail(r.id);
+}
 
 // ── ARCHIVE ────────────────────────────────────────
-async function archiveTenant(id){if(!confirm('Move to archive? Apartment will be marked available.'))return;const idx=data.findIndex(x=>x.id===id);const r=data[idx];const archivedRec={...r,archived:true,archivedDate:today()};archived.unshift(archivedRec);const blankRec={id:r.id,apt:r.apt,owner:r.owner,name:'',type:'available',rent:r.rent,balance:0,due:'',note:'',history:[],archived:false,archivedDate:''};data[idx]=blankRec;// Save archived version with new id
-const archCopy={...archivedRec,id:nextId++};archived[0]=archCopy;await saveAll([blankRec,archCopy]);renderTable();toast(`${r.name||'Tenant'} archived. Apt ${r.apt} available.`,'success');if(detailId===id)closeDetail();}
-async function restoreTenant(id){const idx=archived.findIndex(x=>x.id===id);if(idx<0)return;const r=archived[idx];const slot=data.findIndex(x=>x.apt===r.apt&&x.type==='available');const res={...r,archived:false,archivedDate:''};if(slot>=0)data[slot]=res;else data.push(res);archived.splice(idx,1);await saveAll([res]);await deleteRecord(id);renderTable();toast(`${r.name||'Tenant'} restored to Apt ${r.apt}`,'success');}
+async function archiveTenant(id){
+  if(!confirm('Move to archive? Apartment will be marked available.'))return;
+  const idx=data.findIndex(x=>x.id===id);
+  const r=data[idx];
+  const todayStr=today();
+
+  // Get a safe new ID — query Supabase for actual max
+  const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
+  const safeNewId = maxRow && maxRow.length ? maxRow[0].id + 1 : nextId;
+  nextId = safeNewId + 1;
+
+  // Determine lease_end
+  let archLeaseEnd = r.lease_end || r.due || todayStr;
+  if((r.type==='long-term'||r.type==='month-to-month')&&!r.lease_end){
+    const now=new Date();
+    archLeaseEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split('T')[0];
+  }
+
+  const archRow = {
+    id: safeNewId,
+    apt: r.apt,
+    owner: r.owner||null,
+    name: r.name,
+    type: r.type,
+    rent: r.rent||0,
+    balance: r.balance||0,
+    due: archLeaseEnd||null,
+    lease_end: archLeaseEnd||null,
+    checkin: r.checkin||null,
+    note: r.note||null,
+    history: r.history||[],
+    archived: true,
+    archived_date: todayStr
+  };
+
+  const blankRow = {
+    id: r.id,
+    apt: r.apt,
+    owner: r.owner||null,
+    name: null,
+    type: 'available',
+    rent: r.rent||0,
+    balance: 0,
+    due: null,
+    lease_end: null,
+    checkin: null,
+    note: null,
+    history: [],
+    archived: false,
+    archived_date: null
+  };
+
+  // Save archive record first
+  const {error:e1} = await sb.from('units').insert(archRow);
+  if(e1){ console.error('Archive INSERT error:', e1); toast('Error saving archive: '+e1.message,'error'); return; }
+
+  // Update existing unit to available
+  const {error:e2} = await sb.from('units').update(blankRow).eq('id', r.id);
+  if(e2){ console.error('Blank update error:', e2); toast('Error clearing unit: '+e2.message,'error'); return; }
+
+  // Audit log — store old state for undo
+  await auditLog('archive', r.apt, r.name, r.id, dbRow(r), {...archRow});
+
+  await loadAll();
+  renderTable();
+  const histPage = document.getElementById('page-history');
+  if(histPage && histPage.classList.contains('active')) renderHistory();
+  toast(`${r.name||'Tenant'} archived ✓ — find in 🗄 Archive tab`,'success');
+  if(detailId===id)closeDetail();
+}
+async function restoreTenant(id){
+  const idx=archived.findIndex(x=>x.id===id);if(idx<0)return;
+  const r=archived[idx];
+  const slot=data.findIndex(x=>x.apt===r.apt&&x.type==='available');
+  const res={...r,archived:false,archived_date:null,archivedDate:'',lease_end:r.lease_end||''};
+  if(slot>=0)data[slot]=res;else data.push(res);
+  archived.splice(idx,1);
+  await save(res);
+  await deleteRecord(id);
+  await loadAll();
+  renderTable();
+  toast(`${r.name||'Tenant'} restored to Apt ${r.apt}`,'success');
+}
 async function deletePermanent(id){if(!confirm('Permanently delete? Cannot be undone.'))return;archived=archived.filter(x=>x.id!==id);await deleteRecord(id);renderTable();toast('Record deleted.','error');}
 
 // ── DETAIL ─────────────────────────────────────────
-function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id;document.getElementById('dApt').textContent=r.apt;document.getElementById('dName').textContent=r.name||'Vacant';document.getElementById('dOwner').textContent='Owner: '+(r.owner||'—');document.getElementById('dNote').value=r.note||'';const s=dueStatus(r);document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Monthly Rent',r.rent?`$${r.rent.toLocaleString()}`:'—'],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Due / Checkout',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
+function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id;document.getElementById('dApt').textContent=r.apt;document.getElementById('dName').textContent=r.name||'Vacant';document.getElementById('dOwner').textContent='Owner: '+(r.owner||'—');document.getElementById('dNote').value=r.note||'';const s=dueStatus(r);
+  // Rent display — full amount for short stays with monthly breakdown
+  let rentDisplay = r.rent?`$${r.rent.toLocaleString()}`:'—';
+  if(r.type==='short-stay'&&r.rent&&r.checkin&&(r.lease_end||r.due)){
+    const splits=calcProration(r.checkin, r.lease_end||r.due, r.rent);
+    if(splits.length>1){
+      const breakdown=splits.map(s=>`${s.month}: $${s.portion.toLocaleString()} (${s.days}d)`).join(' &middot; ');
+      rentDisplay=`$${r.rent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
+    }
+  }
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.addEventListener('click',e=>{['editModal','payModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
+document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
 function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;document.getElementById('toastWrap').appendChild(t);setTimeout(()=>t.remove(),3200);}
 function exportCSV(){const h=['Apt','Owner','Tenant','Type','Rent','Balance','Due Date','Note'];const rows=data.filter(r=>!r.archived).map(r=>[r.apt,r.owner,r.name,r.type,r.rent,r.balance,r.due,`"${(r.note||'').replace(/"/g,'""')}"`]);const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h,...rows].map(r=>r.join(',')).join('\n'));a.download='propdesk-export.csv';a.click();toast('CSV exported ✓','success');}
 
@@ -1522,58 +2062,546 @@ function showPage(p,el){
   document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   el.classList.add('active');
-  if(p==='dashboard')renderDashboard();
+  if(p==='dashboard'){renderDashboard();checkBackupStatus();}
   if(p==='reports')renderReports();
   if(p==='history')renderHistory();
 }
 
+// ── BACKUP ─────────────────────────────────────────
+const BACKUP_KEY = 'propdesk_last_backup';
+
+function checkBackupStatus() {
+  const last = localStorage.getItem(BACKUP_KEY);
+  const btn  = document.getElementById('backupBtn');
+  const status = document.getElementById('backupStatus');
+  if(!btn) return;
+  if(!last) {
+    btn.style.background = 'var(--red)';
+    btn.textContent = '⚠ Backup Now';
+    if(status) status.textContent = 'Never backed up!';
+    if(status) status.style.color = 'var(--red)';
+    return;
+  }
+  const lastDt = new Date(parseInt(last));
+  const hoursAgo = (Date.now() - lastDt) / 3600000;
+  const timeStr = lastDt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + lastDt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  if(hoursAgo >= 6) {
+    btn.style.background = 'var(--red)';
+    btn.innerHTML = '⚠ Backup Now';
+    if(status){ status.textContent = `Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; status.style.color='var(--red)'; }
+  } else {
+    btn.style.background = 'var(--green)';
+    btn.innerHTML = '💾 Backup Now';
+    if(status){ status.textContent = `Last backup: ${timeStr}`; status.style.color='var(--green)'; }
+  }
+}
+
+async function runBackup() {
+  const btn = document.getElementById('backupBtn');
+  btn.innerHTML = '⏳ Backing up…';
+  btn.disabled = true;
+
+  try {
+    // Fetch ALL records from Supabase
+    let allRows = [];
+    const pageSize = 500;
+    let page = 0;
+    while(true) {
+      const from = page * pageSize, to = from + pageSize - 1;
+      const {data:rows, error} = await sb.from('units').select('*').order('id').range(from, to);
+      if(error) throw new Error(error.message);
+      if(!rows || rows.length === 0) break;
+      allRows = allRows.concat(rows);
+      if(rows.length < pageSize) break;
+      page++;
+    }
+
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0,10);
+    const timeStr = now.toTimeString().slice(0,5).replace(':','');
+
+    // Helper to escape SQL strings
+    const esc = v => v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g,"''")}'`;
+    const escJson = v => {
+      if(v === null || v === undefined) return "NULL";
+      const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return `'${s.replace(/'/g,"''")}'::jsonb`;
+    };
+
+    // Generate SQL
+    const lines = [
+      `-- PropDesk SQL Backup`,
+      `-- Generated: ${now.toLocaleString()}`,
+      `-- Records: ${allRows.length}`,
+      `-- To restore: run TRUNCATE units; first, then paste this file`,
+      ``,
+      `-- Disable triggers temporarily`,
+      `SET session_replication_role = replica;`,
+      ``,
+      `-- Clear existing data`,
+      `TRUNCATE units RESTART IDENTITY;`,
+      ``,
+      `-- Insert all records`,
+      ...allRows.map(r =>
+        `INSERT INTO units (id,apt,owner,name,type,rent,balance,due,lease_end,checkin,note,history,archived,archived_date) VALUES (` +
+        `${r.id},${esc(r.apt)},${esc(r.owner)},${esc(r.name)},${esc(r.type)},` +
+        `${r.rent||0},${r.balance||0},${esc(r.due)},${esc(r.lease_end)},${esc(r.checkin)},` +
+        `${esc(r.note)},${escJson(r.history)},${r.archived||false},${esc(r.archived_date)});`
+      ),
+      ``,
+      `-- Re-enable triggers`,
+      `SET session_replication_role = DEFAULT;`,
+      ``,
+      `-- Verify`,
+      `SELECT COUNT(*) as total, SUM(CASE WHEN archived THEN 1 ELSE 0 END) as archived, SUM(CASE WHEN NOT archived THEN 1 ELSE 0 END) as active FROM units;`,
+    ];
+
+    const sql = lines.join('\n');
+    const filename = `propdesk_backup_${dateStr}_${timeStr}.sql`;
+    const blob = new Blob([sql], {type:'text/plain;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+
+    // Save timestamp
+    localStorage.setItem(BACKUP_KEY, Date.now().toString());
+    checkBackupStatus();
+    toast(`✓ SQL backup downloaded: ${allRows.length} records → ${filename}`, 'success');
+
+  } catch(e) {
+    console.error('Backup failed:', e);
+    toast('Backup failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    checkBackupStatus();
+  }
+}
+
+// Check backup status every 30 minutes
+setInterval(checkBackupStatus, 30 * 60 * 1000);
+
+// ── AUDIT LOG UI ───────────────────────────────────
+async function showAuditLog() {
+  openModal('auditModal');
+  document.getElementById('auditBody').innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);">Loading…</td></tr>';
+  const {data:rows, error} = await sb.from('audit_log')
+    .select('*').order('created_at', {ascending:false}).limit(50);
+  if(error || !rows){ document.getElementById('auditBody').innerHTML=''; document.getElementById('auditEmpty').style.display=''; return; }
+  document.getElementById('auditEmpty').style.display = rows.length ? 'none' : '';
+  const actionColor = a => a==='delete'?'var(--red)':a==='archive'?'var(--orange)':a==='edit'?'var(--blue)':'var(--text2)';
+  document.getElementById('auditBody').innerHTML = rows.map(r => {
+    const dt = new Date(r.created_at);
+    const timeStr = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const canUndo = r.old_data && ['edit','archive','delete'].includes(r.action);
+    return `<tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <td style="padding:10px 12px;color:var(--text3);white-space:nowrap;">${timeStr}</td>
+      <td style="padding:10px 12px;font-weight:500;color:${actionColor(r.action)}">${r.action}</td>
+      <td style="padding:10px 12px;font-family:'Playfair Display',serif;color:var(--accent2)">${r.apt||'—'}</td>
+      <td style="padding:10px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name||'—'}</td>
+      <td style="padding:10px 12px;">${canUndo?`<button onclick="undoFromLog(${r.id})" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;color:var(--text2);">↩ Undo</button>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function undoFromLog(logId) {
+  const {data:rows} = await sb.from('audit_log').select('*').eq('id', logId).limit(1);
+  if(!rows || !rows.length) return;
+  const u = rows[0];
+  if(!confirm(`Undo "${u.action}" for ${u.apt} ${u.name||''}?`)) return;
+  lastUndo = {
+    action: u.action, record_id: u.record_id,
+    old_data: u.old_data ? JSON.parse(u.old_data) : null,
+    new_data: u.new_data ? JSON.parse(u.new_data) : null,
+    apt: u.apt, name: u.name
+  };
+  closeModal('auditModal');
+  await performUndo();
+}
+
 // ── ARCHIVE HISTORY ────────────────────────────────
+let histSortCol = 'checkout';
+let histSortDir = -1;
+
+function histSort(col) {
+  if (histSortCol === col) histSortDir *= -1;
+  else { histSortCol = col; histSortDir = col === 'checkin' || col === 'checkout' ? -1 : 1; }
+  // update header indicators
+  document.querySelectorAll('[id^="hth-"]').forEach(th => {
+    const c = th.id.replace('hth-','');
+    th.style.color = c === histSortCol ? 'var(--accent2)' : 'var(--text3)';
+    th.textContent = th.textContent.replace(/ [↑↓↕]$/,'') + (c === histSortCol ? (histSortDir === 1 ? ' ↑' : ' ↓') : ' ↕');
+  });
+  renderHistory();
+}
+
 function renderHistory(){
-  const q=(document.getElementById('histSearch').value||'').toLowerCase();
-  const yr=document.getElementById('histYear').value;
-  const mo=document.getElementById('histMonth').value;
-  const tp=document.getElementById('histType').value;
-  const ow=document.getElementById('histOwner').value;
+  const q  = (document.getElementById('histSearch').value||'').toLowerCase();
+  const yr = document.getElementById('histYear').value;
+  const mo = document.getElementById('histMonth').value;
+  const tp = document.getElementById('histType').value;
+  const ow = document.getElementById('histOwner').value;
 
-  let rows=[...archived];
-  if(q)rows=rows.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.apt||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
-  if(yr!=='all')rows=rows.filter(r=>(r.archivedDate||'').startsWith(yr));
-  if(mo!=='all')rows=rows.filter(r=>{const d=r.archivedDate||'';return d.length>=7&&d.substring(5,7)===mo;});
-  if(tp!=='all')rows=rows.filter(r=>r.type===tp);
-  if(ow!=='all')rows=rows.filter(r=>r.owner===ow);
+  let rows = [...archived];
 
-  rows.sort((a,b)=>(b.archivedDate||'').localeCompare(a.archivedDate||''));
+  if(q) rows = rows.filter(r =>
+    (r.name||'').toLowerCase().includes(q) ||
+    (r.apt||'').toLowerCase().includes(q) ||
+    (r.owner||'').toLowerCase().includes(q) ||
+    (r.note||'').toLowerCase().includes(q));
 
-  const totalRev=rows.reduce((s,r)=>{
-    const hist=r.history||[];
-    return s+hist.reduce((hs,h)=>{const m=h.text.match(/\$([\d,]+)/);return hs+(m?parseInt(m[1].replace(/,/g,''),10):0);},0);
-  },0);
+  const getCheckin  = r => r.checkin || r.checkinDate || r.archivedDate || '';
+  const getCheckout = r => r.lease_end || r.archivedDate || r.due || '';
+
+  if(yr !== 'all') {
+    rows = rows.filter(r => {
+      const ci = getCheckin(r); const co = getCheckout(r);
+      return ci.startsWith(yr) || co.startsWith(yr);
+    });
+  }
+  if(mo !== 'all') {
+    const pad = mo.padStart(2,'0');
+    rows = rows.filter(r => {
+      const ci = getCheckin(r); const co = getCheckout(r);
+      return (ci.length>=7 && ci.substring(5,7)===pad) ||
+             (co.length>=7 && co.substring(5,7)===pad);
+    });
+  }
+  if(tp !== 'all') rows = rows.filter(r => r.type === tp);
+  if(ow !== 'all') rows = rows.filter(r => r.owner === ow);
+
+  // Sort
+  rows.sort((a,b) => {
+    let va, vb;
+    if(histSortCol==='apt')    { va=a.apt||''; vb=b.apt||''; return histSortDir*va.localeCompare(vb,undefined,{numeric:true}); }
+    if(histSortCol==='name')   { va=a.name||''; vb=b.name||''; return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='owner')  { va=a.owner||''; vb=b.owner||''; return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='type')   { va=a.type||''; vb=b.type||''; return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='rent')   { return histSortDir*((a.rent||0)-(b.rent||0)); }
+    if(histSortCol==='checkin'){ va=getCheckin(a); vb=getCheckin(b); return histSortDir*va.localeCompare(vb); }
+    if(histSortCol==='checkout'){ va=getCheckout(a); vb=getCheckout(b); return histSortDir*va.localeCompare(vb); }
+    return 0;
+  });
+
+  const totalRev = rows.reduce((s,r) => s + (r.rent||0), 0);
 
   document.getElementById('histKpis').innerHTML=`
     <div class="kpi-card kv-accent"><div class="kpi-label">Filtered Records</div><div class="kpi-value">${rows.length}</div><div class="kpi-sub">past stays / tenants</div></div>
-    <div class="kpi-card kv-green"><div class="kpi-label">Total Revenue</div><div class="kpi-value">${fmtMoney(totalRev)}</div><div class="kpi-sub">from payment history</div></div>
+    <div class="kpi-card kv-green"><div class="kpi-label">Total Revenue</div><div class="kpi-value">${fmtMoney(totalRev)}</div><div class="kpi-sub">sum of rent amounts</div></div>
     <div class="kpi-card kv-blue"><div class="kpi-label">Short Stays</div><div class="kpi-value">${rows.filter(r=>r.type==='short-stay').length}</div><div class="kpi-sub">in filtered set</div></div>
     <div class="kpi-card kv-orange"><div class="kpi-label">Long / M-to-M</div><div class="kpi-value">${rows.filter(r=>r.type!=='short-stay').length}</div><div class="kpi-sub">in filtered set</div></div>`;
 
-  const tbody=document.getElementById('histBody');
-  document.getElementById('histEmpty').style.display=rows.length?'none':'';
-  tbody.innerHTML=rows.map(r=>{
-    const hist=r.history||[];
-    const rev=hist.reduce((s,h)=>{const m=h.text.match(/\$([\d,]+)/);return s+(m?parseInt(m[1].replace(/,/g,''),10):0);},0);
-    const histTip=hist.slice(0,3).map(h=>`${h.date}: ${h.text}`).join('\n');
-    return`<tr style="border-bottom:1px solid var(--border);transition:background .1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+  document.getElementById('histEmpty').style.display = rows.length ? 'none' : '';
+  document.getElementById('histBody').innerHTML = rows.map(r => {
+    const ci = getCheckin(r);
+    const co = getCheckout(r);
+    return `<tr style="border-bottom:1px solid var(--border);transition:background .1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 12px;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2)">${r.apt}</td>
-      <td style="padding:10px 12px;font-size:12px;font-weight:500;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
-      <td style="padding:10px 12px;font-size:11px;color:var(--text2);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.owner}</td>
+      <td style="padding:10px 12px;font-size:12px;font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
+      <td style="padding:10px 12px;font-size:11px;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.owner||'—'}</td>
       <td style="padding:10px 12px">${typeBadge(r.type)}</td>
-      <td style="padding:10px 12px;text-align:right;color:var(--green);font-weight:500;font-size:12px" title="${histTip}">${rev>0?fmtMoney(rev):'—'}</td>
-      <td style="padding:10px 12px;font-size:12px;color:var(--text3)">${fmtDate(r.archivedDate)}</td>
-      <td style="padding:10px 12px;font-size:11px;color:var(--text3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic">${r.note||''}</td>
+      <td style="padding:10px 12px;text-align:right;color:var(--green);font-weight:500;font-size:12px">${r.rent?fmtMoney(r.rent):'—'}</td>
+      <td style="padding:10px 12px;font-size:12px;color:var(--text3)">${fmtDate(ci)}</td>
+      <td style="padding:10px 12px;font-size:12px;color:${r.lease_end?'var(--blue)':'var(--text3)'}">${fmtDate(r.lease_end||co)}</td>
+      <td style="padding:10px 12px;font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic">${r.note||''}</td>
+      <td style="padding:10px 12px">
+        <button class="icon-btn ib-edit" title="Edit" onclick="openArchiveEdit(${r.id})" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;">✏️</button>
+      </td>
     </tr>`;
   }).join('');
 
-  document.getElementById('histFooter').textContent=`Showing ${rows.length} records · Total revenue: ${fmtMoney(totalRev)}`;
+  document.getElementById('histFooter').textContent = `Showing ${rows.length} records · Total: ${fmtMoney(totalRev)}`;
 }
+
+function openArchiveEdit(id) {
+  const r = archived.find(x => x.id === id); if(!r) return;
+  document.getElementById('archEditId').value = id;
+  document.getElementById('archEditAptLabel').textContent = r.apt;
+  document.getElementById('aeFApt').value     = r.apt||'';
+  document.getElementById('aeFOwner').value   = r.owner||'';
+  document.getElementById('aeFName').value    = r.name||'';
+  document.getElementById('aeFType').value    = r.type||'short-stay';
+  document.getElementById('aeFRent').value    = r.rent||'';
+  document.getElementById('aeFNote').value    = r.note||'';
+  // checkin from history last entry, checkout from archivedDate
+  const hist = r.history||[];
+  const ci = hist.length ? hist[hist.length-1].date : '';
+  document.getElementById('aeFCheckin').value  = ci||'';
+  document.getElementById('aeFCheckout').value = r.lease_end || r.archivedDate || r.due || '';
+  openModal('archEditModal');
+}
+
+async function saveArchiveRecord() {
+  const id  = document.getElementById('archEditId').value;
+  const idx = archived.findIndex(x=>x.id==id); if(idx<0) return;
+  const r   = archived[idx];
+  const checkout = document.getElementById('aeFCheckout').value;
+  const checkin  = document.getElementById('aeFCheckin').value;
+  const rent     = parseFloat(document.getElementById('aeFRent').value)||0;
+  archived[idx] = {
+    ...r,
+    apt:          document.getElementById('aeFApt').value.trim(),
+    owner:        document.getElementById('aeFOwner').value.trim(),
+    name:         document.getElementById('aeFName').value.trim(),
+    type:         document.getElementById('aeFType').value,
+    rent,
+    note:         document.getElementById('aeFNote').value.trim(),
+    archivedDate: checkout,
+    archived_date: checkout,
+    lease_end:    checkout,
+    due:          checkout,
+    history:      checkin ? [{date:checkin, text:`$${rent.toLocaleString()} — stay`}] : r.history,
+  };
+  await save(archived[idx]);
+  closeModal('archEditModal');
+  renderHistory();
+  toast('Archive record updated ✓','success');
+}
+
+async function deleteArchiveRecord() {
+  const id = document.getElementById('archEditId').value;
+  if(!confirm('Permanently delete this archive record?')) return;
+  archived = archived.filter(x=>x.id!=id);
+  await deleteRecord(parseInt(id));
+  closeModal('archEditModal');
+  renderHistory();
+  toast('Record deleted.','error');
+}
+
+// ══════════════════════════════════════════════════════
+//  GRAPHS
+// ══════════════════════════════════════════════════════
+let gCharts = {};
+
+function destroyChart(id) { if(gCharts[id]){gCharts[id].destroy();delete gCharts[id];} }
+
+function mkChart(id, type, labels, datasets, opts={}) {
+  destroyChart(id);
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  const isBar = type === 'bar' || type === 'line';
+  const baseOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { font: { family:'DM Mono', size:10 }, boxWidth:10 } } },
+  };
+  if (isBar) {
+    baseOpts.scales = {
+      y: { ticks: { callback: v => '$'+Math.round(v).toLocaleString(), font:{family:'DM Mono',size:9} }, grid:{color:'#f0ede8'} },
+      x: { ticks: { font:{family:'DM Mono',size:9} }, grid:{display:false} }
+    };
+  }
+  // Deep merge opts
+  const merged = { ...baseOpts };
+  if (opts.plugins) merged.plugins = { ...baseOpts.plugins, ...opts.plugins };
+  if (opts.scales)  merged.scales  = opts.scales;
+  if (opts.indexAxis) merged.indexAxis = opts.indexAxis;
+  gCharts[id] = new Chart(ctx, { type, data:{ labels, datasets }, options: merged });
+}
+
+function openHistGraphs() {
+  // Get currently filtered rows
+  const q   = (document.getElementById('histSearch').value||'').toLowerCase();
+  const yr  = document.getElementById('histYear').value;
+  const mo  = document.getElementById('histMonth').value;
+  const tp  = document.getElementById('histType').value;
+  const ow  = document.getElementById('histOwner').value;
+  const getCheckin  = r => r.checkin || r.checkinDate || r.archivedDate || '';
+  const getCheckout = r => r.lease_end || r.archivedDate || r.due || '';
+
+  let rows = [...archived];
+  if(q) rows = rows.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.apt||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
+  if(yr!=='all') rows = rows.filter(r=>getCheckin(r).startsWith(yr)||getCheckout(r).startsWith(yr));
+  if(mo!=='all') { const p=mo.padStart(2,'0'); rows=rows.filter(r=>(getCheckin(r).substring(5,7)===p)||(getCheckout(r).substring(5,7)===p)); }
+  if(tp!=='all') rows = rows.filter(r=>r.type===tp);
+  if(ow!=='all') rows = rows.filter(r=>r.owner===ow);
+
+  const title = yr==='all' ? 'All Years' : (mo==='all' ? yr : `${mo}/${yr}`);
+  document.getElementById('histGraphTitle').textContent = `📊 Archive Charts — ${title} (${rows.length} records)`;
+
+  openModal('histGraphModal');
+  setTimeout(() => {
+    // 1. Revenue by Month
+    const byMonth = {};
+    rows.forEach(r => {
+      const d = getCheckin(r) || getCheckout(r);
+      const key = d ? d.substring(0,7) : 'unknown';
+      byMonth[key] = (byMonth[key]||0) + (r.rent||0);
+    });
+    const mKeys = Object.keys(byMonth).filter(k=>k!=='unknown').sort();
+    mkChart('gByMonth','bar',
+      mKeys.map(k=>{ const [y,m]=k.split('-'); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'short',year:'2-digit'}); }),
+      [{ label:'Revenue', data:mKeys.map(k=>byMonth[k]), backgroundColor:'#2e7d52', borderRadius:4 }]
+    );
+
+    // 2. Revenue by Owner
+    const byOwner = {};
+    rows.forEach(r => { byOwner[r.owner||'Unknown'] = (byOwner[r.owner||'Unknown']||0) + (r.rent||0); });
+    const oKeys = Object.keys(byOwner).sort((a,b)=>byOwner[b]-byOwner[a]);
+    mkChart('gByOwner','bar', oKeys,
+      [{ label:'Revenue', data:oKeys.map(k=>byOwner[k]), backgroundColor:['#2563a8','#6b4ca8','#c0711a','#2e7d52','#b5814a'], borderRadius:4 }],
+      { plugins:{ legend:{display:false} } }
+    );
+
+    // 3. By Type (doughnut)
+    const byType = {'short-stay':0,'long-term':0,'month-to-month':0};
+    rows.forEach(r => { if(byType[r.type]!==undefined) byType[r.type]++; else byType['long-term']++; });
+    mkChart('gByType','doughnut',
+      ['Short Stay','Long Term','M-to-M'],
+      [{ data:[byType['short-stay'],byType['long-term'],byType['month-to-month']], backgroundColor:['#c0711a','#2563a8','#6b4ca8'], borderWidth:2, borderColor:'#fff' }],
+      { plugins:{ legend:{ position:'bottom', labels:{font:{family:'DM Mono',size:10},boxWidth:10} } }, scales:{} }
+    );
+
+    // 4. Top apts by revenue
+    const byApt = {};
+    rows.forEach(r => { byApt[r.apt] = (byApt[r.apt]||0) + (r.rent||0); });
+    const aKeys = Object.keys(byApt).sort((a,b)=>byApt[b]-byApt[a]).slice(0,10);
+    mkChart('gByApt','bar', aKeys,
+      [{ label:'Revenue', data:aKeys.map(k=>byApt[k]), backgroundColor:'#b5814a', borderRadius:4 }],
+      { plugins:{legend:{display:false}}, indexAxis:'y',
+        scales:{ x:{ ticks:{callback:v=>'$'+Math.round(v).toLocaleString(),font:{family:'DM Mono',size:9}}, grid:{color:'#f0ede8'} }, y:{ticks:{font:{family:'DM Mono',size:9}},grid:{display:false}} } }
+    );
+  }, 100);
+}
+
+function openUnitsGraph() {
+  openModal('unitsGraphModal');
+  const active = data.filter(r=>!r.archived);
+  const occ    = active.filter(r=>r.type!=='available'&&r.name);
+  const avail  = active.filter(r=>r.type==='available'||!r.name);
+
+  setTimeout(() => {
+    // 1. Rent by Owner
+    const byOwner = {};
+    occ.forEach(r => { byOwner[r.owner||'Unknown'] = (byOwner[r.owner||'Unknown']||0) + (r.rent||0); });
+    const oKeys = Object.keys(byOwner).sort((a,b)=>byOwner[b]-byOwner[a]);
+    mkChart('ugByOwner','bar', oKeys,
+      [{ label:'Monthly Rent', data:oKeys.map(k=>byOwner[k]), backgroundColor:['#2563a8','#6b4ca8','#c0711a','#2e7d52','#b5814a'], borderRadius:4 }],
+      { plugins:{legend:{display:false}} }
+    );
+
+    // 2. Units by type (doughnut)
+    const tc={'long-term':0,'month-to-month':0,'short-stay':0,'available':0};
+    active.forEach(r=>{ if(tc[r.type]!==undefined)tc[r.type]++; });
+    mkChart('ugByType','doughnut',
+      ['Long Term','M-to-M','Short Stay','Available'],
+      [{ data:[tc['long-term'],tc['month-to-month'],tc['short-stay'],tc['available']], backgroundColor:['#2563a8','#6b4ca8','#c0711a','#2e7d52'], borderWidth:2, borderColor:'#fff' }],
+      { plugins:{legend:{position:'bottom',labels:{font:{family:'DM Mono',size:10},boxWidth:10}}}, scales:{} }
+    );
+
+    // 3. Balance by apt (top 10 with balance)
+    const withBal = occ.filter(r=>r.balance>0).sort((a,b)=>b.balance-a.balance).slice(0,10);
+    mkChart('ugByBalance','bar', withBal.map(r=>r.apt),
+      [{ label:'Balance Owed', data:withBal.map(r=>r.balance), backgroundColor:'#c0392b', borderRadius:4 }],
+      { plugins:{legend:{display:false}}, indexAxis:'y',
+        scales:{ x:{ticks:{callback:v=>'$'+Math.round(v).toLocaleString(),font:{family:'DM Mono',size:9}},grid:{color:'#f0ede8'}}, y:{ticks:{font:{family:'DM Mono',size:9}},grid:{display:false}} } }
+    );
+
+    // 4. Occupancy doughnut
+    mkChart('ugOccupancy','doughnut',
+      ['Occupied','Available'],
+      [{ data:[occ.length,avail.length], backgroundColor:['#2e7d52','#e0dbd2'], borderWidth:2, borderColor:'#fff' }],
+      { plugins:{ legend:{position:'bottom',labels:{font:{family:'DM Mono',size:10},boxWidth:10}},
+          tooltip:{callbacks:{label:c=>`${c.label}: ${c.raw} units (${Math.round(c.raw/active.length*100)}%)`}} }, scales:{} }
+    );
+  }, 100);
+}
+
+// ══════════════════════════════════════════════════════
+//  LT MONTHLY ARCHIVE RECORDS (2025)
+// ══════════════════════════════════════════════════════
+async function seedLTYear(year) {
+  const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const now = new Date();
+  // For current year, only go up to current month; for past years go to Dec
+  const maxMonth = (year === now.getFullYear()) ? now.getMonth() : 11; // 0-indexed
+
+  const active = data.filter(r =>
+    !r.archived && r.name &&
+    (r.type==='long-term' || r.type==='month-to-month') &&
+    r.type !== 'short-stay' &&  // explicit safety guard
+    r.rent > 0
+  );
+
+  if(!confirm(`This creates one archive line per month for every active LT/MTM tenant for ${year}.\n\n${active.length} active tenants × up to ${maxMonth+1} months.\n\nFor example:\n  Apt 232 — Oleh Chubatiuk — Jan ${year} — $2,300\n  Apt 232 — Oleh Chubatiuk — Feb ${year} — $2,300\n  ...\n\nExisting records are skipped. Continue?`)) return;
+
+  toast(`Generating ${year} monthly records…`);
+
+  // Move-in lookup from SEED_DATA history
+  const moveInLookup = {};
+  for (const r of SEED_DATA) {
+    if (r.history && r.history.length) moveInLookup[r.id] = r.history[0].date;
+  }
+
+  const existingKeys = new Set(
+    archived.map(r => `${r.apt}||${(r.name||'').toLowerCase()}||${(r.archived_date||r.archivedDate||'').substring(0,7)}`)
+  );
+
+  let uid = Math.max(2000, ...archived.map(r=>r.id), ...data.map(r=>r.id)) + 1;
+  const toInsert = [];
+  let skipped = 0;
+
+  for (const r of active) {
+    // Get move-in date
+    let moveInStr = moveInLookup[r.id] || '';
+    if (!moveInStr && r.history && r.history.length)
+      moveInStr = r.history[r.history.length-1].date || '';
+    let moveIn = moveInStr ? new Date(moveInStr+'T00:00:00') : null;
+    if (!moveIn || isNaN(moveIn.getTime())) moveIn = new Date(`${year}-01-01`);
+
+    // Start from Jan of target year or move-in month if in target year
+    const yearStart = new Date(`${year}-01-01`);
+    const effectiveStart = moveIn > yearStart ? moveIn : yearStart;
+
+    // Only generate months within the target year up to maxMonth
+    if (effectiveStart.getFullYear() > year) continue; // moved in after this year
+
+    let m = (effectiveStart.getFullYear() === year) ? effectiveStart.getMonth() : 0;
+
+    while (m <= maxMonth) {
+      const monthStr  = `${year}-${String(m+1).padStart(2,'0')}`;
+      const dateStr   = `${monthStr}-01`;
+      const mName     = MONTHS[m];
+      const key = `${r.apt}||${r.name.toLowerCase()}||${monthStr}`;
+
+      if (!existingKeys.has(key)) {
+        toInsert.push({
+          id: uid++,
+          apt: r.apt, owner: r.owner||null, name: r.name,
+          type: r.type, rent: r.rent, balance: 0,
+          due: dateStr,
+          lease_end: new Date(year, m+1, 0).toISOString().split('T')[0],
+          note: `${r.name} — ${mName} ${year} — $${r.rent.toLocaleString()}`,
+          history: [{date:dateStr, text:`$${r.rent.toLocaleString()} — ${mName} ${year} monthly`}],
+          archived: true,
+          archived_date: dateStr,
+        });
+        existingKeys.add(key);
+      } else {
+        skipped++;
+      }
+      m++;
+    }
+  }
+
+  if (toInsert.length === 0) {
+    toast(`All ${year} LT records already exist (${skipped} skipped)`, 'success');
+    return;
+  }
+
+  const batchSize = 50;
+  for (let i = 0; i < toInsert.length; i += batchSize) {
+    await saveAll(toInsert.slice(i, i+batchSize));
+    toast(`Inserting… ${Math.min(i+batchSize, toInsert.length)} / ${toInsert.length}`);
+  }
+
+  await loadAll();
+  renderHistory();
+  toast(`✓ Created ${toInsert.length} monthly LT records for ${year}${skipped?' ('+skipped+' already existed)':''}`, 'success');
+}
+
+async function seedLT2025(){ await seedLTYear(2025); }
+async function seedLT2026(){ await seedLTYear(2026); }
 
 // ══════════════════════════════════════════════════════
 //  ANALYTICS HELPERS
@@ -1643,9 +2671,9 @@ function renderDashboard(){
   collChartInst=new Chart(document.getElementById('collChart'),{type:'doughnut',data:{labels:['Collected','Remaining'],datasets:[{data:[coll,Math.max(0,exp-coll)],backgroundColor:['#2e7d52','#f0ede8'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: $${c.raw.toLocaleString()}`}}}}});
   document.getElementById('collChartNote').textContent=`${pct}% collected — ${fmtMoney(coll)} of ${fmtMoney(exp)}`;
 
-  const upcoming=active.filter(r=>r.due&&r.type!=='available').map(r=>({...r,d:daysUntil(r.due)})).filter(r=>r.d>=0&&r.d<=30).sort((a,b)=>a.d-b.d);
+  const upcoming=active.filter(r=>r.type!=='available'&&(r.lease_end||r.due)).map(r=>{const endDate=r.lease_end||r.due;return{...r,_endDate:endDate,d:daysUntil(endDate)};}).filter(r=>r.d>=0&&r.d<=30).sort((a,b)=>a.d-b.d);
   document.getElementById('dashUpcoming').innerHTML=upcoming.length
-    ?`<table style="width:100%;border-collapse:collapse">${upcoming.map(r=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);width:48px">${r.apt}</td><td style="padding:8px;font-size:12px;color:var(--text2)">${r.name||'—'}</td><td>${typeBadge(r.type)}</td><td style="padding:8px;font-size:12px;color:var(--text3)">${fmtDate(r.due)}</td><td style="padding:8px;font-size:11px;color:var(--orange);font-weight:500;text-align:right">in ${r.d}d</td></tr>`).join('')}</table>`
+    ?`<table style="width:100%;border-collapse:collapse">${upcoming.map(r=>`<tr style="border-bottom:1px solid var(--border)"><td style="padding:8px 0;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);width:48px">${r.apt}</td><td style="padding:8px;font-size:12px;color:var(--text2)">${r.name||'—'}</td><td>${typeBadge(r.type)}</td><td style="padding:8px;font-size:12px;color:var(--text3)">${fmtDate(r._endDate)}</td><td style="padding:8px;font-size:11px;color:var(--orange);font-weight:500;text-align:right">in ${r.d}d</td></tr>`).join('')}</table>`
     :'<div style="color:var(--text3);font-size:12px;padding:8px 0">No checkouts or renewals in the next 30 days.</div>';
 }
 
@@ -1729,6 +2757,7 @@ function renderReports(){
   trendChartInst=new Chart(document.getElementById('trendChart'),{type:'bar',data:{labels,datasets:[{label:'Expected',data:expArr,backgroundColor:'#e0dbd2',borderRadius:4},{label:'Collected',data:collArr,backgroundColor:'#2e7d52',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'DM Mono',size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'$'+v.toLocaleString(),font:{family:'DM Mono',size:10}},grid:{color:'#f4f2ee'}},x:{ticks:{font:{family:'DM Mono',size:10}},grid:{display:false}}}}});
 }
 
+// ── DEBUG ──────────────────────────────────────────
 // ── INIT ───────────────────────────────────────────
 document.getElementById('sortSel').value='due';
 
@@ -1753,7 +2782,16 @@ async function boot() {
     const ok = await loadAll();
     if (!ok) throw new Error('Failed to load records');
 
-    // Seed active units if too few (less than 10 means not properly seeded)
+    // Fix any bad records (rent > 50000 = phone number was grabbed instead)
+    const badRecs = archived.filter(r => r.rent > 50000);
+    if (badRecs.length > 0) {
+      for (const r of badRecs) {
+        await sb.from('units').update({ rent: 0 }).eq('id', r.id);
+      }
+      await loadAll();
+    }
+
+    // Seed active units if too few
     if (data.length < 10) {
       msg.textContent = 'Seeding 79 active units…';
       await saveAll(SEED_DATA);
@@ -1775,6 +2813,7 @@ async function boot() {
     overlay.style.display = 'none';
     renderTable();
     subscribeRealtime();
+    setTimeout(checkBackupStatus, 500);
 
   } catch(e) {
     console.error('Boot error:', e);
