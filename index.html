@@ -1550,15 +1550,25 @@ async function deleteRecord(id) {
 }
 
 async function loadAll() {
-  const { data: rows, error } = await sb.from('units').select('*').order('id');
-  if (error) {
-    console.error('Load error:', error);
-    throw new Error(error.message || 'Failed to load from database');
+  // Fetch all records — Supabase default limit is 1000, so we paginate
+  let allRows = [];
+  const pageSize = 1000;
+  let from = 0;
+  while(true) {
+    const { data: rows, error } = await sb.from('units').select('*').order('id').range(from, from + pageSize - 1);
+    if (error) {
+      console.error('Load error:', error);
+      throw new Error(error.message || 'Failed to load from database');
+    }
+    allRows = allRows.concat(rows);
+    if (rows.length < pageSize) break; // no more pages
+    from += pageSize;
   }
-  const all = rows.map(fromRow);
+  const all = allRows.map(fromRow);
   data = all.filter(r => !r.archived);
   archived = all.filter(r => r.archived);
   nextId = Math.max(80, ...all.map(r => r.id), 80) + 1;
+  console.log(`Loaded: ${data.length} active, ${archived.length} archived (total ${all.length})`);
   return true;
 }
 
