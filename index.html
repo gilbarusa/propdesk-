@@ -295,9 +295,14 @@ textarea{resize:vertical;min-height:70px;}
   </div>
   <div class="table-wrap">
     <table><thead><tr>
-      <th onclick="setSortSel('apt')">Apt #</th><th onclick="setSortSel('name')">Tenant</th>
-      <th>Owner</th><th>Type</th><th onclick="setSortSel('checkin')">Check-in</th><th onclick="setSortSel('due')">Due Date</th><th onclick="setSortSel('lease_end')">Lease End</th>
-      <th onclick="setSortSel('amount')">Rent</th><th>Balance</th><th>Note</th><th style="min-width:100px">Actions</th>
+      <th onclick="setSortSel('apt')" style="cursor:pointer" title="Sort by Apt #">Apt # ↕</th>
+      <th onclick="setSortSel('name')" style="cursor:pointer" title="Sort by Tenant">Tenant ↕</th>
+      <th>Owner</th><th>Type</th>
+      <th onclick="setSortSel('checkin')" style="cursor:pointer" title="Sort by Check-in">Check-in ↕</th>
+      <th onclick="setSortSel('due')" style="cursor:pointer" title="Sort by Due Date">Due Date ↕</th>
+      <th onclick="setSortSel('lease_end')" style="cursor:pointer" title="Sort by Lease End">Lease End ↕</th>
+      <th onclick="setSortSel('amount')" style="cursor:pointer" title="Sort by Rent">Rent ↕</th>
+      <th>Balance</th><th>Note</th><th style="min-width:100px">Actions</th>
     </tr></thead><tbody id="tableBody"></tbody></table>
     <div id="emptyState" class="empty-state" style="display:none"><div class="ei">🏠</div><p>No units match your filter.</p></div>
   </div>
@@ -1617,7 +1622,15 @@ function getFiltered(){
   if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>r.type==='available');}
   if(currentTypeFilter!=='all')rows=rows.filter(r=>r.type===currentTypeFilter);
   const sel=document.getElementById('sortSel').value;
-  rows.sort((a,b)=>{if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}if(sel==='lease_end'){const da=a.lease_end||'9999',db=b.lease_end||'9999';return da.localeCompare(db);}if(sel==='checkin'){const da=a.checkin||'9999',db=b.checkin||'9999';return da.localeCompare(db);}if(sel==='apt')return a.apt.localeCompare(b.apt,undefined,{numeric:true});if(sel==='name')return(a.name||'zzz').localeCompare(b.name||'zzz');if(sel==='amount')return(b.rent||0)-(a.rent||0);return 0;});
+  rows.sort((a,b)=>{
+    if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}
+    if(sel==='lease_end'||sel==='lease_end-desc'){const da=a.lease_end||'9999',db=b.lease_end||'9999';return sel==='lease_end'?da.localeCompare(db):db.localeCompare(da);}
+    if(sel==='checkin'||sel==='checkin-desc'){const da=a.checkin||'9999',db=b.checkin||'9999';return sel==='checkin'?da.localeCompare(db):db.localeCompare(da);}
+    if(sel==='apt'||sel==='apt-desc'){const r=a.apt.localeCompare(b.apt,undefined,{numeric:true});return sel==='apt'?r:-r;}
+    if(sel==='name'||sel==='name-desc'){const r=(a.name||'zzz').localeCompare(b.name||'zzz');return sel==='name'?r:-r;}
+    if(sel==='amount'||sel==='amount-desc'){return sel==='amount'?(b.rent||0)-(a.rent||0):(a.rent||0)-(b.rent||0);}
+    return 0;
+  });
   return rows;
 }
 function renderTable(){
@@ -1637,7 +1650,20 @@ function renderTable(){
 
 function filterStat(el,f){document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));currentStatFilter=currentStatFilter===f?'all':f;if(currentStatFilter==='all')document.querySelector('.s-total').classList.add('active');else el.classList.add('active');renderTable();}
 function filterType(el){document.querySelectorAll('.pill').forEach(p=>p.classList.remove('active'));el.classList.add('active');currentTypeFilter=el.dataset.type;renderTable();}
-function setSortSel(v){document.getElementById('sortSel').value=v;renderTable();}
+function setSortSel(v){
+  const sel = document.getElementById('sortSel');
+  // Toggle desc if clicking same column
+  if(sel.value === v) sel.value = v+'-desc';
+  else if(sel.value === v+'-desc') sel.value = v;
+  else sel.value = v;
+  // Highlight active header
+  document.querySelectorAll('thead th[onclick]').forEach(th => {
+    const col = th.getAttribute('onclick').match(/'([^']+)'/)?.[1];
+    const isActive = sel.value === col || sel.value === col+'-desc';
+    th.style.color = isActive ? 'var(--accent2)' : '';
+  });
+  renderTable();
+}
 function toggleArchive(){const w=document.getElementById('archiveTableWrap'),ch=document.getElementById('archChevron');const o=w.style.display!=='none';w.style.display=o?'none':'';ch.classList.toggle('open',!o);}
 
 // ── ADD/EDIT ───────────────────────────────────────
