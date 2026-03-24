@@ -245,9 +245,11 @@ textarea{resize:vertical;min-height:70px;}
   <h2>Chelbourne</h2>
   <p>Connecting to database…</p>
 </div>
+<header class="header">
   <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
+    <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
   </div>
@@ -2072,34 +2074,28 @@ const BACKUP_KEY = 'propdesk_last_backup';
 
 function checkBackupStatus() {
   const last = localStorage.getItem(BACKUP_KEY);
-  const btn  = document.getElementById('backupBtn');
+  const btns = [document.getElementById('backupBtn'), document.getElementById('headerBackupBtn')];
   const status = document.getElementById('backupStatus');
-  if(!btn) return;
   if(!last) {
-    btn.style.background = 'var(--red)';
-    btn.textContent = '⚠ Backup Now';
-    if(status) status.textContent = 'Never backed up!';
-    if(status) status.style.color = 'var(--red)';
+    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title='Never backed up!'; } });
+    if(status){ status.textContent='Never backed up!'; status.style.color='var(--red)'; }
     return;
   }
   const lastDt = new Date(parseInt(last));
   const hoursAgo = (Date.now() - lastDt) / 3600000;
   const timeStr = lastDt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + lastDt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   if(hoursAgo >= 6) {
-    btn.style.background = 'var(--red)';
-    btn.innerHTML = '⚠ Backup Now';
-    if(status){ status.textContent = `Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; status.style.color='var(--red)'; }
+    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; } });
+    if(status){ status.textContent=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; status.style.color='var(--red)'; }
   } else {
-    btn.style.background = 'var(--green)';
-    btn.innerHTML = '💾 Backup Now';
-    if(status){ status.textContent = `Last backup: ${timeStr}`; status.style.color='var(--green)'; }
+    btns.forEach(b => { if(b){ b.style.background='var(--green)'; b.innerHTML='💾 Backup Now'; b.title=`Last backup: ${timeStr}`; } });
+    if(status){ status.textContent=`Last backup: ${timeStr}`; status.style.color='var(--green)'; }
   }
 }
 
 async function runBackup() {
-  const btn = document.getElementById('backupBtn');
-  btn.innerHTML = '⏳ Backing up…';
-  btn.disabled = true;
+  const btns = [document.getElementById('backupBtn'), document.getElementById('headerBackupBtn')];
+  btns.forEach(b => { if(b){ b.innerHTML='⏳ Backing up…'; b.disabled=true; b.style.opacity='0.7'; } });
 
   try {
     // Fetch ALL records from Supabase
@@ -2173,7 +2169,7 @@ async function runBackup() {
     console.error('Backup failed:', e);
     toast('Backup failed: ' + e.message, 'error');
   } finally {
-    btn.disabled = false;
+    btns.forEach(b => { if(b){ b.disabled=false; b.style.opacity='1'; } });
     checkBackupStatus();
   }
 }
