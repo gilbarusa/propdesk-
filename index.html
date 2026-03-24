@@ -394,6 +394,7 @@ textarea{resize:vertical;min-height:70px;}
           <option value="Fox Chase Properties">Fox Chase Properties</option>
           <option value="Montgomery Garages">Montgomery Garages</option>
         </select>
+        <button class="btn btn-secondary btn-sm" onclick="debugArchive()" style="white-space:nowrap;border-color:var(--red);color:var(--red);">🔍 Debug</button>
         <button class="btn btn-secondary btn-sm" onclick="openHistGraphs()" style="white-space:nowrap;">📊 Graphs</button>
         <button class="btn btn-secondary btn-sm" onclick="seedLT2025()" style="white-space:nowrap;border-color:var(--blue);color:var(--blue);" title="Generate monthly archive records for 2025">⚙ Gen 2025 LT</button>
         <button class="btn btn-secondary btn-sm" onclick="seedLT2026()" style="white-space:nowrap;border-color:var(--green);color:var(--green);" title="Generate Jan–Mar 2026 monthly archive records">⚙ Gen 2026 LT</button>
@@ -1821,6 +1822,8 @@ async function archiveTenant(id){
   };
 
   data[idx]=blankRec;
+  console.log('Saving blank rec:', JSON.stringify(dbRow(blankRec)));
+  console.log('Saving archive copy:', JSON.stringify(dbRow(archCopy)));
   await save(blankRec);
   await save(archCopy);
 
@@ -2405,6 +2408,21 @@ function renderReports(){
   for(let i=5;i>=0;i--){let tm2=m-i,ty2=y;if(tm2<0){tm2+=12;ty2--;}labels.push(new Date(ty2,tm2,1).toLocaleDateString('en-US',{month:'short',year:'2-digit'}));let e2=0,c2=0;occ.forEach(r=>{e2+=expectedInMonth(r,ty2,tm2);c2+=collectedInMonth(r,ty2,tm2);});expArr.push(e2);collArr.push(c2);}
   if(trendChartInst)trendChartInst.destroy();
   trendChartInst=new Chart(document.getElementById('trendChart'),{type:'bar',data:{labels,datasets:[{label:'Expected',data:expArr,backgroundColor:'#e0dbd2',borderRadius:4},{label:'Collected',data:collArr,backgroundColor:'#2e7d52',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'DM Mono',size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'$'+v.toLocaleString(),font:{family:'DM Mono',size:10}},grid:{color:'#f4f2ee'}},x:{ticks:{font:{family:'DM Mono',size:10}},grid:{display:false}}}}});
+}
+
+// ── DEBUG ──────────────────────────────────────────
+async function debugArchive() {
+  const {data:rows, error} = await sb.from('units').select('id,apt,name,archived,archived_date').eq('archived',true).order('id',{ascending:false}).limit(10);
+  if(error){alert('Supabase error: '+error.message);return;}
+  const msg = rows.length
+    ? 'Last 10 archived in Supabase:\n\n' + rows.map(r=>`ID:${r.id} | ${r.apt} | ${r.name} | archived:${r.archived} | date:${r.archived_date}`).join('\n')
+    : 'NO archived records found in Supabase!';
+  alert(msg);
+  console.log('Archived in Supabase:', rows);
+  // Also reload
+  await loadAll();
+  renderHistory();
+  toast(`Loaded ${archived.length} archived records from Supabase`);
 }
 
 // ── INIT ───────────────────────────────────────────
