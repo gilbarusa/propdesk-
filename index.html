@@ -427,31 +427,31 @@ textarea{resize:vertical;min-height:70px;}
 </div>
 
 <!-- GRAPHS MODAL (Archive) -->
-<div class="modal-overlay" id="histGraphModal" style="align-items:flex-start;padding-top:40px;">
-  <div class="modal" style="max-width:780px;">
+<div class="modal-overlay" id="histGraphModal">
+  <div class="modal" style="max-width:800px;width:95%;">
     <div class="modal-header">
       <h2 id="histGraphTitle">📊 Archive Charts</h2>
       <button class="modal-close" onclick="closeModal('histGraphModal')">✕</button>
     </div>
     <div class="modal-body" style="padding:16px 20px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Revenue by Month</div>
-          <div style="position:relative;height:200px;"><canvas id="gByMonth"></canvas></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Revenue by Month</div>
+          <canvas id="gByMonth" height="180"></canvas>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Revenue by Owner</div>
-          <div style="position:relative;height:200px;"><canvas id="gByOwner"></canvas></div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Revenue by Owner</div>
+          <canvas id="gByOwner" height="180"></canvas>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Stays by Type</div>
-          <div style="position:relative;height:200px;"><canvas id="gByType"></canvas></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Stays by Type</div>
+          <canvas id="gByType" height="180"></canvas>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Top Apartments by Revenue</div>
-          <div style="position:relative;height:200px;"><canvas id="gByApt"></canvas></div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Top Apts by Revenue</div>
+          <canvas id="gByApt" height="180"></canvas>
         </div>
       </div>
     </div>
@@ -459,31 +459,31 @@ textarea{resize:vertical;min-height:70px;}
 </div>
 
 <!-- GRAPHS MODAL (Units/Live) -->
-<div class="modal-overlay" id="unitsGraphModal" style="align-items:flex-start;padding-top:40px;">
-  <div class="modal" style="max-width:780px;">
+<div class="modal-overlay" id="unitsGraphModal">
+  <div class="modal" style="max-width:800px;width:95%;">
     <div class="modal-header">
       <h2>📊 Live Units Charts</h2>
       <button class="modal-close" onclick="closeModal('unitsGraphModal')">✕</button>
     </div>
     <div class="modal-body" style="padding:16px 20px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Rent by Owner</div>
-          <div style="position:relative;height:200px;"><canvas id="ugByOwner"></canvas></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Rent by Owner</div>
+          <canvas id="ugByOwner" height="180"></canvas>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Units by Type</div>
-          <div style="position:relative;height:200px;"><canvas id="ugByType"></canvas></div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Units by Type</div>
+          <canvas id="ugByType" height="180"></canvas>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Balance Outstanding by Apt</div>
-          <div style="position:relative;height:200px;"><canvas id="ugByBalance"></canvas></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Balance by Apt (top 10)</div>
+          <canvas id="ugByBalance" height="180"></canvas>
         </div>
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
-          <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;">Occupancy Rate</div>
-          <div style="position:relative;height:200px;"><canvas id="ugOccupancy"></canvas></div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px;font-weight:500;">Occupancy</div>
+          <canvas id="ugOccupancy" height="180"></canvas>
         </div>
       </div>
     </div>
@@ -1796,19 +1796,24 @@ function mkChart(id, type, labels, datasets, opts={}) {
   destroyChart(id);
   const ctx = document.getElementById(id);
   if(!ctx) return;
-  gCharts[id] = new Chart(ctx, {
-    type,
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { labels: { font: { family: 'DM Mono', size: 10 }, boxWidth: 10 } } },
-      scales: type === 'bar' || type === 'line' ? {
-        y: { ticks: { callback: v => '$'+Math.round(v).toLocaleString(), font: { family:'DM Mono',size:9 } }, grid: { color:'#f0ede8' } },
-        x: { ticks: { font: { family:'DM Mono',size:9 } }, grid: { display:false } }
-      } : {},
-      ...opts
-    }
-  });
+  const isBar = type === 'bar' || type === 'line';
+  const baseOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { font: { family:'DM Mono', size:10 }, boxWidth:10 } } },
+  };
+  if (isBar) {
+    baseOpts.scales = {
+      y: { ticks: { callback: v => '$'+Math.round(v).toLocaleString(), font:{family:'DM Mono',size:9} }, grid:{color:'#f0ede8'} },
+      x: { ticks: { font:{family:'DM Mono',size:9} }, grid:{display:false} }
+    };
+  }
+  // Deep merge opts
+  const merged = { ...baseOpts };
+  if (opts.plugins) merged.plugins = { ...baseOpts.plugins, ...opts.plugins };
+  if (opts.scales)  merged.scales  = opts.scales;
+  if (opts.indexAxis) merged.indexAxis = opts.indexAxis;
+  gCharts[id] = new Chart(ctx, { type, data:{ labels, datasets }, options: merged });
 }
 
 function openHistGraphs() {
@@ -1923,40 +1928,59 @@ function openUnitsGraph() {
 //  LT MONTHLY ARCHIVE RECORDS (2025)
 // ══════════════════════════════════════════════════════
 async function seedLT2025() {
-  if(!confirm('This will create monthly archive records for all active long-term and month-to-month tenants for 2025 (from their move-in month through December 2025).\n\nOnly records that don\'t already exist will be added.\n\nContinue?')) return;
+  if(!confirm('This creates one archive line per month for every active LT/MTM tenant for 2025.\n\nFor example: Apt 232 — Oleh Chubatiuk — $2,300 — Jan 2025, Feb 2025... Dec 2025\n\nStart month = their check-in date (or Jan 2025 if they moved in before 2025).\nOnly tenants currently active in Live will be included.\n\nContinue?')) return;
 
-  const active = data.filter(r => !r.archived && r.name && (r.type==='long-term'||r.type==='month-to-month') && r.rent>0);
+  toast('Generating 2025 monthly records…');
+
+  // Build a move-in lookup from SEED_DATA checkin dates
+  // SEED_DATA has checkin stored in history[0].date for long-term, or we use Jan 2025 fallback
+  const moveInLookup = {};
+  for (const r of SEED_DATA) {
+    if (r.history && r.history.length) {
+      moveInLookup[r.id] = r.history[0].date;
+    }
+  }
+
+  const active = data.filter(r =>
+    !r.archived && r.name &&
+    (r.type === 'long-term' || r.type === 'month-to-month') &&
+    r.rent > 0
+  );
+
+  // Build existing key set to avoid dupes
+  const existingKeys = new Set(
+    archived.map(r => `${r.apt}||${(r.name||'').toLowerCase()}||${(r.archived_date||r.archivedDate||'').substring(0,7)}`)
+  );
+
+  let uid = Math.max(2000, ...archived.map(r=>r.id), ...data.map(r=>r.id)) + 1;
   const toInsert = [];
   let skipped = 0;
 
-  // Get existing archived IDs to avoid duplicates
-  const existingKeys = new Set(archived.map(r => `${r.apt}|${r.name}|${(r.archivedDate||'').substring(0,7)}`));
-
-  let uid = Math.max(2000, ...archived.map(r=>r.id), ...data.map(r=>r.id)) + 1;
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   for (const r of active) {
-    // determine start month: move-in date or Jan 2025, whichever is later
-    let startMonth, startYear;
-    // Try to get move-in from checkin in history, or use jan 2025
-    const moveInStr = r.checkinDate || '';
-    let moveIn = moveInStr ? new Date(moveInStr+'T00:00:00') : new Date('2025-01-01');
-    if (isNaN(moveIn)) moveIn = new Date('2025-01-01');
+    // Get move-in date — from SEED_DATA history or from live record's history
+    let moveInStr = moveInLookup[r.id] || '';
+    if (!moveInStr && r.history && r.history.length) {
+      moveInStr = r.history[r.history.length - 1].date || '';
+    }
 
-    // Clamp to Jan 2025 start
+    let moveIn = moveInStr ? new Date(moveInStr + 'T00:00:00') : null;
+    if (!moveIn || isNaN(moveIn.getTime())) moveIn = new Date('2025-01-01');
+
+    // Start from Jan 2025 or their move-in month, whichever is later
     const jan2025 = new Date('2025-01-01');
-    const dec2025 = new Date('2025-12-31');
     const effectiveStart = moveIn > jan2025 ? moveIn : jan2025;
 
-    startYear  = effectiveStart.getFullYear();
-    startMonth = effectiveStart.getMonth(); // 0-indexed
+    let y = effectiveStart.getFullYear();
+    let m = effectiveStart.getMonth(); // 0-indexed
 
-    // Generate one record per month from start through Dec 2025
-    let y = startYear, m = startMonth;
-    while (y < 2026 || (y===2025 && m<=11)) {
-      if (y > 2025) break;
-      const monthStr = `${y}-${String(m+1).padStart(2,'0')}`;
-      const dateStr  = `${monthStr}-01`;
-      const key = `${r.apt}|${r.name}|${monthStr}`;
+    // Only generate 2025 months (Jan=0 through Dec=11)
+    while (y === 2025 && m <= 11) {
+      const monthStr  = `${y}-${String(m+1).padStart(2,'0')}`;
+      const dateStr   = `${monthStr}-01`;
+      const monthName = MONTHS[m];
+      const key = `${r.apt}||${r.name.toLowerCase()}||${monthStr}`;
 
       if (!existingKeys.has(key)) {
         toInsert.push({
@@ -1968,16 +1992,16 @@ async function seedLT2025() {
           rent: r.rent,
           balance: 0,
           due: dateStr,
-          note: `Monthly record — active tenant (auto-generated 2025)`,
-          history: [{ date: dateStr, text: `$${r.rent.toLocaleString()} — monthly payment` }],
+          note: `${r.name} — ${monthName} ${y} — $${r.rent.toLocaleString()}`,
+          history: [{ date: dateStr, text: `$${r.rent.toLocaleString()} — ${monthName} ${y} monthly` }],
           archived: true,
           archived_date: dateStr,
-          checkinDate: dateStr,
         });
         existingKeys.add(key);
       } else {
         skipped++;
       }
+
       m++;
       if (m > 11) { m = 0; y++; }
     }
@@ -1988,14 +2012,16 @@ async function seedLT2025() {
     return;
   }
 
-  toast(`Creating ${toInsert.length} monthly records…`);
+  // Insert in batches of 50
   const batchSize = 50;
   for (let i = 0; i < toInsert.length; i += batchSize) {
-    await saveAll(toInsert.slice(i, i+batchSize));
+    await saveAll(toInsert.slice(i, i + batchSize));
+    toast(`Inserting… ${Math.min(i+batchSize, toInsert.length)} / ${toInsert.length}`);
   }
+
   await loadAll();
   renderHistory();
-  toast(`✓ Created ${toInsert.length} monthly LT records for 2025 (${skipped} already existed)`, 'success');
+  toast(`✓ Created ${toInsert.length} monthly LT records for 2025${skipped?' ('+skipped+' already existed)':''}`, 'success');
 }
 
 // ══════════════════════════════════════════════════════
