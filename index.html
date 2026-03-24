@@ -1794,46 +1794,67 @@ async function archiveTenant(id){
   const r=data[idx];
   const todayStr=today();
 
-  // Determine lease_end for archive record
+  // Get a safe new ID — query Supabase for actual max
+  const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
+  const safeNewId = maxRow && maxRow.length ? maxRow[0].id + 1 : nextId;
+  nextId = safeNewId + 1;
+
+  // Determine lease_end
   let archLeaseEnd = r.lease_end || r.due || todayStr;
   if((r.type==='long-term'||r.type==='month-to-month')&&!r.lease_end){
     const now=new Date();
     archLeaseEnd=new Date(now.getFullYear(),now.getMonth()+1,0).toISOString().split('T')[0];
   }
 
-  const newId = nextId++;
-  const archCopy={
-    id: newId,
-    apt: r.apt, owner: r.owner||null, name: r.name,
-    type: r.type, rent: r.rent, balance: r.balance||0,
-    due: archLeaseEnd,
-    lease_end: archLeaseEnd,
-    checkin: r.checkin||r.checkinDate||null,
+  const archRow = {
+    id: safeNewId,
+    apt: r.apt,
+    owner: r.owner||null,
+    name: r.name,
+    type: r.type,
+    rent: r.rent||0,
+    balance: r.balance||0,
+    due: archLeaseEnd||null,
+    lease_end: archLeaseEnd||null,
+    checkin: r.checkin||null,
     note: r.note||null,
     history: r.history||[],
     archived: true,
-    archived_date: todayStr,
-    archivedDate: todayStr,
-  };
-  const blankRec={
-    id:r.id, apt:r.apt, owner:r.owner, name:'', type:'available',
-    rent:r.rent, balance:0, due:'', lease_end:'', checkin:'',
-    note:'', history:[], archived:false, archived_date:null, archivedDate:''
+    archived_date: todayStr
   };
 
-  data[idx]=blankRec;
-  console.log('Saving blank rec:', JSON.stringify(dbRow(blankRec)));
-  console.log('Saving archive copy:', JSON.stringify(dbRow(archCopy)));
-  await save(blankRec);
-  await save(archCopy);
+  const blankRow = {
+    id: r.id,
+    apt: r.apt,
+    owner: r.owner||null,
+    name: null,
+    type: 'available',
+    rent: r.rent||0,
+    balance: 0,
+    due: null,
+    lease_end: null,
+    checkin: null,
+    note: null,
+    history: [],
+    archived: false,
+    archived_date: null
+  };
 
-  // Reload from Supabase so archive tab is immediately up to date
+  console.log('Archiving — new record:', archRow);
+
+  // Save archive record first
+  const {error:e1} = await sb.from('units').insert(archRow);
+  if(e1){ console.error('Archive INSERT error:', e1); toast('Error saving archive: '+e1.message,'error'); return; }
+
+  // Update existing unit to available
+  const {error:e2} = await sb.from('units').update(blankRow).eq('id', r.id);
+  if(e2){ console.error('Blank update error:', e2); toast('Error clearing unit: '+e2.message,'error'); return; }
+
   await loadAll();
   renderTable();
-  // If archive tab is open, refresh it too
   const histPage = document.getElementById('page-history');
   if(histPage && histPage.classList.contains('active')) renderHistory();
-  toast(`${r.name||'Tenant'} archived. Find them in 🗄 Archive tab → Year 2026, Month March.`,'success');
+  toast(`${r.name||'Tenant'} archived ✓ — find in 🗄 Archive tab`,'success');
   if(detailId===id)closeDetail();
 }
 async function restoreTenant(id){
