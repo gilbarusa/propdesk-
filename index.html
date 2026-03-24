@@ -283,7 +283,9 @@ textarea{resize:vertical;min-height:70px;}
     </div>
     <div class="spacer"></div>
     <button class="btn btn-secondary btn-sm" onclick="openUnitsGraph()" style="white-space:nowrap;">📊 Graphs</button>
-    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+    <button id="undoBtn" onclick="performUndo()" style="display:none;background:var(--orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px;">↩ Undo</button>
+  <button onclick="showAuditLog()" style="background:transparent;color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;" title="View audit log">🕐 Log</button>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
     <label style="color:var(--text3);font-size:11px;margin:0;white-space:nowrap">Sort:</label>
     <select class="sort-sel" id="sortSel" onchange="renderTable()">
       <option value="due">Due Date ↑</option><option value="due-desc">Due Date ↓</option>
@@ -494,6 +496,31 @@ textarea{resize:vertical;min-height:70px;}
           <canvas id="ugOccupancy" height="180"></canvas>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT LOG MODAL -->
+<div class="modal-overlay" id="auditModal">
+  <div class="modal" style="max-width:700px;">
+    <div class="modal-header">
+      <h2>🕐 Audit Log</h2>
+      <button class="modal-close" onclick="closeModal('auditModal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;max-height:500px;overflow-y:auto;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead>
+          <tr style="background:var(--surface2);">
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Time</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Action</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Apt</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Tenant</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Undo</th>
+          </tr>
+        </thead>
+        <tbody id="auditBody"></tbody>
+      </table>
+      <div id="auditEmpty" style="text-align:center;padding:40px;color:var(--text3);">No changes logged yet.</div>
     </div>
   </div>
 </div>
@@ -1532,10 +1559,74 @@ function fromRow(r) {
   };
 }
 
+// ── AUDIT LOG ──────────────────────────────────────
+let lastUndo = null; // {action, record_id, old_data, new_data}
+
+async function auditLog(action, apt, name, recordId, oldData, newData) {
+  try {
+    await sb.from('audit_log').insert({
+      action, apt, name,
+      record_id: recordId,
+      old_data: oldData ? JSON.stringify(oldData) : null,
+      new_data: newData ? JSON.stringify(newData) : null,
+    });
+    // Keep last undo in memory for instant undo
+    lastUndo = { action, record_id: recordId, old_data: oldData, new_data: newData, apt, name };
+    document.getElementById('undoBtn').style.display = '';
+    document.getElementById('undoBtn').title = `Undo: ${action} — ${apt} ${name||''}`;
+  } catch(e) {
+    console.warn('Audit log failed:', e);
+  }
+}
+
+async function performUndo() {
+  if(!lastUndo) return;
+  const u = lastUndo;
+  if(!confirm(`Undo "${u.action}" for ${u.apt} ${u.name||''}?`)) return;
+  try {
+    if(u.action === 'delete') {
+      // Restore deleted record
+      if(u.old_data) {
+        const rec = typeof u.old_data === 'string' ? JSON.parse(u.old_data) : u.old_data;
+        await sb.from('units').insert(rec);
+      }
+    } else if(u.action === 'archive') {
+      // Restore archived unit and delete archive copy
+      if(u.old_data) {
+        const rec = typeof u.old_data === 'string' ? JSON.parse(u.old_data) : u.old_data;
+        await sb.from('units').upsert(rec, {onConflict:'id'});
+      }
+      if(u.new_data) {
+        const newRec = typeof u.new_data === 'string' ? JSON.parse(u.new_data) : u.new_data;
+        await sb.from('units').delete().eq('id', newRec.id);
+      }
+    } else {
+      // Restore previous state of record
+      if(u.old_data) {
+        const rec = typeof u.old_data === 'string' ? JSON.parse(u.old_data) : u.old_data;
+        await sb.from('units').upsert(rec, {onConflict:'id'});
+      }
+    }
+    lastUndo = null;
+    document.getElementById('undoBtn').style.display = 'none';
+    await loadAll();
+    renderTable();
+    toast('↩ Undo successful', 'success');
+  } catch(e) {
+    console.error('Undo failed:', e);
+    toast('Undo failed: ' + e.message, 'error');
+  }
+}
+
 async function save(record) {
+  // Get old state for audit
+  const old = [...data, ...archived].find(x => x.id === record.id);
   const row = dbRow(record);
   const { error } = await sb.from('units').upsert(row, { onConflict: 'id' });
-  if (error) { console.error('Save error:', error); toast('Sync error — check console','error'); }
+  if (error) { console.error('Save error:', error); toast('Sync error — check console','error'); return; }
+  // Log to audit
+  await auditLog('edit', record.apt||'', record.name||'', record.id,
+    old ? dbRow(old) : null, row);
 }
 
 async function saveAll(records) {
@@ -1543,14 +1634,19 @@ async function saveAll(records) {
   const { error } = await sb.from('units').upsert(rows, { onConflict: 'id' });
   if (error) {
     console.error('SaveAll error:', error);
-    console.error('First record was:', rows[0]);
     toast('Sync error: ' + error.message, 'error');
+  }
+  // Log first record as representative (bulk operations)
+  if(rows.length && rows[0]) {
+    await auditLog('bulk-save', rows[0].apt||'', rows[0].name||'', rows[0].id, null, {count: rows.length});
   }
 }
 
 async function deleteRecord(id) {
+  const old = [...data, ...archived].find(x => x.id === id);
   const { error } = await sb.from('units').delete().eq('id', id);
-  if (error) console.error('Delete error:', error);
+  if (error) { console.error('Delete error:', error); return; }
+  if(old) await auditLog('delete', old.apt||'', old.name||'', id, dbRow(old), null);
 }
 
 async function loadAll() {
@@ -1906,6 +2002,9 @@ async function archiveTenant(id){
   const {error:e2} = await sb.from('units').update(blankRow).eq('id', r.id);
   if(e2){ console.error('Blank update error:', e2); toast('Error clearing unit: '+e2.message,'error'); return; }
 
+  // Audit log — store old state for undo
+  await auditLog('archive', r.apt, r.name, r.id, dbRow(r), {...archRow});
+
   await loadAll();
   renderTable();
   const histPage = document.getElementById('page-history');
@@ -1944,7 +2043,7 @@ function closeDetail(){document.getElementById('detailOverlay').classList.remove
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
+document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
 function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;document.getElementById('toastWrap').appendChild(t);setTimeout(()=>t.remove(),3200);}
 function exportCSV(){const h=['Apt','Owner','Tenant','Type','Rent','Balance','Due Date','Note'];const rows=data.filter(r=>!r.archived).map(r=>[r.apt,r.owner,r.name,r.type,r.rent,r.balance,r.due,`"${(r.note||'').replace(/"/g,'""')}"`]);const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h,...rows].map(r=>r.join(',')).join('\n'));a.download='propdesk-export.csv';a.click();toast('CSV exported ✓','success');}
 
@@ -1959,10 +2058,47 @@ function showPage(p,el){
   if(p==='history')renderHistory();
 }
 
-// ── ARCHIVE HISTORY ────────────────────────────────
+// ── AUDIT LOG UI ───────────────────────────────────
+async function showAuditLog() {
+  openModal('auditModal');
+  document.getElementById('auditBody').innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);">Loading…</td></tr>';
+  const {data:rows, error} = await sb.from('audit_log')
+    .select('*').order('created_at', {ascending:false}).limit(50);
+  if(error || !rows){ document.getElementById('auditBody').innerHTML=''; document.getElementById('auditEmpty').style.display=''; return; }
+  document.getElementById('auditEmpty').style.display = rows.length ? 'none' : '';
+  const actionColor = a => a==='delete'?'var(--red)':a==='archive'?'var(--orange)':a==='edit'?'var(--blue)':'var(--text2)';
+  document.getElementById('auditBody').innerHTML = rows.map(r => {
+    const dt = new Date(r.created_at);
+    const timeStr = dt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const canUndo = r.old_data && ['edit','archive','delete'].includes(r.action);
+    return `<tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+      <td style="padding:10px 12px;color:var(--text3);white-space:nowrap;">${timeStr}</td>
+      <td style="padding:10px 12px;font-weight:500;color:${actionColor(r.action)}">${r.action}</td>
+      <td style="padding:10px 12px;font-family:'Playfair Display',serif;color:var(--accent2)">${r.apt||'—'}</td>
+      <td style="padding:10px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name||'—'}</td>
+      <td style="padding:10px 12px;">${canUndo?`<button onclick="undoFromLog(${r.id})" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;color:var(--text2);">↩ Undo</button>`:'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function undoFromLog(logId) {
+  const {data:rows} = await sb.from('audit_log').select('*').eq('id', logId).limit(1);
+  if(!rows || !rows.length) return;
+  const u = rows[0];
+  if(!confirm(`Undo "${u.action}" for ${u.apt} ${u.name||''}?`)) return;
+  lastUndo = {
+    action: u.action, record_id: u.record_id,
+    old_data: u.old_data ? JSON.parse(u.old_data) : null,
+    new_data: u.new_data ? JSON.parse(u.new_data) : null,
+    apt: u.apt, name: u.name
+  };
+  closeModal('auditModal');
+  await performUndo();
+}
+
 // ── ARCHIVE HISTORY ────────────────────────────────
 let histSortCol = 'checkout';
-let histSortDir = -1; // -1 = desc (newest first)
+let histSortDir = -1;
 
 function histSort(col) {
   if (histSortCol === col) histSortDir *= -1;
