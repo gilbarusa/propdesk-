@@ -1661,7 +1661,7 @@ function openPayModal(id){
   document.getElementById('prorateCheck').checked=false;
   document.getElementById('prorateBreakdown').innerHTML='';
   // Show prorate option for short stays with checkin+lease_end
-  const showProrate = r.type==='short-stay' && (r.checkin||r.lease_end);
+  const showProrate = r.type==='short-stay' && r.checkin && (r.lease_end||r.due);
   document.getElementById('prorateRow').style.display = showProrate ? '' : 'none';
   const s=dueStatus(r);
   document.getElementById('payInfoBox').innerHTML=`
@@ -1696,11 +1696,13 @@ function calcProration(checkin, checkout, totalAmt) {
 }
 
 function currentMonthProration(r) {
-  // For short stays: return this month's prorated portion of the total rent
   if(r.type !== 'short-stay') return null;
-  const ci = r.checkin || r.due;
-  const co = r.lease_end || r.due;
-  if(!ci || !co || ci === co) return null;
+  const ci = r.checkin;
+  const co = r.lease_end || r.due;  // use lease_end or fall back to due
+  if(!ci || !co) return null;
+  const ciD = new Date(ci+'T00:00:00');
+  const coD = new Date(co+'T00:00:00');
+  if(coD <= ciD) return null;  // same day or invalid
   const now = new Date();
   const curMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const splits = calcProration(ci, co, r.rent);
@@ -1905,7 +1907,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
   // Rent display — full amount for short stays with monthly breakdown
   let rentDisplay = r.rent?`$${r.rent.toLocaleString()}`:'—';
   if(r.type==='short-stay'&&r.rent&&r.checkin&&(r.lease_end||r.due)){
-    const splits=calcProration(r.checkin,r.lease_end||r.due,r.rent);
+    const splits=calcProration(r.checkin, r.lease_end||r.due, r.rent);
     if(splits.length>1){
       const breakdown=splits.map(s=>`${s.month}: $${s.portion.toLocaleString()} (${s.days}d)`).join(' &middot; ');
       rentDisplay=`$${r.rent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
