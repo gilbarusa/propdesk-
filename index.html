@@ -323,6 +323,15 @@ textarea{resize:vertical;min-height:70px;}
 <!-- ═══ DASHBOARD PAGE ═══ -->
 <div class="page" id="page-dashboard">
   <div class="dash-wrap">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+      <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--accent2);">Dashboard</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div id="backupStatus" style="font-size:11px;color:var(--text3);">No backup yet</div>
+        <button id="backupBtn" onclick="runBackup()" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
+          💾 Backup Now
+        </button>
+      </div>
+    </div>
     <div class="dash-kpi-grid" id="dashKpis"></div>
     <div class="dash-two-col">
       <div class="dash-panel"><h3>🚨 Needs Attention</h3><div id="dashUrgency"></div></div>
@@ -2053,10 +2062,124 @@ function showPage(p,el){
   document.querySelectorAll('.nav-tab').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
   el.classList.add('active');
-  if(p==='dashboard')renderDashboard();
+  if(p==='dashboard'){renderDashboard();checkBackupStatus();}
   if(p==='reports')renderReports();
   if(p==='history')renderHistory();
 }
+
+// ── BACKUP ─────────────────────────────────────────
+const BACKUP_KEY = 'propdesk_last_backup';
+
+function checkBackupStatus() {
+  const last = localStorage.getItem(BACKUP_KEY);
+  const btn  = document.getElementById('backupBtn');
+  const status = document.getElementById('backupStatus');
+  if(!btn) return;
+  if(!last) {
+    btn.style.background = 'var(--red)';
+    btn.textContent = '⚠ Backup Now';
+    if(status) status.textContent = 'Never backed up!';
+    if(status) status.style.color = 'var(--red)';
+    return;
+  }
+  const lastDt = new Date(parseInt(last));
+  const hoursAgo = (Date.now() - lastDt) / 3600000;
+  const timeStr = lastDt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + lastDt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  if(hoursAgo >= 6) {
+    btn.style.background = 'var(--red)';
+    btn.innerHTML = '⚠ Backup Now';
+    if(status){ status.textContent = `Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; status.style.color='var(--red)'; }
+  } else {
+    btn.style.background = 'var(--green)';
+    btn.innerHTML = '💾 Backup Now';
+    if(status){ status.textContent = `Last backup: ${timeStr}`; status.style.color='var(--green)'; }
+  }
+}
+
+async function runBackup() {
+  const btn = document.getElementById('backupBtn');
+  btn.innerHTML = '⏳ Backing up…';
+  btn.disabled = true;
+
+  try {
+    // Fetch ALL records from Supabase
+    let allRows = [];
+    const pageSize = 500;
+    let page = 0;
+    while(true) {
+      const from = page * pageSize, to = from + pageSize - 1;
+      const {data:rows, error} = await sb.from('units').select('*').order('id').range(from, to);
+      if(error) throw new Error(error.message);
+      if(!rows || rows.length === 0) break;
+      allRows = allRows.concat(rows);
+      if(rows.length < pageSize) break;
+      page++;
+    }
+
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0,10);
+    const timeStr = now.toTimeString().slice(0,5).replace(':','');
+
+    // Helper to escape SQL strings
+    const esc = v => v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g,"''")}'`;
+    const escJson = v => {
+      if(v === null || v === undefined) return "NULL";
+      const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      return `'${s.replace(/'/g,"''")}'::jsonb`;
+    };
+
+    // Generate SQL
+    const lines = [
+      `-- PropDesk SQL Backup`,
+      `-- Generated: ${now.toLocaleString()}`,
+      `-- Records: ${allRows.length}`,
+      `-- To restore: run TRUNCATE units; first, then paste this file`,
+      ``,
+      `-- Disable triggers temporarily`,
+      `SET session_replication_role = replica;`,
+      ``,
+      `-- Clear existing data`,
+      `TRUNCATE units RESTART IDENTITY;`,
+      ``,
+      `-- Insert all records`,
+      ...allRows.map(r =>
+        `INSERT INTO units (id,apt,owner,name,type,rent,balance,due,lease_end,checkin,note,history,archived,archived_date) VALUES (` +
+        `${r.id},${esc(r.apt)},${esc(r.owner)},${esc(r.name)},${esc(r.type)},` +
+        `${r.rent||0},${r.balance||0},${esc(r.due)},${esc(r.lease_end)},${esc(r.checkin)},` +
+        `${esc(r.note)},${escJson(r.history)},${r.archived||false},${esc(r.archived_date)});`
+      ),
+      ``,
+      `-- Re-enable triggers`,
+      `SET session_replication_role = DEFAULT;`,
+      ``,
+      `-- Verify`,
+      `SELECT COUNT(*) as total, SUM(CASE WHEN archived THEN 1 ELSE 0 END) as archived, SUM(CASE WHEN NOT archived THEN 1 ELSE 0 END) as active FROM units;`,
+    ];
+
+    const sql = lines.join('\n');
+    const filename = `propdesk_backup_${dateStr}_${timeStr}.sql`;
+    const blob = new Blob([sql], {type:'text/plain;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+
+    // Save timestamp
+    localStorage.setItem(BACKUP_KEY, Date.now().toString());
+    checkBackupStatus();
+    toast(`✓ SQL backup downloaded: ${allRows.length} records → ${filename}`, 'success');
+
+  } catch(e) {
+    console.error('Backup failed:', e);
+    toast('Backup failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    checkBackupStatus();
+  }
+}
+
+// Check backup status every 30 minutes
+setInterval(checkBackupStatus, 30 * 60 * 1000);
 
 // ── AUDIT LOG UI ───────────────────────────────────
 async function showAuditLog() {
@@ -2690,6 +2813,7 @@ async function boot() {
     overlay.style.display = 'none';
     renderTable();
     subscribeRealtime();
+    setTimeout(checkBackupStatus, 500);
 
   } catch(e) {
     console.error('Boot error:', e);
