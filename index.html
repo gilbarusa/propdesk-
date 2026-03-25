@@ -1987,122 +1987,144 @@ function updatePayPreview(){
   document.getElementById('payPreviewRow').style.display=msg?'':'none';
 }
 async function confirmPayment(){
-  const id=document.getElementById('payId').value;
-  const idx=data.findIndex(x=>x.id==id);if(idx<0)return;
-  const r=data[idx];
-  const amt=parseFloat(document.getElementById('payAmount').value)||0;
-  const note=document.getElementById('payNote').value;
-  const dateStr=document.getElementById('payDate').value||today();
-  const isProrate = document.getElementById('prorateCheck')?.checked && r.type==='short-stay';
+  const id = document.getElementById('payId').value;
+  const idx = data.findIndex(x => x.id == id);
+  if(idx < 0) return;
+  const r = data[idx];
+  const amt = parseFloat(document.getElementById('payAmount').value) || 0;
+  const note = document.getElementById('payNote').value.trim();
+  const dateStr = document.getElementById('payDate').value || today();
+  const newCheckout = payType === 'extend' ? document.getElementById('payNewDate').value : r.lease_end;
+  const isProrate = document.getElementById('prorateCheck')?.checked && r.type === 'short-stay';
 
-  r.history=r.history||[];
-  r.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — ${isProrate?'full stay (prorated)':payType}${note?' | '+note:''}`});
+  // ── History entry ──────────────────────────────────────────
+  r.history = r.history || [];
+  r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — ${isProrate ? 'full stay (prorated)' : payType}${note ? ' | ' + note : ''}` });
 
-  if(!isProrate){
-    if(r.type==='short-stay'){
-      // Short-stay: always subtract from current balance (never recalc from rent)
-      r.balance=Math.max(0,(r.balance||0)-amt);
-      if(payType==='extend'){const nd=document.getElementById('payNewDate').value;if(nd)r.due=nd;}
-    } else if(payType==='full'){
-      r.balance=amt>=r.rent?0:Math.max(0,r.rent-amt);
-      if(amt>=r.rent)r.due=nextMonth(r.due);
-    } else if(payType==='partial'){
-      r.balance=Math.max(0,(r.balance>0?r.balance:r.rent)-amt);
-    } else if(payType==='extend'){
-      const nd=document.getElementById('payNewDate').value;
-      if(nd)r.due=nd;
-      r.balance=Math.max(0,(r.balance||0)-amt);
-    }
-  } else {
-    r.balance=0; // fully paid (prorated)
-  }
+  if(r.type === 'short-stay' && !isProrate) {
+    // ── SHORT STAY (non-prorated) ──────────────────────────────
+    const origCheckout = r.lease_end || r.due || '';
+    const origMonth = origCheckout.substring(0, 7);
+    const newMonth  = newCheckout ? newCheckout.substring(0, 7) : origMonth;
+    const crossesMonth = newCheckout && newMonth > origMonth;
 
-  await save(r);
+    if(!crossesMonth) {
+      // ── Same month: just add payment to running total, no archive ──
+      r.rent = Math.round(((r.rent || 0) + amt) * 100) / 100;
+      r.balance = Math.max(0, (r.balance || 0) - amt);
+      if(payType === 'extend' && newCheckout) r.lease_end = newCheckout;
+      await save(r);
 
-  // ── AUTO-ARCHIVE LINES ─────────────────────────────
-  // Helper: upsert a monthly archive row — create or accumulate payments into existing
-  const upsertMonthlyArchive = async (monthStr, payAmt, payText, extraFields={}) => {
-    const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const mIdx=parseInt(monthStr.split('-')[1])-1;
-    const yr=monthStr.split('-')[0];
-    const monthLabel=`${MONTHS[mIdx]} ${yr}`;
-    const nextMonthStr=`${yr}-${String(mIdx+2).padStart(2,'0')}-01`;
-
-    // Always fetch from Supabase to get the true current state
-    const {data:sbRows}=await sb.from('units').select('*')
-      .eq('apt', r.apt)
-      .eq('archived', true)
-      .eq('name', r.name)
-      .gte('archived_date', `${monthStr}-01`)
-      .lt('archived_date', nextMonthStr);
-
-    const existing = sbRows && sbRows.length > 0 ? sbRows[0] : null;
-
-    if(existing){
-      existing.history=existing.history||[];
-      // Store amount as number field alongside text for reliable summing
-      existing.history.unshift({date:dateStr, text:payText, amt:payAmt});
-      // Sum using stored amt field if available, fall back to regex
-      const totalPaid=existing.history.reduce((s,h)=>{
-        if(typeof h.amt==='number') return s+h.amt;
-        const m=h.text.match(/^\$([0-9,]+(\.[0-9]+)?)/);
-        return s+(m?parseFloat(m[1].replace(/,/g,'')):0);
-      },0);
-      existing.rent=Math.round(totalPaid*100)/100;
-      existing.note=`${r.name} — ${monthLabel} — ${existing.history.length} payment(s) — $${existing.rent.toLocaleString()}${note?' | '+note:''}`;
-      await save(existing);
-      // Update memory
-      const mi=archived.findIndex(a=>a.id===existing.id);
-      if(mi>=0) archived[mi]=existing; else archived.unshift(existing);
     } else {
-      // No existing row — create new. Get safe ID from Supabase
-      const {data:maxRow}=await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
-      const newId=(maxRow&&maxRow.length?maxRow[0].id:2000)+1;
-      const archRec={
-        id:newId, apt:r.apt, owner:r.owner||null, name:r.name,
-        type:r.type, rent:Math.round(payAmt*100)/100, balance:0,
-        due:`${monthStr}-01`,
-        lease_end:new Date(parseInt(yr),mIdx+1,0).toISOString().split('T')[0],
-        checkin:r.checkin||'',
-        note:`${r.name} — ${monthLabel} — $${payAmt.toLocaleString()}${note?' | '+note:''}`,
-        history:[{date:dateStr, text:payText, amt:payAmt}],
-        archived:true, archived_date:`${monthStr}-01`,
-        ...extraFields
-      };
-      await save(archRec);
-      archived.unshift({...archRec,archivedDate:`${monthStr}-01`,checkinDate:r.checkin||''});
-    }
-  };
+      // ── Crosses into new month: prorate ──────────────────────
+      // Total accumulated = all payments on the live unit + this new one
+      const totalPaid = r.history.reduce((s, h) => s + (typeof h.amt === 'number' ? h.amt : 0), 0);
 
-  if(isProrate && r.type==='short-stay'){
-    // Prorated short-stay: split across months
+      // Full stay: checkin → new checkout
+      const ci = r.checkin || r.due;
+      const co = newCheckout;
+      const splits = calcProration(ci, co, totalPaid);
+
+      // March portion (everything up to end of original month) → archive
+      const oldMonthSplits = splits.filter(s => s.monthStr <= origMonth);
+      const newMonthSplits = splits.filter(s => s.monthStr > origMonth);
+      const oldMonthTotal  = Math.round(oldMonthSplits.reduce((s, x) => s + x.portion, 0) * 100) / 100;
+      const newMonthTotal  = Math.round(newMonthSplits.reduce((s, x) => s + x.portion, 0) * 100) / 100;
+
+      // Archive the old month — upsert one row per old month
+      for(const s of oldMonthSplits) {
+        await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note, r.history);
+      }
+
+      // Update live unit: keep original checkin, new checkout, show only new month portion
+      r.lease_end = co;
+      r.due = co;
+      r.rent = newMonthTotal;    // live screen shows only current month prorated amount
+      r.balance = newMonthTotal; // what's owed for the new month
+      r.history = [{ date: dateStr, amt: newMonthTotal, text: `$${newMonthTotal.toLocaleString()} — current month portion (${newMonthSplits.map(s=>s.month).join(', ')})${note ? ' | ' + note : ''}` }];
+      await save(r);
+    }
+
+  } else if(isProrate && r.type === 'short-stay') {
+    // ── PRORATED FULL STAY ─────────────────────────────────────
     const ci = r.checkin || r.due;
     const co = r.lease_end || r.due;
     const splits = calcProration(ci, co, amt);
-    for(const s of splits){
-      await upsertMonthlyArchive(
-        s.monthStr,
-        s.portion,
-        `$${s.portion.toLocaleString()} — ${s.month} prorated (${s.days} days)`,
-        {checkin: ci}
-      );
+    r.balance = 0;
+    await save(r);
+    for(const s of splits) {
+      await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
+        [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} prorated (${s.days} days)` }]);
     }
+
   } else {
-    // All other types (long-term, month-to-month, short-stay non-prorated):
-    // one archive row per payment month, accumulate
-    const monthStr=dateStr.substring(0,7);
-    const payText=`$${amt.toLocaleString()} — payment received${note?' | '+note:''}`;
-    await upsertMonthlyArchive(monthStr, amt, payText);
+    // ── LONG TERM / MONTH-TO-MONTH ─────────────────────────────
+    if(payType === 'full') {
+      r.balance = amt >= r.rent ? 0 : Math.max(0, r.rent - amt);
+      if(amt >= r.rent) r.due = nextMonth(r.due);
+    } else if(payType === 'partial') {
+      r.balance = Math.max(0, (r.balance > 0 ? r.balance : r.rent) - amt);
+    } else if(payType === 'extend') {
+      if(newCheckout) r.due = newCheckout;
+      r.balance = Math.max(0, (r.balance || 0) - amt);
+    }
+    await save(r);
+    // Archive one row per payment month, accumulate
+    const monthStr = dateStr.substring(0, 7);
+    await upsertArchiveMonth(r, monthStr, amt, dateStr, note,
+      [{ date: dateStr, amt, text: `$${amt.toLocaleString()} — payment received${note ? ' | ' + note : ''}` }]);
   }
 
-
-
-  // Reload everything from Supabase so UI always reflects true DB state
   await loadAll();
   closeModal('payModal');
   renderTable();
-  toast(`Payment recorded for Apt ${r.apt} ✓`,'success');
-  if(detailId===r.id)openDetail(r.id);
+  toast(`Payment recorded for Apt ${r.apt} ✓`, 'success');
+  if(detailId === r.id) openDetail(r.id);
+}
+
+// ── Shared archive upsert ──────────────────────────────────
+async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyEntries) {
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [yr, mo] = monthStr.split('-');
+  const mIdx = parseInt(mo) - 1;
+  const monthLabel = `${MONTHS[mIdx]} ${yr}`;
+  const nextMonthStr = `${yr}-${String(mIdx + 2).padStart(2,'0')}-01`;
+
+  // Always check Supabase for existing row
+  const { data: sbRows } = await sb.from('units').select('*')
+    .eq('apt', r.apt).eq('archived', true).eq('name', r.name)
+    .gte('archived_date', `${monthStr}-01`)
+    .lt('archived_date', nextMonthStr);
+
+  const existing = sbRows && sbRows.length > 0 ? sbRows[0] : null;
+
+  if(existing) {
+    existing.history = existing.history || [];
+    // Append new entries
+    historyEntries.forEach(h => existing.history.unshift(h));
+    // Recalc total from all history
+    const totalPaid = Math.round(existing.history.reduce((s, h) => s + (typeof h.amt === 'number' ? h.amt : 0), 0) * 100) / 100;
+    existing.rent = totalPaid;
+    existing.note = `${r.name} — ${monthLabel} — ${existing.history.length} payment(s) — $${totalPaid.toLocaleString()}${note ? ' | ' + note : ''}`;
+    await save(existing);
+    const mi = archived.findIndex(a => a.id === existing.id);
+    if(mi >= 0) archived[mi] = existing; else archived.unshift(existing);
+  } else {
+    const { data: maxRow } = await sb.from('units').select('id').order('id', { ascending: false }).limit(1);
+    const newId = (maxRow && maxRow.length ? maxRow[0].id : 2000) + 1;
+    const archRec = {
+      id: newId, apt: r.apt, owner: r.owner || null, name: r.name,
+      type: r.type, rent: Math.round(monthAmt * 100) / 100, balance: 0,
+      due: `${monthStr}-01`,
+      lease_end: new Date(parseInt(yr), mIdx + 1, 0).toISOString().split('T')[0],
+      checkin: r.checkin || '',
+      note: `${r.name} — ${monthLabel} — $${monthAmt.toLocaleString()}${note ? ' | ' + note : ''}`,
+      history: historyEntries,
+      archived: true, archived_date: `${monthStr}-01`
+    };
+    await save(archRec);
+    archived.unshift({ ...archRec, archivedDate: `${monthStr}-01`, checkinDate: r.checkin || '' });
+  }
 }
 
 
