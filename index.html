@@ -3272,39 +3272,54 @@ function rentedDaysInMonth(r,y,m){
   }
   return 0;
 }
-function expectedInMonth(r,y,m){return rentedDaysInMonth(r,y,m)>0?r.rent:0;}
-function collectedInMonth(r,y,m){
+function expectedInMonth(r,y,m){
   if(!r.name||r.type==='available')return 0;
-  const mStr=`${y}-${String(m+1).padStart(2,'0')}`;
+  const now=new Date();
+  const isCurrent=(y===now.getFullYear()&&m===now.getMonth());
 
-  // 1. Check live unit history for this month
-  const hist=(r.history||[]).filter(h=>h.date&&h.date.startsWith(mStr));
-  if(hist.length){
-    return hist.reduce((s,h)=>{
-      if(typeof h.amt==='number') return s+h.amt;
-      const match=h.text.match(/\$([\d,]+(\.\d+)?)/);
-      return s+(match?parseFloat(match[1].replace(/,/g,'')):0);
-    },0);
+  if(isCurrent){
+    // Current month: use live unit rent
+    return rentedDaysInMonth(r,y,m)>0?r.rent:0;
   }
 
-  // 2. Check archive records for this month (most reliable source)
+  // Past months: expected = what archive says was owed (rent field on archive row)
+  const mStr=`${y}-${String(m+1).padStart(2,'0')}`;
   const archRec=archived.filter(a=>
     a.apt===r.apt &&
     (a.name||'').toLowerCase()===(r.name||'').toLowerCase() &&
     (a.archived_date||a.archivedDate||'').startsWith(mStr)
   );
-  if(archRec.length){
-    return archRec.reduce((s,a)=>s+(a.rent||0),0);
-  }
-
-  // 3. Current month — estimate from balance
+  // If we have archive records, sum them; otherwise 0 (no data)
+  if(archRec.length) return archRec.reduce((s,a)=>s+(a.rent||0),0);
+  return 0;
+}
+function collectedInMonth(r,y,m){
+  if(!r.name||r.type==='available')return 0;
+  const mStr=`${y}-${String(m+1).padStart(2,'0')}`;
   const now=new Date();
-  if(y===now.getFullYear()&&m===now.getMonth()){
+  const isCurrent=(y===now.getFullYear()&&m===now.getMonth());
+
+  if(isCurrent){
+    // Current month: read from live unit only
+    const hist=(r.history||[]).filter(h=>h.date&&h.date.startsWith(mStr));
+    if(hist.length){
+      return hist.reduce((s,h)=>{
+        if(typeof h.amt==='number') return s+h.amt;
+        const match=h.text.match(/\$([\d,]+(\.\d+)?)/);
+        return s+(match?parseFloat(match[1].replace(/,/g,'')):0);
+      },0);
+    }
+    // Nothing recorded yet this month — use rent minus balance
     return r.balance>0?Math.max(0,r.rent-r.balance):r.rent;
   }
 
-  // 4. Past month with no data — unknown, return 0 (don't assume paid)
-  return 0;
+  // Past months: read only from archive records
+  const archRec=archived.filter(a=>
+    a.apt===r.apt &&
+    (a.name||'').toLowerCase()===(r.name||'').toLowerCase() &&
+    (a.archived_date||a.archivedDate||'').startsWith(mStr)
+  );
+  return archRec.reduce((s,a)=>s+(a.rent||0),0);
 }
 
 // ══════════════════════════════════════════════════════
