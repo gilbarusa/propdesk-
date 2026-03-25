@@ -596,6 +596,36 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 </div>
 
+
+<!-- ARCHIVE DETAIL PANEL -->
+<div class="detail-overlay" id="archiveDetailOverlay">
+  <div class="detail-backdrop" onclick="closeArchiveDetail()"></div>
+  <div class="detail-panel">
+    <div class="detail-header" style="background:var(--surface2);">
+      <div>
+        <div class="detail-apt" id="adApt">—</div>
+        <div class="detail-name" id="adName"></div>
+        <div class="detail-owner" id="adOwner"></div>
+      </div>
+      <button class="modal-close" onclick="closeArchiveDetail()">✕</button>
+    </div>
+    <div class="detail-body">
+      <div id="adRows"></div>
+      <div style="margin-top:18px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:10px;border-bottom:1px solid var(--border);padding-bottom:6px;">Payment Breakdown</div>
+        <div id="adPayments"></div>
+        <div id="adTotal" style="margin-top:10px;padding-top:10px;border-top:2px solid var(--border);display:flex;justify-content:space-between;font-weight:500;font-size:13px;">
+          <span style="color:var(--text3);font-size:11px;text-transform:uppercase;letter-spacing:1px;">Total Paid</span>
+          <span id="adTotalAmt" style="color:var(--green);font-family:'Playfair Display',serif;font-size:18px;font-weight:700;"></span>
+        </div>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <button class="btn btn-secondary btn-sm" onclick="closeArchiveDetail();openArchiveEdit(currentArchiveDetailId)">✏️ Edit</button>
+    </div>
+  </div>
+</div>
+
 <!-- AUDIT LOG MODAL -->
 <div class="modal-overlay" id="auditModal">
   <div class="modal" style="max-width:700px;">
@@ -2006,16 +2036,24 @@ async function confirmPayment(){
       }
     }
   } else if(r.type==='long-term'||r.type==='month-to-month'){
-    // Regular LT/MTM: one line for the month
+    // Regular LT/MTM: one archive row per month, accumulate all payments into it
     const monthStr=dateStr.substring(0,7);
     const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const mIdx=parseInt(monthStr.split('-')[1])-1;
     const yr=monthStr.split('-')[0];
-    const alreadyExists=archived.some(a=>
-      a.apt===r.apt&&(a.name||'').toLowerCase()===r.name.toLowerCase()&&
+    const existing=archived.find(a=>
+      a.apt===r.apt&&(a.name||'').toLowerCase()===(r.name||'').toLowerCase()&&
       (a.archived_date||a.archivedDate||'').substring(0,7)===monthStr
     );
-    if(!alreadyExists){
+    if(existing){
+      // Add this payment to the existing archive row
+      existing.history = existing.history||[];
+      existing.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — payment received${note?' | '+note:''}`});
+      const totalPaid = existing.history.reduce((s,h)=>{const m=h.text.match(/^\$([0-9,]+)/);return s+(m?parseFloat(m[1].replace(/,/g,'')):0);},0);
+      existing.rent = totalPaid;
+      existing.note = `${r.name} — ${MONTHS[mIdx]} ${yr} — ${existing.history.length} payment(s) — $${totalPaid.toLocaleString()}${note?' | '+note:''}`;
+      await save(existing);
+    } else {
       const newId=Math.max(2000,...archived.map(a=>a.id),...data.map(d=>d.id))+1;
       const archRec={
         id:newId, apt:r.apt, owner:r.owner||null, name:r.name,
@@ -2035,6 +2073,73 @@ async function confirmPayment(){
   closeModal('payModal');renderTable();
   toast(`Payment recorded for Apt ${r.apt} ✓`,'success');
   if(detailId===r.id)openDetail(r.id);
+}
+
+
+// ── ARCHIVE DETAIL PANEL ───────────────────────────
+
+let currentArchiveDetailId = null;
+
+function openArchiveDetail(id) {
+  const r = archived.find(x => x.id === id);
+  if (!r) return;
+  currentArchiveDetailId = id;
+
+  document.getElementById('adApt').textContent  = r.apt || '—';
+  document.getElementById('adName').textContent = r.name || '—';
+  document.getElementById('adOwner').textContent = r.owner || '';
+
+  // Info rows
+  const ci = r.checkin || r.checkinDate || '';
+  const co = r.lease_end || r.archivedDate || r.archived_date || r.due || '';
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthStr = (r.archived_date||r.archivedDate||r.due||'').substring(0,7);
+  let monthLabel = '';
+  if (monthStr) {
+    const [yr, mo] = monthStr.split('-');
+    monthLabel = `${MONTHS[parseInt(mo)-1]} ${yr}`;
+  }
+
+  document.getElementById('adRows').innerHTML = [
+    ['Period',     monthLabel || '—'],
+    ['Type',       typeBadge(r.type)],
+    ['Check-in',   ci ? fmtDate(ci) : '—'],
+    ['Lease End',  co ? `<span style="color:var(--blue)">${fmtDate(co)}</span>` : '—'],
+  ].map(([l,v]) => `
+    <div class="detail-row">
+      <span class="dr-label">${l}</span>
+      <span class="dr-val">${v}</span>
+    </div>`).join('');
+
+  // Payment breakdown
+  const history = (r.history || []).slice().sort((a,b) => new Date(a.date) - new Date(b.date));
+  let total = 0;
+
+  if (history.length === 0) {
+    document.getElementById('adPayments').innerHTML = '<div style="color:var(--text3);font-size:11px;padding:8px 0;">No payment records.</div>';
+    document.getElementById('adTotalAmt').textContent = fmtMoney(r.rent || 0);
+  } else {
+    document.getElementById('adPayments').innerHTML = history.map(h => {
+      const m = h.text.match(/^\$([0-9,]+(\.[0-9]+)?)/);
+      const amt = m ? parseFloat(m[1].replace(/,/g,'')) : 0;
+      total += amt;
+      return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <div>
+          <span style="color:var(--text3);font-size:11px;margin-right:10px;">${fmtDate(h.date)}</span>
+          <span style="color:var(--text2);">${h.text.replace(/^\$[0-9,.]+ — /,'')}</span>
+        </div>
+        <span style="color:var(--green);font-weight:500;flex-shrink:0;margin-left:12px;">${m ? fmtMoney(amt) : ''}</span>
+      </div>`;
+    }).join('');
+    document.getElementById('adTotalAmt').textContent = fmtMoney(total);
+  }
+
+  document.getElementById('archiveDetailOverlay').classList.add('open');
+}
+
+function closeArchiveDetail() {
+  document.getElementById('archiveDetailOverlay').classList.remove('open');
+  currentArchiveDetailId = null;
 }
 
 // ── ARCHIVE ────────────────────────────────────────
@@ -2619,16 +2724,18 @@ function renderHistory(){
   document.getElementById('histBody').innerHTML = rows.map(r => {
     const ci = getCheckin(r);
     const co = getCheckout(r);
-    return `<tr style="border-bottom:1px solid var(--border);transition:background .1s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+    const pmtCount = (r.history||[]).length;
+    const multiPmt = pmtCount > 1 ? `<span style="font-size:10px;background:var(--accent-bg);color:var(--accent2);border:1px solid var(--orange-border);border-radius:10px;padding:1px 7px;margin-left:6px;">${pmtCount} pmts</span>` : '';
+    return `<tr style="border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer;" onclick="openArchiveDetail(${r.id})" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 12px;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2)">${r.apt}</td>
-      <td style="padding:10px 12px;font-size:12px;font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</td>
+      <td style="padding:10px 12px;font-size:12px;font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}${multiPmt}</td>
       <td style="padding:10px 12px;font-size:11px;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.owner||'—'}</td>
       <td style="padding:10px 12px">${typeBadge(r.type)}</td>
       <td style="padding:10px 12px;text-align:right;color:var(--green);font-weight:500;font-size:12px">${r.rent?fmtMoney(r.rent):'—'}</td>
       <td style="padding:10px 12px;font-size:12px;color:var(--text3)">${fmtDate(ci)}</td>
       <td style="padding:10px 12px;font-size:12px;color:${r.lease_end?'var(--blue)':'var(--text3)'}">${fmtDate(r.lease_end||co)}</td>
       <td style="padding:10px 12px;font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic">${r.note||''}</td>
-      <td style="padding:10px 12px">
+      <td style="padding:10px 12px" onclick="event.stopPropagation()">
         <button class="icon-btn ib-edit" title="Edit" onclick="openArchiveEdit(${r.id})" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;">✏️</button>
       </td>
     </tr>`;
