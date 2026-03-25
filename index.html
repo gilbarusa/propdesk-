@@ -2009,66 +2009,63 @@ async function confirmPayment(){
   await save(r);
 
   // ── AUTO-ARCHIVE LINES ─────────────────────────────
-  if(isProrate && r.type==='short-stay'){
-    // Prorated: create one archive line per month
-    const ci = r.checkin || r.due;
-    const co = r.lease_end || r.due;
-    const splits = calcProration(ci, co, amt);
-    let uid = Math.max(2000,...archived.map(a=>a.id),...data.map(d=>d.id))+1;
-    for(const s of splits){
-      const alreadyExists = archived.some(a=>
-        a.apt===r.apt && (a.name||'').toLowerCase()===r.name.toLowerCase() &&
-        (a.archived_date||a.archivedDate||'').substring(0,7)===s.monthStr
-      );
-      if(!alreadyExists){
-        const archRec={
-          id:uid++, apt:r.apt, owner:r.owner||null, name:r.name,
-          type:r.type, rent:s.portion, balance:0,
-          due:`${s.monthStr}-01`,
-          lease_end:new Date(parseInt(s.monthStr.split('-')[0]),parseInt(s.monthStr.split('-')[1]),0).toISOString().split('T')[0],
-          checkin: ci,
-          note:`${r.name} — ${s.month} — $${s.portion.toLocaleString()} (${s.days} days)${note?' | '+note:''}`,
-          history:[{date:dateStr,text:`$${s.portion.toLocaleString()} — ${s.month} prorated (${s.days} days)`}],
-          archived:true, archived_date:`${s.monthStr}-01`,
-        };
-        await save(archRec);
-        archived.unshift({...archRec,archivedDate:`${s.monthStr}-01`,checkinDate:ci});
-      }
-    }
-  } else if(r.type==='long-term'||r.type==='month-to-month'){
-    // Regular LT/MTM: one archive row per month, accumulate all payments into it
-    const monthStr=dateStr.substring(0,7);
+  // Helper: upsert a monthly archive row — create or accumulate payments into existing
+  const upsertMonthlyArchive = async (monthStr, payAmt, payText, extraFields={}) => {
     const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const mIdx=parseInt(monthStr.split('-')[1])-1;
     const yr=monthStr.split('-')[0];
+    const monthLabel=`${MONTHS[mIdx]} ${yr}`;
     const existing=archived.find(a=>
       a.apt===r.apt&&(a.name||'').toLowerCase()===(r.name||'').toLowerCase()&&
       (a.archived_date||a.archivedDate||'').substring(0,7)===monthStr
     );
     if(existing){
-      // Add this payment to the existing archive row
-      existing.history = existing.history||[];
-      existing.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — payment received${note?' | '+note:''}`});
-      const totalPaid = existing.history.reduce((s,h)=>{const m=h.text.match(/^\$([0-9,]+)/);return s+(m?parseFloat(m[1].replace(/,/g,'')):0);},0);
-      existing.rent = totalPaid;
-      existing.note = `${r.name} — ${MONTHS[mIdx]} ${yr} — ${existing.history.length} payment(s) — $${totalPaid.toLocaleString()}${note?' | '+note:''}`;
+      existing.history=existing.history||[];
+      existing.history.unshift({date:dateStr,text:payText});
+      const totalPaid=existing.history.reduce((s,h)=>{const m=h.text.match(/^\$([0-9,]+(\.[0-9]+)?)/);return s+(m?parseFloat(m[1].replace(/,/g,'')):0);},0);
+      existing.rent=totalPaid;
+      existing.note=`${r.name} — ${monthLabel} — ${existing.history.length} payment(s) — $${totalPaid.toLocaleString()}${note?' | '+note:''}`;
       await save(existing);
     } else {
       const newId=Math.max(2000,...archived.map(a=>a.id),...data.map(d=>d.id))+1;
       const archRec={
         id:newId, apt:r.apt, owner:r.owner||null, name:r.name,
-        type:r.type, rent:amt, balance:0,
+        type:r.type, rent:payAmt, balance:0,
         due:`${monthStr}-01`,
         lease_end:new Date(parseInt(yr),mIdx+1,0).toISOString().split('T')[0],
         checkin:r.checkin||'',
-        note:`${r.name} — ${MONTHS[mIdx]} ${yr} — $${amt.toLocaleString()}${note?' | '+note:''}`,
-        history:[{date:dateStr,text:`$${amt.toLocaleString()} — payment received${note?' | '+note:''}`}],
+        note:`${r.name} — ${monthLabel} — $${payAmt.toLocaleString()}${note?' | '+note:''}`,
+        history:[{date:dateStr,text:payText}],
         archived:true, archived_date:`${monthStr}-01`,
+        ...extraFields
       };
       await save(archRec);
       archived.unshift({...archRec,archivedDate:`${monthStr}-01`,checkinDate:r.checkin||''});
     }
+  };
+
+  if(isProrate && r.type==='short-stay'){
+    // Prorated short-stay: split across months
+    const ci = r.checkin || r.due;
+    const co = r.lease_end || r.due;
+    const splits = calcProration(ci, co, amt);
+    for(const s of splits){
+      await upsertMonthlyArchive(
+        s.monthStr,
+        s.portion,
+        `$${s.portion.toLocaleString()} — ${s.month} prorated (${s.days} days)`,
+        {checkin: ci}
+      );
+    }
+  } else {
+    // All other types (long-term, month-to-month, short-stay non-prorated):
+    // one archive row per payment month, accumulate
+    const monthStr=dateStr.substring(0,7);
+    const payText=`$${amt.toLocaleString()} — payment received${note?' | '+note:''}`;
+    await upsertMonthlyArchive(monthStr, amt, payText);
   }
+
+
 
   closeModal('payModal');renderTable();
   toast(`Payment recorded for Apt ${r.apt} ✓`,'success');
