@@ -626,6 +626,40 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 </div>
 
+<!-- CLEAR HISTORY MODAL -->
+<div class="modal-overlay" id="clearHistoryModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h2>🗑 Clear Payment History</h2>
+      <button class="modal-close" onclick="closeModal('clearHistoryModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">⚠ This will clear all payment history entries</div>
+        <div style="font-size:11px;color:var(--text2);">The payment history log will be wiped. Rent, balance and all other fields stay as-is. This cannot be undone.</div>
+      </div>
+      <div id="clearHistoryPreview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;"></div>
+      <div style="margin-top:14px;">
+        <label style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);display:block;margin-bottom:6px;">Also reset (optional)</label>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--text2);">
+            <input type="checkbox" id="chkResetRent" style="width:auto;margin:0;">
+            Reset Rent to <input type="number" id="resetRentVal" step="0.01" placeholder="amount" style="width:100px;padding:4px 8px;font-size:12px;margin:0 4px;display:inline-block;">
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer;text-transform:none;letter-spacing:0;color:var(--text2);">
+            <input type="checkbox" id="chkResetBalance" style="width:auto;margin:0;">
+            Reset Balance to <input type="number" id="resetBalanceVal" step="0.01" placeholder="amount" style="width:100px;padding:4px 8px;font-size:12px;margin:0 4px;display:inline-block;">
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('clearHistoryModal')">Cancel</button>
+      <button id="confirmClearHistoryBtn" onclick="confirmClearHistory()" style="background:var(--red);color:#fff;border:none;font-weight:500;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">🗑 Clear History</button>
+    </div>
+  </div>
+</div>
+
 <!-- AUDIT LOG MODAL -->
 <div class="modal-overlay" id="auditModal">
   <div class="modal" style="max-width:700px;">
@@ -1997,51 +2031,55 @@ async function confirmPayment(){
   const newCheckout = payType === 'extend' ? document.getElementById('payNewDate').value : r.lease_end;
   const isProrate = document.getElementById('prorateCheck')?.checked && r.type === 'short-stay';
 
-  // ── History entry ──────────────────────────────────────────
   r.history = r.history || [];
-  r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — ${isProrate ? 'full stay (prorated)' : payType}${note ? ' | ' + note : ''}` });
 
   if(r.type === 'short-stay' && !isProrate) {
     // ── SHORT STAY (non-prorated) ──────────────────────────────
     const origCheckout = r.lease_end || r.due || '';
-    const origMonth = origCheckout.substring(0, 7);
-    const newMonth  = newCheckout ? newCheckout.substring(0, 7) : origMonth;
+    const origMonth    = origCheckout.substring(0, 7);
+    const newMonth     = newCheckout ? newCheckout.substring(0, 7) : origMonth;
     const crossesMonth = newCheckout && newMonth > origMonth;
 
     if(!crossesMonth) {
-      // ── Same month: just add payment to running total, no archive ──
-      r.rent = Math.round(((r.rent || 0) + amt) * 100) / 100;
+      // ── Same month: accumulate on live unit only, no archive ──
+      r.rent    = Math.round(((r.rent || 0) + amt) * 100) / 100;
       r.balance = Math.max(0, (r.balance || 0) - amt);
-      if(payType === 'extend' && newCheckout) r.lease_end = newCheckout;
+      if(payType === 'extend' && newCheckout) { r.lease_end = newCheckout; r.due = newCheckout; }
+      // Keep a clean history entry on the live unit
+      r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — payment${note ? ' | ' + note : ''}` });
       await save(r);
 
     } else {
-      // ── Crosses into new month: prorate ──────────────────────
-      // Total accumulated = all payments on the live unit + this new one
-      const totalPaid = r.history.reduce((s, h) => s + (typeof h.amt === 'number' ? h.amt : 0), 0);
+      // ── Crosses into new month: prorate and archive old month ──
+      // Total = all previous payments on live unit + this new one
+      const prevTotal = r.history.reduce((s, h) => s + (typeof h.amt === 'number' ? h.amt : 0), 0);
+      const totalPaid = Math.round((prevTotal + amt) * 100) / 100;
 
-      // Full stay: checkin → new checkout
       const ci = r.checkin || r.due;
       const co = newCheckout;
       const splits = calcProration(ci, co, totalPaid);
 
-      // March portion (everything up to end of original month) → archive
-      const oldMonthSplits = splits.filter(s => s.monthStr <= origMonth);
-      const newMonthSplits = splits.filter(s => s.monthStr > origMonth);
-      const oldMonthTotal  = Math.round(oldMonthSplits.reduce((s, x) => s + x.portion, 0) * 100) / 100;
-      const newMonthTotal  = Math.round(newMonthSplits.reduce((s, x) => s + x.portion, 0) * 100) / 100;
+      const oldSplits = splits.filter(s => s.monthStr <= origMonth);
+      const newSplits = splits.filter(s => s.monthStr >  origMonth);
+      const newMonthTotal = Math.round(newSplits.reduce((s, x) => s + x.portion, 0) * 100) / 100;
 
-      // Archive the old month — upsert one row per old month
-      for(const s of oldMonthSplits) {
-        await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note, r.history);
+      // Build full history for the archive (all live history + this payment)
+      const archiveHistory = [
+        { date: dateStr, amt, text: `$${amt.toLocaleString()} — payment${note ? ' | ' + note : ''}` },
+        ...r.history
+      ];
+
+      // Archive each old-month portion
+      for(const s of oldSplits) {
+        await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note, archiveHistory);
       }
 
-      // Update live unit: keep original checkin, new checkout, show only new month portion
+      // Reset live unit to new month only
       r.lease_end = co;
-      r.due = co;
-      r.rent = newMonthTotal;    // live screen shows only current month prorated amount
-      r.balance = newMonthTotal; // what's owed for the new month
-      r.history = [{ date: dateStr, amt: newMonthTotal, text: `$${newMonthTotal.toLocaleString()} — current month portion (${newMonthSplits.map(s=>s.month).join(', ')})${note ? ' | ' + note : ''}` }];
+      r.due       = co;
+      r.rent      = newMonthTotal;
+      r.balance   = newMonthTotal;
+      r.history   = [{ date: dateStr, amt: newMonthTotal, text: `$${newMonthTotal.toLocaleString()} — ${newSplits.map(s=>s.month).join('+')} portion${note ? ' | ' + note : ''}` }];
       await save(r);
     }
 
@@ -2051,10 +2089,11 @@ async function confirmPayment(){
     const co = r.lease_end || r.due;
     const splits = calcProration(ci, co, amt);
     r.balance = 0;
+    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — full stay prorated${note ? ' | ' + note : ''}` });
     await save(r);
     for(const s of splits) {
       await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
-        [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} prorated (${s.days} days)` }]);
+        [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days} days)` }]);
     }
 
   } else {
@@ -2068,8 +2107,8 @@ async function confirmPayment(){
       if(newCheckout) r.due = newCheckout;
       r.balance = Math.max(0, (r.balance || 0) - amt);
     }
+    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — ${payType}${note ? ' | ' + note : ''}` });
     await save(r);
-    // Archive one row per payment month, accumulate
     const monthStr = dateStr.substring(0, 7);
     await upsertArchiveMonth(r, monthStr, amt, dateStr, note,
       [{ date: dateStr, amt, text: `$${amt.toLocaleString()} — payment received${note ? ' | ' + note : ''}` }]);
@@ -2080,7 +2119,9 @@ async function confirmPayment(){
   renderTable();
   toast(`Payment recorded for Apt ${r.apt} ✓`, 'success');
   if(detailId === r.id) openDetail(r.id);
+
 }
+
 
 // ── Shared archive upsert ──────────────────────────────────
 async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyEntries) {
@@ -2127,6 +2168,75 @@ async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyE
   }
 }
 
+
+
+// ── CLEAR HISTORY ──────────────────────────────────
+
+let _clearHistoryId = null;
+
+function openClearHistoryModal(id) {
+  const r = data.find(x => x.id === id);
+  if(!r) return;
+  _clearHistoryId = id;
+  const hist = r.history || [];
+  document.getElementById('clearHistoryPreview').innerHTML = `
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+      <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Unit</span>
+      <span style="font-weight:500;">Apt ${r.apt} — ${r.name}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+      <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Current Rent</span>
+      <span style="color:var(--green);font-weight:500;">$${(r.rent||0).toLocaleString()}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+      <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Current Balance</span>
+      <span style="color:${r.balance>0?'var(--red)':'var(--green)'};font-weight:500;">${r.balance>0?'$'+r.balance.toLocaleString():'✓ Paid'}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;">
+      <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">History Entries</span>
+      <span style="color:var(--red);font-weight:500;">${hist.length} entries will be cleared</span>
+    </div>`;
+  // Pre-fill reset values with current
+  document.getElementById('resetRentVal').value = r.rent || '';
+  document.getElementById('resetBalanceVal').value = r.balance || '';
+  document.getElementById('chkResetRent').checked = false;
+  document.getElementById('chkResetBalance').checked = false;
+  document.getElementById('clearHistoryModal').classList.add('open');
+}
+
+async function confirmClearHistory() {
+  if(!_clearHistoryId) return;
+  const btn = document.getElementById('confirmClearHistoryBtn');
+  btn.textContent = '⏳ Clearing…';
+  btn.disabled = true;
+
+  try {
+    const idx = data.findIndex(x => x.id === _clearHistoryId);
+    if(idx < 0) throw new Error('Record not found');
+    const r = data[idx];
+
+    r.history = [];
+    if(document.getElementById('chkResetRent').checked) {
+      const v = parseFloat(document.getElementById('resetRentVal').value);
+      if(!isNaN(v)) r.rent = Math.round(v * 100) / 100;
+    }
+    if(document.getElementById('chkResetBalance').checked) {
+      const v = parseFloat(document.getElementById('resetBalanceVal').value);
+      if(!isNaN(v)) r.balance = Math.round(v * 100) / 100;
+    }
+
+    await save(r);
+    await loadAll();
+    closeModal('clearHistoryModal');
+    renderTable();
+    if(detailId === _clearHistoryId) openDetail(_clearHistoryId);
+    toast(`History cleared for Apt ${r.apt} ✓`, 'success');
+  } catch(e) {
+    toast('Failed: ' + e.message, 'error');
+    btn.textContent = '🗑 Clear History';
+    btn.disabled = false;
+  }
+}
 
 // ── ARCHIVE DETAIL PANEL ───────────────────────────
 
@@ -2291,7 +2401,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       rentDisplay=`$${r.rent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
