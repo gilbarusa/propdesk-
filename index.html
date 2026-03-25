@@ -1999,11 +1999,22 @@ async function confirmPayment(){
   r.history.unshift({date:dateStr,text:`$${amt.toLocaleString()} — ${isProrate?'full stay (prorated)':payType}${note?' | '+note:''}`});
 
   if(!isProrate){
-    if(payType==='full'){r.balance=amt>=r.rent?0:Math.max(0,r.rent-amt);if(amt>=r.rent)r.due=nextMonth(r.due);}
-    else if(payType==='partial'){r.balance=Math.max(0,(r.balance>0?r.balance:r.rent)-amt);}
-    else if(payType==='extend'){const nd=document.getElementById('payNewDate').value;if(nd)r.due=nd;r.balance=Math.max(0,(r.balance||0)-amt);}
+    if(r.type==='short-stay'){
+      // Short-stay: always subtract from current balance (never recalc from rent)
+      r.balance=Math.max(0,(r.balance||0)-amt);
+      if(payType==='extend'){const nd=document.getElementById('payNewDate').value;if(nd)r.due=nd;}
+    } else if(payType==='full'){
+      r.balance=amt>=r.rent?0:Math.max(0,r.rent-amt);
+      if(amt>=r.rent)r.due=nextMonth(r.due);
+    } else if(payType==='partial'){
+      r.balance=Math.max(0,(r.balance>0?r.balance:r.rent)-amt);
+    } else if(payType==='extend'){
+      const nd=document.getElementById('payNewDate').value;
+      if(nd)r.due=nd;
+      r.balance=Math.max(0,(r.balance||0)-amt);
+    }
   } else {
-    r.balance=0; // fully paid
+    r.balance=0; // fully paid (prorated)
   }
 
   await save(r);
@@ -2015,10 +2026,24 @@ async function confirmPayment(){
     const mIdx=parseInt(monthStr.split('-')[1])-1;
     const yr=monthStr.split('-')[0];
     const monthLabel=`${MONTHS[mIdx]} ${yr}`;
-    const existing=archived.find(a=>
+    // Check memory first, then fall back to Supabase in case it was saved in a prior session
+    let existing=archived.find(a=>
       a.apt===r.apt&&(a.name||'').toLowerCase()===(r.name||'').toLowerCase()&&
       (a.archived_date||a.archivedDate||'').substring(0,7)===monthStr
     );
+    if(!existing){
+      // Try fetching from Supabase directly in case it's not in memory
+      const {data:sbRows}=await sb.from('units').select('*')
+        .eq('apt',r.apt).eq('archived',true)
+        .ilike('name',r.name)
+        .gte('archived_date',`${monthStr}-01`)
+        .lte('archived_date',`${monthStr}-31`);
+      if(sbRows&&sbRows.length>0){
+        existing=sbRows[0];
+        existing.history=existing.history||[];
+        archived.unshift(existing); // add to memory
+      }
+    }
     if(existing){
       existing.history=existing.history||[];
       existing.history.unshift({date:dateStr,text:payText});
