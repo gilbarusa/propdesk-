@@ -249,6 +249,7 @@ textarea{resize:vertical;min-height:70px;}
   <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
+    <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
@@ -329,6 +330,7 @@ textarea{resize:vertical;min-height:70px;}
       <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--accent2);">Dashboard</div>
       <div style="display:flex;align-items:center;gap:10px;">
         <div id="backupStatus" style="font-size:11px;color:var(--text3);">No backup yet</div>
+        <button onclick="openBackupHistory()" style="background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">🕐 History</button>
         <button id="backupBtn" onclick="runBackup()" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
           💾 Backup Now
         </button>
@@ -507,6 +509,63 @@ textarea{resize:vertical;min-height:70px;}
           <canvas id="ugOccupancy" height="180"></canvas>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- BACKUP HISTORY MODAL -->
+<div class="modal-overlay" id="backupHistoryModal">
+  <div class="modal" style="max-width:720px;width:95%;">
+    <div class="modal-header">
+      <div>
+        <h2>🗄 Backup History</h2>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">Click a backup to preview or restore it</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('backupHistoryModal')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <div id="backupHistoryLoading" style="text-align:center;padding:40px;color:var(--text3);">
+        <div class="spinner" style="margin:0 auto 12px;"></div>Loading backups…
+      </div>
+      <div id="backupHistoryEmpty" style="text-align:center;padding:40px;color:var(--text3);display:none;">
+        <div style="font-size:32px;margin-bottom:8px;">💾</div>No backups found. Run your first backup!
+      </div>
+      <table id="backupHistoryTable" style="width:100%;border-collapse:collapse;font-size:12px;display:none;">
+        <thead>
+          <tr style="background:var(--surface2);">
+            <th style="padding:10px 14px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Date & Time</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Records</th>
+            <th style="padding:10px 14px;text-align:left;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Age</th>
+            <th style="padding:10px 14px;text-align:right;color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border);">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="backupHistoryBody"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer" style="justify-content:space-between;">
+      <button class="btn btn-secondary btn-sm" onclick="openBackupHistory()">↺ Refresh</button>
+      <button class="btn btn-secondary" onclick="closeModal('backupHistoryModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- BACKUP RESTORE CONFIRM MODAL -->
+<div class="modal-overlay" id="backupRestoreModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2>⚠ Confirm Restore</h2>
+      <button class="modal-close" onclick="closeModal('backupRestoreModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">⚠ This will overwrite all current active units</div>
+        <div style="font-size:11px;color:var(--text2);">All live unit data will be replaced with the snapshot below. Archived records are not affected. This cannot be undone.</div>
+      </div>
+      <div id="restorePreview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('backupRestoreModal')">Cancel</button>
+      <button class="btn btn-sm" id="confirmRestoreBtn" onclick="confirmRestore()" style="background:var(--red);color:#fff;border:none;font-weight:500;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;">Restore This Backup</button>
     </div>
   </div>
 </div>
@@ -2072,19 +2131,36 @@ function showPage(p,el){
 // ── BACKUP ─────────────────────────────────────────
 const BACKUP_KEY = 'propdesk_last_backup';
 
-function checkBackupStatus() {
-  const last = localStorage.getItem(BACKUP_KEY);
+async function checkBackupStatus() {
   const btns = [document.getElementById('backupBtn'), document.getElementById('headerBackupBtn')];
   const status = document.getElementById('backupStatus');
-  if(!last) {
+
+  // Try to get last backup from Supabase backups table
+  let lastDt = null;
+  try {
+    const { data, error } = await sb.from('backups').select('created_at').order('created_at', { ascending: false }).limit(1);
+    if (!error && data && data.length > 0) {
+      lastDt = new Date(data[0].created_at);
+      // Sync to localStorage so offline mode still works
+      localStorage.setItem(BACKUP_KEY, lastDt.getTime().toString());
+    }
+  } catch(e) { /* offline or table missing — fall back to localStorage */ }
+
+  // Fall back to localStorage if Supabase didn't return anything
+  if (!lastDt) {
+    const local = localStorage.getItem(BACKUP_KEY);
+    if (local) lastDt = new Date(parseInt(local));
+  }
+
+  if (!lastDt) {
     btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title='Never backed up!'; } });
     if(status){ status.textContent='Never backed up!'; status.style.color='var(--red)'; }
     return;
   }
-  const lastDt = new Date(parseInt(last));
+
   const hoursAgo = (Date.now() - lastDt) / 3600000;
   const timeStr = lastDt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + lastDt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
-  if(hoursAgo >= 6) {
+  if (hoursAgo >= 6) {
     btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; } });
     if(status){ status.textContent=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; status.style.color='var(--red)'; }
   } else {
@@ -2160,17 +2236,198 @@ async function runBackup() {
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
 
-    // Save timestamp
+    // Save snapshot to Supabase backups table
+    let supaBackupOk = false;
+    try {
+      const { error: bErr } = await sb.from('backups').insert({
+        record_count: allRows.length,
+        snapshot: allRows
+      });
+      if (bErr) throw new Error(bErr.message);
+      supaBackupOk = true;
+    } catch(bEx) {
+      console.warn('Supabase backup insert failed:', bEx.message);
+    }
+
+    // Save timestamp to localStorage as fallback
     localStorage.setItem(BACKUP_KEY, Date.now().toString());
-    checkBackupStatus();
-    toast(`✓ SQL backup downloaded: ${allRows.length} records → ${filename}`, 'success');
+    await checkBackupStatus();
+    const supaNote = supaBackupOk ? ' + saved to Supabase' : ' (Supabase save failed — check backups table exists)';
+    toast(`✓ SQL backup downloaded: ${allRows.length} records → ${filename}${supaNote}`, supaBackupOk ? 'success' : 'error');
 
   } catch(e) {
     console.error('Backup failed:', e);
     toast('Backup failed: ' + e.message, 'error');
   } finally {
     btns.forEach(b => { if(b){ b.disabled=false; b.style.opacity='1'; } });
-    checkBackupStatus();
+    await checkBackupStatus();
+  }
+}
+
+
+// ── BACKUP HISTORY ─────────────────────────────────
+
+let _restoreSnapshot = null;
+let _restoreBackupId = null;
+
+async function openBackupHistory() {
+  document.getElementById('backupHistoryModal').classList.add('open');
+  document.getElementById('backupHistoryLoading').style.display = 'block';
+  document.getElementById('backupHistoryEmpty').style.display = 'none';
+  document.getElementById('backupHistoryTable').style.display = 'none';
+
+  try {
+    const { data, error } = await sb
+      .from('backups')
+      .select('id, created_at, record_count')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw new Error(error.message);
+
+    document.getElementById('backupHistoryLoading').style.display = 'none';
+
+    if (!data || data.length === 0) {
+      document.getElementById('backupHistoryEmpty').style.display = 'block';
+      return;
+    }
+
+    const now = Date.now();
+    const tbody = document.getElementById('backupHistoryBody');
+    tbody.innerHTML = data.map((b, i) => {
+      const dt = new Date(b.created_at);
+      const dateStr = dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      const hoursAgo = (now - dt) / 3600000;
+      let age, ageColor;
+      if (hoursAgo < 1) { age = `${Math.round(hoursAgo * 60)}m ago`; ageColor = 'var(--green)'; }
+      else if (hoursAgo < 24) { age = `${Math.floor(hoursAgo)}h ago`; ageColor = hoursAgo < 6 ? 'var(--green)' : 'var(--orange)'; }
+      else { const days = Math.floor(hoursAgo / 24); age = `${days}d ago`; ageColor = 'var(--red)'; }
+
+      const isLatest = i === 0;
+      return `<tr style="border-bottom:1px solid var(--border);${isLatest ? 'background:var(--green-bg);' : ''}">
+        <td style="padding:11px 14px;">
+          ${isLatest ? '<span style="font-size:9px;background:var(--green);color:#fff;border-radius:10px;padding:1px 7px;margin-right:6px;text-transform:uppercase;letter-spacing:.5px;">Latest</span>' : ''}
+          <span style="font-weight:500;">${dateStr}</span>
+          <span style="color:var(--text3);margin-left:6px;">${timeStr}</span>
+        </td>
+        <td style="padding:11px 14px;color:var(--text2);">${b.record_count ?? '—'} records</td>
+        <td style="padding:11px 14px;color:${ageColor};font-weight:500;">${age}</td>
+        <td style="padding:11px 14px;text-align:right;">
+          <div style="display:flex;gap:6px;justify-content:flex-end;">
+            <button onclick="previewRestore(${b.id}, '${dateStr} ${timeStr}', ${b.record_count})"
+              style="padding:5px 12px;font-size:11px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);border-radius:6px;cursor:pointer;font-family:inherit;font-weight:500;">
+              ↩ Restore
+            </button>
+            <button onclick="deleteBackup(${b.id}, this)"
+              style="padding:5px 10px;font-size:11px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:6px;cursor:pointer;font-family:inherit;">
+              🗑
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('backupHistoryTable').style.display = 'table';
+  } catch(e) {
+    document.getElementById('backupHistoryLoading').style.display = 'none';
+    document.getElementById('backupHistoryBody').innerHTML =
+      `<tr><td colspan="4" style="padding:24px;text-align:center;color:var(--red);">Failed to load backups: ${e.message}</td></tr>`;
+    document.getElementById('backupHistoryTable').style.display = 'table';
+  }
+}
+
+async function previewRestore(backupId, label, recordCount) {
+  _restoreBackupId = backupId;
+  _restoreSnapshot = null;
+
+  // Load the full snapshot from Supabase
+  document.getElementById('restorePreview').innerHTML = '<div style="color:var(--text3);text-align:center;">Loading snapshot…</div>';
+  document.getElementById('backupRestoreModal').classList.add('open');
+
+  try {
+    const { data, error } = await sb.from('backups').select('snapshot, record_count').eq('id', backupId).single();
+    if (error) throw new Error(error.message);
+    _restoreSnapshot = data.snapshot;
+
+    // Count active vs archived in the snapshot
+    const active = data.snapshot.filter(r => !r.archived).length;
+    const arch = data.snapshot.filter(r => r.archived).length;
+    const owners = [...new Set(data.snapshot.map(r => r.owner).filter(Boolean))];
+
+    document.getElementById('restorePreview').innerHTML = `
+      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Snapshot Preview</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Total Records</div>
+          <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--accent2);">${data.record_count ?? data.snapshot.length}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Active Units</div>
+          <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--green);">${active}</div>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text2);"><strong>Owners:</strong> ${owners.join(', ') || '—'}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Backup from: ${label}</div>`;
+  } catch(e) {
+    document.getElementById('restorePreview').innerHTML = `<div style="color:var(--red);">Failed to load snapshot: ${e.message}</div>`;
+  }
+}
+
+async function confirmRestore() {
+  if (!_restoreSnapshot || !_restoreBackupId) return;
+
+  const btn = document.getElementById('confirmRestoreBtn');
+  btn.textContent = '⏳ Restoring…';
+  btn.disabled = true;
+
+  try {
+    // Only restore active (non-archived) units — leave archive untouched
+    const activeSnap = _restoreSnapshot.filter(r => !r.archived);
+
+    // Delete all current active units
+    const { error: delErr } = await sb.from('units').delete().eq('archived', false);
+    if (delErr) throw new Error('Delete failed: ' + delErr.message);
+
+    // Re-insert in batches of 100
+    const batchSize = 100;
+    for (let i = 0; i < activeSnap.length; i += batchSize) {
+      const chunk = activeSnap.slice(i, i + batchSize).map(r => {
+        const { id, ...rest } = r; // drop old id — let Supabase assign new ones
+        return rest;
+      });
+      const { error: insErr } = await sb.from('units').insert(chunk);
+      if (insErr) throw new Error('Insert failed: ' + insErr.message);
+    }
+
+    closeModal('backupRestoreModal');
+    closeModal('backupHistoryModal');
+
+    // Reload live data
+    await loadAll();
+    renderTable();
+    toast(`✓ Restored ${activeSnap.length} active units from backup`, 'success');
+  } catch(e) {
+    toast('Restore failed: ' + e.message, 'error');
+    btn.textContent = 'Restore This Backup';
+    btn.disabled = false;
+  }
+}
+
+async function deleteBackup(backupId, btnEl) {
+  if (!confirm('Delete this backup? This cannot be undone.')) return;
+  btnEl.textContent = '…';
+  btnEl.disabled = true;
+  try {
+    const { error } = await sb.from('backups').delete().eq('id', backupId);
+    if (error) throw new Error(error.message);
+    toast('Backup deleted', 'success');
+    await openBackupHistory(); // refresh list
+    await checkBackupStatus();
+  } catch(e) {
+    toast('Delete failed: ' + e.message, 'error');
+    btnEl.textContent = '🗑';
+    btnEl.disabled = false;
   }
 }
 
