@@ -2026,41 +2026,46 @@ async function confirmPayment(){
     const mIdx=parseInt(monthStr.split('-')[1])-1;
     const yr=monthStr.split('-')[0];
     const monthLabel=`${MONTHS[mIdx]} ${yr}`;
-    // Check memory first, then fall back to Supabase in case it was saved in a prior session
-    let existing=archived.find(a=>
-      a.apt===r.apt&&(a.name||'').toLowerCase()===(r.name||'').toLowerCase()&&
-      (a.archived_date||a.archivedDate||'').substring(0,7)===monthStr
-    );
-    if(!existing){
-      // Try fetching from Supabase directly in case it's not in memory
-      const {data:sbRows}=await sb.from('units').select('*')
-        .eq('apt',r.apt).eq('archived',true)
-        .ilike('name',r.name)
-        .gte('archived_date',`${monthStr}-01`)
-        .lte('archived_date',`${monthStr}-31`);
-      if(sbRows&&sbRows.length>0){
-        existing=sbRows[0];
-        existing.history=existing.history||[];
-        archived.unshift(existing); // add to memory
-      }
-    }
+    const nextMonthStr=`${yr}-${String(mIdx+2).padStart(2,'0')}-01`;
+
+    // Always fetch from Supabase to get the true current state
+    const {data:sbRows}=await sb.from('units').select('*')
+      .eq('apt', r.apt)
+      .eq('archived', true)
+      .eq('name', r.name)
+      .gte('archived_date', `${monthStr}-01`)
+      .lt('archived_date', nextMonthStr);
+
+    const existing = sbRows && sbRows.length > 0 ? sbRows[0] : null;
+
     if(existing){
       existing.history=existing.history||[];
-      existing.history.unshift({date:dateStr,text:payText});
-      const totalPaid=existing.history.reduce((s,h)=>{const m=h.text.match(/^\$([0-9,]+(\.[0-9]+)?)/);return s+(m?parseFloat(m[1].replace(/,/g,'')):0);},0);
-      existing.rent=totalPaid;
-      existing.note=`${r.name} — ${monthLabel} — ${existing.history.length} payment(s) — $${totalPaid.toLocaleString()}${note?' | '+note:''}`;
+      // Store amount as number field alongside text for reliable summing
+      existing.history.unshift({date:dateStr, text:payText, amt:payAmt});
+      // Sum using stored amt field if available, fall back to regex
+      const totalPaid=existing.history.reduce((s,h)=>{
+        if(typeof h.amt==='number') return s+h.amt;
+        const m=h.text.match(/^\$([0-9,]+(\.[0-9]+)?)/);
+        return s+(m?parseFloat(m[1].replace(/,/g,'')):0);
+      },0);
+      existing.rent=Math.round(totalPaid*100)/100;
+      existing.note=`${r.name} — ${monthLabel} — ${existing.history.length} payment(s) — $${existing.rent.toLocaleString()}${note?' | '+note:''}`;
       await save(existing);
+      // Update memory
+      const mi=archived.findIndex(a=>a.id===existing.id);
+      if(mi>=0) archived[mi]=existing; else archived.unshift(existing);
     } else {
-      const newId=Math.max(2000,...archived.map(a=>a.id),...data.map(d=>d.id))+1;
+      // No existing row — create new. Get safe ID from Supabase
+      const {data:maxRow}=await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
+      const newId=(maxRow&&maxRow.length?maxRow[0].id:2000)+1;
       const archRec={
         id:newId, apt:r.apt, owner:r.owner||null, name:r.name,
-        type:r.type, rent:payAmt, balance:0,
+        type:r.type, rent:Math.round(payAmt*100)/100, balance:0,
         due:`${monthStr}-01`,
         lease_end:new Date(parseInt(yr),mIdx+1,0).toISOString().split('T')[0],
         checkin:r.checkin||'',
         note:`${r.name} — ${monthLabel} — $${payAmt.toLocaleString()}${note?' | '+note:''}`,
-        history:[{date:dateStr,text:payText}],
+        history:[{date:dateStr, text:payText, amt:payAmt}],
         archived:true, archived_date:`${monthStr}-01`,
         ...extraFields
       };
@@ -2092,7 +2097,10 @@ async function confirmPayment(){
 
 
 
-  closeModal('payModal');renderTable();
+  // Reload everything from Supabase so UI always reflects true DB state
+  await loadAll();
+  closeModal('payModal');
+  renderTable();
   toast(`Payment recorded for Apt ${r.apt} ✓`,'success');
   if(detailId===r.id)openDetail(r.id);
 }
@@ -2990,7 +2998,7 @@ async function seedLTYear(year) {
     archived.map(r => `${r.apt}||${(r.name||'').toLowerCase()}||${(r.archived_date||r.archivedDate||'').substring(0,7)}`)
   );
 
-  let uid = Math.max(2000, ...archived.map(r=>r.id), ...data.map(r=>r.id)) + 1;
+  let uid = Math.max(2000, ...archived.map(r=>r.id).concat(data.map(r=>r.id))) + 1;
   const toInsert = [];
   let skipped = 0;
 
