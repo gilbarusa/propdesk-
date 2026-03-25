@@ -513,6 +513,27 @@ textarea{resize:vertical;min-height:70px;}
   </div>
 </div>
 
+<!-- BACKUP IMPORT MODAL -->
+<div class="modal-overlay" id="backupImportModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h2>⬆ Import JSON Snapshot</h2>
+      <button class="modal-close" onclick="closeModal('backupImportModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:14px;margin-bottom:16px;">
+        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">⚠ This will overwrite all current active units</div>
+        <div style="font-size:11px;color:var(--text2);">Active units will be replaced with the imported snapshot. Archived records are not affected.</div>
+      </div>
+      <div id="importPreview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('backupImportModal')">Cancel</button>
+      <button id="confirmImportBtn" onclick="confirmImport()" style="background:var(--blue);color:#fff;border:none;font-weight:500;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">⬆ Import & Restore</button>
+    </div>
+  </div>
+</div>
+
 <!-- BACKUP HISTORY MODAL -->
 <div class="modal-overlay" id="backupHistoryModal">
   <div class="modal" style="max-width:720px;width:95%;">
@@ -543,7 +564,11 @@ textarea{resize:vertical;min-height:70px;}
       </table>
     </div>
     <div class="modal-footer" style="justify-content:space-between;">
-      <button class="btn btn-secondary btn-sm" onclick="openBackupHistory()">↺ Refresh</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="openBackupHistory()">↺ Refresh</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importJsonInput').click()" style="border-color:var(--blue);color:var(--blue);">⬆ Import JSON</button>
+        <input type="file" id="importJsonInput" accept=".json" style="display:none;" onchange="handleImportJson(this)">
+      </div>
       <button class="btn btn-secondary" onclick="closeModal('backupHistoryModal')">Close</button>
     </div>
   </div>
@@ -2188,82 +2213,132 @@ async function runBackup() {
       page++;
     }
 
-    const now = new Date();
-    const dateStr = now.toISOString().slice(0,10);
-    const timeStr = now.toTimeString().slice(0,5).replace(':','');
+    // ── Save snapshot to Supabase backups table ──
+    const { error: bErr } = await sb.from('backups').insert({
+      record_count: allRows.length,
+      snapshot: allRows
+    });
+    if (bErr) throw new Error('Supabase save failed: ' + bErr.message);
 
-    // Helper to escape SQL strings
-    const esc = v => v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g,"''")}'`;
-    const escJson = v => {
-      if(v === null || v === undefined) return "NULL";
-      const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
-      return `'${s.replace(/'/g,"''")}'::jsonb`;
-    };
-
-    // Generate SQL
-    const lines = [
-      `-- PropDesk SQL Backup`,
-      `-- Generated: ${now.toLocaleString()}`,
-      `-- Records: ${allRows.length}`,
-      `-- To restore: run TRUNCATE units; first, then paste this file`,
-      ``,
-      `-- Disable triggers temporarily`,
-      `SET session_replication_role = replica;`,
-      ``,
-      `-- Clear existing data`,
-      `TRUNCATE units RESTART IDENTITY;`,
-      ``,
-      `-- Insert all records`,
-      ...allRows.map(r =>
-        `INSERT INTO units (id,apt,owner,name,type,rent,balance,due,lease_end,checkin,note,history,archived,archived_date) VALUES (` +
-        `${r.id},${esc(r.apt)},${esc(r.owner)},${esc(r.name)},${esc(r.type)},` +
-        `${r.rent||0},${r.balance||0},${esc(r.due)},${esc(r.lease_end)},${esc(r.checkin)},` +
-        `${esc(r.note)},${escJson(r.history)},${r.archived||false},${esc(r.archived_date)});`
-      ),
-      ``,
-      `-- Re-enable triggers`,
-      `SET session_replication_role = DEFAULT;`,
-      ``,
-      `-- Verify`,
-      `SELECT COUNT(*) as total, SUM(CASE WHEN archived THEN 1 ELSE 0 END) as archived, SUM(CASE WHEN NOT archived THEN 1 ELSE 0 END) as active FROM units;`,
-    ];
-
-    const sql = lines.join('\n');
-    const filename = `propdesk_backup_${dateStr}_${timeStr}.sql`;
-    const blob = new Blob([sql], {type:'text/plain;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-
-    // Save snapshot to Supabase backups table
-    let supaBackupOk = false;
-    try {
-      const { error: bErr } = await sb.from('backups').insert({
-        record_count: allRows.length,
-        snapshot: allRows
-      });
-      if (bErr) throw new Error(bErr.message);
-      supaBackupOk = true;
-    } catch(bEx) {
-      console.warn('Supabase backup insert failed:', bEx.message);
+    // ── Enforce 10-backup cap: delete oldest if over limit ──
+    const { data: allBackups, error: listErr } = await sb
+      .from('backups').select('id').order('created_at', { ascending: true });
+    if (!listErr && allBackups && allBackups.length > 10) {
+      const toDelete = allBackups.slice(0, allBackups.length - 10).map(b => b.id);
+      await sb.from('backups').delete().in('id', toDelete);
     }
 
-    // Save timestamp to localStorage as fallback
+    // ── Save timestamp to localStorage as well ──
     localStorage.setItem(BACKUP_KEY, Date.now().toString());
     await checkBackupStatus();
-    const supaNote = supaBackupOk ? ' + saved to Supabase' : ' (Supabase save failed — check backups table exists)';
-    toast(`✓ SQL backup downloaded: ${allRows.length} records → ${filename}${supaNote}`, supaBackupOk ? 'success' : 'error');
+    toast(`✓ Backup saved to Supabase — ${allRows.length} records`, 'success');
 
   } catch(e) {
     console.error('Backup failed:', e);
-    toast('Backup failed: ' + e.message, 'error');
+    // ── Supabase failed — fall back to JSON download ──
+    try {
+      const { data: fallbackRows } = await sb.from('units').select('*').order('id');
+      if (fallbackRows && fallbackRows.length > 0) {
+        const now = new Date();
+        const filename = `propdesk_backup_${now.toISOString().slice(0,10)}_${now.toTimeString().slice(0,5).replace(':','')}.json`;
+        const blob = new Blob([JSON.stringify(fallbackRows, null, 2)], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download=filename; a.click();
+        URL.revokeObjectURL(url);
+        toast(`⚠ Supabase save failed — JSON downloaded locally instead`, 'error');
+      }
+    } catch(fe) { /* silently skip fallback download */ }
+    toast('Backup error: ' + e.message, 'error');
   } finally {
     btns.forEach(b => { if(b){ b.disabled=false; b.style.opacity='1'; } });
     await checkBackupStatus();
   }
 }
 
+
+
+// ── IMPORT JSON ─────────────────────────────────────
+
+let _importSnapshot = null;
+
+function handleImportJson(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = ''; // reset so same file can be re-picked
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) throw new Error('JSON must be an array of unit records');
+      if (parsed.length === 0) throw new Error('File contains no records');
+
+      _importSnapshot = parsed;
+      const active = parsed.filter(r => !r.archived).length;
+      const arch = parsed.filter(r => r.archived).length;
+      const owners = [...new Set(parsed.map(r => r.owner).filter(Boolean))];
+
+      document.getElementById('importPreview').innerHTML = `
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">File Preview — ${file.name}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Total Records</div>
+            <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--accent2);">${parsed.length}</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Active Units</div>
+            <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--green);">${active}</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
+            <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Archived</div>
+            <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text2);">${arch}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--text2);"><strong>Owners:</strong> ${owners.join(', ') || '—'}</div>`;
+
+      document.getElementById('backupImportModal').classList.add('open');
+    } catch(err) {
+      toast('Invalid JSON file: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function confirmImport() {
+  if (!_importSnapshot) return;
+  const btn = document.getElementById('confirmImportBtn');
+  btn.textContent = '⏳ Importing…';
+  btn.disabled = true;
+
+  try {
+    const activeSnap = _importSnapshot.filter(r => !r.archived);
+
+    // Delete all current active units
+    const { error: delErr } = await sb.from('units').delete().eq('archived', false);
+    if (delErr) throw new Error('Delete failed: ' + delErr.message);
+
+    // Insert in batches of 100, dropping old IDs
+    const batchSize = 100;
+    for (let i = 0; i < activeSnap.length; i += batchSize) {
+      const chunk = activeSnap.slice(i, i + batchSize).map(r => {
+        const { id, ...rest } = r;
+        return rest;
+      });
+      const { error: insErr } = await sb.from('units').insert(chunk);
+      if (insErr) throw new Error('Insert failed: ' + insErr.message);
+    }
+
+    closeModal('backupImportModal');
+    closeModal('backupHistoryModal');
+    await loadAll();
+    renderTable();
+    toast(`✓ Imported ${activeSnap.length} active units from JSON`, 'success');
+  } catch(e) {
+    toast('Import failed: ' + e.message, 'error');
+    btn.textContent = 'Import & Restore';
+    btn.disabled = false;
+  }
+}
 
 // ── BACKUP HISTORY ─────────────────────────────────
 
