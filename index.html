@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chelbourne — Property Manager</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%238a5f32'/><text y='44' x='8' font-size='42' font-family='serif'>🏠</text></svg>">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onerror="window._supaFailed=true"></script>
@@ -2235,20 +2236,11 @@ async function runBackup() {
 
   } catch(e) {
     console.error('Backup failed:', e);
-    // ── Supabase failed — fall back to JSON download ──
-    try {
-      const { data: fallbackRows } = await sb.from('units').select('*').order('id');
-      if (fallbackRows && fallbackRows.length > 0) {
-        const now = new Date();
-        const filename = `propdesk_backup_${now.toISOString().slice(0,10)}_${now.toTimeString().slice(0,5).replace(':','')}.json`;
-        const blob = new Blob([JSON.stringify(fallbackRows, null, 2)], {type:'application/json'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href=url; a.download=filename; a.click();
-        URL.revokeObjectURL(url);
-        toast(`⚠ Supabase save failed — JSON downloaded locally instead`, 'error');
-      }
-    } catch(fe) { /* silently skip fallback download */ }
-    toast('Backup error: ' + e.message, 'error');
+    const msg = e.message || '';
+    const hint = msg.includes('row-level security') || msg.includes('policy')
+      ? ' — run: ALTER TABLE backups DISABLE ROW LEVEL SECURITY; in Supabase SQL editor'
+      : '';
+    toast('⚠ Backup failed: ' + msg + hint, 'error');
   } finally {
     btns.forEach(b => { if(b){ b.disabled=false; b.style.opacity='1'; } });
     await checkBackupStatus();
@@ -2390,7 +2382,7 @@ async function openBackupHistory() {
         <td style="padding:11px 14px;color:${ageColor};font-weight:500;">${age}</td>
         <td style="padding:11px 14px;text-align:right;">
           <div style="display:flex;gap:6px;justify-content:flex-end;">
-            <button onclick="previewRestore(${b.id}, '${dateStr} ${timeStr}', ${b.record_count})"
+            <button onclick="previewRestore(${b.id})" data-id="${b.id}"
               style="padding:5px 12px;font-size:11px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);border-radius:6px;cursor:pointer;font-family:inherit;font-weight:500;">
               ↩ Restore
             </button>
@@ -2412,27 +2404,27 @@ async function openBackupHistory() {
   }
 }
 
-async function previewRestore(backupId, label, recordCount) {
+async function previewRestore(backupId) {
   _restoreBackupId = backupId;
   _restoreSnapshot = null;
 
-  // Load the full snapshot from Supabase
-  document.getElementById('restorePreview').innerHTML = '<div style="color:var(--text3);text-align:center;">Loading snapshot…</div>';
+  document.getElementById('restorePreview').innerHTML = '<div style="color:var(--text3);text-align:center;padding:16px;">Loading snapshot…</div>';
   document.getElementById('backupRestoreModal').classList.add('open');
 
   try {
-    const { data, error } = await sb.from('backups').select('snapshot, record_count').eq('id', backupId).single();
+    const { data, error } = await sb.from('backups').select('snapshot, record_count, created_at').eq('id', backupId).single();
     if (error) throw new Error(error.message);
     _restoreSnapshot = data.snapshot;
 
-    // Count active vs archived in the snapshot
     const active = data.snapshot.filter(r => !r.archived).length;
     const arch = data.snapshot.filter(r => r.archived).length;
     const owners = [...new Set(data.snapshot.map(r => r.owner).filter(Boolean))];
+    const dt = new Date(data.created_at);
+    const label = dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) + ' ' + dt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 
     document.getElementById('restorePreview').innerHTML = `
       <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">Snapshot Preview</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
           <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Total Records</div>
           <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--accent2);">${data.record_count ?? data.snapshot.length}</div>
@@ -2441,11 +2433,15 @@ async function previewRestore(backupId, label, recordCount) {
           <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Active Units</div>
           <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--green);">${active}</div>
         </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
+          <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Archived</div>
+          <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text2);">${arch}</div>
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--text2);"><strong>Owners:</strong> ${owners.join(', ') || '—'}</div>
-      <div style="font-size:11px;color:var(--text3);margin-top:4px;">Backup from: ${label}</div>`;
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;"><strong>Owners:</strong> ${owners.join(', ') || '—'}</div>
+      <div style="font-size:11px;color:var(--text3);">Backup from: ${label}</div>`;
   } catch(e) {
-    document.getElementById('restorePreview').innerHTML = `<div style="color:var(--red);">Failed to load snapshot: ${e.message}</div>`;
+    document.getElementById('restorePreview').innerHTML = `<div style="color:var(--red);padding:12px;">Failed to load snapshot: ${e.message}</div>`;
   }
 }
 
