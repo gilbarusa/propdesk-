@@ -35,18 +35,16 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 
 /* ── Header ── */
 .header{
-  background:linear-gradient(135deg,#3d2910 0%,#5c3d1a 60%,#7d5228 100%);
-  border-bottom:none;padding:0 32px;display:flex;align-items:center;
+  background:var(--surface);
+  border-bottom:2px solid var(--border);padding:0 32px;display:flex;align-items:center;
   justify-content:space-between;height:var(--header-h);position:sticky;top:0;z-index:200;
-  box-shadow:0 2px 12px rgba(61,41,16,.35);
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
 }
 .brand{display:flex;align-items:baseline;gap:12px;}
-.brand h1{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:#f5e6d0;letter-spacing:-.3px;}
-.brand-sub{font-size:9px;color:rgba(245,230,208,.5);letter-spacing:3px;text-transform:uppercase;margin-top:2px;}
+.brand h1{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--accent2);letter-spacing:-.3px;}
+.brand-sub{font-size:9px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-top:2px;}
 .header-right{display:flex;gap:8px;align-items:center;}
-.header-right .btn-secondary{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:rgba(245,230,208,.9);}
-.header-right .btn-secondary:hover{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35);color:#fff;}
-#syncStatus{color:rgba(245,230,208,.6) !important;font-size:11px;}
+#syncStatus{color:var(--text3) !important;font-size:11px;}
 
 /* ── Nav ── */
 .nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;gap:0;box-shadow:var(--shadow);}
@@ -178,10 +176,10 @@ textarea{resize:vertical;min-height:72px;}
 .detail-backdrop{position:absolute;inset:0;background:rgba(20,16,10,.35);}
 .detail-panel{position:absolute;top:0;right:0;bottom:0;width:400px;max-width:100vw;background:var(--surface);box-shadow:var(--shadow-lg);overflow-y:auto;animation:slideIn .22s cubic-bezier(.34,1.2,.64,1);display:flex;flex-direction:column;border-left:1px solid var(--border);}
 @keyframes slideIn{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
-.detail-header{padding:22px 22px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;background:linear-gradient(135deg,#3d2910,#5c3d1a);}
-.detail-apt{font-family:'Playfair Display',serif;font-size:40px;font-weight:700;color:#f5e6d0;line-height:1;}
-.detail-name{font-size:15px;font-weight:500;margin-top:5px;color:rgba(245,230,208,.9);}
-.detail-owner{font-size:11px;color:rgba(245,230,208,.55);margin-top:3px;}
+.detail-header{padding:22px 22px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;background:var(--accent-bg);}
+.detail-apt{font-family:'Playfair Display',serif;font-size:40px;font-weight:700;color:var(--accent2);line-height:1;}
+.detail-name{font-size:15px;font-weight:500;margin-top:5px;color:var(--text);}
+.detail-owner{font-size:11px;color:var(--text3);margin-top:3px;}
 .detail-body{padding:20px;flex:1;}
 .detail-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;}
 .detail-row:last-child{border-bottom:none;}
@@ -285,10 +283,10 @@ textarea{resize:vertical;min-height:72px;}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
-.loading-overlay{position:fixed;inset:0;background:rgba(61,41,16,.96);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
-.loading-overlay h2{font-family:'Playfair Display',serif;font-size:26px;color:#f5e6d0;letter-spacing:-.3px;}
-.loading-overlay p{font-size:12px;color:rgba(245,230,208,.55);letter-spacing:.5px;}
-.spinner{width:40px;height:40px;border:3px solid rgba(245,230,208,.15);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+.loading-overlay{position:fixed;inset:0;background:rgba(244,242,238,.96);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+.loading-overlay h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--accent2);letter-spacing:-.3px;}
+.loading-overlay p{font-size:12px;color:var(--text3);letter-spacing:.5px;}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;margin-left:6px;animation:pulse 2s ease-in-out infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.2}}
@@ -3272,27 +3270,43 @@ function rentedDaysInMonth(r,y,m){
   }
   return 0;
 }
+// Helper: sum payments from a history array for a given month string
+function sumHistoryForMonth(history, mStr){
+  return (history||[]).filter(h=>h.date&&h.date.startsWith(mStr)).reduce((s,h)=>{
+    if(typeof h.amt==='number') return s+h.amt;
+    const match=h.text.match(/\$([\d,]+(\.\d+)?)/);
+    return s+(match?parseFloat(match[1].replace(/,/g,'')):0);
+  },0);
+}
+
 function expectedInMonth(r,y,m){
   if(!r.name||r.type==='available')return 0;
   const now=new Date();
+  const mStr=`${y}-${String(m+1).padStart(2,'0')}`;
   const isCurrent=(y===now.getFullYear()&&m===now.getMonth());
 
-  if(isCurrent){
-    // Current month: use live unit rent
-    return rentedDaysInMonth(r,y,m)>0?r.rent:0;
-  }
+  if(isCurrent) return rentedDaysInMonth(r,y,m)>0?r.rent:0;
 
-  // Past months: expected = what archive says was owed (rent field on archive row)
-  const mStr=`${y}-${String(m+1).padStart(2,'0')}`;
-  const archRec=archived.filter(a=>
+  // Past: check archive rows whose archived_date falls IN this month (short-stay style rows)
+  const monthArchive=archived.filter(a=>
     a.apt===r.apt &&
     (a.name||'').toLowerCase()===(r.name||'').toLowerCase() &&
     (a.archived_date||a.archivedDate||'').startsWith(mStr)
   );
-  // If we have archive records, sum them; otherwise 0 (no data)
-  if(archRec.length) return archRec.reduce((s,a)=>s+(a.rent||0),0);
+  if(monthArchive.length) return monthArchive.reduce((s,a)=>s+(a.rent||0),0);
+
+  // Fall back: scan ALL archive rows for this tenant and sum history entries for this month
+  // (covers long-term tenants whose archived_date is move-out, not monthly)
+  const tenantArchive=archived.filter(a=>
+    a.apt===r.apt &&
+    (a.name||'').toLowerCase()===(r.name||'').toLowerCase()
+  );
+  const fromHistory=tenantArchive.reduce((s,a)=>s+sumHistoryForMonth(a.history,mStr),0);
+  if(fromHistory>0) return fromHistory;
+
   return 0;
 }
+
 function collectedInMonth(r,y,m){
   if(!r.name||r.type==='available')return 0;
   const mStr=`${y}-${String(m+1).padStart(2,'0')}`;
@@ -3300,26 +3314,26 @@ function collectedInMonth(r,y,m){
   const isCurrent=(y===now.getFullYear()&&m===now.getMonth());
 
   if(isCurrent){
-    // Current month: read from live unit only
-    const hist=(r.history||[]).filter(h=>h.date&&h.date.startsWith(mStr));
-    if(hist.length){
-      return hist.reduce((s,h)=>{
-        if(typeof h.amt==='number') return s+h.amt;
-        const match=h.text.match(/\$([\d,]+(\.\d+)?)/);
-        return s+(match?parseFloat(match[1].replace(/,/g,'')):0);
-      },0);
-    }
-    // Nothing recorded yet this month — use rent minus balance
+    // Current month: live unit history first
+    const fromLive=sumHistoryForMonth(r.history,mStr);
+    if(fromLive>0) return fromLive;
     return r.balance>0?Math.max(0,r.rent-r.balance):r.rent;
   }
 
-  // Past months: read only from archive records
-  const archRec=archived.filter(a=>
+  // Past months: check archive rows whose archived_date is in this month
+  const monthArchive=archived.filter(a=>
     a.apt===r.apt &&
     (a.name||'').toLowerCase()===(r.name||'').toLowerCase() &&
     (a.archived_date||a.archivedDate||'').startsWith(mStr)
   );
-  return archRec.reduce((s,a)=>s+(a.rent||0),0);
+  if(monthArchive.length) return monthArchive.reduce((s,a)=>s+(a.rent||0),0);
+
+  // Fall back: scan ALL archive rows for this tenant and sum history entries for this month
+  const tenantArchive=archived.filter(a=>
+    a.apt===r.apt &&
+    (a.name||'').toLowerCase()===(r.name||'').toLowerCase()
+  );
+  return tenantArchive.reduce((s,a)=>s+sumHistoryForMonth(a.history,mStr),0);
 }
 
 // ══════════════════════════════════════════════════════
