@@ -301,11 +301,8 @@ textarea{resize:vertical;min-height:72px;}
 .cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
 .cal-unit-row:hover{background:var(--surface2);}
 .cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-grid-outer{flex:1;overflow-x:scroll;overflow-y:scroll;position:relative;cursor:grab;}
-.cal-grid-outer.grabbing{cursor:grabbing;}
-.cal-grid-outer::-webkit-scrollbar{height:5px;width:5px;}
-.cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);}
-.cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.cal-grid-outer{flex:1;overflow-x:scroll;overflow-y:scroll;position:relative;}
+.cal-grid-outer::-webkit-scrollbar{height:8px;width:8px;} .cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb:hover{background:var(--accent);}
 .cal-grid{position:relative;min-width:max-content;}
 .cal-days-header{display:flex;height:52px;position:sticky;top:0;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
 .cal-day-hdr{display:flex;flex-direction:column;align-items:center;justify-content:center;width:36px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;gap:2px;cursor:default;}
@@ -371,7 +368,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 26 2026, 22:13</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 26 2026, 22:16</span>
     </div>
   </div>
 </header>
@@ -4015,11 +4012,10 @@ async function saveCalBooking() {
 function initCalScroll() {
   const outer = document.getElementById('calGridOuter');
   const uCol  = document.getElementById('calUnitsCol');
-  if (!outer || outer._dragBound) return;
-  outer._dragBound = true;
+  if (!outer || outer._bound) return;
+  outer._bound = true;
 
-  // ── Vertical sync: grid rows ↔ units sidebar ──
-  // Use a flag to prevent the two scroll handlers triggering each other
+  // Sync vertical scroll: grid ↔ units sidebar only
   let _syncing = false;
   outer.addEventListener('scroll', () => {
     if (_syncing) return;
@@ -4032,53 +4028,6 @@ function initCalScroll() {
     _syncing = true;
     outer.scrollTop = uCol.scrollTop;
     _syncing = false;
-  }, { passive: true });
-
-  // ── Mouse click-drag: move both axes freely ──
-  let isDragging = false;
-  let startX, startY, originLeft, originTop;
-
-  outer.addEventListener('mousedown', e => {
-    if (e.button !== 0) return;
-    isDragging   = true;
-    startX       = e.clientX;
-    startY       = e.clientY;
-    originLeft   = outer.scrollLeft;
-    originTop    = outer.scrollTop;
-    outer.classList.add('grabbing');
-    e.preventDefault();
-  });
-  window.addEventListener('mouseup', () => {
-    isDragging = false;
-    outer.classList.remove('grabbing');
-  }, { passive: true });
-  window.addEventListener('mousemove', e => {
-    if (!isDragging) return;
-    outer.scrollLeft = originLeft - (e.clientX - startX);
-    outer.scrollTop  = originTop  - (e.clientY - startY);
-  }, { passive: true });
-
-  // ── Wheel / trackpad ──
-  // non-passive so preventDefault works
-  outer.addEventListener('wheel', e => {
-    e.preventDefault();
-    outer.scrollLeft += e.deltaX;
-    outer.scrollTop  += e.deltaY;
-  }, { passive: false });
-
-  // Also handle touch events for mobile
-  let touchStartX = 0, touchStartY = 0, touchScrollLeft = 0, touchScrollTop = 0;
-  outer.addEventListener('touchstart', e => {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    touchScrollLeft = outer.scrollLeft;
-    touchScrollTop  = outer.scrollTop;
-  }, { passive: true });
-  outer.addEventListener('touchmove', e => {
-    const dx = touchStartX - e.touches[0].clientX;
-    const dy = touchStartY - e.touches[0].clientY;
-    outer.scrollLeft = touchScrollLeft + dx;
-    outer.scrollTop  = touchScrollTop  + dy;
   }, { passive: true });
 }
 
