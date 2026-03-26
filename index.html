@@ -301,7 +301,7 @@ textarea{resize:vertical;min-height:72px;}
 .cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
 .cal-unit-row:hover{background:var(--surface2);}
 .cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-grid-outer{flex:1;overflow:auto;position:relative;scroll-behavior:smooth;cursor:grab;}
+.cal-grid-outer{flex:1;overflow:auto;position:relative;cursor:grab;}
 .cal-grid-outer.grabbing{cursor:grabbing;}
 .cal-grid-outer::-webkit-scrollbar{height:0;width:0;display:none;}
 .cal-grid{position:relative;min-width:max-content;}
@@ -3858,37 +3858,18 @@ function renderCalendar() {
     rowsEl.appendChild(rowDiv);
   });
 
-  // ── Scroll sync ──
+  // Scroll to today (only on first render, preserve position after)
   const outer=document.getElementById('calGridOuter');
   const uCol=document.getElementById('calUnitsCol');
-  outer.onscroll=()=>{uCol.scrollTop=outer.scrollTop;};
-  uCol.onscroll=()=>{outer.scrollTop=uCol.scrollTop;};
+  // Sync vertical scroll between units col and grid
+  outer.onscroll=()=>{ uCol.scrollTop=outer.scrollTop; };
+  uCol.onscroll=()=>{ outer.scrollTop=uCol.scrollTop; };
 
-  // ── Drag to scroll ──
-  if(!outer._dragBound){
-    outer._dragBound=true;
-    let isDragging=false,startX,startY,scrollLeft,scrollTop;
-    outer.addEventListener('mousedown',e=>{
-      if(e.button!==0)return;
-      isDragging=true;startX=e.pageX-outer.offsetLeft;startY=e.pageY-outer.offsetTop;
-      scrollLeft=outer.scrollLeft;scrollTop=outer.scrollTop;
-      outer.classList.add('grabbing');e.preventDefault();
-    });
-    window.addEventListener('mouseup',()=>{isDragging=false;outer.classList.remove('grabbing');});
-    window.addEventListener('mousemove',e=>{
-      if(!isDragging)return;
-      outer.scrollLeft=scrollLeft-(e.pageX-outer.offsetLeft-startX);
-      outer.scrollTop=scrollTop-(e.pageY-outer.offsetTop-startY);
-    });
-    outer.addEventListener('wheel',e=>{
-      if(Math.abs(e.deltaX)>Math.abs(e.deltaY))return;
-      if(!e.shiftKey){e.preventDefault();outer.scrollLeft+=e.deltaY*1.2;}
-    },{passive:false});
+  if(!outer._calScrolled){
+    outer._calScrolled=true;
+    const todayIdx=dates.indexOf(todayStr);
+    if(todayIdx>=0) outer.scrollLeft=Math.max(0,todayIdx*COL_W-120);
   }
-
-  // Scroll to today
-  const todayIdx=dates.indexOf(todayStr);
-  if(todayIdx>=0) outer.scrollLeft=Math.max(0,todayIdx*COL_W-120);
 }
 
 // ── Cell click: show action picker ──
@@ -4024,6 +4005,50 @@ async function saveCalBooking() {
 }
 
 
+// ── One-time calendar scroll setup (called once after boot) ──
+function initCalScroll() {
+  const outer = document.getElementById('calGridOuter');
+  if (!outer || outer._dragBound) return;
+  outer._dragBound = true;
+
+  let isDragging = false;
+  let startX, startY, originScrollLeft, originScrollTop;
+
+  outer.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    originScrollLeft = outer.scrollLeft;
+    originScrollTop  = outer.scrollTop;
+    outer.classList.add('grabbing');
+    e.preventDefault();
+  });
+
+  window.addEventListener('mouseup', () => {
+    isDragging = false;
+    outer.classList.remove('grabbing');
+  });
+
+  window.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    outer.scrollLeft = originScrollLeft - dx;
+    outer.scrollTop  = originScrollTop  - dy;
+  });
+
+  // Trackpad / wheel: horizontal natural, vertical → redirect to horizontal
+  outer.addEventListener('wheel', e => {
+    // Two-finger horizontal swipe — browser handles it natively, don't intercept
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    // Vertical wheel → scroll calendar horizontally (no shift needed)
+    e.preventDefault();
+    outer.scrollLeft += e.deltaY;
+  }, { passive: false });
+}
+
+
 async function boot() {
   const overlay = document.getElementById('loadingOverlay');
   const msg = overlay.querySelector('p');
@@ -4075,6 +4100,7 @@ async function boot() {
 
     overlay.style.display = 'none';
     renderTable();
+    initCalScroll();
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
 
@@ -4094,6 +4120,7 @@ function bootOffline() {
   document.getElementById('syncStatus').textContent = '⚠ offline';
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   renderTable();
+  initCalScroll();
 }
 
 boot();
