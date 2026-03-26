@@ -4056,22 +4056,8 @@ function initCalScroll() {
   // non-passive so preventDefault works
   outer.addEventListener('wheel', e => {
     e.preventDefault();
-    const absX = Math.abs(e.deltaX);
-    const absY = Math.abs(e.deltaY);
-
-    if (absX > absY * 0.3) {
-      // Horizontal component dominates (trackpad two-finger swipe L/R)
-      outer.scrollLeft += e.deltaX;
-    } else {
-      // Vertical component dominates
-      if (e.shiftKey) {
-        // Shift+scroll → horizontal pan
-        outer.scrollLeft += e.deltaY;
-      } else {
-        // Normal vertical scroll → scroll the rows
-        outer.scrollTop += e.deltaY;
-      }
-    }
+    outer.scrollLeft += e.deltaX;
+    outer.scrollTop  += e.deltaY;
   }, { passive: false });
 }
 
