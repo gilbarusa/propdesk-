@@ -283,6 +283,58 @@ textarea{resize:vertical;min-height:72px;}
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* ── CALENDAR PAGE ── */
+.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 48px);overflow:hidden;}
+.cal-toolbar{padding:12px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;}
+.cal-nav{display:flex;align-items:center;gap:8px;}
+.cal-nav button{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.cal-nav button:hover{border-color:var(--accent);color:var(--accent);}
+.cal-month-label{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);min-width:140px;text-align:center;}
+.cal-today-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .12s;}
+.cal-today-btn:hover{border-color:var(--accent);color:var(--accent);}
+.cal-body{display:flex;flex:1;overflow:hidden;}
+.cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;background:var(--surface);z-index:10;}
+.cal-units-col::-webkit-scrollbar{display:none;}
+.cal-header-spacer{height:52px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
+.cal-header-spacer span{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);}
+.cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
+.cal-unit-row:hover{background:var(--surface2);}
+.cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-grid-outer{flex:1;overflow:auto;position:relative;}
+.cal-grid-outer::-webkit-scrollbar{height:6px;width:6px;}
+.cal-grid-outer::-webkit-scrollbar-track{background:var(--bg);}
+.cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+.cal-grid{position:relative;min-width:max-content;}
+.cal-days-header{display:flex;height:52px;position:sticky;top:0;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
+.cal-day-hdr{display:flex;flex-direction:column;align-items:center;justify-content:center;width:36px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;gap:2px;cursor:default;}
+.cal-day-hdr.weekend{background:rgba(181,120,74,.06);}
+.cal-day-hdr.today{background:var(--green);color:#fff;}
+.cal-day-hdr .day-num{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;line-height:1;}
+.cal-day-hdr .day-name{font-size:8px;letter-spacing:.5px;}
+.cal-rows{position:relative;}
+.cal-row{display:flex;height:44px;border-bottom:1px solid var(--border);position:relative;align-items:center;}
+.cal-cell{width:36px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;cursor:pointer;transition:background .1s;}
+.cal-cell:hover{background:rgba(181,120,74,.08);}
+.cal-cell.weekend{background:rgba(181,120,74,.04);}
+.cal-cell.weekend:hover{background:rgba(181,120,74,.1);}
+.cal-cell.today-col{background:rgba(37,102,69,.06);}
+.cal-cell.today-col:hover{background:rgba(37,102,69,.12);}
+.cal-cell.blocked{background:repeating-linear-gradient(45deg,rgba(184,50,40,.07),rgba(184,50,40,.07) 4px,transparent 4px,transparent 8px);}
+.cal-cell.blocked:hover{background:repeating-linear-gradient(45deg,rgba(184,50,40,.14),rgba(184,50,40,.14) 4px,transparent 4px,transparent 8px);}
+.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;}
+.cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
+.cal-bar.bar-lt{background:linear-gradient(90deg,#2563a8,#1e5799);color:#fff;}
+.cal-bar.bar-mtm{background:linear-gradient(90deg,#7c4fbe,#5e3f9e);color:#fff;}
+.cal-bar.bar-ss{background:linear-gradient(90deg,#e07818,#b86818);color:#fff;}
+.cal-bar.bar-block{background:linear-gradient(90deg,#c0392b,#962d22);color:#fff;opacity:.85;}
+.cal-bar-icon{margin-right:4px;font-size:10px;flex-shrink:0;}
+.cal-legend{display:flex;gap:16px;align-items:center;margin-left:auto;}
+.cal-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
+.cal-leg-dot{width:10px;height:10px;border-radius:3px;}
+/* Block modal */
+.block-modal-info{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);}
+.block-modal-info strong{color:var(--accent2);}
 .loading-overlay{position:fixed;inset:0;background:rgba(244,242,238,.96);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
 .loading-overlay h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--accent2);letter-spacing:-.3px;}
 .loading-overlay p{font-size:12px;color:var(--text3);letter-spacing:.5px;}
@@ -319,6 +371,7 @@ textarea{resize:vertical;min-height:72px;}
 <nav class="nav-tabs">
   <div class="nav-tab active" onclick="showPage('units',this)">🏠 Units</div>
   <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
+  <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
   <div class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</div>
   <div class="nav-tab" onclick="showPage('reports',this)">📈 Reports</div>
 </nav>
@@ -382,6 +435,84 @@ textarea{resize:vertical;min-height:72px;}
     </div>
   </div>
 </div>
+
+<!-- ═══ CALENDAR PAGE ═══ -->
+<div class="page" id="page-calendar">
+  <div class="cal-wrap">
+    <div class="cal-toolbar">
+      <div class="cal-nav">
+        <button onclick="calPrevMonth()" title="Previous month">&#8249;</button>
+        <span class="cal-month-label" id="calMonthLabel">April 2026</span>
+        <button onclick="calNextMonth()" title="Next month">&#8250;</button>
+        <button class="cal-today-btn" onclick="calGoToday()">Today</button>
+      </div>
+      <div class="filter-pills">
+        <button class="pill active" data-caltype="all" onclick="calFilterType(this)">All</button>
+        <button class="pill" data-caltype="long-term" onclick="calFilterType(this)">Long Term</button>
+        <button class="pill" data-caltype="month-to-month" onclick="calFilterType(this)">M-to-M</button>
+        <button class="pill" data-caltype="short-stay" onclick="calFilterType(this)">Short Stay</button>
+        <button class="pill" data-caltype="available" onclick="calFilterType(this)">Available</button>
+      </div>
+      <div class="search-wrap" style="max-width:200px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="calSearch" placeholder="Search unit, tenant&hellip;" oninput="renderCalendar()">
+      </div>
+      <select id="calOwnerFilter" onchange="renderCalendar()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;cursor:pointer;box-shadow:var(--shadow);">
+        <option value="">All Owners</option>
+        <option>ERA LT</option>
+        <option>Elkins LT</option>
+        <option>Melrose Properties</option>
+        <option>Fox Chase Properties</option>
+        <option>Montgomery Garages</option>
+      </select>
+      <div class="spacer"></div>
+      <div class="cal-legend">
+        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#2563a8"></div>Long Term</div>
+        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#7c4fbe"></div>M-to-M</div>
+        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#e07818"></div>Short Stay</div>
+        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#c0392b"></div>Blocked</div>
+      </div>
+    </div>
+    <div class="cal-body">
+      <div class="cal-units-col" id="calUnitsCol">
+        <div class="cal-header-spacer"><span id="calUnitCount">Units (0)</span></div>
+        <div id="calUnitsList"></div>
+      </div>
+      <div class="cal-grid-outer" id="calGridOuter">
+        <div class="cal-grid" id="calGrid">
+          <div class="cal-days-header" id="calDaysHeader"></div>
+          <div class="cal-rows" id="calRows"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Block Dates Modal -->
+<div class="modal-overlay" id="blockModal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-header">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Block Dates</h2>
+        <div id="blockModalApt" style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--accent2);margin-top:2px"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('blockModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="block-modal-info" id="blockModalInfo">Select a date range to mark this unit as unavailable.</div>
+      <div class="form-grid">
+        <div class="form-row"><label>Block From</label><input type="date" id="blockFrom"></div>
+        <div class="form-row"><label>Block To</label><input type="date" id="blockTo"></div>
+      </div>
+      <div class="form-row"><label>Reason (optional)</label><input type="text" id="blockReason" placeholder="Maintenance, renovation&hellip;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('blockModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveBlock()">&#128683; Block Dates</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- ═══ DASHBOARD PAGE ═══ -->
 <div class="page" id="page-dashboard">
@@ -1904,6 +2035,7 @@ function subscribeRealtime() {
       const page = document.querySelector('.page.active');
       if (page && page.id === 'page-dashboard') renderDashboard();
       if (page && page.id === 'page-reports') renderReports();
+      if (page && page.id === 'page-calendar') renderCalendar();
     })
     .subscribe();
 }
@@ -2476,6 +2608,7 @@ function showPage(p,el){
   if(p==='dashboard'){renderDashboard();checkBackupStatus();}
   if(p==='reports')renderReports();
   if(p==='history')renderHistory();
+  if(p==='calendar')renderCalendar();
 }
 
 // ── BACKUP ─────────────────────────────────────────
@@ -3464,6 +3597,305 @@ function renderReports(){
 // ── DEBUG ──────────────────────────────────────────
 // ── INIT ───────────────────────────────────────────
 document.getElementById('sortSel').value='due';
+
+// ═══════════════════════════════════════════════
+// CALENDAR
+// ═══════════════════════════════════════════════
+
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth(); // 0-indexed
+let calTypeFilter = 'all';
+let _blockAptId = null; // id of unit being blocked
+
+// Blocks stored in localStorage: { [apt]: [{from, to, reason}] }
+function getBlocks() {
+  try { return JSON.parse(localStorage.getItem('propdesk_blocks') || '{}'); }
+  catch(e) { return {}; }
+}
+function setBlocks(b) {
+  localStorage.setItem('propdesk_blocks', JSON.stringify(b));
+}
+
+function calFilterType(el) {
+  document.querySelectorAll('[data-caltype]').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  calTypeFilter = el.dataset.caltype;
+  renderCalendar();
+}
+
+function calPrevMonth() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+function calNextMonth() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+function calGoToday() {
+  const n = new Date();
+  calYear = n.getFullYear();
+  calMonth = n.getMonth();
+  renderCalendar();
+  // Scroll today column into view
+  setTimeout(() => {
+    const todayHdr = document.querySelector('.cal-day-hdr.today');
+    if (todayHdr) todayHdr.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, 80);
+}
+
+function renderCalendar() {
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAY_ABBR    = ['SU','MO','TU','WE','TH','FR','SA'];
+
+  // Update month label
+  document.getElementById('calMonthLabel').textContent = `${MONTH_NAMES[calMonth]} ${calYear}`;
+
+  // Build 3-month window: prev + current + next
+  // We'll show prev-month last-week + full current + next-month first-week
+  const daysInCur  = new Date(calYear, calMonth + 1, 0).getDate();
+  const todayStr   = new Date().toISOString().split('T')[0];
+
+  // Build list of dates to show: full current month + a few from prev/next for context
+  const dates = [];
+  // Prev month: show days that fall in the same week as day 1
+  const firstDow = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  for (let i = firstDow - 1; i >= 0; i--) {
+    const d = new Date(calYear, calMonth, -i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
+  // Current month
+  for (let d = 1; d <= daysInCur; d++) {
+    const dt = new Date(calYear, calMonth, d);
+    dates.push(dt.toISOString().split('T')[0]);
+  }
+  // Next month: fill to complete last week
+  const lastDow = new Date(calYear, calMonth, daysInCur).getDay();
+  for (let i = 1; i < 7 - lastDow; i++) {
+    const dt = new Date(calYear, calMonth + 1, i);
+    dates.push(dt.toISOString().split('T')[0]);
+  }
+
+  const COL_W = 36; // px per day column
+
+  // ── Filter units ──
+  const q     = (document.getElementById('calSearch')?.value || '').toLowerCase();
+  const owner = document.getElementById('calOwnerFilter')?.value || '';
+
+  let units = data.filter(r => !r.archived);
+  if (calTypeFilter !== 'all') units = units.filter(r => r.type === calTypeFilter);
+  if (q) units = units.filter(r =>
+    (r.apt||'').toLowerCase().includes(q) ||
+    (r.name||'').toLowerCase().includes(q) ||
+    (r.owner||'').toLowerCase().includes(q)
+  );
+  if (owner) units = units.filter(r => r.owner === owner);
+  units.sort((a,b) => (a.apt||'').localeCompare(b.apt||'', undefined, {numeric:true}));
+
+  document.getElementById('calUnitCount').textContent = `Units (${units.length})`;
+
+  // ── Build archived stays map for the visible window ──
+  // We want to show short-stay archived bars that fall in our date window
+  const winStart = dates[0];
+  const winEnd   = dates[dates.length - 1];
+
+  // For each unit, collect all archived short stays in window
+  // We also look at active units with checkin/due spanning the window
+  const staysByApt = {};
+  const blocks = getBlocks();
+
+  // Archived stays (short-stay and LT segments) in the window
+  archived.filter(r => r.archived).forEach(r => {
+    const ci = r.checkin || r.checkinDate || '';
+    const co = r.archivedDate || r.due || '';
+    if (!ci && !co) return;
+    // Check if overlaps window
+    const barStart = ci || co;
+    const barEnd   = co || ci;
+    if (barEnd < winStart || barStart > winEnd) return;
+    if (!staysByApt[r.apt]) staysByApt[r.apt] = [];
+    staysByApt[r.apt].push({ name: r.name, from: barStart, to: barEnd, type: r.type });
+  });
+
+  // ── Render units list ──
+  document.getElementById('calUnitsList').innerHTML = units.map(r =>
+    `<div class="cal-unit-row" title="${r.name||'Vacant'} — ${r.owner||''}">
+      <div class="cal-unit-name">${r.apt}</div>
+    </div>`
+  ).join('');
+
+  // ── Render day headers ──
+  const daysHdr = document.getElementById('calDaysHeader');
+  daysHdr.innerHTML = dates.map(d => {
+    const dt   = new Date(d + 'T00:00:00');
+    const dow  = dt.getDay();
+    const isWE = dow === 0 || dow === 6;
+    const isToday = d === todayStr;
+    const isPrevNext = d.substring(0,7) !== `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+    const cls  = `cal-day-hdr${isWE?' weekend':''}${isToday?' today':''}${isPrevNext?' opacity50':''}`;
+    return `<div class="${cls}" style="${isPrevNext?'opacity:.35':''}">
+      <div class="day-name">${DAY_ABBR[dow]}</div>
+      <div class="day-num">${dt.getDate()}</div>
+    </div>`;
+  }).join('');
+
+  // ── Render rows ──
+  const curMonthStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const rowsEl = document.getElementById('calRows');
+  rowsEl.innerHTML = '';
+
+  units.forEach((r, rowIdx) => {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'cal-row';
+    rowDiv.style.width = (dates.length * COL_W) + 'px';
+
+    // Build cells
+    const aptBlocks = blocks[r.apt] || [];
+    let cellsHtml = '';
+    dates.map((d, colIdx) => {
+      const dt   = new Date(d + 'T00:00:00');
+      const dow  = dt.getDay();
+      const isWE = dow === 0 || dow === 6;
+      const isToday = d === todayStr;
+      const isPrevNext = d.substring(0,7) !== curMonthStr;
+      // Is this day blocked?
+      const isBlocked = aptBlocks.some(b => d >= b.from && d <= b.to);
+      let cls = 'cal-cell';
+      if (isWE) cls += ' weekend';
+      if (isToday) cls += ' today-col';
+      if (isBlocked) cls += ' blocked';
+      if (isPrevNext) cls += ' dim';
+      cellsHtml += `<div class="${cls}" style="${isPrevNext?'opacity:.4':''}" onclick="openBlockModal(${r.id},'${d}')"></div>`;
+    });
+    rowDiv.innerHTML = cellsHtml;
+
+    // ── Overlay bars ──
+    // 1. Active tenant bar (if has checkin)
+    const barsToRender = [];
+
+    if (r.type !== 'available' && r.name) {
+      const barFrom = r.checkin || '';
+      const barTo   = r.due || r.lease_end || '';
+      if (barFrom || barTo) {
+        barsToRender.push({
+          name: r.name,
+          from: barFrom || barTo,
+          to:   barTo   || barFrom,
+          type: r.type,
+          note: r.note || ''
+        });
+      }
+    }
+
+    // 2. Archived stays for this apt in window
+    (staysByApt[r.apt] || []).forEach(s => barsToRender.push(s));
+
+    // 3. Block bars
+    aptBlocks.forEach(b => barsToRender.push({ name: b.reason || 'Blocked', from: b.from, to: b.to, type: '__block__' }));
+
+    barsToRender.forEach(bar => {
+      const clampFrom = bar.from < winStart ? winStart : bar.from;
+      const clampTo   = bar.to   > winEnd   ? winEnd   : bar.to;
+      const colStart  = dates.indexOf(clampFrom);
+      const colEnd    = dates.indexOf(clampTo);
+      if (colStart < 0 && colEnd < 0) return;
+      const cs = colStart >= 0 ? colStart : 0;
+      const ce = colEnd   >= 0 ? colEnd   : dates.length - 1;
+      const spanCols = ce - cs + 1;
+      if (spanCols < 1) return;
+
+      let barCls = 'cal-bar ';
+      let icon = '🏠';
+      if (bar.type === 'long-term')      { barCls += 'bar-lt';    icon = '🏠'; }
+      else if (bar.type === 'month-to-month') { barCls += 'bar-mtm'; icon = '📋'; }
+      else if (bar.type === 'short-stay')     { barCls += 'bar-ss';  icon = '✈️'; }
+      else if (bar.type === '__block__')      { barCls += 'bar-block'; icon = '🚫'; }
+
+      // Detect platform icon from note
+      const note = bar.note || '';
+      if (note.includes('Airbnb'))   icon = '🏡';
+      else if (note.includes('Booking')) icon = '🔵';
+      else if (note.includes('Vrbo'))    icon = '🟠';
+      else if (note.includes('Hostfully')) icon = '🟣';
+
+      const barEl = document.createElement('div');
+      barEl.className = barCls;
+      barEl.style.left   = (cs * COL_W + 2) + 'px';
+      barEl.style.width  = (spanCols * COL_W - 4) + 'px';
+      barEl.title = `${bar.name} · ${bar.from} → ${bar.to}`;
+      barEl.innerHTML = `<span class="cal-bar-icon">${icon}</span>${bar.name}`;
+      barEl.addEventListener('click', e => {
+        e.stopPropagation();
+        // If active unit, open detail panel
+        if (bar.type !== '__block__') {
+          const unit = data.find(x => x.apt === r.apt && !x.archived);
+          if (unit) { showPage('units', document.querySelector('.nav-tab')); openDetail(unit.id); }
+        } else {
+          openBlockModal(r.id, bar.from, bar);
+        }
+      });
+      rowDiv.appendChild(barEl);
+    });
+
+    rowsEl.appendChild(rowDiv);
+  });
+
+  // Sync scroll between units col and grid rows
+  const outer = document.getElementById('calGridOuter');
+  const uCol  = document.getElementById('calUnitsCol');
+  outer.onscroll = () => { uCol.scrollTop = outer.scrollTop; };
+  uCol.onscroll  = () => { outer.scrollTop = uCol.scrollTop; };
+
+  // Scroll to today on first render
+  const todayIdx = dates.indexOf(todayStr);
+  if (todayIdx >= 0) {
+    outer.scrollLeft = Math.max(0, todayIdx * COL_W - 120);
+  }
+}
+
+function openBlockModal(unitId, dateStr, existingBlock) {
+  const r = data.find(x => x.id === unitId);
+  if (!r) return;
+  _blockAptId = r.apt;
+  document.getElementById('blockModalApt').textContent = r.apt;
+  document.getElementById('blockModalInfo').innerHTML =
+    `Unit <strong>${r.apt}</strong>${r.name ? ` — ${r.name}` : ''}<br>
+     <span style="font-size:11px;color:var(--text3)">Click any cell to set the date range, or enter manually below.</span>`;
+  document.getElementById('blockFrom').value   = existingBlock ? existingBlock.from : (dateStr || today());
+  document.getElementById('blockTo').value     = existingBlock ? existingBlock.to   : (dateStr || today());
+  document.getElementById('blockReason').value = existingBlock ? (existingBlock.reason || '') : '';
+  openModal('blockModal');
+}
+
+function saveBlock() {
+  const from   = document.getElementById('blockFrom').value;
+  const to     = document.getElementById('blockTo').value;
+  const reason = document.getElementById('blockReason').value.trim();
+  if (!from || !to)   { toast('Please set both From and To dates', 'error'); return; }
+  if (from > to)       { toast('From date must be before To date', 'error'); return; }
+  if (!_blockAptId)    { toast('No unit selected', 'error'); return; }
+
+  const blocks = getBlocks();
+  if (!blocks[_blockAptId]) blocks[_blockAptId] = [];
+  // Remove any existing block that overlaps (simple replace)
+  blocks[_blockAptId] = blocks[_blockAptId].filter(b => b.to < from || b.from > to);
+  blocks[_blockAptId].push({ from, to, reason });
+  setBlocks(blocks);
+  closeModal('blockModal');
+  toast(`Dates blocked for ${_blockAptId} ✓`, 'success');
+  renderCalendar();
+}
+
+function removeBlock(apt, from, to) {
+  const blocks = getBlocks();
+  if (!blocks[apt]) return;
+  blocks[apt] = blocks[apt].filter(b => !(b.from === from && b.to === to));
+  setBlocks(blocks);
+  renderCalendar();
+  toast(`Block removed for ${apt}`, 'success');
+}
+
 
 async function boot() {
   const overlay = document.getElementById('loadingOverlay');
