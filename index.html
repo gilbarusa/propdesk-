@@ -294,16 +294,18 @@ textarea{resize:vertical;min-height:72px;}
 .cal-today-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .12s;}
 .cal-today-btn:hover{border-color:var(--accent);color:var(--accent);}
 .cal-body{display:flex;flex:1;overflow:hidden;}
-.cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;background:var(--surface);z-index:10;}
+.cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:scroll;overflow-x:hidden;background:var(--surface);z-index:10;}
 .cal-units-col::-webkit-scrollbar{display:none;}
 .cal-header-spacer{height:52px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
 .cal-header-spacer span{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);}
 .cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
 .cal-unit-row:hover{background:var(--surface2);}
 .cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-grid-outer{flex:1;overflow:auto;position:relative;cursor:grab;}
+.cal-grid-outer{flex:1;overflow:scroll;position:relative;cursor:grab;}
 .cal-grid-outer.grabbing{cursor:grabbing;}
-.cal-grid-outer::-webkit-scrollbar{height:0;width:0;display:none;}
+.cal-grid-outer::-webkit-scrollbar{height:4px;width:0;}
+.cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);}
+.cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 .cal-grid{position:relative;min-width:max-content;}
 .cal-days-header{display:flex;height:52px;position:sticky;top:0;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
 .cal-day-hdr{display:flex;flex-direction:column;align-items:center;justify-content:center;width:36px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;gap:2px;cursor:default;}
@@ -3858,13 +3860,8 @@ function renderCalendar() {
     rowsEl.appendChild(rowDiv);
   });
 
-  // Scroll to today (only on first render, preserve position after)
+  // Scroll to today on very first render only
   const outer=document.getElementById('calGridOuter');
-  const uCol=document.getElementById('calUnitsCol');
-  // Sync vertical scroll between units col and grid
-  outer.onscroll=()=>{ uCol.scrollTop=outer.scrollTop; };
-  uCol.onscroll=()=>{ outer.scrollTop=uCol.scrollTop; };
-
   if(!outer._calScrolled){
     outer._calScrolled=true;
     const todayIdx=dates.indexOf(todayStr);
@@ -4008,44 +4005,68 @@ async function saveCalBooking() {
 // ── One-time calendar scroll setup (called once after boot) ──
 function initCalScroll() {
   const outer = document.getElementById('calGridOuter');
+  const uCol  = document.getElementById('calUnitsCol');
   if (!outer || outer._dragBound) return;
   outer._dragBound = true;
 
+  // ── Vertical sync: grid rows ↔ units sidebar ──
+  // Use a flag to prevent the two scroll handlers triggering each other
+  let _syncing = false;
+  outer.addEventListener('scroll', () => {
+    if (_syncing) return;
+    _syncing = true;
+    uCol.scrollTop = outer.scrollTop;
+    _syncing = false;
+  }, { passive: true });
+  uCol.addEventListener('scroll', () => {
+    if (_syncing) return;
+    _syncing = true;
+    outer.scrollTop = uCol.scrollTop;
+    _syncing = false;
+  }, { passive: true });
+
+  // ── Mouse click-drag: move both axes freely ──
   let isDragging = false;
-  let startX, startY, originScrollLeft, originScrollTop;
+  let startX, startY, originLeft, originTop;
 
   outer.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
-    isDragging = true;
-    startX = e.clientX;
-    startY = e.clientY;
-    originScrollLeft = outer.scrollLeft;
-    originScrollTop  = outer.scrollTop;
+    isDragging   = true;
+    startX       = e.clientX;
+    startY       = e.clientY;
+    originLeft   = outer.scrollLeft;
+    originTop    = outer.scrollTop;
     outer.classList.add('grabbing');
     e.preventDefault();
   });
-
   window.addEventListener('mouseup', () => {
     isDragging = false;
     outer.classList.remove('grabbing');
-  });
-
+  }, { passive: true });
   window.addEventListener('mousemove', e => {
     if (!isDragging) return;
-    const dx = e.clientX - startX;
-    const dy = e.clientY - startY;
-    outer.scrollLeft = originScrollLeft - dx;
-    outer.scrollTop  = originScrollTop  - dy;
-  });
+    outer.scrollLeft = originLeft - (e.clientX - startX);
+    outer.scrollTop  = originTop  - (e.clientY - startY);
+  }, { passive: true });
 
-  // Trackpad / wheel: horizontal natural, vertical → redirect to horizontal
+  // ── Wheel / trackpad ──
+  // deltaX present (two-finger horizontal swipe): scroll horizontally
+  // deltaY only (mouse wheel or vertical trackpad): scroll vertically (normal)
+  // Shift + wheel: scroll horizontally
   outer.addEventListener('wheel', e => {
-    // Two-finger horizontal swipe — browser handles it natively, don't intercept
-    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-    // Vertical wheel → scroll calendar horizontally (no shift needed)
-    e.preventDefault();
-    outer.scrollLeft += e.deltaY;
-  }, { passive: false });
+    const isHorizontalSwipe = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5;
+    if (isHorizontalSwipe) {
+      // Natural horizontal swipe — let browser handle it natively
+      return;
+    }
+    if (e.shiftKey) {
+      // Shift+scroll → horizontal
+      e.preventDefault();
+      outer.scrollLeft += e.deltaY;
+      return;
+    }
+    // Plain vertical scroll → scroll rows normally (browser handles)
+  }, { passive: true });
 }
 
 
