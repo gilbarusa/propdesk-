@@ -369,10 +369,9 @@ textarea{resize:vertical;min-height:72px;}
     <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
-    <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;padding-left:8px;border-left:1px solid var(--border);margin-left:4px;">
-      <span style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);">File updated</span>
-      <span style="font-size:10px;color:var(--accent2);font-weight:500;white-space:nowrap;">Mar 26 2026, 22:00</span>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+      <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 26 2026, 22:00</span>
     </div>
   </div>
 </header>
@@ -4054,18 +4053,24 @@ function initCalScroll() {
   }, { passive: true });
 
   // ── Wheel / trackpad ──
-  // Must be non-passive so we can call preventDefault where needed
+  // non-passive so preventDefault works
   outer.addEventListener('wheel', e => {
+    e.preventDefault();
     const absX = Math.abs(e.deltaX);
     const absY = Math.abs(e.deltaY);
 
-    if (absX > absY) {
-      // Two-finger horizontal swipe → scroll calendar left/right
-      e.preventDefault();
+    if (absX > absY * 0.3) {
+      // Horizontal component dominates (trackpad two-finger swipe L/R)
       outer.scrollLeft += e.deltaX;
     } else {
-      // Vertical scroll (mouse wheel or two-finger up/down) → scroll rows
-      // Let it happen naturally — no preventDefault, browser handles it
+      // Vertical component dominates
+      if (e.shiftKey) {
+        // Shift+scroll → horizontal pan
+        outer.scrollLeft += e.deltaY;
+      } else {
+        // Normal vertical scroll → scroll the rows
+        outer.scrollTop += e.deltaY;
+      }
     }
   }, { passive: false });
 }
