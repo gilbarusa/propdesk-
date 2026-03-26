@@ -370,6 +370,10 @@ textarea{resize:vertical;min-height:72px;}
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;padding-left:8px;border-left:1px solid var(--border);margin-left:4px;">
+      <span style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);">File updated</span>
+      <span style="font-size:10px;color:var(--accent2);font-weight:500;white-space:nowrap;">Mar 26 2026, 22:00</span>
+    </div>
   </div>
 </header>
 
@@ -4050,23 +4054,20 @@ function initCalScroll() {
   }, { passive: true });
 
   // ── Wheel / trackpad ──
-  // deltaX present (two-finger horizontal swipe): scroll horizontally
-  // deltaY only (mouse wheel or vertical trackpad): scroll vertically (normal)
-  // Shift + wheel: scroll horizontally
+  // Must be non-passive so we can call preventDefault where needed
   outer.addEventListener('wheel', e => {
-    const isHorizontalSwipe = Math.abs(e.deltaX) > Math.abs(e.deltaY) * 0.5;
-    if (isHorizontalSwipe) {
-      // Natural horizontal swipe — let browser handle it natively
-      return;
-    }
-    if (e.shiftKey) {
-      // Shift+scroll → horizontal
+    const absX = Math.abs(e.deltaX);
+    const absY = Math.abs(e.deltaY);
+
+    if (absX > absY) {
+      // Two-finger horizontal swipe → scroll calendar left/right
       e.preventDefault();
-      outer.scrollLeft += e.deltaY;
-      return;
+      outer.scrollLeft += e.deltaX;
+    } else {
+      // Vertical scroll (mouse wheel or two-finger up/down) → scroll rows
+      // Let it happen naturally — no preventDefault, browser handles it
     }
-    // Plain vertical scroll → scroll rows normally (browser handles)
-  }, { passive: true });
+  }, { passive: false });
 }
 
 
