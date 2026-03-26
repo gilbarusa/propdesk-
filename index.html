@@ -301,9 +301,9 @@ textarea{resize:vertical;min-height:72px;}
 .cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
 .cal-unit-row:hover{background:var(--surface2);}
 .cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-grid-outer{flex:1;overflow:scroll;position:relative;cursor:grab;}
+.cal-grid-outer{flex:1;overflow-x:scroll;overflow-y:scroll;position:relative;cursor:grab;}
 .cal-grid-outer.grabbing{cursor:grabbing;}
-.cal-grid-outer::-webkit-scrollbar{height:4px;width:0;}
+.cal-grid-outer::-webkit-scrollbar{height:5px;width:5px;}
 .cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);}
 .cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 .cal-grid{position:relative;min-width:max-content;}
@@ -371,7 +371,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 26 2026, 22:00</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 26 2026, 22:13</span>
     </div>
   </div>
 </header>
@@ -3863,6 +3863,12 @@ function renderCalendar() {
     rowsEl.appendChild(rowDiv);
   });
 
+  // Set explicit width on grid containers so horizontal scroll works
+  const totalW = dates.length * COL_W;
+  document.getElementById('calGrid').style.width = totalW + 'px';
+  document.getElementById('calRows').style.width = totalW + 'px';
+  document.getElementById('calDaysHeader').style.width = totalW + 'px';
+
   // Scroll to today on very first render only
   const outer=document.getElementById('calGridOuter');
   if(!outer._calScrolled){
@@ -4059,6 +4065,21 @@ function initCalScroll() {
     outer.scrollLeft += e.deltaX;
     outer.scrollTop  += e.deltaY;
   }, { passive: false });
+
+  // Also handle touch events for mobile
+  let touchStartX = 0, touchStartY = 0, touchScrollLeft = 0, touchScrollTop = 0;
+  outer.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchScrollLeft = outer.scrollLeft;
+    touchScrollTop  = outer.scrollTop;
+  }, { passive: true });
+  outer.addEventListener('touchmove', e => {
+    const dx = touchStartX - e.touches[0].clientX;
+    const dy = touchStartY - e.touches[0].clientY;
+    outer.scrollLeft = touchScrollLeft + dx;
+    outer.scrollTop  = touchScrollTop  + dy;
+  }, { passive: true });
 }
 
 
