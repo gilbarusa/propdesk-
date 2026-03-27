@@ -294,13 +294,15 @@ textarea{resize:vertical;min-height:72px;}
 .cal-today-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .12s;}
 .cal-today-btn:hover{border-color:var(--accent);color:var(--accent);}
 .cal-body{display:flex;flex:1;min-height:0;overflow:hidden;}
-.cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;min-height:0;}
+.cal-units-col{width:200px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;min-height:0;}
 .cal-units-col::-webkit-scrollbar{display:none;}
 .cal-header-spacer{height:52px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
 .cal-header-spacer span{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);}
-.cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
+.cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;flex-shrink:0;gap:6px;}
 .cal-unit-row:hover{background:var(--surface2);}
-.cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-unit-name{font-size:12px;font-weight:500;color:var(--accent2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-unit-sub{font-size:9px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
+.cal-unit-cell{display:flex;flex-direction:column;justify-content:center;flex:1;overflow:hidden;}
 .cal-grid-outer{flex:1;overflow:auto;position:relative;}
 .cal-grid-outer::-webkit-scrollbar{height:8px;width:8px;} .cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb:hover{background:var(--accent);}
 .cal-grid{position:relative;min-width:max-content;}
@@ -328,6 +330,15 @@ textarea{resize:vertical;min-height:72px;}
 .cal-bar.bar-block{background:linear-gradient(90deg,#c0392b,#962d22);color:#fff;opacity:.85;}
 .cal-bar-icon{margin-right:4px;font-size:10px;flex-shrink:0;}
 .cal-legend{display:flex;gap:16px;align-items:center;margin-left:auto;}
+/* Cal Unit Panel */
+.cal-unit-panel-overlay{display:none;position:fixed;inset:0;z-index:400;}
+.cal-unit-panel-overlay.open{display:block;}
+.cal-unit-panel-backdrop{position:absolute;inset:0;background:rgba(20,16,10,.35);}
+.cal-unit-panel{position:absolute;left:0;top:0;bottom:0;width:320px;background:var(--surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;animation:slideIn .2s cubic-bezier(.34,1.2,.64,1);border-right:1px solid var(--border);}
+.cal-unit-panel-hdr{padding:20px 20px 16px;border-bottom:1px solid var(--border);background:var(--accent-bg);display:flex;justify-content:space-between;align-items:flex-start;}
+.cal-unit-panel-apt{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;color:var(--accent2);line-height:1;}
+.cal-unit-panel-body{padding:20px;flex:1;overflow-y:auto;}
+.cal-unit-panel-footer{padding:14px 20px;border-top:1px solid var(--border);background:var(--surface2);display:flex;gap:8px;justify-content:flex-end;}
 .cal-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
 .cal-leg-dot{width:10px;height:10px;border-radius:3px;}
 /* Block modal */
@@ -368,7 +379,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 27 2026, 23:04</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 27 2026, 23:25</span>
     </div>
   </div>
 </header>
@@ -3707,7 +3718,7 @@ function renderCalendar() {
   // Build date range: 90 days back → 180 days forward from today (~9 months total)
   const dates=[];
   const baseDate=new Date();
-  for(let i=-90;i<=180;i++){
+  for(let i=-180;i<=180;i++){
     const d=new Date(baseDate);
     d.setDate(d.getDate()+i);
     dates.push(d.toISOString().split('T')[0]);
@@ -3739,11 +3750,17 @@ function renderCalendar() {
   const blocks=getBlocks();
 
   // ── Units list ──
-  document.getElementById('calUnitsList').innerHTML=units.map(r=>
-    `<div class="cal-unit-row" title="${r.name||'Vacant'} — ${r.owner||''}">
-      <div class="cal-unit-name">${r.apt}</div>
-    </div>`
-  ).join('');
+  const calMeta = getCalUnitMeta();
+  document.getElementById('calUnitsList').innerHTML=units.map(r=>{
+    const meta = calMeta[r.apt] || {};
+    const sub = meta.brBath || '';
+    return `<div class="cal-unit-row" title="Click to view unit details" onclick="openCalUnitPanel(${r.id})">
+      <div class="cal-unit-cell">
+        <div class="cal-unit-name">${r.apt}</div>
+        ${sub ? `<div class="cal-unit-sub">${sub}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 
   // ── Day headers ──
   document.getElementById('calDaysHeader').innerHTML=dates.map(d=>{
@@ -4013,6 +4030,62 @@ function initCalScroll() {
 }
 
 
+// ── CAL UNIT META (localStorage: BR/Bath + internal note per apt) ──
+function getCalUnitMeta() {
+  try { return JSON.parse(localStorage.getItem('propdesk_unit_meta') || '{}'); }
+  catch(e) { return {}; }
+}
+function setCalUnitMeta(m) { localStorage.setItem('propdesk_unit_meta', JSON.stringify(m)); }
+
+function openCalUnitPanel(unitId) {
+  const r = data.find(x => x.id === unitId);
+  if (!r) return;
+  _calUnitId = unitId;
+  _calApt    = r.apt;
+  document.getElementById('cupApt').textContent    = r.apt;
+  document.getElementById('cupTenant').textContent  = r.name || 'Vacant';
+  document.getElementById('cupOwner').textContent   = r.owner || '';
+  const meta = getCalUnitMeta()[r.apt] || {};
+  document.getElementById('cupBrBath').value = meta.brBath || '';
+  document.getElementById('cupNote').value   = meta.note   || '';
+  document.getElementById('calUnitPanel').classList.add('open');
+}
+
+function closeCalUnitPanel() {
+  document.getElementById('calUnitPanel').classList.remove('open');
+}
+
+function saveCalUnitMeta() {
+  if (!_calApt) return;
+  const meta = getCalUnitMeta();
+  meta[_calApt] = {
+    brBath: document.getElementById('cupBrBath').value.trim(),
+    note:   document.getElementById('cupNote').value.trim()
+  };
+  setCalUnitMeta(meta);
+  renderCalendar(); // refresh sub-line live
+}
+
+async function deleteCalUnit() {
+  const r = data.find(x => x.id === _calUnitId);
+  if (!r) return;
+  if (!confirm(`Delete unit "${r.apt}" from active list?\nAll archive records for this unit will be kept.`)) return;
+  try {
+    // Only delete the active unit record, not archived ones
+    const { error } = await sb.from('units').delete().eq('id', r.id).eq('archived', false);
+    if (error) throw new Error(error.message);
+    await auditLog('delete-unit', r.apt, r.name || '', r.id, dbRow(r), null);
+    closeCalUnitPanel();
+    await loadAll();
+    renderCalendar();
+    renderTable();
+    toast(`Unit ${r.apt} deleted. Archive records kept. ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+
 async function boot() {
   const overlay = document.getElementById('loadingOverlay');
   const msg = overlay.querySelector('p');
@@ -4089,5 +4162,42 @@ function bootOffline() {
 
 boot();
 </script>
+
+<!-- Cal Unit Panel -->
+<div class="cal-unit-panel-overlay" id="calUnitPanel">
+  <div class="cal-unit-panel-backdrop" onclick="closeCalUnitPanel()"></div>
+  <div class="cal-unit-panel">
+    <div class="cal-unit-panel-hdr">
+      <div>
+        <div class="cal-unit-panel-apt" id="cupApt">—</div>
+        <div id="cupTenant" style="font-size:13px;font-weight:500;color:var(--text);margin-top:4px;"></div>
+        <div id="cupOwner" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
+      </div>
+      <button class="modal-close" onclick="closeCalUnitPanel()">✕</button>
+    </div>
+    <div class="cal-unit-panel-body">
+      <div class="form-row" style="margin-bottom:16px;">
+        <label>Bedrooms / Bathrooms</label>
+        <input type="text" id="cupBrBath" placeholder="e.g. 2BR/1Bath" oninput="saveCalUnitMeta()">
+        <div class="form-hint">Shown below the unit number on the calendar</div>
+      </div>
+      <div class="form-row" style="margin-bottom:16px;">
+        <label>Internal Note</label>
+        <textarea id="cupNote" placeholder="Private note — maintenance history, access codes, owner preferences…" style="min-height:100px;" oninput="saveCalUnitMeta()"></textarea>
+        <div class="form-hint">Only visible here, not shown to tenants</div>
+      </div>
+      <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;padding:16px;margin-top:8px;">
+        <div style="font-size:11px;font-weight:500;color:var(--red);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Danger Zone</div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:12px;">Removes this unit from the active list. All archive records for this unit are kept.</div>
+        <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;width:100%;justify-content:center;" onclick="deleteCalUnit()">🗑 Delete Unit (keep archive)</button>
+      </div>
+    </div>
+    <div class="cal-unit-panel-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeCalUnitPanel()">Close</button>
+      <button class="btn btn-primary btn-sm" onclick="openEditModal(_calUnitId)">✏️ Edit Unit</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
