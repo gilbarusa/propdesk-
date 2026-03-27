@@ -29,7 +29,7 @@
 }
 
 /* ── Base ── */
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;height:100vh;display:flex;flex-direction:column;
   background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5784a' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
@@ -38,7 +38,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
   background:var(--surface);
   border-bottom:2px solid var(--border);padding:0 32px;display:flex;align-items:center;
   justify-content:space-between;height:var(--header-h);position:sticky;top:0;z-index:200;
-  box-shadow:0 2px 8px rgba(0,0,0,.06);
+  box-shadow:0 2px 8px rgba(0,0,0,.06);flex-shrink:0;
 }
 .brand{display:flex;align-items:baseline;gap:12px;}
 .brand h1{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--accent2);letter-spacing:-.3px;}
@@ -47,11 +47,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 #syncStatus{color:var(--text3) !important;font-size:11px;}
 
 /* ── Nav ── */
-.nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;gap:0;box-shadow:var(--shadow);}
+.nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;gap:0;box-shadow:var(--shadow);flex-shrink:0;}
 .nav-tab{padding:14px 22px;font-size:11px;font-weight:500;letter-spacing:.5px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;white-space:nowrap;}
 .nav-tab:hover{color:var(--text2);background:var(--surface2);}
 .nav-tab.active{color:var(--accent2);border-bottom-color:var(--accent);background:var(--accent-bg);}
-.page{display:none;}.page.active{display:block;}
+.page{display:none;}.page.active{display:block;}.page.active#page-calendar{display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 48px);overflow:hidden;}#page-calendar.active{display:flex;flex-direction:column;}
 
 /* ── Stats bar ── */
 .stats-bar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;box-shadow:var(--shadow);}
@@ -285,15 +285,15 @@ textarea{resize:vertical;min-height:72px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 
 /* ── CALENDAR PAGE ── */
-.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 48px);}
-.cal-toolbar{padding:12px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;}
+.cal-wrap{display:flex;flex-direction:column;flex:1;min-height:0;}
+.cal-toolbar{padding:10px 20px;display:flex;gap:10px;align-items:center;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;overflow:visible;}
 .cal-nav{display:flex;align-items:center;gap:8px;}
 .cal-nav button{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
 .cal-nav button:hover{border-color:var(--accent);color:var(--accent);}
 .cal-month-label{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);min-width:140px;text-align:center;}
 .cal-today-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .12s;}
 .cal-today-btn:hover{border-color:var(--accent);color:var(--accent);}
-.cal-body{display:flex;flex:1;min-height:0;}
+.cal-body{display:flex;flex:1;min-height:0;overflow:hidden;}
 .cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;min-height:0;}
 .cal-units-col::-webkit-scrollbar{display:none;}
 .cal-header-spacer{height:52px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
@@ -368,7 +368,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 27 2026, 22:54</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 27 2026, 23:04</span>
     </div>
   </div>
 </header>
@@ -445,12 +445,7 @@ textarea{resize:vertical;min-height:72px;}
 <div class="page" id="page-calendar">
   <div class="cal-wrap">
     <div class="cal-toolbar">
-      <div class="cal-nav">
-        <button onclick="calPrevMonth()" title="Previous month">&#8249;</button>
-        <span class="cal-month-label" id="calMonthLabel">April 2026</span>
-        <button onclick="calNextMonth()" title="Next month">&#8250;</button>
-        <button class="cal-today-btn" onclick="calGoToday()">Today</button>
-      </div>
+      <button class="cal-today-btn" onclick="calGoToday()">Today</button>
       <div class="filter-pills">
         <button class="pill active" data-caltype="all" onclick="calFilterType(this)">All</button>
         <button class="pill" data-caltype="long-term" onclick="calFilterType(this)">Long Term</button>
@@ -458,18 +453,10 @@ textarea{resize:vertical;min-height:72px;}
         <button class="pill" data-caltype="short-stay" onclick="calFilterType(this)">Short Stay</button>
         <button class="pill" data-caltype="available" onclick="calFilterType(this)">Available</button>
       </div>
-      <div class="search-wrap" style="max-width:200px">
+      <div class="search-wrap" style="max-width:220px;flex-shrink:0;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input type="text" id="calSearch" placeholder="Search unit, tenant&hellip;" oninput="renderCalendar()">
       </div>
-      <select id="calOwnerFilter" onchange="renderCalendar()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;cursor:pointer;box-shadow:var(--shadow);">
-        <option value="">All Owners</option>
-        <option>ERA LT</option>
-        <option>Elkins LT</option>
-        <option>Melrose Properties</option>
-        <option>Fox Chase Properties</option>
-        <option>Montgomery Garages</option>
-      </select>
       <div class="spacer"></div>
       <div class="cal-legend">
         <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#2563a8"></div>Long Term</div>
@@ -3714,30 +3701,26 @@ function calGoToday() {
 function renderCalendar() {
   const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const DAY_ABBR=['SU','MO','TU','WE','TH','FR','SA'];
-  document.getElementById('calMonthLabel').textContent=`${MONTH_NAMES[calMonth]} ${calYear}`;
-
-  const daysInCur = new Date(calYear,calMonth+1,0).getDate();
   const todayStr  = new Date().toISOString().split('T')[0];
-  const curMonthStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  // curMonthStr not needed — 270-day window has no dim logic
 
-  // Build date range: prev month tail + full current + next month head
+  // Build date range: 90 days back → 180 days forward from today (~9 months total)
   const dates=[];
-  const firstDow=new Date(calYear,calMonth,1).getDay();
-  for(let i=firstDow-1;i>=0;i--){const d=new Date(calYear,calMonth,-i);dates.push(d.toISOString().split('T')[0]);}
-  for(let d=1;d<=daysInCur;d++){dates.push(new Date(calYear,calMonth,d).toISOString().split('T')[0]);}
-  const lastDow=new Date(calYear,calMonth,daysInCur).getDay();
-  for(let i=1;i<7-lastDow;i++){dates.push(new Date(calYear,calMonth+1,i).toISOString().split('T')[0]);}
+  const baseDate=new Date();
+  for(let i=-90;i<=180;i++){
+    const d=new Date(baseDate);
+    d.setDate(d.getDate()+i);
+    dates.push(d.toISOString().split('T')[0]);
+  }
 
   const COL_W=36;
   const winStart=dates[0], winEnd=dates[dates.length-1];
 
   // ── Filter units ──
   const q=(document.getElementById('calSearch')?.value||'').toLowerCase();
-  const owner=document.getElementById('calOwnerFilter')?.value||'';
   let units=data.filter(r=>!r.archived);
   if(calTypeFilter!=='all') units=units.filter(r=>r.type===calTypeFilter);
   if(q) units=units.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
-  if(owner) units=units.filter(r=>r.owner===owner);
   units.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
   document.getElementById('calUnitCount').textContent=`Units (${units.length})`;
 
@@ -3766,8 +3749,7 @@ function renderCalendar() {
   document.getElementById('calDaysHeader').innerHTML=dates.map(d=>{
     const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
     const isWE=dow===0||dow===6,isToday=d===todayStr;
-    const isPrevNext=d.substring(0,7)!==curMonthStr;
-    return`<div class="cal-day-hdr${isWE?' weekend':''}${isToday?' today':''}" style="${isPrevNext?'opacity:.35':''}">
+    return`<div class="cal-day-hdr${isWE?' weekend':''}${isToday?' today':''}">
       <div class="day-name">${DAY_ABBR[dow]}</div>
       <div class="day-num">${dt.getDate()}</div>
     </div>`;
@@ -3787,13 +3769,12 @@ function renderCalendar() {
     dates.forEach(d=>{
       const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
       const isWE=dow===0||dow===6,isToday=d===todayStr;
-      const isPrevNext=d.substring(0,7)!==curMonthStr;
       const isBlocked=aptBlocks.some(b=>d>=b.from&&d<=b.to);
       let cls='cal-cell';
       if(isWE) cls+=' weekend';
       if(isToday) cls+=' today-col';
       if(isBlocked) cls+=' blocked';
-      cellsHtml+=`<div class="${cls}" style="${isPrevNext?'opacity:.4':''}" onclick="onCalCellClick(${r.id},'${r.apt}','${d}')"></div>`;
+      cellsHtml+=`<div class="${cls}" onclick="onCalCellClick(${r.id},'${r.apt}','${d}')"></div>`;
     });
     rowDiv.innerHTML=cellsHtml;
 
