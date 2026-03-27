@@ -285,7 +285,7 @@ textarea{resize:vertical;min-height:72px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 
 /* ── CALENDAR PAGE ── */
-.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 48px);overflow:hidden;}
+.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 48px);}
 .cal-toolbar{padding:12px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;}
 .cal-nav{display:flex;align-items:center;gap:8px;}
 .cal-nav button{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
@@ -293,15 +293,15 @@ textarea{resize:vertical;min-height:72px;}
 .cal-month-label{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);min-width:140px;text-align:center;}
 .cal-today-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .12s;}
 .cal-today-btn:hover{border-color:var(--accent);color:var(--accent);}
-.cal-body{display:flex;flex:1;overflow:hidden;}
-.cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:scroll;overflow-x:hidden;background:var(--surface);z-index:10;}
+.cal-body{display:flex;flex:1;min-height:0;}
+.cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;min-height:0;}
 .cal-units-col::-webkit-scrollbar{display:none;}
 .cal-header-spacer{height:52px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
 .cal-header-spacer span{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);}
 .cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
 .cal-unit-row:hover{background:var(--surface2);}
 .cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-grid-outer{flex:1;overflow-x:scroll;overflow-y:scroll;position:relative;}
+.cal-grid-outer{flex:1;overflow:auto;position:relative;}
 .cal-grid-outer::-webkit-scrollbar{height:8px;width:8px;} .cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb:hover{background:var(--accent);}
 .cal-grid{position:relative;min-width:max-content;}
 .cal-days-header{display:flex;height:52px;position:sticky;top:0;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
@@ -368,7 +368,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 26 2026, 22:16</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 27 2026, 22:54</span>
     </div>
   </div>
 </header>
