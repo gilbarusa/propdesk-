@@ -29,7 +29,7 @@
 }
 
 /* ── Base ── */
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;overflow-x:hidden;
   background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5784a' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
@@ -54,7 +54,10 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 .page{display:none;}.page.active{display:block;}
 
 /* ── Stats bar ── */
-.stats-bar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;box-shadow:var(--shadow);}
+.stats-bar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--shadow);}
+.stats-bar::-webkit-scrollbar{height:4px;}
+.stats-bar::-webkit-scrollbar-track{background:var(--surface2);}
+.stats-bar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
 .stat-card{padding:16px 28px;border-right:1px solid var(--border);cursor:pointer;transition:all .2s;min-width:120px;flex-shrink:0;position:relative;}
 .stat-card:hover{background:var(--surface2);}
 .stat-card.active{background:var(--accent-bg);}
@@ -87,7 +90,11 @@ select.sort-sel{background:var(--surface);border:1px solid var(--border);border-
 .btn-sm{padding:5px 12px;font-size:11px;}
 
 /* ── Table ── */
-.table-wrap{padding:20px 32px 40px;overflow-x:auto;}
+.table-wrap{padding:20px 32px 40px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.table-wrap::-webkit-scrollbar{height:8px;}
+.table-wrap::-webkit-scrollbar-track{background:var(--surface2);border-radius:4px;}
+.table-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+.table-wrap::-webkit-scrollbar-thumb:hover{background:var(--accent);}
 table{width:100%;border-collapse:separate;border-spacing:0;}
 thead th{background:var(--surface2);padding:10px 14px;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);border-bottom:2px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s;}
 thead th:first-child{border-radius:8px 0 0 0;}
@@ -280,63 +287,11 @@ textarea{resize:vertical;min-height:72px;}
 .or-col{min-width:80px;text-align:right;}
 .trend-wrap{position:relative;height:240px;}
 
-::-webkit-scrollbar{width:6px;height:6px;}
-::-webkit-scrollbar-track{background:var(--bg);}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
-
-/* ── CALENDAR PAGE ── */
-.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 48px);overflow:hidden;}
-.cal-toolbar{padding:12px 24px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;}
-.cal-nav{display:flex;align-items:center;gap:8px;}
-.cal-nav button{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
-.cal-nav button:hover{border-color:var(--accent);color:var(--accent);}
-.cal-month-label{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);min-width:140px;text-align:center;}
-.cal-today-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .12s;}
-.cal-today-btn:hover{border-color:var(--accent);color:var(--accent);}
-.cal-body{display:flex;flex:1;overflow:hidden;}
-.cal-units-col{width:180px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:scroll;overflow-x:hidden;background:var(--surface);z-index:10;}
-.cal-units-col::-webkit-scrollbar{display:none;}
-.cal-header-spacer{height:52px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
-.cal-header-spacer span{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);}
-.cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;transition:background .12s;flex-shrink:0;}
-.cal-unit-row:hover{background:var(--surface2);}
-.cal-unit-name{font-size:12px;font-weight:500;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-grid-outer{flex:1;overflow-x:scroll;overflow-y:scroll;position:relative;}
-.cal-grid-outer::-webkit-scrollbar{height:8px;width:8px;} .cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb:hover{background:var(--accent);}
-.cal-grid{position:relative;min-width:max-content;}
-.cal-days-header{display:flex;height:52px;position:sticky;top:0;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
-.cal-day-hdr{display:flex;flex-direction:column;align-items:center;justify-content:center;width:36px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;gap:2px;cursor:default;}
-.cal-day-hdr.weekend{background:rgba(181,120,74,.06);}
-.cal-day-hdr.today{background:var(--green);color:#fff;}
-.cal-day-hdr .day-num{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;line-height:1;}
-.cal-day-hdr .day-name{font-size:8px;letter-spacing:.5px;}
-.cal-rows{position:relative;}
-.cal-row{display:flex;height:44px;border-bottom:1px solid var(--border);position:relative;align-items:center;}
-.cal-cell{width:36px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;cursor:pointer;transition:background .1s;}
-.cal-cell:hover{background:rgba(181,120,74,.08);}
-.cal-cell.weekend{background:rgba(181,120,74,.04);}
-.cal-cell.weekend:hover{background:rgba(181,120,74,.1);}
-.cal-cell.today-col{background:rgba(37,102,69,.06);}
-.cal-cell.today-col:hover{background:rgba(37,102,69,.12);}
-.cal-cell.blocked{background:repeating-linear-gradient(45deg,rgba(184,50,40,.07),rgba(184,50,40,.07) 4px,transparent 4px,transparent 8px);}
-.cal-cell.blocked:hover{background:repeating-linear-gradient(45deg,rgba(184,50,40,.14),rgba(184,50,40,.14) 4px,transparent 4px,transparent 8px);}
-.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;}
-.cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
-.cal-bar.bar-lt{background:linear-gradient(90deg,#2563a8,#1e5799);color:#fff;}
-.cal-bar.bar-mtm{background:linear-gradient(90deg,#7c4fbe,#5e3f9e);color:#fff;}
-.cal-bar.bar-ss{background:linear-gradient(90deg,#e07818,#b86818);color:#fff;}
-.cal-bar.bar-block{background:linear-gradient(90deg,#c0392b,#962d22);color:#fff;opacity:.85;}
-.cal-bar-icon{margin-right:4px;font-size:10px;flex-shrink:0;}
-.cal-legend{display:flex;gap:16px;align-items:center;margin-left:auto;}
-.cal-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
-.cal-leg-dot{width:10px;height:10px;border-radius:3px;}
-/* Block modal */
-.block-modal-info{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);}
-.block-modal-info strong{color:var(--accent2);}
-.cal-bar-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-bar-x{margin-left:6px;flex-shrink:0;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.25);display:inline-flex;align-items:center;justify-content:center;font-size:9px;line-height:1;cursor:pointer;transition:background .15s;}
-.cal-bar-x:hover{background:rgba(255,255,255,.5);}
-.cal-bar{display:flex;align-items:center;}
+::-webkit-scrollbar{width:7px;height:7px;}
+::-webkit-scrollbar-track{background:var(--surface2);border-radius:4px;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--accent);}
+html{scrollbar-width:thin;scrollbar-color:var(--border2) var(--surface2);}
 .loading-overlay{position:fixed;inset:0;background:rgba(244,242,238,.96);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
 .loading-overlay h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--accent2);letter-spacing:-.3px;}
 .loading-overlay p{font-size:12px;color:var(--text3);letter-spacing:.5px;}
@@ -366,17 +321,13 @@ textarea{resize:vertical;min-height:72px;}
     <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-      <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 26 2026, 22:16</span>
-    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
   </div>
 </header>
 
 <nav class="nav-tabs">
   <div class="nav-tab active" onclick="showPage('units',this)">🏠 Units</div>
   <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
-  <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
   <div class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</div>
   <div class="nav-tab" onclick="showPage('reports',this)">📈 Reports</div>
 </nav>
@@ -440,152 +391,6 @@ textarea{resize:vertical;min-height:72px;}
     </div>
   </div>
 </div>
-
-<!-- ═══ CALENDAR PAGE ═══ -->
-<div class="page" id="page-calendar">
-  <div class="cal-wrap">
-    <div class="cal-toolbar">
-      <div class="cal-nav">
-        <button onclick="calPrevMonth()" title="Previous month">&#8249;</button>
-        <span class="cal-month-label" id="calMonthLabel">April 2026</span>
-        <button onclick="calNextMonth()" title="Next month">&#8250;</button>
-        <button class="cal-today-btn" onclick="calGoToday()">Today</button>
-      </div>
-      <div class="filter-pills">
-        <button class="pill active" data-caltype="all" onclick="calFilterType(this)">All</button>
-        <button class="pill" data-caltype="long-term" onclick="calFilterType(this)">Long Term</button>
-        <button class="pill" data-caltype="month-to-month" onclick="calFilterType(this)">M-to-M</button>
-        <button class="pill" data-caltype="short-stay" onclick="calFilterType(this)">Short Stay</button>
-        <button class="pill" data-caltype="available" onclick="calFilterType(this)">Available</button>
-      </div>
-      <div class="search-wrap" style="max-width:200px">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="calSearch" placeholder="Search unit, tenant&hellip;" oninput="renderCalendar()">
-      </div>
-      <select id="calOwnerFilter" onchange="renderCalendar()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;cursor:pointer;box-shadow:var(--shadow);">
-        <option value="">All Owners</option>
-        <option>ERA LT</option>
-        <option>Elkins LT</option>
-        <option>Melrose Properties</option>
-        <option>Fox Chase Properties</option>
-        <option>Montgomery Garages</option>
-      </select>
-      <div class="spacer"></div>
-      <div class="cal-legend">
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#2563a8"></div>Long Term</div>
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#7c4fbe"></div>M-to-M</div>
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#e07818"></div>Short Stay</div>
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#c0392b"></div>Blocked</div>
-      </div>
-    </div>
-    <div class="cal-body">
-      <div class="cal-units-col" id="calUnitsCol">
-        <div class="cal-header-spacer"><span id="calUnitCount">Units (0)</span></div>
-        <div id="calUnitsList"></div>
-      </div>
-      <div class="cal-grid-outer" id="calGridOuter">
-        <div class="cal-grid" id="calGrid">
-          <div class="cal-days-header" id="calDaysHeader"></div>
-          <div class="cal-rows" id="calRows"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Cal Action Picker Modal -->
-<div class="modal-overlay" id="calActionModal">
-  <div class="modal" style="max-width:380px">
-    <div class="modal-header">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Calendar Action</h2>
-        <div id="calActionApt" style="font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--accent2);margin-top:2px"></div>
-        <div id="calActionDate" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
-      </div>
-      <button class="modal-close" onclick="closeModal('calActionModal')">&#x2715;</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;padding-top:18px;padding-bottom:18px;">
-      <button class="btn btn-primary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openCalBookingModal()">
-        &#43; Add Booking
-        <span style="font-size:10px;opacity:.8;margin-left:6px">New tenant / stay on this unit</span>
-      </button>
-      <button class="btn btn-secondary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openBlockModal()">
-        &#128683; Block Dates
-        <span style="font-size:10px;opacity:.8;margin-left:6px">Mark unavailable / maintenance</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Block Dates Modal -->
-<div class="modal-overlay" id="blockModal">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Block Dates</h2>
-        <div id="blockModalApt" style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--accent2);margin-top:2px"></div>
-      </div>
-      <button class="modal-close" onclick="closeModal('blockModal')">&#x2715;</button>
-    </div>
-    <div class="modal-body">
-      <div class="block-modal-info" id="blockModalInfo">Select a date range to mark this unit as unavailable.</div>
-      <div class="form-grid">
-        <div class="form-row"><label>Block From</label><input type="date" id="blockFrom"></div>
-        <div class="form-row"><label>Block To</label><input type="date" id="blockTo"></div>
-      </div>
-      <div class="form-row"><label>Reason (optional)</label><input type="text" id="blockReason" placeholder="Maintenance, renovation&hellip;"></div>
-      <div id="deleteBlockRow" style="display:none;margin-top:8px;">
-        <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);width:100%;justify-content:center;" onclick="deleteCurrentBlock()">&#128465; Delete This Block</button>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('blockModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveBlock()">&#128683; Save Block</button>
-    </div>
-  </div>
-</div>
-
-<!-- Calendar Add Booking Modal -->
-<div class="modal-overlay" id="calBookingModal">
-  <div class="modal" style="max-width:540px">
-    <div class="modal-header" style="background:linear-gradient(180deg,var(--surface2),var(--surface));">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Add Booking</h2>
-        <div id="calBookingApt" style="font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--accent2);margin-top:2px"></div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:1px;">Additional booking on this unit</div>
-      </div>
-      <button class="modal-close" onclick="closeModal('calBookingModal')">&#x2715;</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-row"><label>Tenant Name</label><input type="text" id="cbName" placeholder="Full name"></div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label>Type</label>
-          <select id="cbType">
-            <option value="short-stay">Short Stay</option>
-            <option value="long-term">Long Term</option>
-            <option value="month-to-month">Month-to-Month</option>
-          </select>
-        </div>
-        <div class="form-row"><label>Owner</label><input type="text" id="cbOwner" placeholder="Owner name"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row"><label>Check-in</label><input type="date" id="cbCheckin"></div>
-        <div class="form-row"><label>Checkout / Lease End</label><input type="date" id="cbCheckout"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row"><label>Rent / Stay Amount ($)</label><input type="number" id="cbRent" placeholder="0.00" step="0.01"></div>
-        <div class="form-row"><label>Balance Owed ($)</label><input type="number" id="cbBalance" placeholder="0.00" step="0.01"><div class="form-hint">0 = fully paid</div></div>
-      </div>
-      <div class="form-row"><label>Note (platform, contact, etc.)</label><textarea id="cbNote" placeholder="Via: Airbnb | Tel: 555-0000 | Email: guest@email.com" style="min-height:60px"></textarea></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('calBookingModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveCalBooking()">&#43; Save Booking</button>
-    </div>
-  </div>
-</div>
-
 
 <!-- ═══ DASHBOARD PAGE ═══ -->
 <div class="page" id="page-dashboard">
@@ -2108,7 +1913,6 @@ function subscribeRealtime() {
       const page = document.querySelector('.page.active');
       if (page && page.id === 'page-dashboard') renderDashboard();
       if (page && page.id === 'page-reports') renderReports();
-      if (page && page.id === 'page-calendar') renderCalendar();
     })
     .subscribe();
 }
@@ -2668,7 +2472,7 @@ function closeDetail(){document.getElementById('detailOverlay').classList.remove
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal','calActionModal','blockModal','calBookingModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
+document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
 function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;document.getElementById('toastWrap').appendChild(t);setTimeout(()=>t.remove(),3200);}
 function exportCSV(){const h=['Apt','Owner','Tenant','Type','Rent','Balance','Due Date','Note'];const rows=data.filter(r=>!r.archived).map(r=>[r.apt,r.owner,r.name,r.type,r.rent,r.balance,r.due,`"${(r.note||'').replace(/"/g,'""')}"`]);const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h,...rows].map(r=>r.join(',')).join('\n'));a.download='propdesk-export.csv';a.click();toast('CSV exported ✓','success');}
 
@@ -2681,7 +2485,6 @@ function showPage(p,el){
   if(p==='dashboard'){renderDashboard();checkBackupStatus();}
   if(p==='reports')renderReports();
   if(p==='history')renderHistory();
-  if(p==='calendar')renderCalendar();
 }
 
 // ── BACKUP ─────────────────────────────────────────
@@ -3671,367 +3474,6 @@ function renderReports(){
 // ── INIT ───────────────────────────────────────────
 document.getElementById('sortSel').value='due';
 
-// ═══════════════════════════════════════════════
-// CALENDAR
-// ═══════════════════════════════════════════════
-
-let calYear       = new Date().getFullYear();
-let calMonth      = new Date().getMonth();
-let calTypeFilter = 'all';
-let _calUnitId    = null;   // active unit id for action modals
-let _calApt       = null;   // active apt string
-let _calDate      = null;   // clicked date
-let _editingBlock = null;   // existing block being edited {from,to,reason}
-
-// ── localStorage blocks store ──
-function getBlocks() {
-  try { return JSON.parse(localStorage.getItem('propdesk_blocks') || '{}'); }
-  catch(e) { return {}; }
-}
-function setBlocks(b) { localStorage.setItem('propdesk_blocks', JSON.stringify(b)); }
-
-// ── Filter pills ──
-function calFilterType(el) {
-  document.querySelectorAll('[data-caltype]').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  calTypeFilter = el.dataset.caltype;
-  renderCalendar();
-}
-
-// ── Navigation ──
-function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
-function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
-function calGoToday() {
-  const n=new Date(); calYear=n.getFullYear(); calMonth=n.getMonth();
-  renderCalendar();
-  setTimeout(()=>{
-    const t=document.querySelector('.cal-day-hdr.today');
-    if(t) t.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
-  },80);
-}
-
-// ── Main render ──
-function renderCalendar() {
-  const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DAY_ABBR=['SU','MO','TU','WE','TH','FR','SA'];
-  document.getElementById('calMonthLabel').textContent=`${MONTH_NAMES[calMonth]} ${calYear}`;
-
-  const daysInCur = new Date(calYear,calMonth+1,0).getDate();
-  const todayStr  = new Date().toISOString().split('T')[0];
-  const curMonthStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}`;
-
-  // Build date range: prev month tail + full current + next month head
-  const dates=[];
-  const firstDow=new Date(calYear,calMonth,1).getDay();
-  for(let i=firstDow-1;i>=0;i--){const d=new Date(calYear,calMonth,-i);dates.push(d.toISOString().split('T')[0]);}
-  for(let d=1;d<=daysInCur;d++){dates.push(new Date(calYear,calMonth,d).toISOString().split('T')[0]);}
-  const lastDow=new Date(calYear,calMonth,daysInCur).getDay();
-  for(let i=1;i<7-lastDow;i++){dates.push(new Date(calYear,calMonth+1,i).toISOString().split('T')[0]);}
-
-  const COL_W=36;
-  const winStart=dates[0], winEnd=dates[dates.length-1];
-
-  // ── Filter units ──
-  const q=(document.getElementById('calSearch')?.value||'').toLowerCase();
-  const owner=document.getElementById('calOwnerFilter')?.value||'';
-  let units=data.filter(r=>!r.archived);
-  if(calTypeFilter!=='all') units=units.filter(r=>r.type===calTypeFilter);
-  if(q) units=units.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
-  if(owner) units=units.filter(r=>r.owner===owner);
-  units.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
-  document.getElementById('calUnitCount').textContent=`Units (${units.length})`;
-
-  // ── Build archived stays in window (for overlay bars) ──
-  const staysByApt={};
-  archived.filter(r=>r.archived).forEach(r=>{
-    const ci=r.checkin||r.checkinDate||'';
-    const co=r.archivedDate||r.due||'';
-    if(!ci&&!co) return;
-    const bs=ci||co, be=co||ci;
-    if(be<winStart||bs>winEnd) return;
-    if(!staysByApt[r.apt]) staysByApt[r.apt]=[];
-    staysByApt[r.apt].push({id:r.id,name:r.name,from:bs,to:be,type:r.type,note:r.note||'',archived:true});
-  });
-
-  const blocks=getBlocks();
-
-  // ── Units list ──
-  document.getElementById('calUnitsList').innerHTML=units.map(r=>
-    `<div class="cal-unit-row" title="${r.name||'Vacant'} — ${r.owner||''}">
-      <div class="cal-unit-name">${r.apt}</div>
-    </div>`
-  ).join('');
-
-  // ── Day headers ──
-  document.getElementById('calDaysHeader').innerHTML=dates.map(d=>{
-    const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
-    const isWE=dow===0||dow===6,isToday=d===todayStr;
-    const isPrevNext=d.substring(0,7)!==curMonthStr;
-    return`<div class="cal-day-hdr${isWE?' weekend':''}${isToday?' today':''}" style="${isPrevNext?'opacity:.35':''}">
-      <div class="day-name">${DAY_ABBR[dow]}</div>
-      <div class="day-num">${dt.getDate()}</div>
-    </div>`;
-  }).join('');
-
-  // ── Rows ──
-  const rowsEl=document.getElementById('calRows');
-  rowsEl.innerHTML='';
-
-  units.forEach(r=>{
-    const rowDiv=document.createElement('div');
-    rowDiv.className='cal-row';
-    rowDiv.style.width=(dates.length*COL_W)+'px';
-
-    const aptBlocks=blocks[r.apt]||[];
-    let cellsHtml='';
-    dates.forEach(d=>{
-      const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
-      const isWE=dow===0||dow===6,isToday=d===todayStr;
-      const isPrevNext=d.substring(0,7)!==curMonthStr;
-      const isBlocked=aptBlocks.some(b=>d>=b.from&&d<=b.to);
-      let cls='cal-cell';
-      if(isWE) cls+=' weekend';
-      if(isToday) cls+=' today-col';
-      if(isBlocked) cls+=' blocked';
-      cellsHtml+=`<div class="${cls}" style="${isPrevNext?'opacity:.4':''}" onclick="onCalCellClick(${r.id},'${r.apt}','${d}')"></div>`;
-    });
-    rowDiv.innerHTML=cellsHtml;
-
-    // ── Bars ──
-    const bars=[];
-    // Active tenant
-    if(r.type!=='available'&&r.name){
-      const bf=r.checkin||'',bt=r.due||r.lease_end||'';
-      if(bf||bt) bars.push({name:r.name,from:bf||bt,to:bt||bf,type:r.type,note:r.note||'',active:true,unitId:r.id});
-    }
-    // Archived stays
-    (staysByApt[r.apt]||[]).forEach(s=>bars.push(s));
-    // Blocks
-    aptBlocks.forEach(b=>bars.push({name:b.reason||'Blocked',from:b.from,to:b.to,type:'__block__',blockData:b}));
-
-    bars.forEach(bar=>{
-      const cf=bar.from<winStart?winStart:bar.from;
-      const ct=bar.to>winEnd?winEnd:bar.to;
-      const cs=dates.indexOf(cf), ce=dates.indexOf(ct);
-      if(cs<0&&ce<0) return;
-      const s=cs>=0?cs:0, e=ce>=0?ce:dates.length-1;
-      const span=e-s+1; if(span<1) return;
-
-      let barCls='cal-bar ';
-      let icon='🏠';
-      if(bar.type==='long-term')      {barCls+='bar-lt';icon='🏠';}
-      else if(bar.type==='month-to-month'){barCls+='bar-mtm';icon='📋';}
-      else if(bar.type==='short-stay')    {barCls+='bar-ss';icon='✈️';}
-      else if(bar.type==='__block__')     {barCls+='bar-block';icon='🚫';}
-
-      const note=bar.note||'';
-      if(note.includes('Airbnb'))      icon='🏡';
-      else if(note.includes('Booking'))icon='🔵';
-      else if(note.includes('Vrbo'))   icon='🟠';
-      else if(note.includes('Hostfully'))icon='🟣';
-
-      const barEl=document.createElement('div');
-      barEl.className=barCls;
-      barEl.style.left=(s*COL_W+2)+'px';
-      barEl.style.width=(span*COL_W-4)+'px';
-      barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
-
-      // Delete X button for blocks
-      const xBtn = bar.type==='__block__'
-        ? `<span class="cal-bar-x" onclick="event.stopPropagation();deleteBlock('${r.apt}','${bar.from}','${bar.to}')">&#x2715;</span>`
-        : '';
-      barEl.innerHTML=`<span class="cal-bar-icon">${icon}</span><span class="cal-bar-label">${bar.name}</span>${xBtn}`;
-
-      barEl.addEventListener('click',e=>{
-        e.stopPropagation();
-        if(bar.type==='__block__'){
-          // Open block modal in edit mode
-          _calUnitId=r.id; _calApt=r.apt; _editingBlock=bar.blockData;
-          openBlockModal();
-        } else if(bar.active){
-          // Navigate to unit detail
-          showPage('units',document.querySelector('[data-page="units"]')||document.querySelector('.nav-tab'));
-          openDetail(bar.unitId);
-        }
-      });
-      rowDiv.appendChild(barEl);
-    });
-
-    rowsEl.appendChild(rowDiv);
-  });
-
-  // Set explicit width on grid containers so horizontal scroll works
-  const totalW = dates.length * COL_W;
-  document.getElementById('calGrid').style.width = totalW + 'px';
-  document.getElementById('calRows').style.width = totalW + 'px';
-  document.getElementById('calDaysHeader').style.width = totalW + 'px';
-
-  // Scroll to today on very first render only
-  const outer=document.getElementById('calGridOuter');
-  if(!outer._calScrolled){
-    outer._calScrolled=true;
-    const todayIdx=dates.indexOf(todayStr);
-    if(todayIdx>=0) outer.scrollLeft=Math.max(0,todayIdx*COL_W-120);
-  }
-}
-
-// ── Cell click: show action picker ──
-function onCalCellClick(unitId, apt, dateStr) {
-  _calUnitId=unitId; _calApt=apt; _calDate=dateStr; _editingBlock=null;
-  document.getElementById('calActionApt').textContent=apt;
-  const r=data.find(x=>x.id===unitId);
-  document.getElementById('calActionDate').textContent=
-    (r&&r.name?r.name+' · ':'')+fmtDate(dateStr);
-  openModal('calActionModal');
-}
-
-// ── Block modal ──
-function openBlockModal() {
-  const r=data.find(x=>x.id===_calUnitId);
-  document.getElementById('blockModalApt').textContent=_calApt||'';
-  const eb=_editingBlock;
-  document.getElementById('blockFrom').value=eb?eb.from:(_calDate||today());
-  document.getElementById('blockTo').value=eb?eb.to:(_calDate||today());
-  document.getElementById('blockReason').value=eb?(eb.reason||''):'';
-  document.getElementById('blockModalInfo').innerHTML=
-    `Unit <strong>${_calApt}</strong>${r&&r.name?' — '+r.name:''}<br>
-     <span style="font-size:11px;color:var(--text3)">${eb?'Edit or delete this block:':'Set the date range to block:'}</span>`;
-  // Show delete button only when editing existing block
-  document.getElementById('deleteBlockRow').style.display=eb?'':'none';
-  openModal('blockModal');
-}
-
-function saveBlock() {
-  const from=document.getElementById('blockFrom').value;
-  const to=document.getElementById('blockTo').value;
-  const reason=document.getElementById('blockReason').value.trim();
-  if(!from||!to){toast('Please set both From and To dates','error');return;}
-  if(from>to){toast('From date must be before To date','error');return;}
-  if(!_calApt){toast('No unit selected','error');return;}
-  const blocks=getBlocks();
-  if(!blocks[_calApt]) blocks[_calApt]=[];
-  // Remove overlapping blocks (or the one being edited)
-  if(_editingBlock) {
-    blocks[_calApt]=blocks[_calApt].filter(b=>!(b.from===_editingBlock.from&&b.to===_editingBlock.to));
-  } else {
-    blocks[_calApt]=blocks[_calApt].filter(b=>b.to<from||b.from>to);
-  }
-  blocks[_calApt].push({from,to,reason});
-  setBlocks(blocks);
-  closeModal('blockModal');
-  toast(`Dates blocked for ${_calApt} ✓`,'success');
-  renderCalendar();
-}
-
-function deleteCurrentBlock() {
-  if(!_editingBlock||!_calApt)return;
-  deleteBlock(_calApt,_editingBlock.from,_editingBlock.to);
-  closeModal('blockModal');
-}
-
-function deleteBlock(apt,from,to) {
-  if(!confirm(`Remove block (${from} → ${to}) for ${apt}?`))return;
-  const blocks=getBlocks();
-  if(!blocks[apt])return;
-  blocks[apt]=blocks[apt].filter(b=>!(b.from===from&&b.to===to));
-  setBlocks(blocks);
-  toast(`Block removed for ${apt}`,'success');
-  renderCalendar();
-}
-
-// ── Calendar Add Booking modal ──
-function openCalBookingModal() {
-  const r=data.find(x=>x.id===_calUnitId);
-  document.getElementById('calBookingApt').textContent=_calApt||'';
-  document.getElementById('cbOwner').value=r?r.owner||'':'';
-  document.getElementById('cbName').value='';
-  document.getElementById('cbType').value='short-stay';
-  document.getElementById('cbCheckin').value=_calDate||today();
-  document.getElementById('cbCheckout').value='';
-  document.getElementById('cbRent').value='';
-  document.getElementById('cbBalance').value='0';
-  document.getElementById('cbNote').value='';
-  openModal('calBookingModal');
-}
-
-async function saveCalBooking() {
-  const name=document.getElementById('cbName').value.trim();
-  const type=document.getElementById('cbType').value;
-  const owner=document.getElementById('cbOwner').value.trim();
-  const checkin=document.getElementById('cbCheckin').value;
-  const checkout=document.getElementById('cbCheckout').value;
-  const rent=parseFloat(document.getElementById('cbRent').value)||0;
-  const balance=parseFloat(document.getElementById('cbBalance').value)||0;
-  const note=document.getElementById('cbNote').value.trim();
-
-  if(!name){toast('Tenant name required','error');return;}
-  if(!checkin){toast('Check-in date required','error');return;}
-  if(!_calApt){toast('No unit selected','error');return;}
-
-  const btn=document.querySelector('#calBookingModal .btn-primary');
-  btn.textContent='Saving…'; btn.disabled=true;
-
-  try {
-    // Get next available ID
-    const {data:maxRow}=await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
-    const newId=(maxRow&&maxRow.length?maxRow[0].id:nextId)+1;
-    nextId=newId+1;
-
-    const histText=checkout
-      ? `$${rent.toLocaleString()} — stay (${checkin} → ${checkout})`
-      : `$${rent.toLocaleString()} — booking from ${checkin}`;
-
-    // Save as an active unit record (not archived) — same apt, overlapping is allowed
-    const newRec={
-      id:newId, apt:_calApt, owner, name, type,
-      rent, balance,
-      checkin, due:checkout||'', lease_end:checkout||'',
-      note,
-      history:[{date:checkin,amt:rent,text:histText}],
-      archived:false, archived_date:null
-    };
-
-    const {error}=await sb.from('units').insert(dbRow(newRec));
-    if(error) throw new Error(error.message);
-    await auditLog('cal-booking',_calApt,name,newId,null,dbRow(newRec));
-
-    await loadAll();
-    closeModal('calBookingModal');
-    renderCalendar();
-    renderTable();
-    toast(`Booking added: ${name} @ ${_calApt} ✓`,'success');
-  } catch(e) {
-    toast('Error: '+e.message,'error');
-  } finally {
-    btn.textContent='+ Save Booking'; btn.disabled=false;
-  }
-}
-
-
-// ── One-time calendar scroll setup (called once after boot) ──
-function initCalScroll() {
-  const outer = document.getElementById('calGridOuter');
-  const uCol  = document.getElementById('calUnitsCol');
-  if (!outer || outer._bound) return;
-  outer._bound = true;
-
-  // Sync vertical scroll: grid ↔ units sidebar only
-  let _syncing = false;
-  outer.addEventListener('scroll', () => {
-    if (_syncing) return;
-    _syncing = true;
-    uCol.scrollTop = outer.scrollTop;
-    _syncing = false;
-  }, { passive: true });
-  uCol.addEventListener('scroll', () => {
-    if (_syncing) return;
-    _syncing = true;
-    outer.scrollTop = uCol.scrollTop;
-    _syncing = false;
-  }, { passive: true });
-}
-
-
 async function boot() {
   const overlay = document.getElementById('loadingOverlay');
   const msg = overlay.querySelector('p');
@@ -4083,7 +3525,6 @@ async function boot() {
 
     overlay.style.display = 'none';
     renderTable();
-    initCalScroll();
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
 
@@ -4103,7 +3544,6 @@ function bootOffline() {
   document.getElementById('syncStatus').textContent = '⚠ offline';
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   renderTable();
-  initCalScroll();
 }
 
 boot();
