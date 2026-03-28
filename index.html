@@ -384,7 +384,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 02:15</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 02:20</span>
     </div>
   </div>
 </header>
@@ -3961,13 +3961,11 @@ function renderCalendar() {
     // ── Bars ──
     const bars=[];
     // Active tenant bar
-    // from: checkin if set, otherwise winStart (tenant already in, started before window)
-    // to:   lease_end or due (whichever is later and set)
     if(r.type!=='available'&&r.name){
       const bf = r.checkin && r.checkin >= winStart ? r.checkin : winStart;
-      const bt = r.lease_end && r.due
-        ? (r.lease_end > r.due ? r.lease_end : r.due)
-        : (r.lease_end || r.due || '');
+      // End date: pick the later of due and lease_end (ignore blanks)
+      const dates_end = [r.due, r.lease_end].filter(Boolean).sort();
+      const bt = dates_end.length ? dates_end[dates_end.length-1] : '';
       if(bt) bars.push({name:r.name,from:bf,to:bt,type:r.type,note:r.note||'',active:true,unitId:r.id,rent:r.rent,owner:r.owner});
     }
     // Archived stays
