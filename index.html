@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:08</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:20</span>
     </div>
   </div>
 </header>
@@ -3991,14 +3991,18 @@ function renderCalendar() {
       type:'__block__', blockData:b
     }));
 
-    // Helper: find index of date string in sorted dates array (or nearest)
+    // Find index of date in sorted dates array using binary search
     const dateIdx=(d)=>{
-      if(!d)return -1;
-      const idx=dates.indexOf(d);
-      if(idx>=0)return idx;
-      // Find nearest: since dates is sorted, find insertion point
-      for(let i=0;i<dates.length;i++){if(dates[i]>=d)return i;}
-      return dates.length-1;
+      if(!d) return -1;
+      if(d <= dates[0]) return 0;
+      if(d >= dates[dates.length-1]) return dates.length-1;
+      let lo=0, hi=dates.length-1;
+      while(lo<=hi){
+        const mid=(lo+hi)>>1;
+        if(dates[mid]===d) return mid;
+        if(dates[mid]<d) lo=mid+1; else hi=mid-1;
+      }
+      return lo; // insertion point = nearest column
     };
 
     bars.forEach(bar=>{
