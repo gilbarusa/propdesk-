@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:49</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 12:19</span>
     </div>
   </div>
 </header>
@@ -4128,10 +4128,9 @@ function renderCalendar() {
           _calUnitId=r.id; _calApt=r.apt; _editingBlock=bar.blockData;
           openBlockModal();
         } else if(bar.active){
-          // Active unit — open unit detail panel
           openCalBookingDetail(bar, r, true);
-        } else if(bar.archived && bar.id){
-          // Archived booking — open booking detail panel
+        } else if(bar.id){
+          // Any non-active bar with an id — open detail with delete option
           openCalBookingDetail(bar, r, false);
         }
       });
@@ -4392,6 +4391,7 @@ function openCalBookingDetail(bar, unit, isActive) {
   document.getElementById('cbpType').textContent    = bar.type || '—';
 
   // Only show delete for archived bookings, not the active unit bar
+  // Show delete for any bar that has an id and is not the main active tenant
   _calBookingPanelId = (!isActive && bar.id) ? bar.id : null;
   document.getElementById('cbpDeleteRow').style.display = _calBookingPanelId ? '' : 'none';
 
@@ -4404,7 +4404,7 @@ function closeCalBookingPanel() {
 
 async function deleteCalBooking() {
   if (!_calBookingPanelId) return;
-  const rec = archived.find(x => x.id === _calBookingPanelId);
+  const rec = [...data, ...archived].find(x => x.id === _calBookingPanelId);
   if (!confirm(`Delete booking "${rec ? rec.name : ''}"? This cannot be undone.`)) return;
   try {
     const { error } = await sb.from('units').delete().eq('id', _calBookingPanelId);
@@ -4412,6 +4412,7 @@ async function deleteCalBooking() {
     closeCalBookingPanel();
     await loadAll();
     renderCalendar();
+    renderTable();
     toast('Booking deleted ✓', 'success');
   } catch(e) {
     toast('Error: ' + e.message, 'error');
