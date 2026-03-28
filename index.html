@@ -296,7 +296,7 @@ textarea{resize:vertical;min-height:72px;}
 .cal-body{display:flex;flex:1;min-height:0;overflow:hidden;}
 .cal-units-col{width:200px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;min-height:0;}
 .cal-units-col::-webkit-scrollbar{display:none;}
-.cal-header-spacer{height:52px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
+.cal-header-spacer{height:76px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
 .cal-header-spacer span{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);}
 .cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;flex-shrink:0;gap:6px;}
 .cal-unit-row:hover{background:var(--surface2);}
@@ -385,7 +385,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 04:23</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 04:34</span>
     </div>
   </div>
 </header>
@@ -2166,7 +2166,7 @@ function subscribeRealtime() {
 // ── DATE ───────────────────────────────────────────
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function daysUntil(s){if(!s)return null;const n=new Date();n.setHours(0,0,0,0);return Math.round((new Date(s+'T00:00:00')-n)/86400000);}
-function dueStatus(r){if(r.type==='available')return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
+function dueStatus(r){if(r.type==='available')return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(r.type==='short-stay'&&d<0)return'available';if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtMoney(n){return'$'+(Math.round(n||0)).toLocaleString();}
 function nextMonth(s){if(!s)return'';const d=new Date(s+'T00:00:00');d.setMonth(d.getMonth()+1);return d.toISOString().split('T')[0];}
@@ -3870,13 +3870,12 @@ function renderCalendar() {
   const todayStr=_tn.getFullYear()+'-'+String(_tn.getMonth()+1).padStart(2,'0')+'-'+String(_tn.getDate()).padStart(2,'0');
   // curMonthStr not needed — 270-day window has no dim logic
 
-  // Build date range: 90 days before calMonth start → 2 months after calMonth end
+  // Build date range: 150 days back from today → 60 days forward
   const dates=[];
-  const calStart = new Date(calYear, calMonth, 1);
-  const histStart = new Date(calYear, calMonth, 1);
-  histStart.setDate(histStart.getDate() - 90);
-  const futEnd = new Date(calYear, calMonth+2, 0);
-  for(let d=new Date(histStart); d<=futEnd; d.setDate(d.getDate()+1)){
+  const _today=new Date();
+  const winFrom=new Date(_today); winFrom.setDate(_today.getDate()-90);
+  const winTo  =new Date(_today); winTo.setDate(_today.getDate()+150);
+  for(let d=new Date(winFrom); d<=winTo; d.setDate(d.getDate()+1)){
     dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
   }
 
@@ -3889,6 +3888,12 @@ function renderCalendar() {
   if(calTypeFilter!=='all') units=units.filter(r=>r.type===calTypeFilter);
   if(q) units=units.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
   units.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
+  // Deduplicate by apt — keep the one with the most recent/complete data
+  const seenApts=new Set();
+  units=units.filter(r=>{
+    if(seenApts.has(r.apt)) return false;
+    seenApts.add(r.apt); return true;
+  });
   document.getElementById('calUnitCount').textContent=`Units (${units.length})`;
   const mlEl=document.getElementById('calMonthLabel');
   if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
@@ -3902,14 +3907,15 @@ function renderCalendar() {
     futureBookings[r.apt].push({id:r.id,name:r.name,from:ci,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||''});
   });
 
-  // ── Past stays (history) — faded bars for reference, 90-day window only ──
+  // ── Past stays — normal bars, fully clickable with all details ──
   const pastStays={};
-  archived.filter(r=>r.archived&&r.name&&r.archivedDate&&r.archivedDate>=winStart&&r.archivedDate<=todayStr).forEach(r=>{
-    const ci=r.checkin||r.checkinDate||r.archivedDate||'';
-    const co=r.archivedDate||'';
-    if(!ci||!co||co<winStart||ci>winEnd) return;
+  archived.filter(r=>r.archived&&r.name&&(r.archivedDate||r.due)).forEach(r=>{
+    const ci=r.checkin||r.checkinDate||'';
+    const co=r.archivedDate||r.due||'';
+    if(!co||co<winStart||(!ci&&co<winStart)) return;
+    if(ci&&ci>winEnd) return;
     if(!pastStays[r.apt]) pastStays[r.apt]=[];
-    pastStays[r.apt].push({id:r.id,name:r.name,from:ci,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||'',isPast:true});
+    pastStays[r.apt].push({id:r.id,name:r.name,from:ci||co,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||'',archived:true});
   });
 
   const blocks=getBlocks();
@@ -3991,8 +3997,8 @@ function renderCalendar() {
       });
     }
 
-    // 2. Past stays — faded history bars
-    (pastStays[r.apt]||[]).forEach(s=>bars.push({...s,isPast:true}));
+    // 2. Past stays — full normal bars
+    (pastStays[r.apt]||[]).forEach(s=>bars.push({...s}));
     // 3. Future bookings — calendar-added upcoming stays
     (futureBookings[r.apt]||[]).forEach(s=>bars.push({...s}));
 
@@ -4038,10 +4044,8 @@ function renderCalendar() {
       const badge = bar.type==='__block__' ? '🚫' : getChannelBadge(note);
 
       const barEl=document.createElement('div');
-      if(bar.isPast) barCls += ' bar-history';
       barEl.className=barCls;
-      const zIdx = bar.isPast ? 2 : 5;
-      barEl.style.cssText='left:'+(s*COL_W+2)+'px;width:'+(span*COL_W-4)+'px;overflow:hidden;z-index:'+zIdx+';';
+      barEl.style.cssText='left:'+(s*COL_W+2)+'px;width:'+(span*COL_W-4)+'px;overflow:hidden;z-index:5;';
       barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
 
       // Sticky label: floats within the visible portion of the bar
@@ -4061,7 +4065,7 @@ function renderCalendar() {
       // Store data for floating label
       barEl.dataset.barLeft = s * COL_W + 2;
       barEl.dataset.barRight = (s + span) * COL_W - 4;
-      barEl.dataset.barName = bar.isPast ? '' : bar.name;
+      barEl.dataset.barName = bar.name;
       barEl.dataset.barBadge = badge.replace(/"/g,"'");
       barEl.dataset.barColor = '#fff';
 
