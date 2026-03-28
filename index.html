@@ -384,7 +384,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 02:40</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 02:48</span>
     </div>
   </div>
 </header>
@@ -3968,9 +3968,20 @@ function renderCalendar() {
       const bt = dates_end.length ? dates_end[dates_end.length-1] : '';
       if(bt) bars.push({name:r.name,from:bf,to:bt,type:r.type,note:r.note||'',active:true,unitId:r.id,rent:r.rent,owner:r.owner});
     }
-    // Archived stays — only show future ones (past stays already show as active bar)
-    const todayS=todayStr;
-    (staysByApt[r.apt]||[]).filter(s=>s.to>=todayS).forEach(s=>bars.push({...s,archived:true}));
+    // Archived stays rendering rules:
+    // - Active tenant present → only show FUTURE archived bookings (calendar-added future stays)
+    //   Past archived records are "ghosts" — hide them to avoid overpainting the active bar
+    // - Vacant unit → show upcoming archived stays so future bookings are visible
+    const hasActive = r.type !== 'available' && r.name;
+    (staysByApt[r.apt]||[]).forEach(s=>{
+      if(hasActive) {
+        // Only show if it's a genuine future booking (starts after today)
+        if(s.from >= todayStr) bars.push({...s, archived:true});
+      } else {
+        // Vacant — show any stay in the window
+        bars.push({...s, archived:true});
+      }
+    });
     // Blocks
     aptBlocks.forEach(b=>bars.push({name:b.reason||'Blocked',from:b.from,to:b.to,type:'__block__',blockData:b}));
 
