@@ -409,7 +409,7 @@ textarea{resize:vertical;min-height:72px;}
   <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
-    <span id="headerClock" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;letter-spacing:.3px;"></span>
+    <span id="headerClock" style="font-size:13px;color:var(--accent2);font-family:'DM Mono',monospace;font-weight:700;min-width:240px;display:inline-block;"></span>
     <span style="color:var(--border2);font-size:10px;">|</span>
     <span id="headerBackupTimestamp" style="font-size:10px;color:#9e9485;font-family:'DM Mono',monospace;"></span>
     <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
@@ -2969,8 +2969,10 @@ function updateHeaderClock() {
   const el = document.getElementById('headerClock');
   if (!el) return;
   const now = new Date();
-  el.textContent = now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
-    + '  ' + now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  el.textContent = '📅 ' +
+    now.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}) +
+    '  🕒 ' +
+    now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
 }
 updateHeaderClock();
 setInterval(updateHeaderClock, 1000);
