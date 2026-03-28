@@ -29,7 +29,7 @@
 }
 
 /* ── Base ── */
-body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;height:100vh;display:flex;flex-direction:column;
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;
   background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5784a' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
 
@@ -38,7 +38,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
   background:var(--surface);
   border-bottom:2px solid var(--border);padding:0 32px;display:flex;align-items:center;
   justify-content:space-between;height:var(--header-h);position:sticky;top:0;z-index:200;
-  box-shadow:0 2px 8px rgba(0,0,0,.06);flex-shrink:0;
+  box-shadow:0 2px 8px rgba(0,0,0,.06);
 }
 .brand{display:flex;align-items:baseline;gap:12px;}
 .brand h1{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--accent2);letter-spacing:-.3px;}
@@ -47,11 +47,11 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 #syncStatus{color:var(--text3) !important;font-size:11px;}
 
 /* ── Nav ── */
-.nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;gap:0;box-shadow:var(--shadow);flex-shrink:0;}
+.nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;gap:0;box-shadow:var(--shadow);}
 .nav-tab{padding:14px 22px;font-size:11px;font-weight:500;letter-spacing:.5px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;white-space:nowrap;}
 .nav-tab:hover{color:var(--text2);background:var(--surface2);}
 .nav-tab.active{color:var(--accent2);border-bottom-color:var(--accent);background:var(--accent-bg);}
-.page{display:none;}.page.active{display:block;}.page.active#page-calendar{display:flex;flex-direction:column;height:calc(100vh - var(--header-h) - 48px);overflow:hidden;}#page-calendar.active{display:flex;flex-direction:column;}
+.page{display:none;}.page.active{display:block;}
 
 /* ── Stats bar ── */
 .stats-bar{background:var(--surface);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;box-shadow:var(--shadow);}
@@ -284,77 +284,57 @@ textarea{resize:vertical;min-height:72px;}
 ::-webkit-scrollbar-track{background:var(--bg);}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 
-/* ── CALENDAR PAGE ── */
-.cal-wrap{display:flex;flex-direction:column;flex:1;min-height:0;}
-.cal-toolbar{padding:10px 20px;display:flex;gap:10px;align-items:center;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;overflow:visible;}
-.cal-nav{display:flex;align-items:center;gap:8px;}
-.cal-nav button{width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
-.cal-nav button:hover{border-color:var(--accent);color:var(--accent);}
-.cal-month-label{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);min-width:140px;text-align:center;}
-.cal-today-btn{padding:5px 12px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-family:'DM Mono',monospace;font-size:11px;transition:all .12s;}
-.cal-today-btn:hover{border-color:var(--accent);color:var(--accent);}
-.cal-body{display:flex;flex:1;min-height:0;overflow:hidden;}
-.cal-units-col{width:200px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;min-height:0;}
-.cal-units-col::-webkit-scrollbar{display:none;}
-.cal-header-spacer{height:76px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
-.cal-header-spacer span{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);}
-.cal-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s;flex-shrink:0;gap:6px;}
-.cal-unit-row:hover{background:var(--surface2);}
-.cal-unit-name{font-size:12px;font-weight:500;color:var(--accent2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.cal-unit-sub{font-size:9px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
-.cal-unit-cell{display:flex;flex-direction:column;justify-content:center;flex:1;overflow:hidden;}
-.cal-grid-outer{flex:1;overflow:auto;position:relative;}
-.cal-grid-outer::-webkit-scrollbar{height:8px;width:8px;} .cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb:hover{background:var(--accent);}
-.cal-grid{position:relative;min-width:max-content;}
-.cal-days-header{display:flex;height:52px;position:sticky;top:0;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
-.cal-day-hdr{display:flex;flex-direction:column;align-items:center;justify-content:center;width:36px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;gap:2px;cursor:default;}
-.cal-day-hdr.weekend{background:rgba(181,120,74,.06);}
-.cal-day-hdr.today{background:var(--green);color:#fff;}
-.cal-day-hdr .day-num{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;line-height:1;}
-.cal-day-hdr .day-name{font-size:8px;letter-spacing:.5px;}
-.cal-rows{position:relative;}
-.cal-row{display:flex;height:44px;border-bottom:1px solid var(--border);position:relative;align-items:center;}
-.cal-cell{width:36px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;cursor:pointer;transition:background .1s;}
-.cal-ch-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;font-size:9px;font-weight:700;flex-shrink:0;line-height:1;}
-.cal-cell:hover{background:rgba(181,120,74,.08);}
-.cal-cell.weekend{background:rgba(181,120,74,.04);}
-.cal-cell.weekend:hover{background:rgba(181,120,74,.1);}
-.cal-cell.today-col{background:rgba(37,102,69,.06);}
-.cal-cell.today-col:hover{background:rgba(37,102,69,.12);}
-.cal-cell.blocked{background:repeating-linear-gradient(45deg,rgba(184,50,40,.07),rgba(184,50,40,.07) 4px,transparent 4px,transparent 8px);}
-.cal-cell.blocked:hover{background:repeating-linear-gradient(45deg,rgba(184,50,40,.14),rgba(184,50,40,.14) 4px,transparent 4px,transparent 8px);}
-.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;font-size:11px;font-weight:500;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;overflow:hidden;}
-.cal-bar-bg{position:absolute;inset:0;border-radius:6px;pointer-events:none;}
-.cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
-.cal-bar.bar-lt{color:#fff;}
-.cal-bar.bar-avail{color:#fff;opacity:0.75;}
-.cal-bar.bar-history{opacity:0.28;filter:saturate(0.5);}
-.cal-bar.bar-history:hover{opacity:0.55;filter:saturate(0.8);}
-.cal-bar.bar-mtm{color:#fff;}
-.cal-bar.bar-ss{color:#fff;}
-.cal-bar.bar-block{color:#fff;opacity:.85;}
-.cal-bar-icon{font-size:10px;flex-shrink:0;}
-/* Floating label — sits above the row, follows scroll */
-.cal-row-labels{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;z-index:8;}
-.cal-float-label{position:absolute;top:6px;height:32px;display:flex;align-items:center;gap:5px;padding:0 8px;font-size:11px;font-weight:500;color:#fff;white-space:nowrap;pointer-events:none;}
-.cal-legend{display:flex;gap:16px;align-items:center;margin-left:auto;}
-/* Cal Unit Panel */
-.cal-unit-panel-overlay{display:none;position:fixed;inset:0;z-index:400;}
-.cal-unit-panel-overlay.open{display:block;}
-.cal-unit-panel-backdrop{position:absolute;inset:0;background:rgba(20,16,10,.35);}
-.cal-unit-panel{position:absolute;left:0;top:0;bottom:0;width:320px;background:var(--surface);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;animation:slideIn .2s cubic-bezier(.34,1.2,.64,1);border-right:1px solid var(--border);}
-.cal-unit-panel-hdr{padding:20px 20px 16px;border-bottom:1px solid var(--border);background:var(--accent-bg);display:flex;justify-content:space-between;align-items:flex-start;}
-.cal-unit-panel-apt{font-family:'Playfair Display',serif;font-size:36px;font-weight:700;color:var(--accent2);line-height:1;}
-.cal-unit-panel-body{padding:20px;flex:1;overflow-y:auto;}
-.cal-unit-panel-footer{padding:14px 20px;border-top:1px solid var(--border);background:var(--surface2);display:flex;gap:8px;justify-content:flex-end;}
-.cal-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
-.cal-leg-dot{width:10px;height:10px;border-radius:3px;}
-/* Block modal */
-.block-modal-info{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);}
-.block-modal-info strong{color:var(--accent2);}
-.cal-bar-label{white-space:nowrap;}
-.cal-bar-x{margin-left:6px;flex-shrink:0;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.25);display:inline-flex;align-items:center;justify-content:center;font-size:9px;line-height:1;cursor:pointer;transition:background .15s;}
-.cal-bar-x:hover{background:rgba(255,255,255,.5);}
+/* ── AUTH / LOGIN ── */
+.auth-screen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);
+  background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5784a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-lg);width:100%;max-width:390px;padding:42px 38px;animation:authIn .32s cubic-bezier(.34,1.56,.64,1);}
+@keyframes authIn{from{opacity:0;transform:translateY(22px) scale(.95)}to{opacity:1;transform:none}}
+.auth-logo{text-align:center;margin-bottom:30px;}
+.auth-logo h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:var(--accent2);letter-spacing:-.3px;}
+.auth-logo p{font-size:9px;color:var(--text3);letter-spacing:3px;text-transform:uppercase;margin-top:5px;}
+.auth-tabs{display:flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:26px;}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:11px;font-weight:500;cursor:pointer;letter-spacing:.5px;transition:all .18s;color:var(--text3);background:var(--surface2);}
+.auth-tab.active{background:var(--accent2);color:#fff;}
+.auth-field{margin-bottom:15px;}
+.auth-field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:6px;}
+.auth-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:11px 14px;font-family:'DM Mono',monospace;font-size:13px;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s;}
+.auth-field input:focus{border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(181,120,74,.12);}
+.auth-remember{display:flex;align-items:center;gap:8px;margin-bottom:18px;cursor:pointer;user-select:none;}
+.auth-remember input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent2);cursor:pointer;}
+.auth-remember span{font-size:11px;color:var(--text2);}
+.auth-btn{width:100%;padding:13px;background:var(--accent2);color:#fff;border:none;border-radius:var(--radius);font-family:'DM Mono',monospace;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;letter-spacing:.3px;}
+.auth-btn:hover{background:var(--accent);transform:translateY(-1px);box-shadow:0 4px 14px rgba(181,120,74,.35);}
+.auth-err{background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:10px 14px;color:var(--red);font-size:11px;margin-bottom:14px;display:none;text-align:center;}
+.auth-link{text-align:center;margin-top:14px;}
+.auth-link span{font-size:10px;color:var(--text3);cursor:pointer;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px dashed var(--border2);padding-bottom:1px;transition:color .15s;}
+.auth-link span:hover{color:var(--accent);}
+/* Inactivity warning banner */
+.inactivity-banner{position:fixed;bottom:0;left:0;right:0;background:var(--orange);color:#fff;text-align:center;padding:10px;font-size:12px;z-index:9000;display:none;animation:slideUp .3s ease;}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+/* Change-password modal */
+.chpw-overlay{position:fixed;inset:0;background:rgba(20,16,10,.55);z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);}
+.chpw-overlay.open{display:flex;}
+.chpw-box{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:400px;padding:32px;animation:modalIn .2s cubic-bezier(.34,1.56,.64,1);}
+.chpw-box h3{font-family:'Playfair Display',serif;font-size:18px;color:var(--accent2);margin-bottom:20px;}
+.chpw-field{margin-bottom:13px;}
+.chpw-field label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:5px;}
+.chpw-field input,.chpw-field select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:10px 13px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:border-color .2s;}
+.chpw-field input:focus,.chpw-field select:focus{border-color:var(--accent);}
+/* Settings page */
+.settings-wrap{padding:28px 32px;max-width:680px;}
+.settings-wrap h2{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--accent2);margin-bottom:4px;}
+.settings-intro{font-size:11px;color:var(--text3);margin-bottom:24px;}
+.settings-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow);}
+.settings-card h3{font-family:'Playfair Display',serif;font-size:16px;color:var(--accent2);margin-bottom:4px;}
+.settings-card-desc{font-size:11px;color:var(--text3);margin-bottom:16px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);gap:12px;}
+.settings-row:last-child{border-bottom:none;padding-bottom:0;}
+.settings-row-lbl{font-size:12px;color:var(--text2);}
+.settings-row-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+.timeout-badge{background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border);border-radius:12px;padding:2px 10px;font-size:10px;font-weight:500;}
+
 .loading-overlay{position:fixed;inset:0;background:rgba(244,242,238,.96);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
 .loading-overlay h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--accent2);letter-spacing:-.3px;}
 .loading-overlay p{font-size:12px;color:var(--text3);letter-spacing:.5px;}
@@ -372,6 +352,76 @@ textarea{resize:vertical;min-height:72px;}
 </style>
 </head>
 <body>
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <h1>Chelbourne</h1>
+      <p>Property Manager</p>
+    </div>
+    <div class="auth-tabs">
+      <div class="auth-tab active" id="tabAdmin" onclick="authSelectRole('admin')">Admin</div>
+      <div class="auth-tab" id="tabUser" onclick="authSelectRole('user')">User</div>
+    </div>
+    <div class="auth-err" id="authErr">Incorrect username or password.</div>
+    <div class="auth-field">
+      <label>Username</label>
+      <input type="text" id="authUser" placeholder="Enter username" autocomplete="username">
+    </div>
+    <div class="auth-field">
+      <label>Password</label>
+      <input type="password" id="authPass" placeholder="Enter password" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')authLogin()">
+    </div>
+    <label class="auth-remember" id="rememberRow">
+      <input type="checkbox" id="authRemember"> <span>Keep me signed in on this device</span>
+    </label>
+    <button class="auth-btn" onclick="authLogin()">Sign In →</button>
+    <div class="auth-link">
+      <span onclick="openChpw()">Change Password</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CHANGE PASSWORD MODAL ═══ -->
+<div class="chpw-overlay" id="chpwOverlay">
+  <div class="chpw-box">
+    <h3>🔑 Change Password</h3>
+    <div id="chpwErr" style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:9px 13px;color:var(--red);font-size:11px;margin-bottom:12px;display:none;"></div>
+    <div id="chpwOk" style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:8px;padding:9px 13px;color:var(--green);font-size:11px;margin-bottom:12px;display:none;"></div>
+    <div class="chpw-field">
+      <label>Account</label>
+      <select id="chpwAccount">
+        <option value="admin">Admin (master password)</option>
+        <option value="user">User — Willow</option>
+      </select>
+    </div>
+    <div class="chpw-field">
+      <label>Current Master Password</label>
+      <input type="password" id="chpwMaster" placeholder="Required to make any change">
+    </div>
+    <div class="chpw-field">
+      <label>New Password</label>
+      <input type="password" id="chpwNew" placeholder="New password">
+    </div>
+    <div class="chpw-field">
+      <label>Confirm New Password</label>
+      <input type="password" id="chpwConfirm" placeholder="Repeat new password" onkeydown="if(event.key==='Enter')saveChpw()">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+      <button onclick="closeChpw()" style="padding:10px 20px;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;">Cancel</button>
+      <button onclick="saveChpw()" style="padding:10px 20px;border-radius:var(--radius);border:none;background:var(--accent2);color:#fff;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;cursor:pointer;">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ INACTIVITY WARNING BANNER ═══ -->
+<div class="inactivity-banner" id="inactivityBanner">
+  ⚠ You will be signed out in <strong id="inactivityCountdown">60</strong> seconds due to inactivity.
+  <span onclick="resetInactivityTimer()" style="margin-left:14px;cursor:pointer;text-decoration:underline;font-weight:500;">Stay signed in</span>
+</div>
+
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <h2>Chelbourne</h2>
@@ -384,19 +434,16 @@ textarea{resize:vertical;min-height:72px;}
     <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-      <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 18:40</span>
-    </div>
+    <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
   </div>
 </header>
 
 <nav class="nav-tabs">
   <div class="nav-tab active" onclick="showPage('units',this)">🏠 Units</div>
   <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
-  <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
   <div class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</div>
   <div class="nav-tab" onclick="showPage('reports',this)">📈 Reports</div>
+  <div class="nav-tab" onclick="showPage('settings',this)">⚙ Settings</div>
 </nav>
 
 <!-- ═══ UNITS PAGE ═══ -->
@@ -458,164 +505,6 @@ textarea{resize:vertical;min-height:72px;}
     </div>
   </div>
 </div>
-
-<!-- ═══ CALENDAR PAGE ═══ -->
-<div class="page" id="page-calendar">
-  <div class="cal-wrap">
-    <div class="cal-toolbar">
-      <button onclick="calPrevMonth()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&#8249;</button>
-      <span class="cal-month-label" id="calMonthLabel">Mar 2026</span>
-      <button onclick="calNextMonth()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&#8250;</button>
-      <button class="cal-today-btn" onclick="calGoToday()">Today</button>
-      <div class="filter-pills">
-        <button class="pill active" data-caltype="all" onclick="calFilterType(this)">All</button>
-        <button class="pill" data-caltype="long-term" onclick="calFilterType(this)">Long Term</button>
-        <button class="pill" data-caltype="month-to-month" onclick="calFilterType(this)">M-to-M</button>
-        <button class="pill" data-caltype="short-stay" onclick="calFilterType(this)">Short Stay</button>
-        <button class="pill" data-caltype="available" onclick="calFilterType(this)">Available</button>
-      </div>
-      <div class="search-wrap" style="max-width:220px;flex-shrink:0;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="calSearch" placeholder="Search unit, tenant&hellip;" oninput="renderCalendar()">
-      </div>
-      <div class="spacer"></div>
-      <div class="cal-legend">
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#2563a8"></div>Long Term</div>
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#7c4fbe"></div>M-to-M</div>
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#e07818"></div>Short Stay</div>
-        <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#c0392b"></div>Blocked</div>
-      </div>
-    </div>
-    <div class="cal-body">
-      <div class="cal-units-col" id="calUnitsCol">
-        <div class="cal-header-spacer"><span id="calUnitCount">Units (0)</span></div>
-        <div id="calUnitsList"></div>
-      </div>
-      <div class="cal-grid-outer" id="calGridOuter">
-        <div class="cal-grid" id="calGrid">
-          <div id="calMonthRow" style="display:flex;height:24px;position:sticky;top:0;z-index:21;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden;"></div>
-          <div class="cal-days-header" id="calDaysHeader"></div>
-          <div class="cal-rows" id="calRows"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Cal Action Picker Modal -->
-<div class="modal-overlay" id="calActionModal">
-  <div class="modal" style="max-width:380px">
-    <div class="modal-header">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Calendar Action</h2>
-        <div id="calActionApt" style="font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--accent2);margin-top:2px"></div>
-        <div id="calActionDate" style="font-size:11px;color:var(--text3);margin-top:2px"></div>
-      </div>
-      <button class="modal-close" onclick="closeModal('calActionModal')">&#x2715;</button>
-    </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;padding-top:18px;padding-bottom:18px;">
-      <button class="btn btn-primary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openCalBookingModal()">
-        ✏️ <span id="calActionBtnLabel">Add / Edit Booking</span>
-        <span style="font-size:10px;opacity:.8;margin-left:6px">Open unit booking form</span>
-      </button>
-      <button class="btn btn-secondary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openBlockModal()">
-        &#128683; Block Dates
-        <span style="font-size:10px;opacity:.8;margin-left:6px">Mark unavailable / maintenance</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Block Dates Modal -->
-<div class="modal-overlay" id="blockModal">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Block Dates</h2>
-        <div id="blockModalApt" style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--accent2);margin-top:2px"></div>
-      </div>
-      <button class="modal-close" onclick="closeModal('blockModal')">&#x2715;</button>
-    </div>
-    <div class="modal-body">
-      <div class="block-modal-info" id="blockModalInfo">Select a date range to mark this unit as unavailable.</div>
-      <div class="form-grid">
-        <div class="form-row"><label>Block From</label><input type="date" id="blockFrom"></div>
-        <div class="form-row"><label>Block To</label><input type="date" id="blockTo"></div>
-      </div>
-      <div class="form-row"><label>Reason (optional)</label><input type="text" id="blockReason" placeholder="Maintenance, renovation&hellip;"></div>
-      <div id="deleteBlockRow" style="display:none;margin-top:8px;">
-        <button class="btn btn-sm" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);width:100%;justify-content:center;" onclick="deleteCurrentBlock()">&#128465; Delete This Block</button>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('blockModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveBlock()">&#128683; Save Block</button>
-    </div>
-  </div>
-</div>
-
-<!-- Calendar Add Booking Modal -->
-<div class="modal-overlay" id="calBookingModal">
-  <div class="modal" style="max-width:540px">
-    <div class="modal-header" style="background:linear-gradient(180deg,var(--surface2),var(--surface));">
-      <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Add Booking</h2>
-        <div id="calBookingApt" style="font-family:'Playfair Display',serif;font-size:26px;font-weight:700;color:var(--accent2);margin-top:2px"></div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:1px;">Additional booking on this unit</div>
-      </div>
-      <button class="modal-close" onclick="closeModal('calBookingModal')">&#x2715;</button>
-    </div>
-    <div class="modal-body">
-      <div class="form-row"><label>Tenant Name</label><input type="text" id="cbName" placeholder="Full name"></div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label>Type</label>
-          <select id="cbType">
-            <option value="short-stay">Short Stay</option>
-            <option value="long-term">Long Term</option>
-            <option value="month-to-month">Month-to-Month</option>
-          </select>
-        </div>
-        <div class="form-row"><label>Owner</label><input type="text" id="cbOwner" placeholder="Owner name"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row"><label>Check-in</label><input type="date" id="cbCheckin"></div>
-        <div class="form-row"><label>Checkout / Lease End</label><input type="date" id="cbCheckout"></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row"><label>Rent / Stay Amount ($)</label><input type="number" id="cbRent" placeholder="0.00" step="0.01"></div>
-        <div class="form-row"><label>Balance Owed ($)</label><input type="number" id="cbBalance" placeholder="0.00" step="0.01"><div class="form-hint">0 = fully paid</div></div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label>Channel</label>
-          <select id="cbChannel" onchange="toggleCbChannelOther()">
-            <option value="">— Select —</option>
-            <option value="Airbnb">Airbnb</option>
-            <option value="Vrbo">Vrbo</option>
-            <option value="Booking.com">Booking.com</option>
-            <option value="Direct">Direct</option>
-            <option value="Other">Other…</option>
-          </select>
-        </div>
-        <div class="form-row" id="cbChannelOtherRow" style="display:none">
-          <label>Channel Name</label>
-          <input type="text" id="cbChannelOther" placeholder="e.g. Furnished Finder">
-        </div>
-      </div>
-      <div class="form-grid">
-        <div class="form-row"><label>Phone</label><input type="tel" id="cbPhone" placeholder="e.g. (215) 555-0000"></div>
-        <div class="form-row"><label>Email</label><input type="email" id="cbEmail" placeholder="guest@email.com"></div>
-      </div>
-      <div class="form-row"><label>Additional Note</label><textarea id="cbNote" placeholder="Any other notes…" style="min-height:50px"></textarea></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('calBookingModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveCalBooking()">&#43; Save Booking</button>
-    </div>
-  </div>
-</div>
-
 
 <!-- ═══ DASHBOARD PAGE ═══ -->
 <div class="page" id="page-dashboard">
@@ -739,6 +628,51 @@ textarea{resize:vertical;min-height:72px;}
       </div>
       <div id="histEmpty" style="text-align:center;padding:40px;color:var(--text3);display:none;">No records match your filter.</div>
       <div id="histFooter" style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);background:var(--surface2);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SETTINGS PAGE ═══ -->
+<div class="page" id="page-settings">
+  <div class="settings-wrap">
+    <h2>⚙ Settings</h2>
+    <p class="settings-intro">Manage credentials and session preferences.</p>
+
+    <div class="settings-card">
+      <h3>🛡 Admin Account</h3>
+      <p class="settings-card-desc">Full access. The Admin master password is required to change any credentials.</p>
+      <div class="settings-row">
+        <div><div class="settings-row-lbl">Username</div><div class="settings-row-sub">Fixed — <strong>Admin</strong></div></div>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-row-lbl">Master Password</div><div class="settings-row-sub">Stored securely in Supabase</div></div>
+        <button onclick="openChpwFor('admin')" class="btn btn-secondary btn-sm">Change</button>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-row-lbl">Stay signed in</div><div class="settings-row-sub">Persistent on this device (checkbox at login)</div></div>
+      </div>
+    </div>
+
+    <div class="settings-card">
+      <h3>👤 User Account — Willow</h3>
+      <p class="settings-card-desc">Standard access. Automatically signed out after 60 minutes of inactivity.</p>
+      <div class="settings-row">
+        <div><div class="settings-row-lbl">Username</div><div class="settings-row-sub">Fixed — <strong>Willow</strong></div></div>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-row-lbl">Password</div><div class="settings-row-sub">Stored securely in Supabase</div></div>
+        <button onclick="openChpwFor('user')" class="btn btn-secondary btn-sm">Change</button>
+      </div>
+      <div class="settings-row">
+        <div><div class="settings-row-lbl">Inactivity timeout</div></div>
+        <span class="timeout-badge">60 minutes</span>
+      </div>
+    </div>
+
+    <div class="settings-card" style="border-color:var(--red-border);">
+      <h3 style="color:var(--red);">Sign Out</h3>
+      <p class="settings-card-desc">End your session and return to the login screen.</p>
+      <button onclick="authSignOut()" class="btn" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);">Sign Out</button>
     </div>
   </div>
 </div>
@@ -1041,28 +975,16 @@ textarea{resize:vertical;min-height:72px;}
         <div class="form-row"><label>Next Payment Due</label><input type="date" id="fDue"><div class="form-hint">Advances each month on payment</div></div>
         <div class="form-row"><label>Lease End / Checkout Date</label><input type="date" id="fLeaseEnd"><div class="form-hint">Agreement end or short stay checkout</div></div>
       </div>
-      <div class="form-grid">
-        <div class="form-row">
-          <label>Channel</label>
-          <select id="fChannel" onchange="toggleFChannelOther()">
-            <option value="">— Select —</option>
-            <option value="Airbnb">Airbnb</option>
-            <option value="Vrbo">Vrbo</option>
-            <option value="Booking.com">Booking.com</option>
-            <option value="Direct">Direct</option>
-            <option value="Other">Other…</option>
-          </select>
-        </div>
-        <div class="form-row" id="fChannelOtherRow" style="display:none">
-          <label>Channel Name</label>
-          <input type="text" id="fChannelOther" placeholder="e.g. Furnished Finder">
+      <div class="form-row" id="fFullStayRow" style="display:none">
+        <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:12px;font-size:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;text-transform:none;letter-spacing:0;font-size:12px;color:var(--blue);">
+            <input type="checkbox" id="fFullStayCheck" onchange="updateFullStayPreview()" style="width:auto;margin:0;cursor:pointer;">
+            <strong>Mark full payment for entire stay</strong> — records payment &amp; splits by month
+          </label>
+          <div id="fFullStayBreakdown" style="margin-top:8px;color:var(--text2);font-size:11px;line-height:1.8;"></div>
         </div>
       </div>
-      <div class="form-grid">
-        <div class="form-row"><label>Phone</label><input type="tel" id="fPhone" placeholder="e.g. (215) 555-0000"></div>
-        <div class="form-row"><label>Email</label><input type="email" id="fEmail" placeholder="guest@email.com"></div>
-      </div>
-      <div class="form-row"><label>Additional Note</label><textarea id="fNote" placeholder="Any other notes…"></textarea></div>
+      <div class="form-row"><label>Note (tenant)</label><textarea id="fNote" placeholder="Any notes about this person…"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
@@ -1140,13 +1062,239 @@ textarea{resize:vertical;min-height:72px;}
 
 <script>
 // ══════════════════════════════════════════════════════
+//  AUTH SYSTEM
+//  - Credentials stored in Supabase `app_config` table
+//  - Admin: "Keep me signed in" via localStorage token
+//  - User (Willow): 60-min inactivity auto-logout
+// ══════════════════════════════════════════════════════
+
+const SB_URL  = 'https://iwohrvkcodqvyoooxzmt.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y';
+const REMEMBER_KEY = 'chelbourne_admin_token';
+const INACTIVITY_MS = 60 * 60 * 1000; // 60 minutes
+
+let _authRole = null;          // 'admin' | 'user'
+let _authLoginRole = 'admin';  // which tab is highlighted on login screen
+let _inactivityTimer = null;
+let _countdownTimer  = null;
+let _passwords = { admin: 'GB8700', user: 'WP0001' }; // defaults, overridden from Supabase
+
+// ── Supabase helper (for auth only, before sb client may exist) ──
+async function authFetch(method, body) {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/app_config`, {
+      method,
+      headers: {
+        'apikey': SB_KEY,
+        'Authorization': 'Bearer ' + SB_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': method === 'POST' ? 'resolution=merge-duplicates,return=minimal' : 'return=minimal'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return res;
+  } catch(e) { return null; }
+}
+
+async function loadPasswordsFromSupabase() {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/app_config?key=in.(admin_password,user_password)&select=key,value`, {
+      headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY }
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    rows.forEach(r => {
+      if (r.key === 'admin_password') _passwords.admin = r.value;
+      if (r.key === 'user_password')  _passwords.user  = r.value;
+    });
+  } catch(e) { /* use defaults */ }
+}
+
+async function savePasswordToSupabase(role, newPw) {
+  const key = role === 'admin' ? 'admin_password' : 'user_password';
+  await authFetch('POST', [{ key, value: newPw }]);
+}
+
+// ── Login UI ──
+function authSelectRole(role) {
+  _authLoginRole = role;
+  document.getElementById('tabAdmin').classList.toggle('active', role === 'admin');
+  document.getElementById('tabUser').classList.toggle('active',  role === 'user');
+  document.getElementById('rememberRow').style.display = role === 'admin' ? 'flex' : 'none';
+  document.getElementById('authUser').value = '';
+  document.getElementById('authPass').value = '';
+  document.getElementById('authErr').style.display = 'none';
+}
+
+async function authLogin() {
+  const usernames = { admin: 'admin', user: 'willow' };
+  const entered_user = document.getElementById('authUser').value.trim().toLowerCase();
+  const entered_pass = document.getElementById('authPass').value;
+  const errEl = document.getElementById('authErr');
+  errEl.style.display = 'none';
+
+  const expected_user = usernames[_authLoginRole];
+  const expected_pass = _passwords[_authLoginRole];
+
+  if (entered_user !== expected_user || entered_pass !== expected_pass) {
+    errEl.style.display = 'block';
+    document.getElementById('authPass').value = '';
+    return;
+  }
+
+  _authRole = _authLoginRole;
+
+  // Admin "Remember me" → write token to localStorage
+  if (_authRole === 'admin') {
+    if (document.getElementById('authRemember').checked) {
+      localStorage.setItem(REMEMBER_KEY, 'admin_remembered');
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+    }
+  }
+
+  // Hide login, show app
+  document.getElementById('authScreen').style.display = 'none';
+
+  // Start inactivity timer for users
+  if (_authRole === 'user') startInactivityTimer();
+
+  boot();
+}
+
+// ── Inactivity timer (User only) ──
+let _inactivityWarningActive = false;
+
+function startInactivityTimer() {
+  resetInactivityTimer();
+  // Track activity events
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(ev => {
+    document.addEventListener(ev, resetInactivityTimer, { passive: true });
+  });
+}
+
+function resetInactivityTimer() {
+  if (_inactivityTimer) clearTimeout(_inactivityTimer);
+  if (_countdownTimer)  clearInterval(_countdownTimer);
+  _inactivityWarningActive = false;
+  document.getElementById('inactivityBanner').style.display = 'none';
+
+  // Warn 60s before logout (at 59min)
+  _inactivityTimer = setTimeout(() => {
+    showInactivityWarning();
+  }, INACTIVITY_MS - 60000);
+}
+
+function showInactivityWarning() {
+  _inactivityWarningActive = true;
+  const banner = document.getElementById('inactivityBanner');
+  banner.style.display = 'block';
+  let secs = 60;
+  document.getElementById('inactivityCountdown').textContent = secs;
+  _countdownTimer = setInterval(() => {
+    secs--;
+    document.getElementById('inactivityCountdown').textContent = secs;
+    if (secs <= 0) {
+      clearInterval(_countdownTimer);
+      authSignOut();
+    }
+  }, 1000);
+}
+
+function stopInactivityTimer() {
+  if (_inactivityTimer) clearTimeout(_inactivityTimer);
+  if (_countdownTimer)  clearInterval(_countdownTimer);
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(ev => {
+    document.removeEventListener(ev, resetInactivityTimer);
+  });
+}
+
+// ── Sign out ──
+function authSignOut() {
+  stopInactivityTimer();
+  _authRole = null;
+  document.getElementById('inactivityBanner').style.display = 'none';
+  // Clear "remember me" only if user manually signs out (keep it so next load auto-logs in)
+  // location.reload() is simplest — resets all app state cleanly
+  location.reload();
+}
+
+// ── Change password ──
+function openChpw() {
+  ['chpwErr','chpwOk'].forEach(id => document.getElementById(id).style.display = 'none');
+  ['chpwMaster','chpwNew','chpwConfirm'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('chpwOverlay').classList.add('open');
+}
+
+function openChpwFor(role) {
+  document.getElementById('chpwAccount').value = role;
+  openChpw();
+}
+
+function closeChpw() {
+  document.getElementById('chpwOverlay').classList.remove('open');
+}
+
+async function saveChpw() {
+  const account = document.getElementById('chpwAccount').value;
+  const master  = document.getElementById('chpwMaster').value;
+  const newPw   = document.getElementById('chpwNew').value.trim();
+  const confirm = document.getElementById('chpwConfirm').value.trim();
+  const errEl   = document.getElementById('chpwErr');
+  const okEl    = document.getElementById('chpwOk');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+
+  if (master !== _passwords.admin) {
+    errEl.textContent = 'Master password is incorrect.';
+    errEl.style.display = 'block'; return;
+  }
+  if (!newPw) {
+    errEl.textContent = 'New password cannot be empty.';
+    errEl.style.display = 'block'; return;
+  }
+  if (newPw !== confirm) {
+    errEl.textContent = 'Passwords do not match.';
+    errEl.style.display = 'block'; return;
+  }
+
+  // Save to Supabase
+  await savePasswordToSupabase(account, newPw);
+  _passwords[account] = newPw; // update in-memory
+
+  const label = account === 'admin' ? 'Admin' : 'Willow';
+  okEl.textContent = `✓ Password for ${label} updated and saved to database.`;
+  okEl.style.display = 'block';
+  setTimeout(closeChpw, 2000);
+  if (typeof toast === 'function') toast(`Password for ${label} changed ✓`, 'success');
+}
+
+// ── Boot gate: check remember-me token or show login ──
+async function authInit() {
+  // Load passwords from Supabase first
+  await loadPasswordsFromSupabase();
+
+  const token = localStorage.getItem(REMEMBER_KEY);
+  if (token === 'admin_remembered') {
+    // Auto-login as admin
+    _authRole = 'admin';
+    document.getElementById('authScreen').style.display = 'none';
+    boot();
+  } else {
+    // Show login screen, hide loading overlay
+    document.getElementById('loadingOverlay').style.display = 'none';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', authInit);
+
+// ══════════════════════════════════════════════════════
 //  DATA
 // ══════════════════════════════════════════════════════
 const SEED_DATA = [
   {id:1,apt:"n",owner:"ERA LT",name:"Name",type:"long-term",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"Notes | Via: VIa | Tel: Phone No | Email: Email",history:[],archived:false},
   {id:2,apt:"223",owner:"ERA LT",name:"Chris Kennedy",type:"long-term",rent:2600.0,balance:0,due:"2026-03-10",lease_end:"2025-10-10",checkin:"2025-10-10",note:"Via: Booking | Tel: 2134141259",history:[{"date": "2025-10-10", "text": "Move-in 2025-10-10"}],archived:false},
   {id:3,apt:"314",owner:"ERA LT",name:"Amira Glover",type:"short-stay",rent:823.44,balance:0,due:"2026-03-23",lease_end:"2026-03-23",checkin:"2026-01-05",note:"Via: Vrbo | Tel: 14455445925 | Email: amiraglover@yahoo.com",history:[],archived:false},
-  {id:4,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"month-to-month",rent:2880.0,balance:1440,due:"2026-04-07",lease_end:"2026-04-07",checkin:"2026-02-23",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
+  {id:4,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"short-stay",rent:2984.44,balance:0,due:"2026-03-24",lease_end:"2026-03-24",checkin:"2026-02-23",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
   {id:5,apt:"Montg 5",owner:"Elkins LT",name:"Dr Shradha Kakde",type:"short-stay",rent:1762.41,balance:0,due:"2026-03-24",lease_end:"2026-03-24",checkin:"2026-03-09",note:"Via: Airbnb | Tel: 6892504273 | Email: Meghnathkakde11@gmail.com",history:[],archived:false},
   {id:6,apt:"215",owner:"ERA LT",name:"Irina Stesel",type:"short-stay",rent:1903.2,balance:0,due:"2026-03-25",lease_end:"2026-03-25",checkin:"2026-03-15",note:"Via: Airbnb | Tel: 17732970907 | Email: Istesel@gmail.com",history:[],archived:false},
   {id:7,apt:"426-3",owner:"ERA LT",name:"Danene Bowman",type:"short-stay",rent:1504.75,balance:0,due:"2026-03-27",lease_end:"2026-03-27",checkin:"2026-02-21",note:"Via: Airbnb | Tel: 12675842987 | Email: Warritlam@gmail.com",history:[],archived:false},
@@ -1183,7 +1331,7 @@ const SEED_DATA = [
   {id:38,apt:"128",owner:"ERA LT",name:"Dawn Mccoy",type:"short-stay",rent:1722.02,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2026-02-28",note:"Via: Airbnb | Tel: 2157677174 | Email: Dawnmccoy3288@yahoo.com",history:[],archived:false},
   {id:39,apt:"225",owner:"ERA LT",name:"Tyvesha Jackson",type:"long-term",rent:3700.04,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2025-06-08",note:"Via: Vrbo | Tel: 2673063019 | Email: chocolatethai27@gmail.com",history:[{"date": "2025-06-08", "text": "Move-in 2025-06-08"}],archived:false},
   {id:40,apt:"Montg 3",owner:"Elkins LT",name:"Darron Wilson",type:"short-stay",rent:2884.7,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2026-02-25",note:"Via: Airbnb | Tel: 12156178005 | Email: darron.wilson@comhar.org",history:[],archived:false},
-  {id:41,apt:"111",owner:"ERA LT",name:"Kristen Brooker",type:"month-to-month",rent:2500.0,balance:0,due:"2026-04-02",lease_end:"2026-04-02",checkin:"2025-10-02",note:"Via: Zillow | Tel: (603) 359-0916 | Email: kristenbrooker333@gmail.com",history:[{"date": "2025-10-02", "text": "Move-in 2025-10-02"}],archived:false},
+  {id:41,apt:"111",owner:"ERA LT",name:"Kristen Brooker",type:"month-to-month",rent:2500.0,balance:0,due:"2026-04-02",lease_end:"",checkin:"2025-10-02",note:"Via: Zillow | Tel: (603) 359-0916 | Email: kristenbrooker323@gmail.com",history:[{"date": "2025-10-02", "text": "Move-in 2025-10-02"}],archived:false},
   {id:42,apt:"Montg 2",owner:"Elkins LT",name:"Gina Krier",type:"month-to-month",rent:2850.0,balance:0,due:"2026-04-04",lease_end:"",checkin:"2026-02-04",note:"Via: Airbnb | Tel: (267) 716-5106 | Email: gmkrier@gmail.com",history:[{"date": "2026-02-04", "text": "Move-in 2026-02-04"}],archived:false},
   {id:43,apt:"Montg 5B",owner:"Elkins LT",name:"Hider Shaaban",type:"short-stay",rent:1894.76,balance:0,due:"2026-04-06",lease_end:"2026-04-06",checkin:"2026-03-08",note:"Via: Airbnb | Tel: 2157895616 | Email: aloffreda23@gmail.com",history:[],archived:false},
   {id:44,apt:"Montg 8",owner:"Elkins LT",name:"Justin Krebs",type:"month-to-month",rent:1100.0,balance:0,due:"2026-04-09",lease_end:"",checkin:"2026-03-09",note:"Via: FF | Tel: (605) 430-6888 | Email: jtk1996@hotmail.com",history:[{"date": "2026-03-09", "text": "Move-in 2026-03-09"}],archived:false},
@@ -2012,8 +2160,8 @@ function dbRow(r) {
 
 function fromRow(r) {
   const hist = Array.isArray(r.history) ? r.history : [];
+  // checkin: use dedicated field first, then first history entry
   const checkinDate = r.checkin || (hist.length ? hist[0].date : '');
-  const sd = s => s ? s.substring(0,10) : ''; // strip time component
   return {
     id: r.id,
     apt: r.apt || '',
@@ -2022,14 +2170,14 @@ function fromRow(r) {
     type: r.type || 'available',
     rent: parseFloat(r.rent) || 0,
     balance: parseFloat(r.balance) || 0,
-    due: sd(r.due),
-    lease_end: sd(r.lease_end),
-    checkin: sd(r.checkin),
+    due: r.due || '',
+    lease_end: r.lease_end || '',
+    checkin: r.checkin || '',
     note: r.note || '',
     history: hist,
     archived: r.archived || false,
-    archivedDate: sd(r.archived_date || r.due),
-    checkinDate: sd(checkinDate),
+    archivedDate: r.archived_date || r.due || '',
+    checkinDate: checkinDate,
   };
 }
 
@@ -2145,7 +2293,7 @@ async function loadAll() {
   const all = allRows.map(fromRow);
   data     = all.filter(r => !r.archived);
   archived = all.filter(r =>  r.archived);
-  nextId = all.length ? Math.max(...all.map(r => r.id)) + 1 : 81;
+  nextId   = Math.max(80, ...all.map(r => r.id), 80) + 1;
   console.log(`loadAll complete: ${data.length} active, ${archived.length} archived`);
   return true;
 }
@@ -2159,15 +2307,14 @@ function subscribeRealtime() {
       const page = document.querySelector('.page.active');
       if (page && page.id === 'page-dashboard') renderDashboard();
       if (page && page.id === 'page-reports') renderReports();
-      if (page && page.id === 'page-calendar') renderCalendar();
     })
     .subscribe();
 }
 
 // ── DATE ───────────────────────────────────────────
-function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function today(){return new Date().toISOString().split('T')[0];}
 function daysUntil(s){if(!s)return null;const n=new Date();n.setHours(0,0,0,0);return Math.round((new Date(s+'T00:00:00')-n)/86400000);}
-function dueStatus(r){if(r.type==='available')return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(r.type==='short-stay'&&d<0)return'available';if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
+function dueStatus(r){if(r.type==='available')return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtMoney(n){return'$'+(Math.round(n||0)).toLocaleString();}
 function nextMonth(s){if(!s)return'';const d=new Date(s+'T00:00:00');d.setMonth(d.getMonth()+1);return d.toISOString().split('T')[0];}
@@ -2186,67 +2333,12 @@ function typeBadge(t){const m={'long-term':['badge-lt','Long Term'],'month-to-mo
 function dueCell(r){if(r.type==='available'||!r.due)return'<span class="due-none">—</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
 
 // ── RENDER TABLE ───────────────────────────────────
-// ── EARLIEST BOOKING LOGIC ─────────────────────────────────────────
-// For each active unit, find the earliest upcoming booking across
-// the active record + any archived cal-bookings for the same apt.
-// Returns a display record with the earliest guest/dates,
-// but preserves the original active unit's id for all actions.
-function getEarliestBooking(activeRecord) {
-  const todayStr = today();
-  const apt = activeRecord.apt;
-
-  // Only consider calendar-added bookings:
-  // Must have BOTH checkin AND archivedDate (checkout) set,
-  // checkin must be >= today (truly future/upcoming),
-  // and apt must match exactly.
-  const upcomingArchived = archived.filter(r =>
-    r.archived &&
-    r.apt === apt &&
-    r.name &&
-    r.checkin &&
-    (r.archivedDate || r.archived_date) &&
-    r.checkin >= todayStr   // checkin itself must be in the future
-  );
-
-  if (!upcomingArchived.length) return activeRecord;
-
-  // Find earliest checkin among cal-bookings
-  let earliest = null;
-  upcomingArchived.forEach(r => {
-    if (!earliest || r.checkin < earliest.checkin) earliest = r;
-  });
-
-  if (!earliest) return activeRecord;
-
-  // Only override if it's actually earlier than the active unit's checkin
-  const activeCi = activeRecord.checkin || '9999';
-  if (earliest.checkin >= activeCi) return activeRecord;
-
-  return {
-    ...activeRecord,
-    name:      earliest.name,
-    checkin:   earliest.checkin,
-    due:       earliest.archivedDate || earliest.archived_date || earliest.due || '',
-    lease_end: earliest.archivedDate || earliest.archived_date || earliest.due || '',
-    rent:      earliest.rent || activeRecord.rent,
-    note:      earliest.note || activeRecord.note,
-    _displayOnly: true,
-    _realRecord: activeRecord
-  };
-}
-
 function getFiltered(){
   let rows=data.filter(r=>!r.archived);
   const q=document.getElementById('searchInput').value.toLowerCase();
   if(q)rows=rows.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
   if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>r.type==='available');}
-  if(currentTypeFilter!=='all'){
-  if(currentTypeFilter==='available'){
-    rows=rows.filter(r=>r.type==='available'||dueStatus(r)==='available');
-  } else {
-    rows=rows.filter(r=>r.type===currentTypeFilter);
-  }
-}
+  if(currentTypeFilter!=='all')rows=rows.filter(r=>r.type===currentTypeFilter);
   const sel=document.getElementById('sortSel').value;
   rows.sort((a,b)=>{
     if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}
@@ -2297,12 +2389,17 @@ function openAddModal(){
   document.getElementById('editId').value='';
   document.getElementById('modalTitle').textContent='Add Unit / Tenant';
   document.getElementById('modalAptLabel').textContent='—';
-  ['fApt','fOwner','fName','fRent','fBalance','fNote','fCheckin','fPhone','fEmail','fChannelOther'].forEach(i=>document.getElementById(i).value='');
+  ['fApt','fOwner','fName','fRent','fBalance','fNote'].forEach(i=>document.getElementById(i).value='');
+  ['fCheckin','fDue','fLeaseEnd'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.value='';
+    el.removeAttribute('min');
+    el.removeAttribute('max');
+  });
   document.getElementById('fType').value='available';
-  document.getElementById('fDue').value='';
-  document.getElementById('fLeaseEnd').value='';
-  document.getElementById('fChannel').value='';
-  document.getElementById('fChannelOtherRow').style.display='none';
+  document.getElementById('fFullStayRow').style.display='none';
+  document.getElementById('fFullStayCheck').checked=false;
+  document.getElementById('fFullStayBreakdown').innerHTML='';
   openModal('editModal');
 }
 function openEditModal(id){
@@ -2319,34 +2416,89 @@ function openEditModal(id){
   document.getElementById('fLeaseEnd').value=r.lease_end||'';
   document.getElementById('fCheckin').value=r.checkin||'';
   document.getElementById('fBalance').value=r.balance||'';
-  // Parse existing note into structured fields
-  const parsed = parseNoteFields(r.note||'');
-  document.getElementById('fChannel').value = parsed.channel;
-  document.getElementById('fChannelOther').value = parsed.channelOther;
-  document.getElementById('fChannelOtherRow').style.display = parsed.channel==='Other' ? '' : 'none';
-  document.getElementById('fPhone').value = parsed.phone;
-  document.getElementById('fEmail').value = parsed.email;
-  document.getElementById('fNote').value = parsed.extra;
+  document.getElementById('fNote').value=r.note||'';
+  // Full-stay option only relevant when adding (not editing existing)
+  document.getElementById('fFullStayRow').style.display='none';
+  document.getElementById('fFullStayCheck').checked=false;
+  document.getElementById('fFullStayBreakdown').innerHTML='';
   openModal('editModal');
 }
+// ── Full-stay pay option in Add modal ──
+function checkFullStayVisibility(){
+  const type = document.getElementById('fType').value;
+  const checkin = document.getElementById('fCheckin').value;
+  const leaseEnd = document.getElementById('fLeaseEnd').value;
+  const isAdd = !document.getElementById('editId').value;
+  const show = isAdd && type === 'short-stay' && checkin && leaseEnd;
+  document.getElementById('fFullStayRow').style.display = show ? '' : 'none';
+  if(!show){
+    document.getElementById('fFullStayCheck').checked = false;
+    document.getElementById('fFullStayBreakdown').innerHTML = '';
+  } else {
+    updateFullStayPreview();
+  }
+}
+function updateFullStayPreview(){
+  const checked = document.getElementById('fFullStayCheck').checked;
+  const checkin = document.getElementById('fCheckin').value;
+  const leaseEnd = document.getElementById('fLeaseEnd').value;
+  const rent = parseFloat(document.getElementById('fRent').value) || 0;
+  const breakdown = document.getElementById('fFullStayBreakdown');
+  if(!checked || !checkin || !leaseEnd || !rent){ breakdown.innerHTML=''; return; }
+  const splits = calcProration(checkin, leaseEnd, rent);
+  if(!splits.length){ breakdown.innerHTML=''; return; }
+  breakdown.innerHTML = splits.map(s=>`${s.month}: <strong>$${s.portion.toLocaleString()}</strong> (${s.days} days)`).join('<br>');
+}
+// Wire up listeners after DOM is ready (called from boot)
+function wireAddModalListeners(){
+  ['fType','fCheckin','fLeaseEnd','fRent'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('change', ()=>{ checkFullStayVisibility(); updateFullStayPreview(); });
+    if(el && el.tagName==='INPUT') el.addEventListener('input', ()=>{ checkFullStayVisibility(); updateFullStayPreview(); });
+  });
+}
+
 async function saveTenant(){
   const id=document.getElementById('editId').value;
   const apt=document.getElementById('fApt').value.trim();
   if(!apt){toast('Apartment # required','error');return;}
-  const rec={
-    apt, owner:document.getElementById('fOwner').value.trim(),
-    name:document.getElementById('fName').value.trim(),
-    type:document.getElementById('fType').value,
-    rent:parseFloat(document.getElementById('fRent').value)||0,
-    due:document.getElementById('fDue').value,
-    lease_end:document.getElementById('fLeaseEnd').value,
-    checkin:document.getElementById('fCheckin').value,
-    balance:parseFloat(document.getElementById('fBalance').value)||0,
-    note:buildNoteField('fChannel','fChannelOther','fPhone','fEmail','fNote')
-  };
-  if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}
-  else{const newRec={id:nextId++,...rec,history:[],archived:false};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}
-  closeModal('editModal');renderTable();
+  const rec={apt,owner:document.getElementById('fOwner').value.trim(),name:document.getElementById('fName').value.trim(),type:document.getElementById('fType').value,rent:parseFloat(document.getElementById('fRent').value)||0,due:document.getElementById('fDue').value,lease_end:document.getElementById('fLeaseEnd').value,checkin:document.getElementById('fCheckin').value,balance:parseFloat(document.getElementById('fBalance').value)||0,note:document.getElementById('fNote').value.trim()};
+  if(id){
+    const i=data.findIndex(x=>x.id==id);
+    data[i]={...data[i],...rec};
+    await save(data[i]);
+    toast(`Apt ${apt} updated ✓`,'success');
+  } else {
+    // New booking — check for full-stay payment option
+    const fullStay = document.getElementById('fFullStayCheck')?.checked && rec.type==='short-stay' && rec.checkin && rec.lease_end && rec.rent;
+    const dateStr = today();
+    let history = [];
+    let balance = rec.balance;
+    if(fullStay){
+      // Record as paid, add history entry
+      history = [{ date: dateStr, amt: rec.rent, text: `$${rec.rent.toLocaleString()} — full stay paid (prorated)` }];
+      balance = 0;
+    }
+    const newRec={id:nextId++,...rec,balance,history,archived:false};
+    data.push(newRec);
+    await save(newRec);
+    // If full-stay and crosses months, create archive lines for past months
+    if(fullStay){
+      const splits = calcProration(rec.checkin, rec.lease_end, rec.rent);
+      const now = new Date();
+      const curMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      const pastSplits = splits.filter(s=>s.monthStr < curMonthStr);
+      for(const s of pastSplits){
+        await upsertArchiveMonth(newRec, s.monthStr, s.portion, dateStr, 'full stay paid upfront', history);
+      }
+      if(splits.length > 1) toast(`Apt ${apt} added + payment split across ${splits.length} months ✓`,'success');
+      else toast(`Apt ${apt} added + payment recorded ✓`,'success');
+    } else {
+      toast(`Apt ${apt} added ✓`,'success');
+    }
+  }
+  closeModal('editModal');
+  renderTable();
 }
 
 // ── PAYMENT ────────────────────────────────────────
@@ -2821,15 +2973,12 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       rentDisplay=`$${r.rent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
-  // Delete button — available for any booking (not permanent long-term leases)
-  btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
-  document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal','calActionModal','blockModal','calBookingModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
+document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
 function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;document.getElementById('toastWrap').appendChild(t);setTimeout(()=>t.remove(),3200);}
 function exportCSV(){const h=['Apt','Owner','Tenant','Type','Rent','Balance','Due Date','Note'];const rows=data.filter(r=>!r.archived).map(r=>[r.apt,r.owner,r.name,r.type,r.rent,r.balance,r.due,`"${(r.note||'').replace(/"/g,'""')}"`]);const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h,...rows].map(r=>r.join(',')).join('\n'));a.download='propdesk-export.csv';a.click();toast('CSV exported ✓','success');}
 
@@ -2842,7 +2991,6 @@ function showPage(p,el){
   if(p==='dashboard'){renderDashboard();checkBackupStatus();}
   if(p==='reports')renderReports();
   if(p==='history')renderHistory();
-  if(p==='calendar')renderCalendar();
 }
 
 // ── BACKUP ─────────────────────────────────────────
@@ -3831,812 +3979,11 @@ function renderReports(){
 // ── DEBUG ──────────────────────────────────────────
 // ── INIT ───────────────────────────────────────────
 document.getElementById('sortSel').value='due';
-
-// ═══════════════════════════════════════════════
-// CALENDAR
-// ═══════════════════════════════════════════════
-
-let calYear       = new Date().getFullYear();
-let calMonth      = new Date().getMonth();
-let calTypeFilter = 'all';
-let _calUnitId    = null;   // active unit id for action modals
-let _calApt       = null;   // active apt string
-let _calDate      = null;   // clicked date
-let _editingBlock = null;   // existing block being edited {from,to,reason}
-
-// ── localStorage blocks store ──
-function getBlocks() {
-  try { return JSON.parse(localStorage.getItem('propdesk_blocks') || '{}'); }
-  catch(e) { return {}; }
-}
-function setBlocks(b) { localStorage.setItem('propdesk_blocks', JSON.stringify(b)); }
-
-// ── Filter pills ──
-function calFilterType(el) {
-  document.querySelectorAll('[data-caltype]').forEach(p => p.classList.remove('active'));
-  el.classList.add('active');
-  calTypeFilter = el.dataset.caltype;
-  renderCalendar();
-}
-
-// ── Navigation ──
-function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
-function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
-function calGoToday() {
-  const n=new Date(); calYear=n.getFullYear(); calMonth=n.getMonth();
-  renderCalendar();
-  setTimeout(()=>{
-    const outer=document.getElementById('calGridOuter');
-    const t=document.querySelector('.cal-day-hdr.today');
-    if(t&&outer) outer.scrollLeft=t.offsetLeft-120;
-  },80);
-}
-
-// ── Main render ──
-function renderCalendar() {
-  const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DAY_ABBR=['SU','MO','TU','WE','TH','FR','SA'];
-  const _tn=new Date();
-  const todayStr=_tn.getFullYear()+'-'+String(_tn.getMonth()+1).padStart(2,'0')+'-'+String(_tn.getDate()).padStart(2,'0');
-  // curMonthStr not needed — 270-day window has no dim logic
-
-  // Build date range: 150 days back from today → 60 days forward
-  const dates=[];
-  const _today=new Date();
-  const winFrom=new Date(_today); winFrom.setDate(_today.getDate()-90);
-  const winTo  =new Date(_today); winTo.setDate(_today.getDate()+150);
-  for(let d=new Date(winFrom); d<=winTo; d.setDate(d.getDate()+1)){
-    dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
-  }
-
-  const COL_W=36;
-  const winStart=dates[0], winEnd=dates[dates.length-1];
-
-  // ── Filter units ──
-  const q=(document.getElementById('calSearch')?.value||'').toLowerCase();
-  let units=data.filter(r=>!r.archived);
-  if(calTypeFilter!=='all'){
-    if(calTypeFilter==='available'){
-      // Show units that are type=available OR have only future bookings (currently vacant)
-      const futureOnlyApts=new Set();
-      data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr).forEach(r=>futureOnlyApts.add(r.apt));
-      units=units.filter(r=>r.type==='available'||dueStatus(r)==='available'||
-        (futureOnlyApts.has(r.apt)&&(!r.checkin||r.checkin>todayStr)));
-    } else {
-      units=units.filter(r=>r.type===calTypeFilter);
-    }
-  }
-  if(q) units=units.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
-  units.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
-
-  // Smart dedupe: one display row per apt, with priority:
-  // 1. available type row
-  // 2. current (non-future) active row
-  // 3. future booking row
-  const unitsByApt=new Map();
-  for(const r of units){
-    const prev=unitsByApt.get(r.apt);
-    if(!prev){ unitsByApt.set(r.apt,r); continue; }
-    const rFuture=!!(r.checkin&&r.checkin>todayStr);
-    const prevFuture=!!(prev.checkin&&prev.checkin>todayStr);
-    const rAvail=(r.type==='available');
-    const prevAvail=(prev.type==='available');
-    if(rAvail&&!prevAvail){ unitsByApt.set(r.apt,r); continue; }
-    if(prevAvail&&!rAvail){ continue; }
-    if(!rFuture&&prevFuture){ unitsByApt.set(r.apt,r); continue; }
-    if(!prevFuture&&rFuture){ continue; }
-    if((r.id||0)<(prev.id||0)) unitsByApt.set(r.apt,r);
-  }
-  units=[...unitsByApt.values()].sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
-  document.getElementById('calUnitCount').textContent=`Units (${units.length})`;
-  const mlEl=document.getElementById('calMonthLabel');
-  if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
-
-  // ── Future bookings: additional active records with future checkin ──
-  // Build a map of which id was chosen as display unit per apt
-  const displayUnitId={};
-  units.forEach(u=>{ displayUnitId[u.apt]=u.id; });
-
-  const futureBookings={};
-  // Check both active data (excluding display row) AND archived records with future checkin
-  const _addFutureBooking=(r,ci,co)=>{
-    if(!co||co<todayStr||co<winStart) return; // must have future checkout
-    if(ci && ci>winEnd) return;
-    if(ci && ci<todayStr) return; // checkin already past — not a future booking
-    const from = (ci && ci>=todayStr) ? ci : todayStr;
-    if(!futureBookings[r.apt]) futureBookings[r.apt]=[];
-    futureBookings[r.apt].push({id:r.id,name:r.name,from:from,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||''});
-  };
-  // Active records (skip display row)
-  data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>=todayStr).forEach(r=>{
-    if(displayUnitId[r.apt]===r.id) return;
-    _addFutureBooking(r, r.checkin, r.due||r.lease_end||'');
-  });
-  // Archived records with future checkin (cal-bookings saved with old code)
-  // Also handle records where checkin is missing but archivedDate is future
-  archived.filter(r=>r.archived&&r.name).forEach(r=>{
-    const ci = r.checkin || '';
-    const co = r.archivedDate||r.archived_date||r.lease_end||r.due||'';
-    if(!co||co<todayStr) return; // checkout already past
-    if(ci && ci<todayStr) return; // checkin already past
-    const from = ci || co; // if no checkin use checkout date as single-day marker
-    if(from>=todayStr) _addFutureBooking(r, from, co);
-  });
-
-  // ── Past stays — normal bars, fully clickable with all details ──
-  const pastStays={};
-  archived.filter(r=>r.archived&&r.name&&(r.archivedDate||r.due)).forEach(r=>{
-    const ci=r.checkin||r.checkinDate||'';
-    const co=r.archivedDate||r.due||'';
-    if(!co||co<winStart||(!ci&&co<winStart)) return;
-    if(ci&&ci>winEnd) return;
-    if(!pastStays[r.apt]) pastStays[r.apt]=[];
-    pastStays[r.apt].push({id:r.id,name:r.name,from:ci||co,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||'',archived:true});
-  });
-
-  const blocks=getBlocks();
-
-  // ── Units list ──
-  const calMeta = getCalUnitMeta();
-  document.getElementById('calUnitsList').innerHTML=units.map(r=>{
-    const meta = calMeta[r.apt] || {};
-    const sub = meta.brBath || '';
-    // Unit is currently available if:
-    // - type is available, OR
-    // - short-stay with past due, OR  
-    // - display row's own checkin is in the future (no current tenant)
-    const displayRowFuture = !!(r.checkin && r.checkin > todayStr);
-    const unitAvailNow = r.type==='available' || dueStatus(r)==='available' || displayRowFuture;
-
-    // Collect ALL future bookings for this apt including the display row itself if future
-    const allFuture = [...(futureBookings[r.apt]||[])];
-    if(displayRowFuture) allFuture.push({from:r.checkin, to:r.due||r.lease_end||''});
-    allFuture.sort((a,b)=>a.from.localeCompare(b.from));
-    const nextBooking = allFuture[0];
-
-    let availText = '';
-    if(unitAvailNow && nextBooking && nextBooking.from > todayStr){
-      const d=new Date(nextBooking.from+'T00:00:00');
-      d.setDate(d.getDate()-1);
-      if(d>=new Date(todayStr)){
-        availText='until '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
-      }
-    }
-    return `<div class="cal-unit-row" title="Click to view unit details" onclick="openCalUnitPanel(${r.id})">
-      <div class="cal-unit-cell">
-        <div class="cal-unit-name">${r.apt}</div>
-        ${availText
-          ? `<div class="cal-unit-sub" style="color:var(--green);font-weight:500;">✓ avail ${availText}</div>`
-          : sub ? `<div class="cal-unit-sub">${sub}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-
-  // ── Day headers ──
-  // Day headers — one cell per date, perfectly aligned with grid rows
-  // Month labels as a separate row above, using colspan-equivalent flex spans
-  const MONTH_SHORT2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  let lastMo=-1, monthGroups=[];
-  dates.forEach(d=>{
-    const mo=parseInt(d.substring(5,7))-1, yr=parseInt(d.substring(0,4));
-    if(mo!==lastMo){monthGroups.push({mo,yr,count:1});lastMo=mo;}
-    else monthGroups[monthGroups.length-1].count++;
-  });
-  const monthRowHtml = monthGroups.map(g=>
-    `<div style="width:${g.count*COL_W}px;flex-shrink:0;display:flex;align-items:center;padding:0 8px;font-family:'Playfair Display',serif;font-size:12px;font-weight:700;color:var(--accent2);border-right:2px solid var(--border2);box-sizing:border-box;background:var(--surface2);">${MONTH_SHORT2[g.mo]} ${g.yr}</div>`
-  ).join('');
-  document.getElementById('calMonthRow').innerHTML = monthRowHtml;
-
-  const dayHdrHtml = dates.map(d => {
-    const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
-    const isWE=dow===0||dow===6,isToday=d===todayStr;
-    return `<div class="cal-day-hdr${isWE?' weekend':''}${isToday?' today':''}">
-      <div class="day-name">${DAY_ABBR[dow]}</div>
-      <div class="day-num">${dt.getDate()}</div>
-    </div>`;
-  }).join('');
-  document.getElementById('calDaysHeader').innerHTML = dayHdrHtml;
-
-  // ── Rows ──
-  const rowsEl=document.getElementById('calRows');
-  rowsEl.innerHTML='';
-
-  units.forEach(r=>{
-    const rowDiv=document.createElement('div');
-    rowDiv.className='cal-row';
-    rowDiv.style.width=(dates.length*COL_W)+'px';
-
-    const aptBlocks=blocks[r.apt]||[];
-    let cellsHtml='';
-    dates.forEach(d=>{
-      const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
-      const isWE=dow===0||dow===6,isToday=d===todayStr;
-      const isBlocked=aptBlocks.some(b=>d>=b.from&&d<=b.to);
-      let cls='cal-cell';
-      if(isWE) cls+=' weekend';
-      if(isToday) cls+=' today-col';
-      if(isBlocked) cls+=' blocked';
-      cellsHtml+=`<div class="${cls}" onclick="onCalCellClick(${r.id},'${r.apt}','${d}')"></div>`;
-    });
-    rowDiv.innerHTML=cellsHtml;
-
-    // ── Bars ──
-    const bars=[];
-
-    // 1. Active tenant bar — uses live unit data only, no archive
-    if(r.type!=='available'&&r.name){
-      const stripDate = s => s ? String(s).substring(0,10) : '';
-      const bf = stripDate(r.checkin && r.checkin >= winStart ? r.checkin : winStart);
-      const endCandidates = [stripDate(r.due), stripDate(r.lease_end)].filter(Boolean).sort();
-      const bt = endCandidates.length ? endCandidates[endCandidates.length-1] : '';
-      if(bt) bars.push({
-        name:r.name, from:bf, to:bt,
-        type:r.type, note:r.note||'',
-        active:true, unitId:r.id, rent:r.rent, owner:r.owner
-      });
-    }
-
-    // 2. Past stays — full normal bars
-    (pastStays[r.apt]||[]).forEach(s=>bars.push({...s}));
-    // 3. Future bookings — calendar-added upcoming stays
-    (futureBookings[r.apt]||[]).forEach(s=>bars.push({...s}));
-
-    // 3. Blocks
-    aptBlocks.forEach(b=>bars.push({
-      name:b.reason||'Blocked', from:b.from, to:b.to,
-      type:'__block__', blockData:b
-    }));
-
-    // Find index of date in sorted dates array using binary search
-    const dateIdx=(d)=>{
-      if(!d) return -1;
-      if(d <= dates[0]) return 0;
-      if(d >= dates[dates.length-1]) return dates.length-1;
-      let lo=0, hi=dates.length-1;
-      while(lo<=hi){
-        const mid=(lo+hi)>>1;
-        if(dates[mid]===d) return mid;
-        if(dates[mid]<d) lo=mid+1; else hi=mid-1;
-      }
-      return lo;
-    };
-
-
-
-    bars.forEach(bar=>{
-      if(!bar.from&&!bar.to) return;
-      const cf=bar.from<winStart?winStart:bar.from;
-      const ct=bar.to>winEnd?winEnd:bar.to;
-      if(cf>winEnd||ct<winStart) return;
-      const s=dateIdx(cf), e=dateIdx(ct);
-      if(s<0||e<0) return;
-      const span=e-s+1; if(span<1) return;
-
-      let barCls='cal-bar ';
-      let icon='🏠';
-      if(bar.type==='long-term')        {barCls+='bar-lt';    icon='🏠';}
-      else if(bar.type==='month-to-month'){barCls+='bar-mtm'; icon='📋';}
-      else if(bar.type==='short-stay')    {barCls+='bar-ss';  icon='✈️';}
-      else if(bar.type==='__block__')     {barCls+='bar-block';icon='🚫';}
-      else if(bar.type==='available-gap') {barCls+='bar-avail';icon='✓';}
-
-      const note=bar.note||'';
-      const badge = bar.type==='__block__' ? '🚫' : getChannelBadge(note);
-
-      const barEl=document.createElement('div');
-      barEl.className=barCls;
-      barEl.style.cssText='left:'+(s*COL_W+2)+'px;width:'+(span*COL_W-4)+'px;overflow:hidden;z-index:5;';
-      barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
-
-      // Sticky label: floats within the visible portion of the bar
-      // Delete X button for blocks only
-      const xBtn = bar.type==='__block__'
-        ? `<span class="cal-bar-x" onclick="event.stopPropagation();deleteBlock('${r.apt}','${bar.from}','${bar.to}')">&#x2715;</span>`
-        : '';
-      // Inner sticky wrapper keeps name visible as bar scrolls
-      // Inherit background color from bar class for the bg pill
-      const bgColor = bar.type==='long-term'      ? 'linear-gradient(90deg,#2563a8,#1e5799)'
-        : bar.type==='month-to-month'  ? 'linear-gradient(90deg,#7c4fbe,#5e3f9e)'
-        : bar.type==='short-stay'      ? 'linear-gradient(90deg,#e07818,#b86818)'
-        : bar.type==='__block__'       ? 'linear-gradient(90deg,#c0392b,#962d22)'
-        : bar.type==='available-gap'   ? 'linear-gradient(90deg,#3a9e5f,#256645)'
-        : 'linear-gradient(90deg,#2563a8,#1e5799)';
-
-      barEl.innerHTML=`<div class="cal-bar-bg" style="background:${bgColor}"></div>${xBtn}`;
-      // Store data for floating label
-      barEl.dataset.barLeft = s * COL_W + 2;
-      barEl.dataset.barRight = (s + span) * COL_W - 4;
-      barEl.dataset.barName = bar.name;
-      barEl.dataset.barBadge = badge.replace(/"/g,"'");
-      barEl.dataset.barColor = '#fff';
-
-      barEl.addEventListener('click',e=>{
-        e.stopPropagation();
-        if(bar.type==='__block__'){
-          _calUnitId=r.id; _calApt=r.apt; _editingBlock=bar.blockData;
-          openBlockModal();
-        } else if(bar.active){
-          // Main active tenant bar → full detail panel
-          openDetail(r.id);
-        } else if(bar.id){
-          const activeRec = data.find(x=>x.id===bar.id);
-          if(activeRec){
-            // Future booking in data → full detail panel
-            openDetail(activeRec.id);
-          } else {
-            // Archived record → calendar detail panel with delete
-            openCalBookingDetail(bar, r, false);
-          }
-        }
-      });
-      rowDiv.appendChild(barEl);
-    });
-
-    // Add a floating label overlay for this row
-    const labelsDiv = document.createElement('div');
-    labelsDiv.className = 'cal-row-labels';
-    rowDiv.appendChild(labelsDiv);
-
-    rowsEl.appendChild(rowDiv);
-  });
-
-  // After rows are in DOM, set up floating label updates on scroll
-  _setupCalFloatingLabels();
-
-  // Set explicit width on grid containers so horizontal scroll works
-  const totalW = dates.length * COL_W;
-  document.getElementById('calGrid').style.width = totalW + 'px';
-  document.getElementById('calRows').style.width = totalW + 'px';
-  document.getElementById('calDaysHeader').style.width = totalW + 'px';
-
-  // Scroll to today on very first render only
-  const outer=document.getElementById('calGridOuter');
-  if(!outer._calScrolled){
-    outer._calScrolled=true;
-    const todayIdx=dates.indexOf(todayStr);
-    if(todayIdx>=0) outer.scrollLeft=Math.max(0,todayIdx*COL_W-120);
-  }
-}
-
-// ── Cell click: show action picker ──
-function onCalCellClick(unitId, apt, dateStr) {
-  _calUnitId=unitId; _calApt=apt; _calDate=dateStr; _editingBlock=null;
-  document.getElementById('calActionApt').textContent=apt;
-  const r=data.find(x=>x.id===unitId);
-  document.getElementById('calActionDate').textContent=
-    (r&&r.name?r.name+' · ':'')+fmtDate(dateStr);
-  openModal('calActionModal');
-}
-
-// ── Block modal ──
-function openBlockModal() {
-  const r=data.find(x=>x.id===_calUnitId);
-  document.getElementById('blockModalApt').textContent=_calApt||'';
-  const eb=_editingBlock;
-  document.getElementById('blockFrom').value=eb?eb.from:(_calDate||today());
-  document.getElementById('blockTo').value=eb?eb.to:(_calDate||today());
-  document.getElementById('blockReason').value=eb?(eb.reason||''):'';
-  document.getElementById('blockModalInfo').innerHTML=
-    `Unit <strong>${_calApt}</strong>${r&&r.name?' — '+r.name:''}<br>
-     <span style="font-size:11px;color:var(--text3)">${eb?'Edit or delete this block:':'Set the date range to block:'}</span>`;
-  // Show delete button only when editing existing block
-  document.getElementById('deleteBlockRow').style.display=eb?'':'none';
-  openModal('blockModal');
-}
-
-function saveBlock() {
-  const from=document.getElementById('blockFrom').value;
-  const to=document.getElementById('blockTo').value;
-  const reason=document.getElementById('blockReason').value.trim();
-  if(!from||!to){toast('Please set both From and To dates','error');return;}
-  if(from>to){toast('From date must be before To date','error');return;}
-  if(!_calApt){toast('No unit selected','error');return;}
-  const blocks=getBlocks();
-  if(!blocks[_calApt]) blocks[_calApt]=[];
-  // Remove overlapping blocks (or the one being edited)
-  if(_editingBlock) {
-    blocks[_calApt]=blocks[_calApt].filter(b=>!(b.from===_editingBlock.from&&b.to===_editingBlock.to));
-  } else {
-    blocks[_calApt]=blocks[_calApt].filter(b=>b.to<from||b.from>to);
-  }
-  blocks[_calApt].push({from,to,reason});
-  setBlocks(blocks);
-  closeModal('blockModal');
-  toast(`Dates blocked for ${_calApt} ✓`,'success');
-  renderCalendar();
-}
-
-function deleteCurrentBlock() {
-  if(!_editingBlock||!_calApt)return;
-  deleteBlock(_calApt,_editingBlock.from,_editingBlock.to);
-  closeModal('blockModal');
-}
-
-function deleteBlock(apt,from,to) {
-  if(!confirm(`Remove block (${from} → ${to}) for ${apt}?`))return;
-  const blocks=getBlocks();
-  if(!blocks[apt])return;
-  blocks[apt]=blocks[apt].filter(b=>!(b.from===from&&b.to===to));
-  setBlocks(blocks);
-  toast(`Block removed for ${apt}`,'success');
-  renderCalendar();
-}
-
-// ── Calendar Add Booking modal ──
-function openCalBookingModal() {
-  // Use the standard edit modal — same form, same flow, no duplicates
-  if(_calUnitId) {
-    openEditModal(_calUnitId);
-    // Pre-fill checkin with the clicked date if unit is available
-    const r=data.find(x=>x.id===_calUnitId);
-    if(r && (r.type==='available' || !r.name)) {
-      document.getElementById('fCheckin').value = _calDate || today();
-      document.getElementById('fType').value = 'short-stay';
-    }
-  }
-}
-
-async function saveCalBooking() {
-  const name    = document.getElementById('cbName').value.trim();
-  const type    = document.getElementById('cbType').value;
-  const owner   = document.getElementById('cbOwner').value.trim();
-  const checkin = document.getElementById('cbCheckin').value;
-  const checkout= document.getElementById('cbCheckout').value;
-  const rent    = parseFloat(document.getElementById('cbRent').value)||0;
-  const balance = parseFloat(document.getElementById('cbBalance').value)||0;
-  const note    = buildNoteField('cbChannel','cbChannelOther','cbPhone','cbEmail','cbNote');
-
-  if(!name)   { toast('Tenant name required','error'); return; }
-  if(!checkin){ toast('Check-in date required','error'); return; }
-  if(!checkout){ toast('Checkout date required','error'); return; }
-  if(!_calApt){ toast('No unit selected','error'); return; }
-
-  const btn = document.querySelector('#calBookingModal .btn-primary');
-  btn.textContent = 'Saving…'; btn.disabled = true;
-
-  try {
-    const histText = `$${rent.toLocaleString()} — stay (${checkin} → ${checkout})`;
-    const bookingNote = note ? note + ' | cal-booking' : 'cal-booking';
-
-    // Check if the unit already has an available/vacant active record for this apt
-    // If yes — update it instead of creating a duplicate row
-    const existingAvail = data.find(r =>
-      !r.archived && r.apt === _calApt &&
-      (r.type === 'available' || !r.name || dueStatus(r) === 'available')
-    );
-
-    if(existingAvail) {
-      // Update the existing available record with booking details
-      const updated = {
-        ...existingAvail,
-        name, type, owner, rent, balance: 0,
-        checkin, due: checkout, lease_end: checkout,
-        note: bookingNote,
-        history: [{date: checkin, amt: rent, text: histText}]
-      };
-      await save(updated);
-      await auditLog('cal-booking', _calApt, name, existingAvail.id, dbRow(existingAvail), dbRow(updated));
-    } else {
-      // No available record — create a new booking record
-      const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
-      const newId = (maxRow&&maxRow.length ? maxRow[0].id : nextId) + 1;
-      nextId = newId + 1;
-      const newRec = {
-        id: newId, apt: _calApt, owner, name, type,
-        rent, balance: 0, checkin, due: checkout, lease_end: checkout,
-        note: bookingNote,
-        history: [{date: checkin, amt: rent, text: histText}],
-        archived: false, archived_date: null
-      };
-      const {error} = await sb.from('units').insert(dbRow(newRec));
-      if(error) throw new Error(error.message);
-      await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
-    }
-
-    await loadAll();
-
-    closeModal('calBookingModal');
-    renderCalendar();
-    renderTable();
-    toast(`Booking added: ${name} @ ${_calApt} ✓`, 'success');
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  } finally {
-    btn.textContent = '+ Save Booking'; btn.disabled = false;
-  }
-}
-
-
-// ── One-time calendar scroll setup (called once after boot) ──
-function initCalScroll() {
-  const outer = document.getElementById('calGridOuter');
-  const uCol  = document.getElementById('calUnitsCol');
-  if (!outer || outer._bound) return;
-  outer._bound = true;
-
-  // Sync vertical scroll: grid ↔ units sidebar
-  let _syncing = false;
-  outer.addEventListener('scroll', () => {
-    if (_syncing) return;
-    _syncing = true;
-    uCol.scrollTop = outer.scrollTop;
-    _syncing = false;
-    _updateCalFloatingLabels();
-  }, { passive: true });
-  uCol.addEventListener('scroll', () => {
-    if (_syncing) return;
-    _syncing = true;
-    outer.scrollTop = uCol.scrollTop;
-    _syncing = false;
-  }, { passive: true });
-}
-
-function _setupCalFloatingLabels() {
-  _updateCalFloatingLabels();
-}
-
-function _updateCalFloatingLabels() {
-  const outer = document.getElementById('calGridOuter');
-  if (!outer) return;
-  const scrollLeft = outer.scrollLeft;
-  const viewWidth  = outer.clientWidth;
-  const PADDING    = 8;
-
-  document.querySelectorAll('.cal-row-labels').forEach(labelsDiv => {
-    labelsDiv.innerHTML = '';
-    const rowDiv = labelsDiv.parentElement;
-    if (!rowDiv) return;
-
-    rowDiv.querySelectorAll('.cal-bar').forEach(barEl => {
-      const barLeft  = parseFloat(barEl.dataset.barLeft  || 0);
-      const barRight = parseFloat(barEl.dataset.barRight || 0);
-      const name     = barEl.dataset.barName  || '';
-      const badge    = (barEl.dataset.barBadge || '').replace(/'/g, '"');
-      if (!name) return;
-
-      // Visible left edge clamped inside bar
-      const visLeft  = Math.max(barLeft,  scrollLeft + PADDING);
-      const visRight = Math.min(barRight, scrollLeft + viewWidth - PADDING);
-      if (visRight <= visLeft + 20) return;
-
-      const labelW   = 24 + name.length * 7;
-      const labelLeft = Math.min(visLeft, barRight - labelW - PADDING);
-      if (labelLeft < barLeft - 2) return;
-
-      const label = document.createElement('div');
-      label.className = 'cal-float-label';
-      label.style.left = labelLeft + 'px';
-      label.innerHTML  = badge + '<span style="margin-left:3px">' + name + '</span>';
-      labelsDiv.appendChild(label);
-    });
-  });
-}
-
-
-// ── CAL BOOKING DETAIL PANEL ───────────────────────────
-
-function openCalBookingDetail(bar, unit, isActive) {
-  const apt = unit.apt;
-  document.getElementById('cbpApt').textContent   = apt;
-  document.getElementById('cbpName').textContent  = bar.name || '—';
-  document.getElementById('cbpDates').textContent = `${fmtDate(bar.from)} → ${fmtDate(bar.to)}`;
-  document.getElementById('cbpOwner').textContent = bar.owner || unit.owner || '—';
-  document.getElementById('cbpRent').textContent  = bar.rent ? fmtMoney(bar.rent) : '—';
-
-  const parsed = parseNoteFields(bar.note || '');
-  document.getElementById('cbpChannel').textContent = getChannelName(bar.note||'');
-  document.getElementById('cbpPhone').textContent   = parsed.phone || '—';
-  document.getElementById('cbpEmail').textContent   = parsed.email || '—';
-  document.getElementById('cbpNote').textContent    = parsed.extra || '—';
-  document.getElementById('cbpType').textContent    = bar.type || '—';
-
-  // Only show delete for archived bookings, not the active unit bar
-  // Show delete for any bar that has an id (active tenant bar has isActive=true)
-  _calBookingPanelId = bar.id && !isActive ? bar.id : null;
-  document.getElementById('cbpDeleteRow').style.display = _calBookingPanelId ? '' : 'none';
-
-  document.getElementById('calBookingPanel').classList.add('open');
-}
-
-function closeCalBookingPanel() {
-  document.getElementById('calBookingPanel').classList.remove('open');
-}
-
-async function deleteCalBooking() {
-  if (!_calBookingPanelId) return;
-  const rec = [...data, ...archived].find(x => x.id === _calBookingPanelId);
-  if (!confirm(`Delete booking "${rec ? rec.name : ''}"? This cannot be undone.`)) return;
-  try {
-    const { error } = await sb.from('units').delete().eq('id', _calBookingPanelId);
-    if (error) throw new Error(error.message);
-    closeCalBookingPanel();
-    await loadAll();
-    renderCalendar();
-    renderTable();
-    toast('Booking deleted ✓', 'success');
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
-}
-
-
-// ── CAL UNIT META (localStorage: BR/Bath + internal note per apt) ──
-function getCalUnitMeta() {
-  try { return JSON.parse(localStorage.getItem('propdesk_unit_meta') || '{}'); }
-  catch(e) { return {}; }
-}
-function setCalUnitMeta(m) { localStorage.setItem('propdesk_unit_meta', JSON.stringify(m)); }
-
-function openCalUnitPanel(unitId) {
-  const r = data.find(x => x.id === unitId);
-  if (!r) return;
-  _calUnitId = unitId;
-  _calApt    = r.apt;
-  document.getElementById('cupApt').textContent    = r.apt;
-  document.getElementById('cupTenant').textContent  = r.name || 'Vacant';
-  document.getElementById('cupOwner').textContent   = r.owner || '';
-  const meta = getCalUnitMeta()[r.apt] || {};
-  document.getElementById('cupBrBath').value = meta.brBath || '';
-  document.getElementById('cupNote').value   = meta.note   || '';
-  document.getElementById('calUnitPanel').classList.add('open');
-}
-
-function closeCalUnitPanel() {
-  document.getElementById('calUnitPanel').classList.remove('open');
-}
-
-function saveCalUnitMeta() {
-  if (!_calApt) return;
-  const meta = getCalUnitMeta();
-  meta[_calApt] = {
-    brBath: document.getElementById('cupBrBath').value.trim(),
-    note:   document.getElementById('cupNote').value.trim()
-  };
-  setCalUnitMeta(meta);
-  renderCalendar(); // refresh sub-line live
-}
-
-async function deleteCalUnit() {
-  const r = data.find(x => x.id === _calUnitId);
-  if (!r) return;
-  if (!confirm(`Delete unit "${r.apt}" from active list?\nAll archive records for this unit will be kept.`)) return;
-  try {
-    // Only delete the active unit record, not archived ones
-    const { error } = await sb.from('units').delete().eq('id', r.id).eq('archived', false);
-    if (error) throw new Error(error.message);
-    await auditLog('delete-unit', r.apt, r.name || '', r.id, dbRow(r), null);
-    closeCalUnitPanel();
-    await loadAll();
-    renderCalendar();
-    renderTable();
-    toast(`Unit ${r.apt} deleted. Archive records kept. ✓`, 'success');
-  } catch(e) {
-    toast('Error: ' + e.message, 'error');
-  }
-}
-
-
-// ── CHANNEL / NOTE HELPERS ──────────────────────────────
-
-// Known channels and their icons (SVG emoji fallback letters)
-const CHANNELS = {
-  'Airbnb':      { letter: 'A', bg: '#FF5A5F', fg: '#fff' },
-  'Vrbo':        { letter: 'V', bg: '#1DA462', fg: '#fff' },
-  'Booking.com': { letter: 'B', bg: '#003580', fg: '#fff' },
-  'Booking':     { letter: 'B', bg: '#003580', fg: '#fff' },
-  'Direct':      { letter: 'D', bg: '#8a5f32', fg: '#fff' },
-  'Hostfully':   { letter: 'H', bg: '#7B4FBE', fg: '#fff' },
-};
-
-function getChannelBadge(note) {
-  if (!note) return _chBadge('D','#8a5f32');
-  for (const [name, ch] of Object.entries(CHANNELS)) {
-    if (note.toLowerCase().includes(name.toLowerCase()))
-      return _chBadge(ch.letter, ch.bg, ch.fg);
-  }
-  const m = note.match(/Via:\s*([^|\n]+)/i);
-  if (m) {
-    const letter = m[1].trim().charAt(0).toUpperCase();
-    return _chBadge(letter, 'rgba(255,255,255,.35)', '#fff');
-  }
-  return _chBadge('D','#8a5f32');
-}
-
-function _chBadge(letter, bg, fg='#fff') {
-  return `<span class="cal-ch-badge" style="background:${bg};color:${fg}">${letter}</span>`;
-}
-
-// Keep getChannelIcon as alias for cbpChannel display (text version)
-function getChannelName(note) {
-  if (!note) return 'Direct';
-  for (const name of Object.keys(CHANNELS)) {
-    if (note.toLowerCase().includes(name.toLowerCase())) return name;
-  }
-  const m = note.match(/Via:\s*([^|\n]+)/i);
-  return m ? m[1].trim() : 'Direct';
-}
-
-function parseNoteFields(note) {
-  // Extract structured parts from "Via: X | Tel: X | Email: X" format
-  const result = { channel: '', channelOther: '', phone: '', email: '', extra: note };
-  if (!note) return result;
-
-  const viaM   = note.match(/Via:\s*([^|\n]+)/i);
-  const telM   = note.match(/Tel:\s*([^|\n]+)/i);
-  const emailM = note.match(/Email:\s*([^|\n]+)/i);
-
-  if (viaM) {
-    const via = viaM[1].trim();
-    const known = ['Airbnb','Vrbo','Booking.com','Booking','Direct','Hostfully'];
-    const match = known.find(k => via.toLowerCase().includes(k.toLowerCase()));
-    if (match) {
-      result.channel = match === 'Booking' ? 'Booking.com' : match;
-    } else {
-      result.channel = 'Other';
-      result.channelOther = via;
-    }
-  }
-  if (telM)   result.phone = telM[1].trim();
-  if (emailM) result.email = emailM[1].trim();
-
-  // Extra = note minus the parsed parts
-  result.extra = note
-    .replace(/Via:\s*[^|\n]+\|?/i, '')
-    .replace(/Tel:\s*[^|\n]+\|?/i, '')
-    .replace(/Email:\s*[^|\n]+\|?/i, '')
-    .replace(/^\s*\|\s*/, '')
-    .trim();
-
-  return result;
-}
-
-function buildNoteField(chId, chOtherId, telId, emailId, noteId) {
-  const chEl    = document.getElementById(chId);
-  const ch      = chEl ? chEl.value : '';
-  const chOther = document.getElementById(chOtherId)?.value.trim() || '';
-  const phone   = document.getElementById(telId)?.value.trim() || '';
-  const email   = document.getElementById(emailId)?.value.trim() || '';
-  const extra   = document.getElementById(noteId)?.value.trim() || '';
-
-  const via = ch === 'Other' ? chOther : ch;
-  const parts = [];
-  if (via)   parts.push(`Via: ${via}`);
-  if (phone) parts.push(`Tel: ${phone}`);
-  if (email) parts.push(`Email: ${email}`);
-  if (extra) parts.push(extra);
-  return parts.join(' | ');
-}
-
-function toggleFChannelOther() {
-  const v = document.getElementById('fChannel').value;
-  document.getElementById('fChannelOtherRow').style.display = v === 'Other' ? '' : 'none';
-}
-function toggleCbChannelOther() {
-  const v = document.getElementById('cbChannel').value;
-  document.getElementById('cbChannelOtherRow').style.display = v === 'Other' ? '' : 'none';
-}
-
-
-async function deleteUnitRecord(id) {
-  const r = data.find(x=>x.id===id);
-  if(!r) return;
-  if(!confirm(`Delete booking for "${r.name}" @ ${r.apt}?\nThis cannot be undone.`)) return;
-  try {
-    const {error} = await sb.from('units').delete().eq('id', id);
-    if(error) throw new Error(error.message);
-    closeDetail();
-    await loadAll();
-    renderTable();
-    renderCalendar();
-    toast(`Booking deleted ✓`, 'success');
-  } catch(e) {
-    toast('Error: '+e.message, 'error');
-  }
-}
-
+wireAddModalListeners();
 
 async function boot() {
   const overlay = document.getElementById('loadingOverlay');
+  overlay.style.display = 'flex'; // ensure visible after login
   const msg = overlay.querySelector('p');
 
   // Check Supabase library loaded
@@ -4665,19 +4012,27 @@ async function boot() {
       await loadAll();
     }
 
-    // Seeding disabled — Supabase is source of truth
-    // if (data.length < 10) {
-    //   msg.textContent = 'Seeding 79 active units…';
-    //   await saveAll(SEED_DATA);
-    //   await loadAll();
-    // }
+    // Seed active units if too few
+    if (data.length < 10) {
+      msg.textContent = 'Seeding 79 active units…';
+      await saveAll(SEED_DATA);
+      await loadAll();
+    }
 
-    // Archive seeding disabled — Supabase is source of truth
-    // if (archived.length === 0 && ARCHIVED_SEED.length > 0) { ... }
+    // Seed archived if empty
+    if (archived.length === 0 && ARCHIVED_SEED.length > 0) {
+      const batchSize = 50;
+      for (let i = 0; i < ARCHIVED_SEED.length; i += batchSize) {
+        const chunk = ARCHIVED_SEED.slice(i, i + batchSize);
+        await saveAll(chunk);
+        const done = Math.min(i + batchSize, ARCHIVED_SEED.length);
+        msg.textContent = `Loading archive… ${done} / ${ARCHIVED_SEED.length}`;
+      }
+      await loadAll();
+    }
 
     overlay.style.display = 'none';
     renderTable();
-    initCalScroll();
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
 
@@ -4697,81 +4052,9 @@ function bootOffline() {
   document.getElementById('syncStatus').textContent = '⚠ offline';
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   renderTable();
-  initCalScroll();
 }
 
 boot();
 </script>
-
-<!-- Cal Booking Detail Panel -->
-<div class="cal-unit-panel-overlay" id="calBookingPanel">
-  <div class="cal-unit-panel-backdrop" onclick="closeCalBookingPanel()"></div>
-  <div class="cal-unit-panel" style="width:340px;">
-    <div class="cal-unit-panel-hdr">
-      <div>
-        <div class="cal-unit-panel-apt" id="cbpApt" style="font-size:28px;">—</div>
-        <div id="cbpName" style="font-size:15px;font-weight:500;color:var(--text);margin-top:4px;"></div>
-        <div id="cbpDates" style="font-size:11px;color:var(--text3);margin-top:3px;"></div>
-      </div>
-      <button class="modal-close" onclick="closeCalBookingPanel()">✕</button>
-    </div>
-    <div class="cal-unit-panel-body">
-      <div class="detail-row"><span class="dr-label">Channel</span><span class="dr-val" id="cbpChannel">—</span></div>
-      <div class="detail-row"><span class="dr-label">Type</span><span class="dr-val" id="cbpType">—</span></div>
-      <div class="detail-row"><span class="dr-label">Owner</span><span class="dr-val" id="cbpOwner">—</span></div>
-      <div class="detail-row"><span class="dr-label">Phone</span><span class="dr-val" id="cbpPhone">—</span></div>
-      <div class="detail-row"><span class="dr-label">Email</span><span class="dr-val" id="cbpEmail">—</span></div>
-      <div class="detail-row"><span class="dr-label">Rent / Stay</span><span class="dr-val" id="cbpRent">—</span></div>
-      <div class="detail-row"><span class="dr-label">Note</span><span class="dr-val" id="cbpNote" style="font-size:11px;color:var(--text3);text-align:right;max-width:180px;word-break:break-word;">—</span></div>
-      <div id="cbpDeleteRow" style="margin-top:20px;display:none;">
-        <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;padding:14px;">
-          <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">This is an archived booking record. Deleting it removes it from the calendar permanently.</div>
-          <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;width:100%;justify-content:center;" onclick="deleteCalBooking()">🗑 Delete This Booking</button>
-        </div>
-      </div>
-    </div>
-    <div class="cal-unit-panel-footer">
-      <button class="btn btn-secondary btn-sm" onclick="closeCalBookingPanel()">Close</button>
-    </div>
-  </div>
-</div>
-
-
-<!-- Cal Unit Panel -->
-<div class="cal-unit-panel-overlay" id="calUnitPanel">
-  <div class="cal-unit-panel-backdrop" onclick="closeCalUnitPanel()"></div>
-  <div class="cal-unit-panel">
-    <div class="cal-unit-panel-hdr">
-      <div>
-        <div class="cal-unit-panel-apt" id="cupApt">—</div>
-        <div id="cupTenant" style="font-size:13px;font-weight:500;color:var(--text);margin-top:4px;"></div>
-        <div id="cupOwner" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
-      </div>
-      <button class="modal-close" onclick="closeCalUnitPanel()">✕</button>
-    </div>
-    <div class="cal-unit-panel-body">
-      <div class="form-row" style="margin-bottom:16px;">
-        <label>Bedrooms / Bathrooms</label>
-        <input type="text" id="cupBrBath" placeholder="e.g. 2BR/1Bath" oninput="saveCalUnitMeta()">
-        <div class="form-hint">Shown below the unit number on the calendar</div>
-      </div>
-      <div class="form-row" style="margin-bottom:16px;">
-        <label>Internal Note</label>
-        <textarea id="cupNote" placeholder="Private note — maintenance history, access codes, owner preferences…" style="min-height:100px;" oninput="saveCalUnitMeta()"></textarea>
-        <div class="form-hint">Only visible here, not shown to tenants</div>
-      </div>
-      <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;padding:16px;margin-top:8px;">
-        <div style="font-size:11px;font-weight:500;color:var(--red);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Danger Zone</div>
-        <div style="font-size:11px;color:var(--text2);margin-bottom:12px;">Removes this unit from the active list. All archive records for this unit are kept.</div>
-        <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;width:100%;justify-content:center;" onclick="deleteCalUnit()">🗑 Delete Unit (keep archive)</button>
-      </div>
-    </div>
-    <div class="cal-unit-panel-footer">
-      <button class="btn btn-secondary btn-sm" onclick="closeCalUnitPanel()">Close</button>
-      <button class="btn btn-primary btn-sm" onclick="openEditModal(_calUnitId)">✏️ Edit Unit</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>
