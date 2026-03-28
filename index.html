@@ -409,6 +409,8 @@ textarea{resize:vertical;min-height:72px;}
   <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
+    <span id="headerClock" style="font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;letter-spacing:.3px;"></span>
+    <span style="color:var(--border2);font-size:10px;">|</span>
     <span id="headerBackupTimestamp" style="font-size:10px;color:#9e9485;font-family:'DM Mono',monospace;"></span>
     <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
@@ -2961,6 +2963,25 @@ async function deleteBackup(backupId, btnEl) {
 
 // Check backup status every 30 minutes
 setInterval(checkBackupStatus, 30 * 60 * 1000);
+
+// ── Live clock in header ──
+function updateHeaderClock() {
+  const el = document.getElementById('headerClock');
+  if (!el) return;
+  const now = new Date();
+  el.textContent = now.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+    + '  ' + now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+updateHeaderClock();
+setInterval(updateHeaderClock, 1000);
+
+// ── Run checkBackupStatus on boot (not just on Dashboard open) ──
+document.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await checkBackupStatus();
+    setInterval(checkBackupStatus, 60000);
+  } catch(e) { console.error('Backup status init failed:', e); }
+});
 
 // ── AUDIT LOG UI ───────────────────────────────────
 async function showAuditLog() {
