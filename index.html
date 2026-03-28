@@ -382,7 +382,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:50</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:54</span>
     </div>
   </div>
 </header>
@@ -2178,6 +2178,59 @@ function typeBadge(t){const m={'long-term':['badge-lt','Long Term'],'month-to-mo
 function dueCell(r){if(r.type==='available'||!r.due)return'<span class="due-none">—</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
 
 // ── RENDER TABLE ───────────────────────────────────
+// ── EARLIEST BOOKING LOGIC ─────────────────────────────────────────
+// For each active unit, find the earliest upcoming booking across
+// the active record + any archived cal-bookings for the same apt.
+// Returns a display record with the earliest guest/dates,
+// but preserves the original active unit's id for all actions.
+function getEarliestBooking(activeRecord) {
+  const todayStr = today();
+  const apt = activeRecord.apt;
+
+  // Collect upcoming archived cal-bookings for this apt
+  // (only future ones — checkin >= today or checkout >= today)
+  const upcomingArchived = archived.filter(r =>
+    r.archived &&
+    r.apt === apt &&
+    r.name &&
+    (r.checkin || r.archivedDate || r.due) &&
+    // Has a future date
+    ((r.checkin && r.checkin >= todayStr) ||
+     (r.archivedDate && r.archivedDate >= todayStr) ||
+     (r.due && r.due >= todayStr))
+  );
+
+  if (!upcomingArchived.length) return activeRecord;
+
+  // Find the one with the earliest checkin
+  let earliest = null;
+  upcomingArchived.forEach(r => {
+    const ci = r.checkin || r.archivedDate || r.due || '';
+    if (!earliest || ci < (earliest.checkin || earliest.archivedDate || earliest.due || '9999')) {
+      earliest = r;
+    }
+  });
+
+  // Compare with active record's own checkin
+  const activeCi = activeRecord.checkin || activeRecord.due || '9999';
+  const earliestCi = earliest ? (earliest.checkin || earliest.archivedDate || earliest.due || '9999') : '9999';
+
+  if (earliestCi >= activeCi) return activeRecord; // active is already earliest
+
+  // Return a merged display record: earliest guest's info + active unit's id/apt/owner for actions
+  return {
+    ...activeRecord,           // keep id, apt, owner, type for actions & filters
+    name:      earliest.name,
+    checkin:   earliest.checkin || '',
+    due:       earliest.archivedDate || earliest.due || '',
+    lease_end: earliest.archivedDate || earliest.due || '',
+    rent:      earliest.rent || activeRecord.rent,
+    note:      earliest.note || activeRecord.note,
+    _displayOnly: true,        // flag so we know it's a display override
+    _realRecord: activeRecord  // keep original for editing
+  };
+}
+
 function getFiltered(){
   let rows=data.filter(r=>!r.archived);
   const q=document.getElementById('searchInput').value.toLowerCase();
@@ -2194,6 +2247,8 @@ function getFiltered(){
     if(sel==='amount'||sel==='amount-desc'){return sel==='amount'?(b.rent||0)-(a.rent||0):(a.rent||0)-(b.rent||0);}
     return 0;
   });
+  // Apply earliest booking display for each row
+  rows = rows.map(r => r.type !== 'available' ? getEarliestBooking(r) : r);
   return rows;
 }
 function renderTable(){
