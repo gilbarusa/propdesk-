@@ -327,6 +327,7 @@ textarea{resize:vertical;min-height:72px;}
 .cal-bar-bg{position:absolute;inset:0;border-radius:6px;pointer-events:none;}
 .cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
 .cal-bar.bar-lt{color:#fff;}
+.cal-bar.bar-avail{color:#fff;opacity:0.75;}
 .cal-bar.bar-history{opacity:0.28;filter:saturate(0.5);}
 .cal-bar.bar-history:hover{opacity:0.55;filter:saturate(0.8);}
 .cal-bar.bar-mtm{color:#fff;}
@@ -385,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 04:34</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 04:49</span>
     </div>
   </div>
 </header>
@@ -4002,7 +4003,22 @@ function renderCalendar() {
     // 3. Future bookings — calendar-added upcoming stays
     (futureBookings[r.apt]||[]).forEach(s=>bars.push({...s}));
 
-    // 3. Blocks
+    // 3. Available gap bar — green bar showing vacancy until next booking
+    if(r.type==='available' || dueStatus(r)==='available'){
+      const futureBars=bars.filter(b=>b.from>=todayStr).sort((a,b)=>a.from.localeCompare(b.from));
+      const availFrom=todayStr;
+      let availTo=winEnd;
+      if(futureBars.length){
+        const first=new Date(futureBars[0].from+'T00:00:00');
+        first.setDate(first.getDate()-1);
+        availTo=first.getFullYear()+'-'+String(first.getMonth()+1).padStart(2,'0')+'-'+String(first.getDate()).padStart(2,'0');
+      }
+      if(availTo>=availFrom){
+        bars.push({name:'Available',from:availFrom,to:availTo,type:'available-gap',note:'',available:true});
+      }
+    }
+
+    // 4. Blocks
     aptBlocks.forEach(b=>bars.push({
       name:b.reason||'Blocked', from:b.from, to:b.to,
       type:'__block__', blockData:b
@@ -4035,10 +4051,11 @@ function renderCalendar() {
 
       let barCls='cal-bar ';
       let icon='🏠';
-      if(bar.type==='long-term')      {barCls+='bar-lt';icon='🏠';}
-      else if(bar.type==='month-to-month'){barCls+='bar-mtm';icon='📋';}
-      else if(bar.type==='short-stay')    {barCls+='bar-ss';icon='✈️';}
+      if(bar.type==='long-term')        {barCls+='bar-lt';    icon='🏠';}
+      else if(bar.type==='month-to-month'){barCls+='bar-mtm'; icon='📋';}
+      else if(bar.type==='short-stay')    {barCls+='bar-ss';  icon='✈️';}
       else if(bar.type==='__block__')     {barCls+='bar-block';icon='🚫';}
+      else if(bar.type==='available-gap') {barCls+='bar-avail';icon='✓';}
 
       const note=bar.note||'';
       const badge = bar.type==='__block__' ? '🚫' : getChannelBadge(note);
@@ -4055,10 +4072,11 @@ function renderCalendar() {
         : '';
       // Inner sticky wrapper keeps name visible as bar scrolls
       // Inherit background color from bar class for the bg pill
-      const bgColor = bar.type==='long-term' ? 'linear-gradient(90deg,#2563a8,#1e5799)'
-        : bar.type==='month-to-month' ? 'linear-gradient(90deg,#7c4fbe,#5e3f9e)'
-        : bar.type==='short-stay'     ? 'linear-gradient(90deg,#e07818,#b86818)'
-        : bar.type==='__block__'      ? 'linear-gradient(90deg,#c0392b,#962d22)'
+      const bgColor = bar.type==='long-term'      ? 'linear-gradient(90deg,#2563a8,#1e5799)'
+        : bar.type==='month-to-month'  ? 'linear-gradient(90deg,#7c4fbe,#5e3f9e)'
+        : bar.type==='short-stay'      ? 'linear-gradient(90deg,#e07818,#b86818)'
+        : bar.type==='__block__'       ? 'linear-gradient(90deg,#c0392b,#962d22)'
+        : bar.type==='available-gap'   ? 'linear-gradient(90deg,#3a9e5f,#256645)'
         : 'linear-gradient(90deg,#2563a8,#1e5799)';
 
       barEl.innerHTML=`<div class="cal-bar-bg" style="background:${bgColor}"></div>${xBtn}`;
