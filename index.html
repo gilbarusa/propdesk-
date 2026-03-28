@@ -300,6 +300,41 @@ textarea{resize:vertical;min-height:72px;}
 </style>
 
 <style id="auth-styles">
+/* ── Calendar Page ── */
+.cal-wrap{padding:20px 28px 40px;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;}
+.cal-nav{display:flex;align-items:center;gap:10px;}
+.cal-nav button{width:30px;height:30px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:14px;transition:all .12s;}
+.cal-nav button:hover{border-color:var(--accent);color:var(--accent);}
+.cal-nav span{font-size:15px;font-weight:600;min-width:160px;text-align:center;font-family:'Playfair Display',serif;color:var(--accent2);}
+.cal-legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.cal-leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+.cal-leg-dot{width:12px;height:12px;border-radius:3px;}
+.cal-scroll-wrap{overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 210px);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);}
+.cal-table{border-collapse:collapse;min-width:100%;}
+.cal-table th,.cal-table td{border:1px solid var(--border);}
+.cal-apt-head{padding:8px 12px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);background:var(--surface2);white-space:nowrap;position:sticky;left:0;z-index:3;min-width:140px;}
+.cal-day-head{padding:6px 3px;font-size:10px;text-align:center;color:var(--text3);background:var(--surface2);white-space:nowrap;min-width:30px;position:sticky;top:0;z-index:2;}
+.cal-day-head.today-col{background:var(--accent-bg);color:var(--accent2);font-weight:700;}
+.cal-apt-cell{padding:6px 10px;font-size:11px;background:var(--surface);position:sticky;left:0;z-index:1;white-space:nowrap;cursor:pointer;min-width:140px;}
+.cal-apt-cell:hover{background:var(--surface2);}
+.cal-apt-num{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--accent2);}
+.cal-apt-name{font-size:9px;color:var(--text3);max-width:120px;overflow:hidden;text-overflow:ellipsis;}
+.cal-day-cell{padding:2px;height:36px;min-width:30px;position:relative;background:var(--surface);}
+.cal-day-cell.today-col{background:rgba(181,120,74,.05);}
+.cal-day-cell.weekend-col{background:rgba(0,0,0,.012);}
+.cal-block{position:absolute;inset:2px 1px;border-radius:3px;display:flex;align-items:center;overflow:hidden;cursor:pointer;}
+.cal-block:hover{filter:brightness(.93);}
+.cb-lt{background:#c8dff5;border-left:3px solid #1e5799;}
+.cb-mtm{background:#d8c8f0;border-left:3px solid #5e3f9e;}
+.cb-ss{background:#c8e8d8;border-left:3px solid #256645;}
+.cb-avail{background:#f4f2ee;border-left:3px solid #c8c2b6;}
+.cal-block-label{font-size:8px;font-weight:600;padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cb-lt .cal-block-label{color:#1e5799;}
+.cb-mtm .cal-block-label{color:#5e3f9e;}
+.cb-ss .cal-block-label{color:#256645;}
+.cb-avail .cal-block-label{color:#9e9485;}
+
 /* ── Auth Login Screen ── */
 #authScreen{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;
   background:#f0ede7;
@@ -420,10 +455,11 @@ textarea{resize:vertical;min-height:72px;}
 </header>
 
 <nav class="nav-tabs">
-  <div class="nav-tab active" onclick="showPage('units',this)">🏠 Units</div>
-  <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
   <div class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</div>
+  <div class="nav-tab active" onclick="showPage('units',this)">🏠 Units</div>
+  <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
   <div class="nav-tab" onclick="showPage('reports',this)">📈 Reports</div>
+  <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
   <div class="nav-tab" onclick="showPage('settings',this)">⚙ Settings</div>
 </nav>
 
@@ -609,6 +645,28 @@ textarea{resize:vertical;min-height:72px;}
       </div>
       <div id="histEmpty" style="text-align:center;padding:40px;color:var(--text3);display:none;">No records match your filter.</div>
       <div id="histFooter" style="padding:12px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);background:var(--surface2);"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ CALENDAR PAGE ═══ -->
+<div class="page" id="page-calendar">
+  <div class="cal-wrap">
+    <div class="cal-header">
+      <div class="cal-nav">
+        <button onclick="calChangeMonth(-1)">◀</button>
+        <span id="calMonthLabel">—</span>
+        <button onclick="calChangeMonth(1)">▶</button>
+      </div>
+      <div class="cal-legend">
+        <div class="cal-leg-item"><div class="cal-leg-dot cb-lt" style="border-left:3px solid #1e5799"></div>Long Term</div>
+        <div class="cal-leg-item"><div class="cal-leg-dot cb-mtm" style="border-left:3px solid #5e3f9e"></div>Month-to-Month</div>
+        <div class="cal-leg-item"><div class="cal-leg-dot cb-ss" style="border-left:3px solid #256645"></div>Short Stay</div>
+        <div class="cal-leg-item"><div class="cal-leg-dot cb-avail" style="border-left:3px solid #c8c2b6"></div>Available</div>
+      </div>
+    </div>
+    <div class="cal-scroll-wrap">
+      <table class="cal-table" id="calTable"></table>
     </div>
   </div>
 </div>
@@ -2607,6 +2665,7 @@ function showPage(p,el){
   if(p==='dashboard'){renderDashboard();checkBackupStatus();}
   if(p==='reports')renderReports();
   if(p==='history')renderHistory();
+  if(p==='calendar')renderCalendar();
 }
 
 // ── BACKUP ─────────────────────────────────────────
@@ -3695,6 +3754,87 @@ function bootOffline() {
 
 boot();
 
+
+// ══════════════════════════════════════════════════════
+//  CALENDAR
+// ══════════════════════════════════════════════════════
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+
+function calChangeMonth(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('calMonthLabel').textContent = MONTHS[calMonth] + ' ' + calYear;
+
+  const daysInMon = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  const todayY = today.getFullYear(), todayM = today.getMonth(), todayD = today.getDate();
+
+  // All active units sorted by apt
+  const units = [...data].filter(r => !r.archived).sort((a, b) => {
+    const an = (a.apt || '').replace(/[^0-9]/g, '') || a.apt || '';
+    const bn = (b.apt || '').replace(/[^0-9]/g, '') || b.apt || '';
+    return isNaN(an) || isNaN(bn) ? (a.apt||'').localeCompare(b.apt||'') : parseInt(an) - parseInt(bn);
+  });
+
+  let html = '<thead><tr>';
+  html += '<th class="cal-apt-head">Apt / Tenant</th>';
+  for (let d = 1; d <= daysInMon; d++) {
+    const isToday = calYear === todayY && calMonth === todayM && d === todayD;
+    const dow = new Date(calYear, calMonth, d).getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    html += `<th class="cal-day-head${isToday?' today-col':''}${isWeekend?' weekend-col':''}">${d}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+
+  for (const r of units) {
+    const ci = r.checkin ? new Date(r.checkin + 'T00:00:00') : null;
+    const co = r.lease_end ? new Date(r.lease_end + 'T00:00:00') : (r.due ? new Date(r.due + 'T00:00:00') : null);
+    const typeClass = r.type === 'long-term' ? 'cb-lt' : r.type === 'month-to-month' ? 'cb-mtm' : r.type === 'short-stay' ? 'cb-ss' : 'cb-avail';
+    const label = r.name || 'Available';
+
+    html += `<tr>`;
+    html += `<td class="cal-apt-cell" onclick="openDetail(${r.id})"><div class="cal-apt-num">${r.apt}</div><div class="cal-apt-name">${label}</div></td>`;
+
+    for (let d = 1; d <= daysInMon; d++) {
+      const thisDay = new Date(calYear, calMonth, d);
+      const isToday = calYear === todayY && calMonth === todayM && d === todayD;
+      const dow = thisDay.getDay();
+      const isWeekend = dow === 0 || dow === 6;
+
+      let cellClass = 'cal-day-cell';
+      if (isToday) cellClass += ' today-col';
+      if (isWeekend) cellClass += ' weekend-col';
+
+      let blockHtml = '';
+      if (r.type !== 'available' && r.name && ci && co) {
+        const inPeriod = thisDay >= ci && thisDay < co;
+        if (inPeriod) {
+          const isStart = thisDay.toDateString() === ci.toDateString();
+          const showLabel = isStart || d === 1;
+          blockHtml = `<div class="cal-block ${typeClass}" onclick="openDetail(${r.id})" title="${label}">
+            ${showLabel ? `<span class="cal-block-label">${isStart ? label : ''}</span>` : ''}
+          </div>`;
+        }
+      } else if (r.type === 'available' || !r.name) {
+        // Show faint available bar
+        blockHtml = `<div class="cal-block cb-avail" style="opacity:.3" title="Available"></div>`;
+      }
+
+      html += `<td class="${cellClass}">${blockHtml}</td>`;
+    }
+    html += '</tr>';
+  }
+
+  html += '</tbody>';
+  document.getElementById('calTable').innerHTML = html;
+}
 
 // ══════════════════════════════════════════════════════
 //  AUTH SYSTEM
