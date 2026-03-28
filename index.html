@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:15</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:26</span>
     </div>
   </div>
 </header>
@@ -3889,12 +3889,26 @@ function renderCalendar() {
   if(calTypeFilter!=='all') units=units.filter(r=>r.type===calTypeFilter);
   if(q) units=units.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
   units.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
-  // Deduplicate by apt — keep the one with the most recent/complete data
-  const seenApts=new Set();
-  units=units.filter(r=>{
-    if(seenApts.has(r.apt)) return false;
-    seenApts.add(r.apt); return true;
-  });
+
+  // Smart dedupe: one display row per apt, with priority:
+  // 1. available type row
+  // 2. current (non-future) active row
+  // 3. future booking row
+  const unitsByApt=new Map();
+  for(const r of units){
+    const prev=unitsByApt.get(r.apt);
+    if(!prev){ unitsByApt.set(r.apt,r); continue; }
+    const rFuture=!!(r.checkin&&r.checkin>todayStr);
+    const prevFuture=!!(prev.checkin&&prev.checkin>todayStr);
+    const rAvail=(r.type==='available');
+    const prevAvail=(prev.type==='available');
+    if(rAvail&&!prevAvail){ unitsByApt.set(r.apt,r); continue; }
+    if(prevAvail&&!rAvail){ continue; }
+    if(!rFuture&&prevFuture){ unitsByApt.set(r.apt,r); continue; }
+    if(!prevFuture&&rFuture){ continue; }
+    if((r.id||0)<(prev.id||0)) unitsByApt.set(r.apt,r);
+  }
+  units=[...unitsByApt.values()].sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
   document.getElementById('calUnitCount').textContent=`Units (${units.length})`;
   const mlEl=document.getElementById('calMonthLabel');
   if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
