@@ -385,7 +385,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 04:16</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 04:23</span>
     </div>
   </div>
 </header>
@@ -492,6 +492,7 @@ textarea{resize:vertical;min-height:72px;}
       </div>
       <div class="cal-grid-outer" id="calGridOuter">
         <div class="cal-grid" id="calGrid">
+          <div id="calMonthRow" style="display:flex;height:24px;position:sticky;top:0;z-index:21;background:var(--surface2);border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden;"></div>
           <div class="cal-days-header" id="calDaysHeader"></div>
           <div class="cal-rows" id="calRows"></div>
         </div>
@@ -3869,11 +3870,13 @@ function renderCalendar() {
   const todayStr=_tn.getFullYear()+'-'+String(_tn.getMonth()+1).padStart(2,'0')+'-'+String(_tn.getDate()).padStart(2,'0');
   // curMonthStr not needed — 270-day window has no dim logic
 
-  // Build date range: prev month + current month + next month (uses calMonth/calYear)
+  // Build date range: 90 days before calMonth start → 2 months after calMonth end
   const dates=[];
-  const start=new Date(calYear, calMonth-1, 1);
-  const end  =new Date(calYear, calMonth+2, 0);
-  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+  const calStart = new Date(calYear, calMonth, 1);
+  const histStart = new Date(calYear, calMonth, 1);
+  histStart.setDate(histStart.getDate() - 90);
+  const futEnd = new Date(calYear, calMonth+2, 0);
+  for(let d=new Date(histStart); d<=futEnd; d.setDate(d.getDate()+1)){
     dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
   }
 
@@ -3890,26 +3893,23 @@ function renderCalendar() {
   const mlEl=document.getElementById('calMonthLabel');
   if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
 
-  // ── Future bookings added via calendar ──
-  // These are active (archived:false) records marked with 'cal-booking' in note
-  // AND have a future checkin date — completely separate from archive history
+  // ── Future bookings (cal-booking records) ──
   const futureBookings={};
-  data.filter(r=>
-    !r.archived &&
-    r.name &&
-    r.checkin &&
-    r.checkin > todayStr &&
-    (r.note||'').includes('cal-booking')
-  ).forEach(r=>{
-    const ci = r.checkin;
-    const co = r.due || r.lease_end || '';
+  data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr&&(r.note||'').includes('cal-booking')).forEach(r=>{
+    const ci=r.checkin, co=r.due||r.lease_end||'';
     if(!co||ci>winEnd||co<winStart) return;
     if(!futureBookings[r.apt]) futureBookings[r.apt]=[];
-    futureBookings[r.apt].push({
-      id:r.id, name:r.name, from:ci, to:co,
-      type:r.type, note:r.note||'', rent:r.rent||0,
-      owner:r.owner||''
-    });
+    futureBookings[r.apt].push({id:r.id,name:r.name,from:ci,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||''});
+  });
+
+  // ── Past stays (history) — faded bars for reference, 90-day window only ──
+  const pastStays={};
+  archived.filter(r=>r.archived&&r.name&&r.archivedDate&&r.archivedDate>=winStart&&r.archivedDate<=todayStr).forEach(r=>{
+    const ci=r.checkin||r.checkinDate||r.archivedDate||'';
+    const co=r.archivedDate||'';
+    if(!ci||!co||co<winStart||ci>winEnd) return;
+    if(!pastStays[r.apt]) pastStays[r.apt]=[];
+    pastStays[r.apt].push({id:r.id,name:r.name,from:ci,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||'',isPast:true});
   });
 
   const blocks=getBlocks();
@@ -3928,7 +3928,20 @@ function renderCalendar() {
   }).join('');
 
   // ── Day headers ──
-  // Day headers — one cell per date, no extra month label blocks (they break alignment)
+  // Day headers — one cell per date, perfectly aligned with grid rows
+  // Month labels as a separate row above, using colspan-equivalent flex spans
+  const MONTH_SHORT2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let lastMo=-1, monthGroups=[];
+  dates.forEach(d=>{
+    const mo=parseInt(d.substring(5,7))-1, yr=parseInt(d.substring(0,4));
+    if(mo!==lastMo){monthGroups.push({mo,yr,count:1});lastMo=mo;}
+    else monthGroups[monthGroups.length-1].count++;
+  });
+  const monthRowHtml = monthGroups.map(g=>
+    `<div style="width:${g.count*COL_W}px;flex-shrink:0;display:flex;align-items:center;padding:0 8px;font-family:'Playfair Display',serif;font-size:12px;font-weight:700;color:var(--accent2);border-right:2px solid var(--border2);box-sizing:border-box;background:var(--surface2);">${MONTH_SHORT2[g.mo]} ${g.yr}</div>`
+  ).join('');
+  document.getElementById('calMonthRow').innerHTML = monthRowHtml;
+
   const dayHdrHtml = dates.map(d => {
     const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
     const isWE=dow===0||dow===6,isToday=d===todayStr;
@@ -3978,7 +3991,9 @@ function renderCalendar() {
       });
     }
 
-    // 2. Future bookings — explicitly added via calendar, start after today
+    // 2. Past stays — faded history bars
+    (pastStays[r.apt]||[]).forEach(s=>bars.push({...s,isPast:true}));
+    // 3. Future bookings — calendar-added upcoming stays
     (futureBookings[r.apt]||[]).forEach(s=>bars.push({...s}));
 
     // 3. Blocks
@@ -4023,10 +4038,10 @@ function renderCalendar() {
       const badge = bar.type==='__block__' ? '🚫' : getChannelBadge(note);
 
       const barEl=document.createElement('div');
-      // Past archived bars get a history class — faded, behind active bars
-
+      if(bar.isPast) barCls += ' bar-history';
       barEl.className=barCls;
-      barEl.style.cssText=`left:${s*COL_W+2}px;width:${span*COL_W-4}px;overflow:hidden;`;
+      const zIdx = bar.isPast ? 2 : 5;
+      barEl.style.cssText='left:'+(s*COL_W+2)+'px;width:'+(span*COL_W-4)+'px;overflow:hidden;z-index:'+zIdx+';';
       barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
 
       // Sticky label: floats within the visible portion of the bar
@@ -4046,7 +4061,7 @@ function renderCalendar() {
       // Store data for floating label
       barEl.dataset.barLeft = s * COL_W + 2;
       barEl.dataset.barRight = (s + span) * COL_W - 4;
-      barEl.dataset.barName = bar.name;
+      barEl.dataset.barName = bar.isPast ? '' : bar.name;
       barEl.dataset.barBadge = badge.replace(/"/g,"'");
       barEl.dataset.barColor = '#fff';
 
