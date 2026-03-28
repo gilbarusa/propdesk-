@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:08</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:15</span>
     </div>
   </div>
 </header>
@@ -3899,9 +3899,11 @@ function renderCalendar() {
   const mlEl=document.getElementById('calMonthLabel');
   if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
 
-  // ── Future bookings (cal-booking records) ──
+  // ── Future bookings: active records with future checkin ──
+  // Includes both cal-booking tagged records AND any active record
+  // with a future checkin (handles bookings added before the tag was introduced)
   const futureBookings={};
-  data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr&&(r.note||'').includes('cal-booking')).forEach(r=>{
+  data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr).forEach(r=>{
     const ci=r.checkin, co=r.due||r.lease_end||'';
     if(!co||ci>winEnd||co<winStart) return;
     if(!futureBookings[r.apt]) futureBookings[r.apt]=[];
@@ -3927,13 +3929,18 @@ function renderCalendar() {
     const meta = calMeta[r.apt] || {};
     const sub = meta.brBath || '';
     const isAvail = r.type==='available' || dueStatus(r)==='available';
-    // Only show "avail until X" if there's an actual future booking coming
     const nextBooking = (futureBookings[r.apt]||[]).sort((a,b)=>a.from.localeCompare(b.from))[0];
     let availText = '';
-    if(isAvail && nextBooking){
-      const d=new Date(nextBooking.from+'T00:00:00');
-      d.setDate(d.getDate()-1);
-      availText='until '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    if(isAvail){
+      if(nextBooking){
+        // Has a future booking — show when available until
+        const d=new Date(nextBooking.from+'T00:00:00');
+        d.setDate(d.getDate()-1);
+        availText='until '+d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+      } else if(r.type==='short-stay' && dueStatus(r)==='available'){
+        // Short-stay with past due — clearly vacant, show it
+        availText='now';
+      }
     }
     return `<div class="cal-unit-row" title="Click to view unit details" onclick="openCalUnitPanel(${r.id})">
       <div class="cal-unit-cell">
