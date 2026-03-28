@@ -384,7 +384,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 01:52</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 01:58</span>
     </div>
   </div>
 </header>
@@ -2161,7 +2161,7 @@ function subscribeRealtime() {
 // ── DATE ───────────────────────────────────────────
 function today(){return new Date().toISOString().split('T')[0];}
 function daysUntil(s){if(!s)return null;const n=new Date();n.setHours(0,0,0,0);return Math.round((new Date(s+'T00:00:00')-n)/86400000);}
-function dueStatus(r){if(r.type==='available')return'available';const t=today();if(r.checkin&&r.checkin>t&&(!r.due||r.due<t))return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
+function dueStatus(r){if(r.type==='available')return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtMoney(n){return'$'+(Math.round(n||0)).toLocaleString();}
 function nextMonth(s){if(!s)return'';const d=new Date(s+'T00:00:00');d.setMonth(d.getMonth()+1);return d.toISOString().split('T')[0];}
@@ -2177,7 +2177,7 @@ function updateStats(){
 }
 
 function typeBadge(t){const m={'long-term':['badge-lt','Long Term'],'month-to-month':['badge-mtm','M-to-M'],'short-stay':['badge-short','Short Stay'],'available':['badge-avail','Available']};const[c,l]=m[t]||['badge-avail',t];return`<span class="badge ${c}">${l}</span>`;}
-function dueCell(r){if(r.type==='available'||dueStatus(r)==='available'||!r.due)return'<span class="due-none">—</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
+function dueCell(r){if(r.type==='available'||!r.due)return'<span class="due-none">—</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
 
 // ── RENDER TABLE ───────────────────────────────────
 // ── EARLIEST BOOKING LOGIC ─────────────────────────────────────────
@@ -2233,8 +2233,8 @@ function getFiltered(){
   let rows=data.filter(r=>!r.archived);
   const q=document.getElementById('searchInput').value.toLowerCase();
   if(q)rows=rows.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
-  if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>dueStatus(r)==='available');}
-  if(currentTypeFilter!=='all'){if(currentTypeFilter==='available')rows=rows.filter(r=>r.type==='available'||dueStatus(r)==='available');else rows=rows.filter(r=>r.type===currentTypeFilter&&dueStatus(r)!=='available');}
+  if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>r.type==='available');}
+  if(currentTypeFilter!=='all')rows=rows.filter(r=>r.type===currentTypeFilter);
   const sel=document.getElementById('sortSel').value;
   rows.sort((a,b)=>{
     if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}
@@ -2245,22 +2245,19 @@ function getFiltered(){
     if(sel==='amount'||sel==='amount-desc'){return sel==='amount'?(b.rent||0)-(a.rent||0):(a.rent||0)-(b.rent||0);}
     return 0;
   });
-  // Apply earliest booking display for each row
-  rows = rows.map(r => r.type !== 'available' ? getEarliestBooking(r) : r);
   return rows;
 }
 function renderTable(){
   updateStats();const rows=getFiltered();
   document.getElementById('emptyState').style.display=rows.length?'none':'';
   document.getElementById('tableBody').innerHTML=rows.map(r=>{
-    const s=dueStatus(r),rc=s==='available'?'row-available':s==='overdue'?'row-overdue':s==='soon'?'row-soon':'';
-    const bc=s==='available'?'<span class="amount-none">—</span>':r.balance>0?`<span style="color:var(--red);font-weight:500">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>';
+    const s=dueStatus(r),rc=r.type==='available'?'row-available':s==='overdue'?'row-overdue':s==='soon'?'row-soon':'';
+    const bc=r.type==='available'?'<span class="amount-none">—</span>':r.balance>0?`<span style="color:var(--red);font-weight:500">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>';
     const proration = currentMonthProration(r);
     const rentCell = r.type==='short-stay' && proration
       ? `<span class="amount-cell" title="Full stay: $${r.rent.toLocaleString()} — ${proration.days} days this month" style="cursor:help">$${proration.portion.toLocaleString()}<small style="color:var(--text3);font-size:9px;margin-left:2px">/${proration.days}d</small></span>`
       : r.rent ? `<span class="amount-cell">$${r.rent.toLocaleString()}</span>` : '<span class="amount-none">—</span>';
-    const t2=today();const isFutureBooking = r.type!=='available' && r.checkin && r.checkin>t2 && (!r.due||r.due<t2);
-    return`<tr class="apt-row ${rc}" onclick="openDetail(${r.id})"><td class="apt-num">${r.apt}</td><td>${r.name?`<div class="tenant-name" style="${isFutureBooking?'color:var(--green)':''}">${r.name}</div><div style="font-size:9px;color:var(--text3);margin-top:1px">${isFutureBooking?'Arriving '+fmtDate(r.checkin):''}</div>`:'<div class="tenant-empty">Vacant</div>'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${isFutureBooking?'<span class="badge badge-avail">Available</span>':typeBadge(r.type)}</td><td style="font-size:12px;color:var(--text2);white-space:nowrap">${r.checkin?fmtDate(r.checkin):'<span style="color:var(--text3)">—</span>'}</td><td>${dueCell(r)}</td><td style="font-size:12px;color:var(--blue);white-space:nowrap">${r.type!=='short-stay'&&r.lease_end?fmtDate(r.lease_end):'<span style="color:var(--text3)">—</span>'}</td><td>${rentCell}</td><td>${bc}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell" onclick="event.stopPropagation()">${r.type!=='available'?`<button class="icon-btn ib-pay" title="Payment" onclick="openPayModal(${r.id})">💰</button>`:''}<button class="icon-btn ib-edit" title="Edit" onclick="openEditModal(${r.id})">✏️</button><button class="icon-btn ib-arch" title="Archive" onclick="archiveTenant(${r.id})">📦</button></td></tr>`;
+    return`<tr class="apt-row ${rc}" onclick="openDetail(${r.id})"><td class="apt-num">${r.apt}</td><td>${r.name?`<div class="tenant-name">${r.name}</div>`:'<div class="tenant-empty">Vacant</div>'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${typeBadge(r.type)}</td><td style="font-size:12px;color:var(--text2);white-space:nowrap">${r.checkin?fmtDate(r.checkin):'<span style="color:var(--text3)">—</span>'}</td><td>${dueCell(r)}</td><td style="font-size:12px;color:var(--blue);white-space:nowrap">${r.type!=='short-stay'&&r.lease_end?fmtDate(r.lease_end):'<span style="color:var(--text3)">—</span>'}</td><td>${rentCell}</td><td>${bc}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell" onclick="event.stopPropagation()">${r.type!=='available'?`<button class="icon-btn ib-pay" title="Payment" onclick="openPayModal(${r.id})">💰</button>`:''}<button class="icon-btn ib-edit" title="Edit" onclick="openEditModal(${r.id})">✏️</button><button class="icon-btn ib-arch" title="Archive" onclick="archiveTenant(${r.id})">📦</button></td></tr>`;
   }).join('');
   document.getElementById('archiveBody').innerHTML=archived.filter(r=>r.archived).map(r=>`<tr style="opacity:.75"><td class="apt-num" style="font-size:15px">${r.apt}</td><td class="tenant-name">${r.name||'—'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${typeBadge(r.type)}</td><td style="color:var(--text3);font-size:12px">${fmtDate(r.checkin||r.checkinDate||'')}</td><td style="color:var(--blue);font-size:12px">${fmtDate(r.lease_end||r.archivedDate||r.due||'')}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell"><button class="icon-btn ib-restore" title="Restore" onclick="restoreTenant(${r.id})">↩️</button><button class="icon-btn ib-del" title="Delete" onclick="deletePermanent(${r.id})">🗑️</button></td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">No archived tenants</td></tr>';
 }
