@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:39</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:46</span>
     </div>
   </div>
 </header>
@@ -2008,8 +2008,8 @@ function dbRow(r) {
 
 function fromRow(r) {
   const hist = Array.isArray(r.history) ? r.history : [];
-  // checkin: use dedicated field first, then first history entry
   const checkinDate = r.checkin || (hist.length ? hist[0].date : '');
+  const sd = s => s ? s.substring(0,10) : ''; // strip time component
   return {
     id: r.id,
     apt: r.apt || '',
@@ -2018,14 +2018,14 @@ function fromRow(r) {
     type: r.type || 'available',
     rent: parseFloat(r.rent) || 0,
     balance: parseFloat(r.balance) || 0,
-    due: r.due || '',
-    lease_end: r.lease_end || '',
-    checkin: r.checkin || '',
+    due: sd(r.due),
+    lease_end: sd(r.lease_end),
+    checkin: sd(r.checkin),
     note: r.note || '',
     history: hist,
     archived: r.archived || false,
-    archivedDate: r.archived_date || r.due || '',
-    checkinDate: checkinDate,
+    archivedDate: sd(r.archived_date || r.due),
+    checkinDate: sd(checkinDate),
   };
 }
 
@@ -4540,24 +4540,15 @@ async function boot() {
       await loadAll();
     }
 
-    // Seed active units if too few
-    if (data.length < 10) {
-      msg.textContent = 'Seeding 79 active units…';
-      await saveAll(SEED_DATA);
-      await loadAll();
-    }
+    // Seeding disabled — Supabase is source of truth
+    // if (data.length < 10) {
+    //   msg.textContent = 'Seeding 79 active units…';
+    //   await saveAll(SEED_DATA);
+    //   await loadAll();
+    // }
 
-    // Seed archived if empty
-    if (archived.length === 0 && ARCHIVED_SEED.length > 0) {
-      const batchSize = 50;
-      for (let i = 0; i < ARCHIVED_SEED.length; i += batchSize) {
-        const chunk = ARCHIVED_SEED.slice(i, i + batchSize);
-        await saveAll(chunk);
-        const done = Math.min(i + batchSize, ARCHIVED_SEED.length);
-        msg.textContent = `Loading archive… ${done} / ${ARCHIVED_SEED.length}`;
-      }
-      await loadAll();
-    }
+    // Archive seeding disabled — Supabase is source of truth
+    // if (archived.length === 0 && ARCHIVED_SEED.length > 0) { ... }
 
     overlay.style.display = 'none';
     renderTable();
