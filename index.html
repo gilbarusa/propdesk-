@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 18:35</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 18:40</span>
     </div>
   </div>
 </header>
@@ -2822,9 +2822,8 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
     }
   }
   document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
-  if((r.note||'').includes('cal-booking')||(r.checkin&&r.checkin>today()&&r.name)){
-    btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete Booking</button>`);
-  }
+  // Delete button — available for any booking (not permanent long-term leases)
+  btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
@@ -4156,18 +4155,18 @@ function renderCalendar() {
         if(bar.type==='__block__'){
           _calUnitId=r.id; _calApt=r.apt; _editingBlock=bar.blockData;
           openBlockModal();
+        } else if(bar.active){
+          // Main active tenant bar → full detail panel
+          openDetail(r.id);
         } else if(bar.id){
-          // Check if record is in active data
           const activeRec = data.find(x=>x.id===bar.id);
           if(activeRec){
-            // Open the full Units detail panel — same as clicking in Units tab
+            // Future booking in data → full detail panel
             openDetail(activeRec.id);
           } else {
-            // Archived record — open calendar booking panel with delete option
+            // Archived record → calendar detail panel with delete
             openCalBookingDetail(bar, r, false);
           }
-        } else if(bar.active){
-          openDetail(r.id);
         }
       });
       rowDiv.appendChild(barEl);
