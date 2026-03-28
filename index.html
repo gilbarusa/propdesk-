@@ -4295,8 +4295,17 @@ function renderCalendar() {
 // ── Cell click: show action picker ──
 function onCalCellClick(unitId, apt, dateStr) {
   _calUnitId=unitId; _calApt=apt; _calDate=dateStr; _editingBlock=null;
-  document.getElementById('calActionApt').textContent=apt;
   const r=data.find(x=>x.id===unitId);
+
+  // If the cell is blank/available — go straight to Add Booking
+  const isOccupied = r && r.name && r.type !== 'available';
+  if (!isOccupied) {
+    openCalBookingModal();
+    return;
+  }
+
+  // Occupied — show the action menu
+  document.getElementById('calActionApt').textContent=apt;
   document.getElementById('calActionDate').textContent=
     (r&&r.name?r.name+' · ':'')+fmtDate(dateStr);
   openModal('calActionModal');
