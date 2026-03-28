@@ -324,15 +324,17 @@ textarea{resize:vertical;min-height:72px;}
 .cal-cell.today-col:hover{background:rgba(37,102,69,.12);}
 .cal-cell.blocked{background:repeating-linear-gradient(45deg,rgba(184,50,40,.07),rgba(184,50,40,.07) 4px,transparent 4px,transparent 8px);}
 .cal-cell.blocked:hover{background:repeating-linear-gradient(45deg,rgba(184,50,40,.14),rgba(184,50,40,.14) 4px,transparent 4px,transparent 8px);}
-.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;font-size:11px;font-weight:500;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;overflow:visible;}
+.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;font-size:11px;font-weight:500;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;overflow:hidden;}
 .cal-bar-bg{position:absolute;inset:0;border-radius:6px;pointer-events:none;}
-.cal-bar-inner{position:sticky;left:2px;display:inline-flex;align-items:center;gap:5px;height:100%;padding:0 6px;white-space:nowrap;pointer-events:none;z-index:1;}
-.cal-bar:hover .cal-bar-bg{filter:brightness(1.1);} .cal-bar:hover{box-shadow:0 2px 8px rgba(0,0,0,.22);}
+.cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
 .cal-bar.bar-lt{color:#fff;}
 .cal-bar.bar-mtm{color:#fff;}
 .cal-bar.bar-ss{color:#fff;}
 .cal-bar.bar-block{color:#fff;opacity:.85;}
-.cal-bar-icon{margin-right:4px;font-size:10px;flex-shrink:0;}
+.cal-bar-icon{font-size:10px;flex-shrink:0;}
+/* Floating label — sits above the row, follows scroll */
+.cal-row-labels{position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;z-index:8;}
+.cal-float-label{position:absolute;top:6px;height:32px;display:flex;align-items:center;gap:5px;padding:0 8px;font-size:11px;font-weight:500;color:#fff;white-space:nowrap;pointer-events:none;}
 .cal-legend{display:flex;gap:16px;align-items:center;margin-left:auto;}
 /* Cal Unit Panel */
 .cal-unit-panel-overlay{display:none;position:fixed;inset:0;z-index:400;}
@@ -348,10 +350,9 @@ textarea{resize:vertical;min-height:72px;}
 /* Block modal */
 .block-modal-info{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);}
 .block-modal-info strong{color:var(--accent2);}
-.cal-bar-label{white-space:nowrap;overflow:visible;}
+.cal-bar-label{white-space:nowrap;}
 .cal-bar-x{margin-left:6px;flex-shrink:0;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.25);display:inline-flex;align-items:center;justify-content:center;font-size:9px;line-height:1;cursor:pointer;transition:background .15s;}
 .cal-bar-x:hover{background:rgba(255,255,255,.5);}
-.cal-bar{display:flex;align-items:center;}
 .loading-overlay{position:fixed;inset:0;background:rgba(244,242,238,.96);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
 .loading-overlay h2{font-family:'Playfair Display',serif;font-size:26px;color:var(--accent2);letter-spacing:-.3px;}
 .loading-overlay p{font-size:12px;color:var(--text3);letter-spacing:.5px;}
@@ -383,7 +384,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:57</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 01:32</span>
     </div>
   </div>
 </header>
@@ -4008,13 +4009,13 @@ function renderCalendar() {
         : bar.type==='__block__'      ? 'linear-gradient(90deg,#c0392b,#962d22)'
         : 'linear-gradient(90deg,#2563a8,#1e5799)';
 
-      barEl.innerHTML=`
-        <div class="cal-bar-bg" style="background:${bgColor}"></div>
-        <div class="cal-bar-inner">
-          <span class="cal-bar-icon">${badge}</span>
-          <span class="cal-bar-label">${bar.name}</span>
-          ${xBtn}
-        </div>`;
+      barEl.innerHTML=`<div class="cal-bar-bg" style="background:${bgColor}"></div>${xBtn}`;
+      // Store data for floating label
+      barEl.dataset.barLeft = s * COL_W + 2;
+      barEl.dataset.barRight = (s + span) * COL_W - 4;
+      barEl.dataset.barName = bar.name;
+      barEl.dataset.barBadge = badge.replace(/"/g,"'");
+      barEl.dataset.barColor = '#fff';
 
       barEl.addEventListener('click',e=>{
         e.stopPropagation();
@@ -4032,8 +4033,16 @@ function renderCalendar() {
       rowDiv.appendChild(barEl);
     });
 
+    // Add a floating label overlay for this row
+    const labelsDiv = document.createElement('div');
+    labelsDiv.className = 'cal-row-labels';
+    rowDiv.appendChild(labelsDiv);
+
     rowsEl.appendChild(rowDiv);
   });
+
+  // After rows are in DOM, set up floating label updates on scroll
+  _setupCalFloatingLabels();
 
   // Set explicit width on grid containers so horizontal scroll works
   const totalW = dates.length * COL_W;
@@ -4199,13 +4208,14 @@ function initCalScroll() {
   if (!outer || outer._bound) return;
   outer._bound = true;
 
-  // Sync vertical scroll: grid ↔ units sidebar only
+  // Sync vertical scroll: grid ↔ units sidebar
   let _syncing = false;
   outer.addEventListener('scroll', () => {
     if (_syncing) return;
     _syncing = true;
     uCol.scrollTop = outer.scrollTop;
     _syncing = false;
+    _updateCalFloatingLabels();
   }, { passive: true });
   uCol.addEventListener('scroll', () => {
     if (_syncing) return;
@@ -4213,6 +4223,47 @@ function initCalScroll() {
     outer.scrollTop = uCol.scrollTop;
     _syncing = false;
   }, { passive: true });
+}
+
+function _setupCalFloatingLabels() {
+  _updateCalFloatingLabels();
+}
+
+function _updateCalFloatingLabels() {
+  const outer = document.getElementById('calGridOuter');
+  if (!outer) return;
+  const scrollLeft = outer.scrollLeft;
+  const viewWidth  = outer.clientWidth;
+  const PADDING    = 8;
+
+  document.querySelectorAll('.cal-row-labels').forEach(labelsDiv => {
+    labelsDiv.innerHTML = '';
+    const rowDiv = labelsDiv.parentElement;
+    if (!rowDiv) return;
+
+    rowDiv.querySelectorAll('.cal-bar').forEach(barEl => {
+      const barLeft  = parseFloat(barEl.dataset.barLeft  || 0);
+      const barRight = parseFloat(barEl.dataset.barRight || 0);
+      const name     = barEl.dataset.barName  || '';
+      const badge    = (barEl.dataset.barBadge || '').replace(/'/g, '"');
+      if (!name) return;
+
+      // Visible left edge clamped inside bar
+      const visLeft  = Math.max(barLeft,  scrollLeft + PADDING);
+      const visRight = Math.min(barRight, scrollLeft + viewWidth - PADDING);
+      if (visRight <= visLeft + 20) return;
+
+      const labelW   = 24 + name.length * 7;
+      const labelLeft = Math.min(visLeft, barRight - labelW - PADDING);
+      if (labelLeft < barLeft - 2) return;
+
+      const label = document.createElement('div');
+      label.className = 'cal-float-label';
+      label.style.left = labelLeft + 'px';
+      label.innerHTML  = badge + '<span style="margin-left:3px">' + name + '</span>';
+      labelsDiv.appendChild(label);
+    });
+  });
 }
 
 
