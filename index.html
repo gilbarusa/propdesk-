@@ -382,7 +382,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:38</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:50</span>
     </div>
   </div>
 </header>
@@ -3836,12 +3836,14 @@ function renderCalendar() {
   const staysByApt={};
   archived.filter(r=>r.archived).forEach(r=>{
     const ci=r.checkin||r.checkinDate||'';
-    const co=r.archivedDate||r.due||'';
+    const co=r.archivedDate||r.archived_date||r.due||r.lease_end||'';
     if(!ci&&!co) return;
     const bs=ci||co, be=co||ci;
-    if(be<winStart||bs>winEnd) return;
+    // Skip if completely outside window
+    if(be && be<winStart) return;
+    if(bs && bs>winEnd) return;
     if(!staysByApt[r.apt]) staysByApt[r.apt]=[];
-    staysByApt[r.apt].push({id:r.id,name:r.name,from:bs,to:be,type:r.type,note:r.note||'',archived:true});
+    staysByApt[r.apt].push({id:r.id,name:r.name,from:bs,to:be,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||'',archived:true});
   });
 
   const blocks=getBlocks();
@@ -3904,19 +3906,10 @@ function renderCalendar() {
 
     // ── Bars ──
     const bars=[];
-    // Active tenant — find earliest upcoming booking across active + archived for this apt
+    // Active tenant bar — uses the unit's own checkin/due dates only
     if(r.type!=='available'&&r.name){
-      // Gather all future archived bookings for this apt
-      const futureArchived = (staysByApt[r.apt]||[]).filter(s=>s.to>=todayStr);
-      // Find earliest checkin
-      let earliest = { name:r.name, from:r.checkin||'', to:r.due||r.lease_end||'', note:r.note||'' };
-      futureArchived.forEach(s=>{
-        if(!earliest.from || (s.from && s.from < earliest.from)) {
-          earliest = { name:s.name, from:s.from, to:s.to, note:s.note||'' };
-        }
-      });
-      const bf=earliest.from, bt=earliest.to;
-      if(bf||bt) bars.push({name:earliest.name,from:bf||bt,to:bt||bf,type:r.type,note:earliest.note,active:true,unitId:r.id});
+      const bf=r.checkin||'', bt=r.due||r.lease_end||'';
+      if(bf||bt) bars.push({name:r.name,from:bf||bt,to:bt||bf,type:r.type,note:r.note||'',active:true,unitId:r.id,rent:r.rent,owner:r.owner});
     }
     // Archived stays
     (staysByApt[r.apt]||[]).forEach(s=>bars.push({...s,archived:true}));
@@ -4122,17 +4115,6 @@ async function saveCalBooking() {
     await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
 
     await loadAll();
-
-    // If this booking's checkin is earlier than the current active unit's checkin,
-    // update the active unit to reflect the earliest upcoming booking
-    const activeUnit = data.find(x => x.apt === _calApt && !x.archived);
-    if (activeUnit && checkin && (!activeUnit.checkin || checkin < activeUnit.checkin)) {
-      activeUnit.checkin = checkin;
-      activeUnit.due     = checkout || activeUnit.due;
-      activeUnit.lease_end = checkout || activeUnit.lease_end;
-      await save(activeUnit);
-      await loadAll();
-    }
 
     closeModal('calBookingModal');
     renderCalendar();
