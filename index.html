@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:35</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:42</span>
     </div>
   </div>
 </header>
@@ -3919,13 +3919,20 @@ function renderCalendar() {
   units.forEach(u=>{ displayUnitId[u.apt]=u.id; });
 
   const futureBookings={};
-  data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr).forEach(r=>{
-    // Skip the display unit row itself — only include ADDITIONAL booking records
-    if(displayUnitId[r.apt]===r.id) return;
-    const ci=r.checkin, co=r.due||r.lease_end||'';
-    if(!co||ci>winEnd||co<winStart) return;
+  // Check both active data (excluding display row) AND archived records with future checkin
+  const _addFutureBooking=(r,ci,co)=>{
+    if(!ci||!co||ci>winEnd||co<winStart||ci<todayStr) return;
     if(!futureBookings[r.apt]) futureBookings[r.apt]=[];
     futureBookings[r.apt].push({id:r.id,name:r.name,from:ci,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||''});
+  };
+  // Active records (skip display row)
+  data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>=todayStr).forEach(r=>{
+    if(displayUnitId[r.apt]===r.id) return;
+    _addFutureBooking(r, r.checkin, r.due||r.lease_end||'');
+  });
+  // Archived records with future checkin (cal-bookings saved with old code)
+  archived.filter(r=>r.archived&&r.name&&r.checkin&&r.checkin>=todayStr).forEach(r=>{
+    _addFutureBooking(r, r.checkin, r.archivedDate||r.archived_date||r.lease_end||r.due||'');
   });
 
   // ── Past stays — normal bars, fully clickable with all details ──
