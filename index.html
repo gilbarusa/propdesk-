@@ -384,7 +384,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 01:47</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 01:50</span>
     </div>
   </div>
 </header>
@@ -2177,7 +2177,7 @@ function updateStats(){
 }
 
 function typeBadge(t){const m={'long-term':['badge-lt','Long Term'],'month-to-month':['badge-mtm','M-to-M'],'short-stay':['badge-short','Short Stay'],'available':['badge-avail','Available']};const[c,l]=m[t]||['badge-avail',t];return`<span class="badge ${c}">${l}</span>`;}
-function dueCell(r){if(r.type==='available'||!r.due)return'<span class="due-none">—</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
+function dueCell(r){if(r.type==='available'||dueStatus(r)==='available'||!r.due)return'<span class="due-none">—</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
 
 // ── RENDER TABLE ───────────────────────────────────
 // ── EARLIEST BOOKING LOGIC ─────────────────────────────────────────
@@ -2233,8 +2233,8 @@ function getFiltered(){
   let rows=data.filter(r=>!r.archived);
   const q=document.getElementById('searchInput').value.toLowerCase();
   if(q)rows=rows.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
-  if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>r.type==='available');}
-  if(currentTypeFilter!=='all')rows=rows.filter(r=>r.type===currentTypeFilter);
+  if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>dueStatus(r)==='available');}
+  if(currentTypeFilter!=='all'){if(currentTypeFilter==='available')rows=rows.filter(r=>r.type==='available'||dueStatus(r)==='available');else rows=rows.filter(r=>r.type===currentTypeFilter&&dueStatus(r)!=='available');}
   const sel=document.getElementById('sortSel').value;
   rows.sort((a,b)=>{
     if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}
@@ -2253,8 +2253,8 @@ function renderTable(){
   updateStats();const rows=getFiltered();
   document.getElementById('emptyState').style.display=rows.length?'none':'';
   document.getElementById('tableBody').innerHTML=rows.map(r=>{
-    const s=dueStatus(r),rc=r.type==='available'?'row-available':s==='overdue'?'row-overdue':s==='soon'?'row-soon':'';
-    const bc=r.type==='available'?'<span class="amount-none">—</span>':r.balance>0?`<span style="color:var(--red);font-weight:500">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>';
+    const s=dueStatus(r),rc=s==='available'?'row-available':s==='overdue'?'row-overdue':s==='soon'?'row-soon':'';
+    const bc=s==='available'?'<span class="amount-none">—</span>':r.balance>0?`<span style="color:var(--red);font-weight:500">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>';
     const proration = currentMonthProration(r);
     const rentCell = r.type==='short-stay' && proration
       ? `<span class="amount-cell" title="Full stay: $${r.rent.toLocaleString()} — ${proration.days} days this month" style="cursor:help">$${proration.portion.toLocaleString()}<small style="color:var(--text3);font-size:9px;margin-left:2px">/${proration.days}d</small></span>`
