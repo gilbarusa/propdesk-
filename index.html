@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:57</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 04:09</span>
     </div>
   </div>
 </header>
@@ -463,6 +463,9 @@ textarea{resize:vertical;min-height:72px;}
 <div class="page" id="page-calendar">
   <div class="cal-wrap">
     <div class="cal-toolbar">
+      <button onclick="calPrevMonth()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&#8249;</button>
+      <span class="cal-month-label" id="calMonthLabel">Mar 2026</span>
+      <button onclick="calNextMonth()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">&#8250;</button>
       <button class="cal-today-btn" onclick="calGoToday()">Today</button>
       <div class="filter-pills">
         <button class="pill active" data-caltype="all" onclick="calFilterType(this)">All</button>
@@ -3853,8 +3856,9 @@ function calGoToday() {
   const n=new Date(); calYear=n.getFullYear(); calMonth=n.getMonth();
   renderCalendar();
   setTimeout(()=>{
+    const outer=document.getElementById('calGridOuter');
     const t=document.querySelector('.cal-day-hdr.today');
-    if(t) t.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+    if(t&&outer) outer.scrollLeft=t.offsetLeft-120;
   },80);
 }
 
@@ -3866,15 +3870,12 @@ function renderCalendar() {
   const todayStr=_tn.getFullYear()+'-'+String(_tn.getMonth()+1).padStart(2,'0')+'-'+String(_tn.getDate()).padStart(2,'0');
   // curMonthStr not needed — 270-day window has no dim logic
 
-  // Build date range: 180 days back → 180 days forward from today
-  // Use local date arithmetic to avoid UTC timezone shift
+  // Build date range: prev month + current month + next month (uses calMonth/calYear)
   const dates=[];
-  const baseDate=new Date();
-  const baseY=baseDate.getFullYear(), baseM=baseDate.getMonth(), baseD=baseDate.getDate();
-  for(let i=-180;i<=180;i++){
-    const d=new Date(baseY, baseM, baseD+i);
-    const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-    dates.push(ds);
+  const start=new Date(calYear, calMonth-1, 1);
+  const end  =new Date(calYear, calMonth+2, 0);
+  for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)){
+    dates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
   }
 
   const COL_W=36;
@@ -3887,6 +3888,8 @@ function renderCalendar() {
   if(q) units=units.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
   units.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
   document.getElementById('calUnitCount').textContent=`Units (${units.length})`;
+  const mlEl=document.getElementById('calMonthLabel');
+  if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
 
   // ── Future bookings added via calendar ──
   // These are active (archived:false) records marked with 'cal-booking' in note
