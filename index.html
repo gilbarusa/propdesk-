@@ -328,6 +328,8 @@ textarea{resize:vertical;min-height:72px;}
 .cal-bar-bg{position:absolute;inset:0;border-radius:6px;pointer-events:none;}
 .cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
 .cal-bar.bar-lt{color:#fff;}
+.cal-bar.bar-history{opacity:0.28;filter:saturate(0.5);}
+.cal-bar.bar-history:hover{opacity:0.55;filter:saturate(0.8);}
 .cal-bar.bar-mtm{color:#fff;}
 .cal-bar.bar-ss{color:#fff;}
 .cal-bar.bar-block{color:#fff;opacity:.85;}
@@ -384,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 02:48</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 02:56</span>
     </div>
   </div>
 </header>
@@ -3887,17 +3889,19 @@ function renderCalendar() {
   document.getElementById('calUnitCount').textContent=`Units (${units.length})`;
 
   // ── Build archived stays in window (for overlay bars) ──
+  // Build archived stays map — split into past (history) and future (upcoming bookings)
   const staysByApt={};
-  archived.filter(r=>r.archived).forEach(r=>{
+  archived.filter(r=>r.archived && r.name).forEach(r=>{
     const ci=r.checkin||r.checkinDate||'';
-    const co=r.archivedDate||r.archived_date||r.due||r.lease_end||'';
+    const co=r.archivedDate||r.archived_date||r.lease_end||r.due||'';
     if(!ci&&!co) return;
     const bs=ci||co, be=co||ci;
-    // Skip if completely outside window
-    if(be && be<winStart) return;
-    if(bs && bs>winEnd) return;
+    if(be<winStart||bs>winEnd) return;
     if(!staysByApt[r.apt]) staysByApt[r.apt]=[];
-    staysByApt[r.apt].push({id:r.id,name:r.name,from:bs,to:be,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||'',archived:true});
+    const isFuture = ci >= todayStr;
+    staysByApt[r.apt].push({id:r.id,name:r.name,from:bs,to:be,type:r.type,
+      note:r.note||'',rent:r.rent||0,owner:r.owner||'',
+      archived:true, isPast:!isFuture});
   });
 
   const blocks=getBlocks();
@@ -3968,20 +3972,8 @@ function renderCalendar() {
       const bt = dates_end.length ? dates_end[dates_end.length-1] : '';
       if(bt) bars.push({name:r.name,from:bf,to:bt,type:r.type,note:r.note||'',active:true,unitId:r.id,rent:r.rent,owner:r.owner});
     }
-    // Archived stays rendering rules:
-    // - Active tenant present → only show FUTURE archived bookings (calendar-added future stays)
-    //   Past archived records are "ghosts" — hide them to avoid overpainting the active bar
-    // - Vacant unit → show upcoming archived stays so future bookings are visible
-    const hasActive = r.type !== 'available' && r.name;
-    (staysByApt[r.apt]||[]).forEach(s=>{
-      if(hasActive) {
-        // Only show if it's a genuine future booking (starts after today)
-        if(s.from >= todayStr) bars.push({...s, archived:true});
-      } else {
-        // Vacant — show any stay in the window
-        bars.push({...s, archived:true});
-      }
-    });
+    // Archived stays: past ones = faded history bars, future = normal booking bars
+    (staysByApt[r.apt]||[]).forEach(s=>bars.push({...s,archived:true}));
     // Blocks
     aptBlocks.forEach(b=>bars.push({name:b.reason||'Blocked',from:b.from,to:b.to,type:'__block__',blockData:b}));
 
@@ -4015,8 +4007,10 @@ function renderCalendar() {
       const badge = bar.type==='__block__' ? '🚫' : getChannelBadge(note);
 
       const barEl=document.createElement('div');
+      // Past archived bars get a history class — faded, behind active bars
+      if(bar.isPast) barCls += ' bar-history';
       barEl.className=barCls;
-      barEl.style.cssText=`left:${s*COL_W+2}px;width:${span*COL_W-4}px;overflow:hidden;`;
+      barEl.style.cssText=`left:${s*COL_W+2}px;width:${span*COL_W-4}px;overflow:hidden;${bar.isPast?'z-index:3;':''}`;
       barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
 
       // Sticky label: floats within the visible portion of the bar
@@ -4036,8 +4030,8 @@ function renderCalendar() {
       // Store data for floating label
       barEl.dataset.barLeft = s * COL_W + 2;
       barEl.dataset.barRight = (s + span) * COL_W - 4;
-      barEl.dataset.barName = bar.name;
-      barEl.dataset.barBadge = badge.replace(/"/g,"'");
+      barEl.dataset.barName = bar.isPast ? '' : bar.name;  // no floating label for history
+      barEl.dataset.barBadge = bar.isPast ? '' : badge.replace(/"/g,"'");
       barEl.dataset.barColor = '#fff';
 
       barEl.addEventListener('click',e=>{
