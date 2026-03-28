@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:20</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:26</span>
     </div>
   </div>
 </header>
@@ -1142,7 +1142,7 @@ const SEED_DATA = [
   {id:1,apt:"n",owner:"ERA LT",name:"Name",type:"long-term",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"Notes | Via: VIa | Tel: Phone No | Email: Email",history:[],archived:false},
   {id:2,apt:"223",owner:"ERA LT",name:"Chris Kennedy",type:"long-term",rent:2600.0,balance:0,due:"2026-03-10",lease_end:"2025-10-10",checkin:"2025-10-10",note:"Via: Booking | Tel: 2134141259",history:[{"date": "2025-10-10", "text": "Move-in 2025-10-10"}],archived:false},
   {id:3,apt:"314",owner:"ERA LT",name:"Amira Glover",type:"short-stay",rent:823.44,balance:0,due:"2026-03-23",lease_end:"2026-03-23",checkin:"2026-01-05",note:"Via: Vrbo | Tel: 14455445925 | Email: amiraglover@yahoo.com",history:[],archived:false},
-  {id:4,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"short-stay",rent:2984.44,balance:0,due:"2026-03-24",lease_end:"2026-03-24",checkin:"2026-02-23",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
+  {id:4,apt:"104",owner:"ERA LT",name:"Heather Shandler",type:"month-to-month",rent:2880.0,balance:1440,due:"2026-04-07",lease_end:"2026-04-07",checkin:"2026-02-23",note:"Via: Airbnb | Tel: 15618009905 | Email: Suew17050@yahoo.com",history:[],archived:false},
   {id:5,apt:"Montg 5",owner:"Elkins LT",name:"Dr Shradha Kakde",type:"short-stay",rent:1762.41,balance:0,due:"2026-03-24",lease_end:"2026-03-24",checkin:"2026-03-09",note:"Via: Airbnb | Tel: 6892504273 | Email: Meghnathkakde11@gmail.com",history:[],archived:false},
   {id:6,apt:"215",owner:"ERA LT",name:"Irina Stesel",type:"short-stay",rent:1903.2,balance:0,due:"2026-03-25",lease_end:"2026-03-25",checkin:"2026-03-15",note:"Via: Airbnb | Tel: 17732970907 | Email: Istesel@gmail.com",history:[],archived:false},
   {id:7,apt:"426-3",owner:"ERA LT",name:"Danene Bowman",type:"short-stay",rent:1504.75,balance:0,due:"2026-03-27",lease_end:"2026-03-27",checkin:"2026-02-21",note:"Via: Airbnb | Tel: 12675842987 | Email: Warritlam@gmail.com",history:[],archived:false},
@@ -1179,7 +1179,7 @@ const SEED_DATA = [
   {id:38,apt:"128",owner:"ERA LT",name:"Dawn Mccoy",type:"short-stay",rent:1722.02,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2026-02-28",note:"Via: Airbnb | Tel: 2157677174 | Email: Dawnmccoy3288@yahoo.com",history:[],archived:false},
   {id:39,apt:"225",owner:"ERA LT",name:"Tyvesha Jackson",type:"long-term",rent:3700.04,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2025-06-08",note:"Via: Vrbo | Tel: 2673063019 | Email: chocolatethai27@gmail.com",history:[{"date": "2025-06-08", "text": "Move-in 2025-06-08"}],archived:false},
   {id:40,apt:"Montg 3",owner:"Elkins LT",name:"Darron Wilson",type:"short-stay",rent:2884.7,balance:0,due:"2026-03-31",lease_end:"2026-03-31",checkin:"2026-02-25",note:"Via: Airbnb | Tel: 12156178005 | Email: darron.wilson@comhar.org",history:[],archived:false},
-  {id:41,apt:"111",owner:"ERA LT",name:"Kristen Brooker",type:"month-to-month",rent:2500.0,balance:0,due:"2026-04-02",lease_end:"",checkin:"2025-10-02",note:"Via: Zillow | Tel: (603) 359-0916 | Email: kristenbrooker323@gmail.com",history:[{"date": "2025-10-02", "text": "Move-in 2025-10-02"}],archived:false},
+  {id:41,apt:"111",owner:"ERA LT",name:"Kristen Brooker",type:"month-to-month",rent:2500.0,balance:0,due:"2026-04-02",lease_end:"2026-04-02",checkin:"2025-10-02",note:"Via: Zillow | Tel: (603) 359-0916 | Email: kristenbrooker333@gmail.com",history:[{"date": "2025-10-02", "text": "Move-in 2025-10-02"}],archived:false},
   {id:42,apt:"Montg 2",owner:"Elkins LT",name:"Gina Krier",type:"month-to-month",rent:2850.0,balance:0,due:"2026-04-04",lease_end:"",checkin:"2026-02-04",note:"Via: Airbnb | Tel: (267) 716-5106 | Email: gmkrier@gmail.com",history:[{"date": "2026-02-04", "text": "Move-in 2026-02-04"}],archived:false},
   {id:43,apt:"Montg 5B",owner:"Elkins LT",name:"Hider Shaaban",type:"short-stay",rent:1894.76,balance:0,due:"2026-04-06",lease_end:"2026-04-06",checkin:"2026-03-08",note:"Via: Airbnb | Tel: 2157895616 | Email: aloffreda23@gmail.com",history:[],archived:false},
   {id:44,apt:"Montg 8",owner:"Elkins LT",name:"Justin Krebs",type:"month-to-month",rent:1100.0,balance:0,due:"2026-04-09",lease_end:"",checkin:"2026-03-09",note:"Via: FF | Tel: (605) 430-6888 | Email: jtk1996@hotmail.com",history:[{"date": "2026-03-09", "text": "Move-in 2026-03-09"}],archived:false},
