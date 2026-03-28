@@ -157,6 +157,9 @@ td{padding:13px 14px;vertical-align:middle;}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 label{display:block;font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);margin-bottom:6px;}
 input,select,textarea{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:9px 13px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:all .18s;box-shadow:inset 0 1px 3px rgba(0,0,0,.04);}
+input[type=date]{appearance:auto;-webkit-appearance:auto;}
+input[type=date]::-webkit-inner-spin-button{display:none;}
+input[type=date]::-webkit-calendar-picker-indicator{display:block;opacity:1;cursor:pointer;background:transparent;}
 
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(181,120,74,.12),inset 0 1px 3px rgba(0,0,0,.04);}
 textarea{resize:vertical;min-height:72px;}
@@ -1211,9 +1214,9 @@ function stopInactivityTimer() {
 function authSignOut() {
   stopInactivityTimer();
   _authRole = null;
+  // Always clear remember-me token on manual sign out
+  localStorage.removeItem(REMEMBER_KEY);
   document.getElementById('inactivityBanner').style.display = 'none';
-  // Clear "remember me" only if user manually signs out (keep it so next load auto-logs in)
-  // location.reload() is simplest — resets all app state cleanly
   location.reload();
 }
 
