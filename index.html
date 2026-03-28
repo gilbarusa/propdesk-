@@ -384,7 +384,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 01:32</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 01:38</span>
     </div>
   </div>
 </header>
@@ -2189,47 +2189,43 @@ function getEarliestBooking(activeRecord) {
   const todayStr = today();
   const apt = activeRecord.apt;
 
-  // Collect upcoming archived cal-bookings for this apt
-  // (only future ones — checkin >= today or checkout >= today)
+  // Only consider calendar-added bookings:
+  // Must have BOTH checkin AND archivedDate (checkout) set,
+  // checkin must be >= today (truly future/upcoming),
+  // and apt must match exactly.
   const upcomingArchived = archived.filter(r =>
     r.archived &&
     r.apt === apt &&
     r.name &&
-    (r.checkin || r.archivedDate || r.due) &&
-    // Has a future date
-    ((r.checkin && r.checkin >= todayStr) ||
-     (r.archivedDate && r.archivedDate >= todayStr) ||
-     (r.due && r.due >= todayStr))
+    r.checkin &&
+    (r.archivedDate || r.archived_date) &&
+    r.checkin >= todayStr   // checkin itself must be in the future
   );
 
   if (!upcomingArchived.length) return activeRecord;
 
-  // Find the one with the earliest checkin
+  // Find earliest checkin among cal-bookings
   let earliest = null;
   upcomingArchived.forEach(r => {
-    const ci = r.checkin || r.archivedDate || r.due || '';
-    if (!earliest || ci < (earliest.checkin || earliest.archivedDate || earliest.due || '9999')) {
-      earliest = r;
-    }
+    if (!earliest || r.checkin < earliest.checkin) earliest = r;
   });
 
-  // Compare with active record's own checkin
-  const activeCi = activeRecord.checkin || activeRecord.due || '9999';
-  const earliestCi = earliest ? (earliest.checkin || earliest.archivedDate || earliest.due || '9999') : '9999';
+  if (!earliest) return activeRecord;
 
-  if (earliestCi >= activeCi) return activeRecord; // active is already earliest
+  // Only override if it's actually earlier than the active unit's checkin
+  const activeCi = activeRecord.checkin || '9999';
+  if (earliest.checkin >= activeCi) return activeRecord;
 
-  // Return a merged display record: earliest guest's info + active unit's id/apt/owner for actions
   return {
-    ...activeRecord,           // keep id, apt, owner, type for actions & filters
+    ...activeRecord,
     name:      earliest.name,
-    checkin:   earliest.checkin || '',
-    due:       earliest.archivedDate || earliest.due || '',
-    lease_end: earliest.archivedDate || earliest.due || '',
+    checkin:   earliest.checkin,
+    due:       earliest.archivedDate || earliest.archived_date || earliest.due || '',
+    lease_end: earliest.archivedDate || earliest.archived_date || earliest.due || '',
     rent:      earliest.rent || activeRecord.rent,
     note:      earliest.note || activeRecord.note,
-    _displayOnly: true,        // flag so we know it's a display override
-    _realRecord: activeRecord  // keep original for editing
+    _displayOnly: true,
+    _realRecord: activeRecord
   };
 }
 
