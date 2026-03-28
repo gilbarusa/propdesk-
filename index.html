@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 02:56</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:01</span>
     </div>
   </div>
 </header>
@@ -3967,9 +3967,7 @@ function renderCalendar() {
     // Active tenant bar
     if(r.type!=='available'&&r.name){
       const bf = r.checkin && r.checkin >= winStart ? r.checkin : winStart;
-      // End date: pick the later of due and lease_end (ignore blanks)
-      const dates_end = [r.due, r.lease_end].filter(Boolean).sort();
-      const bt = dates_end.length ? dates_end[dates_end.length-1] : '';
+      const bt = r.due || r.lease_end || '';
       if(bt) bars.push({name:r.name,from:bf,to:bt,type:r.type,note:r.note||'',active:true,unitId:r.id,rent:r.rent,owner:r.owner});
     }
     // Archived stays: past ones = faded history bars, future = normal booking bars
