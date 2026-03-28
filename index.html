@@ -379,7 +379,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:14</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:21</span>
     </div>
   </div>
 </header>
@@ -575,7 +575,28 @@ textarea{resize:vertical;min-height:72px;}
         <div class="form-row"><label>Rent / Stay Amount ($)</label><input type="number" id="cbRent" placeholder="0.00" step="0.01"></div>
         <div class="form-row"><label>Balance Owed ($)</label><input type="number" id="cbBalance" placeholder="0.00" step="0.01"><div class="form-hint">0 = fully paid</div></div>
       </div>
-      <div class="form-row"><label>Note (platform, contact, etc.)</label><textarea id="cbNote" placeholder="Via: Airbnb | Tel: 555-0000 | Email: guest@email.com" style="min-height:60px"></textarea></div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Channel</label>
+          <select id="cbChannel" onchange="toggleCbChannelOther()">
+            <option value="">— Select —</option>
+            <option value="Airbnb">Airbnb</option>
+            <option value="Vrbo">Vrbo</option>
+            <option value="Booking.com">Booking.com</option>
+            <option value="Direct">Direct</option>
+            <option value="Other">Other…</option>
+          </select>
+        </div>
+        <div class="form-row" id="cbChannelOtherRow" style="display:none">
+          <label>Channel Name</label>
+          <input type="text" id="cbChannelOther" placeholder="e.g. Furnished Finder">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Phone</label><input type="tel" id="cbPhone" placeholder="e.g. (215) 555-0000"></div>
+        <div class="form-row"><label>Email</label><input type="email" id="cbEmail" placeholder="guest@email.com"></div>
+      </div>
+      <div class="form-row"><label>Additional Note</label><textarea id="cbNote" placeholder="Any other notes…" style="min-height:50px"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('calBookingModal')">Cancel</button>
@@ -1009,7 +1030,28 @@ textarea{resize:vertical;min-height:72px;}
         <div class="form-row"><label>Next Payment Due</label><input type="date" id="fDue"><div class="form-hint">Advances each month on payment</div></div>
         <div class="form-row"><label>Lease End / Checkout Date</label><input type="date" id="fLeaseEnd"><div class="form-hint">Agreement end or short stay checkout</div></div>
       </div>
-      <div class="form-row"><label>Note (tenant)</label><textarea id="fNote" placeholder="Any notes about this person…"></textarea></div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Channel</label>
+          <select id="fChannel" onchange="toggleFChannelOther()">
+            <option value="">— Select —</option>
+            <option value="Airbnb">Airbnb</option>
+            <option value="Vrbo">Vrbo</option>
+            <option value="Booking.com">Booking.com</option>
+            <option value="Direct">Direct</option>
+            <option value="Other">Other…</option>
+          </select>
+        </div>
+        <div class="form-row" id="fChannelOtherRow" style="display:none">
+          <label>Channel Name</label>
+          <input type="text" id="fChannelOther" placeholder="e.g. Furnished Finder">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="form-row"><label>Phone</label><input type="tel" id="fPhone" placeholder="e.g. (215) 555-0000"></div>
+        <div class="form-row"><label>Email</label><input type="email" id="fEmail" placeholder="guest@email.com"></div>
+      </div>
+      <div class="form-row"><label>Additional Note</label><textarea id="fNote" placeholder="Any other notes…"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
@@ -2185,9 +2227,61 @@ function setSortSel(v){
 function toggleArchive(){const w=document.getElementById('archiveTableWrap'),ch=document.getElementById('archChevron');const o=w.style.display!=='none';w.style.display=o?'none':'';ch.classList.toggle('open',!o);}
 
 // ── ADD/EDIT ───────────────────────────────────────
-function openAddModal(){document.getElementById('editId').value='';document.getElementById('modalTitle').textContent='Add Unit / Tenant';document.getElementById('modalAptLabel').textContent='—';['fApt','fOwner','fName','fRent','fBalance','fNote','fCheckin'].forEach(i=>document.getElementById(i).value='');document.getElementById('fType').value='available';document.getElementById('fDue').value='';document.getElementById('fLeaseEnd').value='';openModal('editModal');}
-function openEditModal(id){const r=data.find(x=>x.id===id);if(!r)return;document.getElementById('editId').value=id;document.getElementById('modalTitle').textContent='Edit Unit / Tenant';document.getElementById('modalAptLabel').textContent=r.apt;document.getElementById('fApt').value=r.apt;document.getElementById('fOwner').value=r.owner||'';document.getElementById('fName').value=r.name||'';document.getElementById('fType').value=r.type||'available';document.getElementById('fRent').value=r.rent||'';document.getElementById('fDue').value=r.due||'';document.getElementById('fLeaseEnd').value=r.lease_end||'';document.getElementById('fCheckin').value=r.checkin||'';document.getElementById('fBalance').value=r.balance||'';document.getElementById('fNote').value=r.note||'';openModal('editModal');}
-async function saveTenant(){const id=document.getElementById('editId').value;const apt=document.getElementById('fApt').value.trim();if(!apt){toast('Apartment # required','error');return;}const rec={apt,owner:document.getElementById('fOwner').value.trim(),name:document.getElementById('fName').value.trim(),type:document.getElementById('fType').value,rent:parseFloat(document.getElementById('fRent').value)||0,due:document.getElementById('fDue').value,lease_end:document.getElementById('fLeaseEnd').value,checkin:document.getElementById('fCheckin').value,balance:parseFloat(document.getElementById('fBalance').value)||0,note:document.getElementById('fNote').value.trim()};if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}else{const newRec={id:nextId++,...rec,history:[],archived:false};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}closeModal('editModal');renderTable();}
+function openAddModal(){
+  document.getElementById('editId').value='';
+  document.getElementById('modalTitle').textContent='Add Unit / Tenant';
+  document.getElementById('modalAptLabel').textContent='—';
+  ['fApt','fOwner','fName','fRent','fBalance','fNote','fCheckin','fPhone','fEmail','fChannelOther'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('fType').value='available';
+  document.getElementById('fDue').value='';
+  document.getElementById('fLeaseEnd').value='';
+  document.getElementById('fChannel').value='';
+  document.getElementById('fChannelOtherRow').style.display='none';
+  openModal('editModal');
+}
+function openEditModal(id){
+  const r=data.find(x=>x.id===id);if(!r)return;
+  document.getElementById('editId').value=id;
+  document.getElementById('modalTitle').textContent='Edit Unit / Tenant';
+  document.getElementById('modalAptLabel').textContent=r.apt;
+  document.getElementById('fApt').value=r.apt;
+  document.getElementById('fOwner').value=r.owner||'';
+  document.getElementById('fName').value=r.name||'';
+  document.getElementById('fType').value=r.type||'available';
+  document.getElementById('fRent').value=r.rent||'';
+  document.getElementById('fDue').value=r.due||'';
+  document.getElementById('fLeaseEnd').value=r.lease_end||'';
+  document.getElementById('fCheckin').value=r.checkin||'';
+  document.getElementById('fBalance').value=r.balance||'';
+  // Parse existing note into structured fields
+  const parsed = parseNoteFields(r.note||'');
+  document.getElementById('fChannel').value = parsed.channel;
+  document.getElementById('fChannelOther').value = parsed.channelOther;
+  document.getElementById('fChannelOtherRow').style.display = parsed.channel==='Other' ? '' : 'none';
+  document.getElementById('fPhone').value = parsed.phone;
+  document.getElementById('fEmail').value = parsed.email;
+  document.getElementById('fNote').value = parsed.extra;
+  openModal('editModal');
+}
+async function saveTenant(){
+  const id=document.getElementById('editId').value;
+  const apt=document.getElementById('fApt').value.trim();
+  if(!apt){toast('Apartment # required','error');return;}
+  const rec={
+    apt, owner:document.getElementById('fOwner').value.trim(),
+    name:document.getElementById('fName').value.trim(),
+    type:document.getElementById('fType').value,
+    rent:parseFloat(document.getElementById('fRent').value)||0,
+    due:document.getElementById('fDue').value,
+    lease_end:document.getElementById('fLeaseEnd').value,
+    checkin:document.getElementById('fCheckin').value,
+    balance:parseFloat(document.getElementById('fBalance').value)||0,
+    note:buildNoteField('fChannel','fChannelOther','fPhone','fEmail','fNote')
+  };
+  if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}
+  else{const newRec={id:nextId++,...rec,history:[],archived:false};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}
+  closeModal('editModal');renderTable();
+}
 
 // ── PAYMENT ────────────────────────────────────────
 function openPayModal(id){
@@ -3823,10 +3917,7 @@ function renderCalendar() {
       else if(bar.type==='__block__')     {barCls+='bar-block';icon='🚫';}
 
       const note=bar.note||'';
-      if(note.includes('Airbnb'))      icon='🏡';
-      else if(note.includes('Booking'))icon='🔵';
-      else if(note.includes('Vrbo'))   icon='🟠';
-      else if(note.includes('Hostfully'))icon='🟣';
+      icon = getChannelIcon(note);
 
       const barEl=document.createElement('div');
       barEl.className=barCls;
@@ -3949,6 +4040,11 @@ function openCalBookingModal() {
   document.getElementById('cbRent').value='';
   document.getElementById('cbBalance').value='0';
   document.getElementById('cbNote').value='';
+  document.getElementById('cbChannel').value='';
+  document.getElementById('cbChannelOther').value='';
+  document.getElementById('cbChannelOtherRow').style.display='none';
+  document.getElementById('cbPhone').value='';
+  document.getElementById('cbEmail').value='';
   openModal('calBookingModal');
 }
 
@@ -3960,7 +4056,7 @@ async function saveCalBooking() {
   const checkout= document.getElementById('cbCheckout').value;
   const rent    = parseFloat(document.getElementById('cbRent').value)||0;
   const balance = parseFloat(document.getElementById('cbBalance').value)||0;
-  const note    = document.getElementById('cbNote').value.trim();
+  const note    = buildNoteField('cbChannel','cbChannelOther','cbPhone','cbEmail','cbNote');
 
   if(!name)   { toast('Tenant name required','error'); return; }
   if(!checkin){ toast('Check-in date required','error'); return; }
@@ -4086,6 +4182,93 @@ async function deleteCalUnit() {
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   }
+}
+
+
+// ── CHANNEL / NOTE HELPERS ──────────────────────────────
+
+// Known channels and their icons (SVG emoji fallback letters)
+const CHANNELS = {
+  'Airbnb':      { icon: '🏡', letter: 'A', color: '#FF5A5F' },
+  'Vrbo':        { icon: '🟠', letter: 'V', color: '#1DA462' },
+  'Booking.com': { icon: '🔵', letter: 'B', color: '#003580' },
+  'Direct':      { icon: '🏠', letter: 'D', color: '#7d5228' },
+  'Hostfully':   { icon: '🟣', letter: 'H', color: '#7B4FBE' },
+};
+
+function getChannelIcon(note) {
+  if (!note) return '🏠';
+  for (const [name, ch] of Object.entries(CHANNELS)) {
+    if (note.includes(name)) return ch.icon;
+  }
+  // check for "Via: XXXX" pattern
+  const m = note.match(/Via:\s*([^|\n]+)/i);
+  if (m) {
+    const via = m[1].trim();
+    const letter = via.charAt(0).toUpperCase();
+    return `<span style="font-size:9px;font-weight:700;background:rgba(255,255,255,.3);border-radius:3px;padding:0 3px;line-height:1.4">${letter}</span>`;
+  }
+  return '🏠';
+}
+
+function parseNoteFields(note) {
+  // Extract structured parts from "Via: X | Tel: X | Email: X" format
+  const result = { channel: '', channelOther: '', phone: '', email: '', extra: note };
+  if (!note) return result;
+
+  const viaM   = note.match(/Via:\s*([^|\n]+)/i);
+  const telM   = note.match(/Tel:\s*([^|\n]+)/i);
+  const emailM = note.match(/Email:\s*([^|\n]+)/i);
+
+  if (viaM) {
+    const via = viaM[1].trim();
+    const known = ['Airbnb','Vrbo','Booking.com','Booking','Direct','Hostfully'];
+    const match = known.find(k => via.toLowerCase().includes(k.toLowerCase()));
+    if (match) {
+      result.channel = match === 'Booking' ? 'Booking.com' : match;
+    } else {
+      result.channel = 'Other';
+      result.channelOther = via;
+    }
+  }
+  if (telM)   result.phone = telM[1].trim();
+  if (emailM) result.email = emailM[1].trim();
+
+  // Extra = note minus the parsed parts
+  result.extra = note
+    .replace(/Via:\s*[^|\n]+\|?/i, '')
+    .replace(/Tel:\s*[^|\n]+\|?/i, '')
+    .replace(/Email:\s*[^|\n]+\|?/i, '')
+    .replace(/^\s*\|\s*/, '')
+    .trim();
+
+  return result;
+}
+
+function buildNoteField(chId, chOtherId, telId, emailId, noteId) {
+  const chEl    = document.getElementById(chId);
+  const ch      = chEl ? chEl.value : '';
+  const chOther = document.getElementById(chOtherId)?.value.trim() || '';
+  const phone   = document.getElementById(telId)?.value.trim() || '';
+  const email   = document.getElementById(emailId)?.value.trim() || '';
+  const extra   = document.getElementById(noteId)?.value.trim() || '';
+
+  const via = ch === 'Other' ? chOther : ch;
+  const parts = [];
+  if (via)   parts.push(`Via: ${via}`);
+  if (phone) parts.push(`Tel: ${phone}`);
+  if (email) parts.push(`Email: ${email}`);
+  if (extra) parts.push(extra);
+  return parts.join(' | ');
+}
+
+function toggleFChannelOther() {
+  const v = document.getElementById('fChannel').value;
+  document.getElementById('fChannelOtherRow').style.display = v === 'Other' ? '' : 'none';
+}
+function toggleCbChannelOther() {
+  const v = document.getElementById('cbChannel').value;
+  document.getElementById('cbChannelOtherRow').style.display = v === 'Other' ? '' : 'none';
 }
 
 
