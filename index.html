@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:29</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:39</span>
     </div>
   </div>
 </header>
@@ -3973,8 +3973,10 @@ function renderCalendar() {
 
     // 1. Active tenant bar — uses live unit data only, no archive
     if(r.type!=='available'&&r.name){
-      const bf = r.checkin && r.checkin >= winStart ? r.checkin : winStart;
-      const bt = r.due || r.lease_end || '';
+      const stripDate = s => s ? s.substring(0,10) : '';
+      const bf_raw = r.checkin && r.checkin >= winStart ? r.checkin : winStart;
+      const bf = stripDate(bf_raw);
+      const bt = stripDate(r.due || r.lease_end || '');
       if(bt) bars.push({
         name:r.name, from:bf, to:bt,
         type:r.type, note:r.note||'',
@@ -4005,12 +4007,7 @@ function renderCalendar() {
       return lo;
     };
 
-    // DEBUG — log first 5 units so we can see what calendar is actually computing
-    if(bars.length && ['104','111','112','121','128'].includes(r.apt)){
-      bars.forEach(bar=>{
-        console.log(`[CAL DEBUG] apt:${r.apt} | name:${bar.name} | from:${bar.from} | to:${bar.to} | active:${!!bar.active} | future:${!!bar.futureBooking}`);
-      });
-    }
+
 
     bars.forEach(bar=>{
       if(!bar.from&&!bar.to) return;
