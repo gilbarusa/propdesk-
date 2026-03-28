@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 12:19</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 12:46</span>
     </div>
   </div>
 </header>
@@ -3931,8 +3931,14 @@ function renderCalendar() {
     _addFutureBooking(r, r.checkin, r.due||r.lease_end||'');
   });
   // Archived records with future checkin (cal-bookings saved with old code)
-  archived.filter(r=>r.archived&&r.name&&r.checkin&&r.checkin>=todayStr).forEach(r=>{
-    _addFutureBooking(r, r.checkin, r.archivedDate||r.archived_date||r.lease_end||r.due||'');
+  // Also handle records where checkin is missing but archivedDate is future
+  archived.filter(r=>r.archived&&r.name).forEach(r=>{
+    const ci = r.checkin || '';
+    const co = r.archivedDate||r.archived_date||r.lease_end||r.due||'';
+    if(!co||co<todayStr) return; // checkout already past
+    if(ci && ci<todayStr) return; // checkin already past
+    const from = ci || co; // if no checkin use checkout date as single-day marker
+    if(from>=todayStr) _addFutureBooking(r, from, co);
   });
 
   // ── Past stays — normal bars, fully clickable with all details ──
@@ -4391,8 +4397,8 @@ function openCalBookingDetail(bar, unit, isActive) {
   document.getElementById('cbpType').textContent    = bar.type || '—';
 
   // Only show delete for archived bookings, not the active unit bar
-  // Show delete for any bar that has an id and is not the main active tenant
-  _calBookingPanelId = (!isActive && bar.id) ? bar.id : null;
+  // Show delete for any bar that has an id (active tenant bar has isActive=true)
+  _calBookingPanelId = bar.id && !isActive ? bar.id : null;
   document.getElementById('cbpDeleteRow').style.display = _calBookingPanelId ? '' : 'none';
 
   document.getElementById('calBookingPanel').classList.add('open');
