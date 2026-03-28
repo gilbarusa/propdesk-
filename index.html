@@ -307,6 +307,7 @@ textarea{resize:vertical;min-height:72px;}
 .cal-grid-outer::-webkit-scrollbar{height:8px;width:8px;} .cal-grid-outer::-webkit-scrollbar-track{background:var(--surface3);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;} .cal-grid-outer::-webkit-scrollbar-thumb:hover{background:var(--accent);}
 .cal-grid{position:relative;min-width:max-content;}
 .cal-days-header{display:flex;height:52px;position:sticky;top:0;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
+.cal-month-float{position:sticky;left:0;z-index:25;background:var(--surface2);border-right:1px solid var(--border);display:flex;align-items:center;padding:0 10px;font-family:"Playfair Display",serif;font-size:12px;font-weight:700;color:var(--accent2);white-space:nowrap;pointer-events:none;min-width:90px;}
 .cal-day-hdr{display:flex;flex-direction:column;align-items:center;justify-content:center;width:36px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;gap:2px;cursor:default;}
 .cal-day-hdr.weekend{background:rgba(181,120,74,.06);}
 .cal-day-hdr.today{background:var(--green);color:#fff;}
@@ -315,6 +316,7 @@ textarea{resize:vertical;min-height:72px;}
 .cal-rows{position:relative;}
 .cal-row{display:flex;height:44px;border-bottom:1px solid var(--border);position:relative;align-items:center;}
 .cal-cell{width:36px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;cursor:pointer;transition:background .1s;}
+.cal-ch-badge{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;font-size:9px;font-weight:700;flex-shrink:0;line-height:1;}
 .cal-cell:hover{background:rgba(181,120,74,.08);}
 .cal-cell.weekend{background:rgba(181,120,74,.04);}
 .cal-cell.weekend:hover{background:rgba(181,120,74,.1);}
@@ -322,7 +324,8 @@ textarea{resize:vertical;min-height:72px;}
 .cal-cell.today-col:hover{background:rgba(37,102,69,.12);}
 .cal-cell.blocked{background:repeating-linear-gradient(45deg,rgba(184,50,40,.07),rgba(184,50,40,.07) 4px,transparent 4px,transparent 8px);}
 .cal-cell.blocked:hover{background:repeating-linear-gradient(45deg,rgba(184,50,40,.14),rgba(184,50,40,.14) 4px,transparent 4px,transparent 8px);}
-.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;display:flex;align-items:center;padding:0 8px;font-size:11px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;}
+.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;font-size:11px;font-weight:500;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;overflow:hidden;}
+.cal-bar-inner{position:sticky;left:4px;display:inline-flex;align-items:center;gap:4px;height:100%;padding:0 4px;white-space:nowrap;pointer-events:none;max-width:calc(100% - 8px);}
 .cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
 .cal-bar.bar-lt{background:linear-gradient(90deg,#2563a8,#1e5799);color:#fff;}
 .cal-bar.bar-mtm{background:linear-gradient(90deg,#7c4fbe,#5e3f9e);color:#fff;}
@@ -379,7 +382,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:27</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:38</span>
     </div>
   </div>
 </header>
@@ -3857,14 +3860,24 @@ function renderCalendar() {
   }).join('');
 
   // ── Day headers ──
-  document.getElementById('calDaysHeader').innerHTML=dates.map(d=>{
-    const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
+  // Build day headers with a floating month label at the start of each month
+  let lastMonth = -1;
+  const dayHdrHtml = dates.map(d => {
+    const dt=new Date(d+'T00:00:00'),dow=dt.getDay(),mo=dt.getMonth(),yr=dt.getFullYear();
     const isWE=dow===0||dow===6,isToday=d===todayStr;
-    return`<div class="cal-day-hdr${isWE?' weekend':''}${isToday?' today':''}">
+    // Inject a sticky month label when month changes
+    const isNewMonth = mo !== lastMonth;
+    if(isNewMonth) lastMonth = mo;
+    const MONTH_SHORT=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthLabel = isNewMonth
+      ? `<div class="cal-month-float">${MONTH_SHORT[mo]} ${yr}</div>`
+      : '';
+    return `${monthLabel}<div class="cal-day-hdr${isWE?' weekend':''}${isToday?' today':''}">
       <div class="day-name">${DAY_ABBR[dow]}</div>
       <div class="day-num">${dt.getDate()}</div>
     </div>`;
   }).join('');
+  document.getElementById('calDaysHeader').innerHTML = dayHdrHtml;
 
   // ── Rows ──
   const rowsEl=document.getElementById('calRows');
@@ -3891,10 +3904,19 @@ function renderCalendar() {
 
     // ── Bars ──
     const bars=[];
-    // Active tenant
+    // Active tenant — find earliest upcoming booking across active + archived for this apt
     if(r.type!=='available'&&r.name){
-      const bf=r.checkin||'',bt=r.due||r.lease_end||'';
-      if(bf||bt) bars.push({name:r.name,from:bf||bt,to:bt||bf,type:r.type,note:r.note||'',active:true,unitId:r.id});
+      // Gather all future archived bookings for this apt
+      const futureArchived = (staysByApt[r.apt]||[]).filter(s=>s.to>=todayStr);
+      // Find earliest checkin
+      let earliest = { name:r.name, from:r.checkin||'', to:r.due||r.lease_end||'', note:r.note||'' };
+      futureArchived.forEach(s=>{
+        if(!earliest.from || (s.from && s.from < earliest.from)) {
+          earliest = { name:s.name, from:s.from, to:s.to, note:s.note||'' };
+        }
+      });
+      const bf=earliest.from, bt=earliest.to;
+      if(bf||bt) bars.push({name:earliest.name,from:bf||bt,to:bt||bf,type:r.type,note:earliest.note,active:true,unitId:r.id});
     }
     // Archived stays
     (staysByApt[r.apt]||[]).forEach(s=>bars.push({...s,archived:true}));
@@ -3917,19 +3939,25 @@ function renderCalendar() {
       else if(bar.type==='__block__')     {barCls+='bar-block';icon='🚫';}
 
       const note=bar.note||'';
-      icon = getChannelIcon(note);
+      const badge = bar.type==='__block__' ? '🚫' : getChannelBadge(note);
 
       const barEl=document.createElement('div');
       barEl.className=barCls;
-      barEl.style.left=(s*COL_W+2)+'px';
-      barEl.style.width=(span*COL_W-4)+'px';
+      barEl.style.cssText=`left:${s*COL_W+2}px;width:${span*COL_W-4}px;overflow:hidden;`;
       barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
 
-      // Delete X button for blocks
+      // Sticky label: floats within the visible portion of the bar
+      // Delete X button for blocks only
       const xBtn = bar.type==='__block__'
         ? `<span class="cal-bar-x" onclick="event.stopPropagation();deleteBlock('${r.apt}','${bar.from}','${bar.to}')">&#x2715;</span>`
         : '';
-      barEl.innerHTML=`<span class="cal-bar-icon">${icon}</span><span class="cal-bar-label">${bar.name}</span>${xBtn}`;
+      // Inner sticky wrapper keeps name visible as bar scrolls
+      barEl.innerHTML=`
+        <div class="cal-bar-inner">
+          <span class="cal-bar-icon">${badge}</span>
+          <span class="cal-bar-label">${bar.name}</span>
+          ${xBtn}
+        </div>`;
 
       barEl.addEventListener('click',e=>{
         e.stopPropagation();
@@ -4153,8 +4181,7 @@ function openCalBookingDetail(bar, unit, isActive) {
   document.getElementById('cbpRent').textContent  = bar.rent ? fmtMoney(bar.rent) : '—';
 
   const parsed = parseNoteFields(bar.note || '');
-  const via = parsed.channel === 'Other' ? parsed.channelOther : parsed.channel;
-  document.getElementById('cbpChannel').textContent = via || '—';
+  document.getElementById('cbpChannel').textContent = getChannelName(bar.note||'');
   document.getElementById('cbpPhone').textContent   = parsed.phone || '—';
   document.getElementById('cbpEmail').textContent   = parsed.email || '—';
   document.getElementById('cbpNote').textContent    = parsed.extra || '—';
@@ -4248,26 +4275,40 @@ async function deleteCalUnit() {
 
 // Known channels and their icons (SVG emoji fallback letters)
 const CHANNELS = {
-  'Airbnb':      { icon: '🏡', letter: 'A', color: '#FF5A5F' },
-  'Vrbo':        { icon: '🟠', letter: 'V', color: '#1DA462' },
-  'Booking.com': { icon: '🔵', letter: 'B', color: '#003580' },
-  'Direct':      { icon: '🏠', letter: 'D', color: '#7d5228' },
-  'Hostfully':   { icon: '🟣', letter: 'H', color: '#7B4FBE' },
+  'Airbnb':      { letter: 'A', bg: '#FF5A5F', fg: '#fff' },
+  'Vrbo':        { letter: 'V', bg: '#1DA462', fg: '#fff' },
+  'Booking.com': { letter: 'B', bg: '#003580', fg: '#fff' },
+  'Booking':     { letter: 'B', bg: '#003580', fg: '#fff' },
+  'Direct':      { letter: 'D', bg: '#8a5f32', fg: '#fff' },
+  'Hostfully':   { letter: 'H', bg: '#7B4FBE', fg: '#fff' },
 };
 
-function getChannelIcon(note) {
-  if (!note) return '🏠';
+function getChannelBadge(note) {
+  if (!note) return _chBadge('D','#8a5f32');
   for (const [name, ch] of Object.entries(CHANNELS)) {
-    if (note.includes(name)) return ch.icon;
+    if (note.toLowerCase().includes(name.toLowerCase()))
+      return _chBadge(ch.letter, ch.bg, ch.fg);
   }
-  // check for "Via: XXXX" pattern
   const m = note.match(/Via:\s*([^|\n]+)/i);
   if (m) {
-    const via = m[1].trim();
-    const letter = via.charAt(0).toUpperCase();
-    return `<span style="font-size:9px;font-weight:700;background:rgba(255,255,255,.3);border-radius:3px;padding:0 3px;line-height:1.4">${letter}</span>`;
+    const letter = m[1].trim().charAt(0).toUpperCase();
+    return _chBadge(letter, 'rgba(255,255,255,.35)', '#fff');
   }
-  return '🏠';
+  return _chBadge('D','#8a5f32');
+}
+
+function _chBadge(letter, bg, fg='#fff') {
+  return `<span class="cal-ch-badge" style="background:${bg};color:${fg}">${letter}</span>`;
+}
+
+// Keep getChannelIcon as alias for cbpChannel display (text version)
+function getChannelName(note) {
+  if (!note) return 'Direct';
+  for (const name of Object.keys(CHANNELS)) {
+    if (note.toLowerCase().includes(name.toLowerCase())) return name;
+  }
+  const m = note.match(/Via:\s*([^|\n]+)/i);
+  return m ? m[1].trim() : 'Direct';
 }
 
 function parseNoteFields(note) {
