@@ -484,6 +484,7 @@ textarea{resize:vertical;min-height:72px;}
   <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
   <div class="nav-tab" onclick="showPage('reports',this)">📈 Reports</div>
   <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
+  <div style="flex:1"></div>
   <div class="nav-tab" onclick="showPage('settings',this)">⚙ Settings</div>
 </nav>
 
@@ -4794,6 +4795,156 @@ function bootOffline() {
 }
 
 boot();
+
+
+// ══════════════════════════════════════════════════════
+//  AUTH + CLOCK
+// ══════════════════════════════════════════════════════
+const REMEMBER_KEY = 'chelbourne_admin_token';
+const INACTIVITY_MS = 60 * 60 * 1000;
+let _authRole = null, _authLoginRole = 'admin';
+let _inactivityTimer = null, _countdownTimer = null;
+let _passwords = { admin: 'GB8700', user: 'WP0001' };
+
+async function loadPasswordsFromSupabase() {
+  try {
+    const res = await fetch('https://iwohrvkcodqvyoooxzmt.supabase.co/rest/v1/app_config?key=in.(admin_password,user_password)&select=key,value', {
+      headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y' }
+    });
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (Array.isArray(rows)) rows.forEach(r => {
+      if (r.key === 'admin_password') _passwords.admin = r.value;
+      if (r.key === 'user_password')  _passwords.user  = r.value;
+    });
+  } catch(e) {}
+}
+
+async function savePasswordToSupabase(role, newPw) {
+  try {
+    const key = role === 'admin' ? 'admin_password' : 'user_password';
+    await fetch('https://iwohrvkcodqvyoooxzmt.supabase.co/rest/v1/app_config', {
+      method: 'POST',
+      headers: { 'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y', 'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y', 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify([{ key, value: newPw }])
+    });
+  } catch(e) {}
+}
+
+function authSelectRole(role) {
+  _authLoginRole = role;
+  document.getElementById('tabAdmin').classList.toggle('active', role === 'admin');
+  document.getElementById('tabUser').classList.toggle('active', role === 'user');
+  document.getElementById('authRememberRow').style.display = role === 'admin' ? 'flex' : 'none';
+  document.getElementById('authUser').value = '';
+  document.getElementById('authPass').value = '';
+  document.getElementById('authErr').style.display = 'none';
+}
+
+async function authLogin() {
+  const u = document.getElementById('authUser').value.trim().toLowerCase();
+  const p = document.getElementById('authPass').value;
+  const errEl = document.getElementById('authErr');
+  errEl.style.display = 'none';
+  if (u !== {admin:'admin',user:'willow'}[_authLoginRole] || p !== _passwords[_authLoginRole]) {
+    errEl.style.display = 'block';
+    document.getElementById('authPass').value = '';
+    return;
+  }
+  _authRole = _authLoginRole;
+  if (_authRole === 'admin' && document.getElementById('authRemember').checked)
+    localStorage.setItem(REMEMBER_KEY, 'admin_remembered');
+  document.getElementById('authScreen').style.display = 'none';
+  if (_authRole === 'user') startInactivityTimer();
+  boot();
+}
+
+function authSignOut() {
+  stopInactivityTimer();
+  _authRole = null;
+  localStorage.removeItem(REMEMBER_KEY);
+  document.getElementById('inactivityBanner').style.display = 'none';
+  location.reload();
+}
+
+function startInactivityTimer() {
+  resetInactivityTimer();
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(ev =>
+    document.addEventListener(ev, resetInactivityTimer, { passive: true }));
+}
+function resetInactivityTimer() {
+  if (_inactivityTimer) clearTimeout(_inactivityTimer);
+  if (_countdownTimer) clearInterval(_countdownTimer);
+  document.getElementById('inactivityBanner').style.display = 'none';
+  _inactivityTimer = setTimeout(showInactivityWarning, INACTIVITY_MS - 60000);
+}
+function showInactivityWarning() {
+  document.getElementById('inactivityBanner').style.display = 'block';
+  let secs = 60;
+  document.getElementById('inactivityCountdown').textContent = secs;
+  _countdownTimer = setInterval(() => {
+    secs--;
+    document.getElementById('inactivityCountdown').textContent = secs;
+    if (secs <= 0) { clearInterval(_countdownTimer); authSignOut(); }
+  }, 1000);
+}
+function stopInactivityTimer() {
+  if (_inactivityTimer) clearTimeout(_inactivityTimer);
+  if (_countdownTimer) clearInterval(_countdownTimer);
+  ['mousemove','keydown','click','touchstart','scroll'].forEach(ev =>
+    document.removeEventListener(ev, resetInactivityTimer));
+}
+
+function openChpw() {
+  document.getElementById('chpwErr').style.display = 'none';
+  document.getElementById('chpwOk').style.display = 'none';
+  ['chpwMaster','chpwNew','chpwConfirm'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('chpwOverlay').classList.add('open');
+}
+function openChpwFor(role) { document.getElementById('chpwAccount').value = role; openChpw(); }
+function closeChpw() { document.getElementById('chpwOverlay').classList.remove('open'); }
+
+async function saveChpw() {
+  const account = document.getElementById('chpwAccount').value;
+  const master  = document.getElementById('chpwMaster').value;
+  const newPw   = document.getElementById('chpwNew').value.trim();
+  const confirm = document.getElementById('chpwConfirm').value.trim();
+  const errEl = document.getElementById('chpwErr'), okEl = document.getElementById('chpwOk');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+  if (master !== _passwords.admin) { errEl.textContent = 'Master password is incorrect.'; errEl.style.display = 'block'; return; }
+  if (!newPw) { errEl.textContent = 'Password cannot be empty.'; errEl.style.display = 'block'; return; }
+  if (newPw !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
+  await savePasswordToSupabase(account, newPw);
+  _passwords[account] = newPw;
+  okEl.textContent = `✓ Password for ${account === 'admin' ? 'Admin' : 'Willow'} updated.`;
+  okEl.style.display = 'block';
+  setTimeout(closeChpw, 2000);
+  if (typeof toast === 'function') toast('Password changed ✓', 'success');
+}
+
+async function authInit() {
+  await loadPasswordsFromSupabase();
+  const token = localStorage.getItem(REMEMBER_KEY);
+  if (token === 'admin_remembered') { _authRole = 'admin'; boot(); }
+  else { document.getElementById('authScreen').style.display = 'flex'; }
+}
+
+function updateHeaderClock() {
+  const el = document.getElementById('headerClock');
+  if (!el) return;
+  const now = new Date();
+  el.textContent = '📅 ' +
+    now.toLocaleDateString('en-US', {weekday:'short',month:'short',day:'numeric',year:'numeric'}) +
+    '  🕒 ' + now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+}
+updateHeaderClock();
+setInterval(updateHeaderClock, 1000);
+
+document.addEventListener('DOMContentLoaded', async () => {
+  try { await checkBackupStatus(); setInterval(checkBackupStatus, 60000); } catch(e) {}
+  authInit();
+});
+
 </script>
 
 <!-- Cal Booking Detail Panel -->
