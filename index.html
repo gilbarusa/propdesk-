@@ -142,7 +142,7 @@ td{padding:13px 14px;vertical-align:middle;}
 /* ── Modals ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,16,10,.55);z-index:500;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);}
 .modal-overlay.open{display:flex;}
-.modal{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;animation:modalIn .2s cubic-bezier(.34,1.56,.64,1);}
+.modal{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;overflow-x:visible;animation:modalIn .2s cubic-bezier(.34,1.56,.64,1);}input[type=date]{position:relative;}
 @keyframes modalIn{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
 .modal-header{padding:22px 26px 18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;background:linear-gradient(180deg,var(--surface2),var(--surface));}
 .modal-header h2{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--text);}
@@ -432,6 +432,7 @@ textarea{resize:vertical;min-height:72px;}
   <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
+    <span id="headerBackupTimestamp" style="font-size:10px;color:var(--text3);letter-spacing:.3px;"></span>
     <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
@@ -513,11 +514,7 @@ textarea{resize:vertical;min-height:72px;}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
       <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--accent2);">Dashboard</div>
       <div style="display:flex;align-items:center;gap:10px;">
-        <div id="backupStatus" style="font-size:11px;color:var(--text3);">No backup yet</div>
-        <button onclick="openBackupHistory()" style="background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;">🕐 History</button>
-        <button id="backupBtn" onclick="runBackup()" style="background:var(--green);color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">
-          💾 Backup Now
-        </button>
+        <div id="backupStatus" style="font-size:11px;color:var(--text3);"></div>
       </div>
     </div>
     <div class="dash-kpi-grid" id="dashKpis"></div>
@@ -3019,20 +3016,26 @@ async function checkBackupStatus() {
     if (local) lastDt = new Date(parseInt(local));
   }
 
+  const headerTs = document.getElementById('headerBackupTimestamp');
+
   if (!lastDt) {
     btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title='Never backed up!'; } });
     if(status){ status.textContent='Never backed up!'; status.style.color='var(--red)'; }
+    if(headerTs){ headerTs.textContent='No backup yet'; headerTs.style.color='var(--red)'; }
     return;
   }
 
   const hoursAgo = (Date.now() - lastDt) / 3600000;
   const timeStr = lastDt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + lastDt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  const agoStr = hoursAgo >= 24 ? Math.floor(hoursAgo/24)+'d ago' : Math.floor(hoursAgo)+'h ago';
   if (hoursAgo >= 6) {
-    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; } });
-    if(status){ status.textContent=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; status.style.color='var(--red)'; }
+    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title=`Last backup: ${timeStr} (${agoStr})`; } });
+    if(status){ status.textContent=`Last backup: ${timeStr} (${agoStr})`; status.style.color='var(--red)'; }
+    if(headerTs){ headerTs.textContent=`Last backup: ${timeStr}`; headerTs.style.color='var(--red)'; }
   } else {
     btns.forEach(b => { if(b){ b.style.background='var(--green)'; b.innerHTML='💾 Backup Now'; b.title=`Last backup: ${timeStr}`; } });
     if(status){ status.textContent=`Last backup: ${timeStr}`; status.style.color='var(--green)'; }
+    if(headerTs){ headerTs.textContent=`Last backup: ${timeStr}`; headerTs.style.color='var(--text3)'; }
   }
 }
 
