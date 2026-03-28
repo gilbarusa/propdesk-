@@ -370,8 +370,92 @@ textarea{resize:vertical;min-height:72px;}
   .nav-tabs{padding:0 16px;}
 }
 </style>
+<style id="added-styles">
+/* Auth */
+#authScreen{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;background:#f0ede7;background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5784a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
+#authCard{background:#fffefb;border:1px solid #ddd8ce;border-radius:20px;box-shadow:0 16px 48px rgba(0,0,0,.14);width:100%;max-width:390px;padding:42px 38px;}
+#authLogo{text-align:center;margin-bottom:30px;}
+#authLogo h1{font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:#7d5228;letter-spacing:-.3px;margin:0;}
+#authLogo p{font-size:9px;color:#9e9485;letter-spacing:3px;text-transform:uppercase;margin:5px 0 0;}
+#authTabs{display:flex;border:1px solid #ddd8ce;border-radius:10px;overflow:hidden;margin-bottom:26px;}
+.auth-tab{flex:1;padding:10px;text-align:center;font-size:11px;font-weight:500;cursor:pointer;letter-spacing:.5px;color:#9e9485;background:#f7f4ef;transition:all .18s;}
+.auth-tab.active{background:#7d5228;color:#fff;}
+#authErr{background:#fdf1f0;border:1px solid #eebfba;border-radius:8px;padding:10px 14px;color:#b83228;font-size:11px;margin-bottom:14px;display:none;text-align:center;font-family:'DM Mono',monospace;}
+.auth-lbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#9e9485;margin-bottom:6px;font-family:'DM Mono',monospace;}
+.auth-inp{width:100%;background:#f7f4ef;border:1px solid #ddd8ce;border-radius:10px;padding:11px 14px;font-family:'DM Mono',monospace;font-size:13px;color:#18160f;outline:none;box-sizing:border-box;margin-bottom:15px;}
+.auth-inp:focus{border-color:#b5784a;background:#fffefb;box-shadow:0 0 0 3px rgba(181,120,74,.12);}
+#authRememberRow{display:flex;align-items:center;gap:8px;margin-bottom:18px;cursor:pointer;}
+#authRememberRow span{font-size:11px;color:#635c4e;font-family:'DM Mono',monospace;}
+#authBtn{width:100%;padding:13px;background:#7d5228;color:#fff;border:none;border-radius:10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
+#authBtn:hover{background:#b5784a;}
+#authChangeLink{text-align:center;margin-top:14px;}
+#authChangeLink span{font-size:10px;color:#9e9485;cursor:pointer;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px dashed #c8c2b6;padding-bottom:1px;font-family:'DM Mono',monospace;}
+#inactivityBanner{position:fixed;bottom:0;left:0;right:0;background:#b86818;color:#fff;text-align:center;padding:10px;font-size:12px;z-index:9000;display:none;font-family:'DM Mono',monospace;}
+#chpwOverlay{position:fixed;inset:0;background:rgba(20,16,10,.55);z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);}
+#chpwOverlay.open{display:flex;}
+#chpwBox{background:#fffefb;border-radius:16px;box-shadow:0 16px 48px rgba(0,0,0,.14);width:100%;max-width:400px;padding:32px;}
+#chpwBox h3{font-family:'Playfair Display',serif;font-size:18px;color:#7d5228;margin:0 0 20px;}
+.chpw-lbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#9e9485;margin-bottom:5px;font-family:'DM Mono',monospace;}
+.chpw-inp{width:100%;background:#f7f4ef;border:1px solid #ddd8ce;border-radius:10px;padding:10px 13px;font-family:'DM Mono',monospace;font-size:12px;color:#18160f;outline:none;box-sizing:border-box;margin-bottom:13px;}
+.chpw-inp:focus{border-color:#b5784a;}
+#chpwErr{background:#fdf1f0;border:1px solid #eebfba;border-radius:8px;padding:9px 13px;color:#b83228;font-size:11px;margin-bottom:12px;display:none;font-family:'DM Mono',monospace;}
+#chpwOk{background:#edf7f2;border:1px solid #a8d8be;border-radius:8px;padding:9px 13px;color:#256645;font-size:11px;margin-bottom:12px;display:none;font-family:'DM Mono',monospace;}
+/* Settings page */
+#page-settings .sw{padding:28px 32px;max-width:680px;}
+#page-settings h2{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#7d5228;margin:0 0 4px;}
+#page-settings .si{font-size:11px;color:#9e9485;margin:0 0 24px;font-family:'DM Mono',monospace;}
+#page-settings .sc{background:#fffefb;border:1px solid #ddd8ce;border-radius:14px;padding:22px 24px;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+#page-settings .sc h3{font-family:'Playfair Display',serif;font-size:16px;color:#7d5228;margin:0 0 4px;}
+#page-settings .scd{font-size:11px;color:#9e9485;margin:0 0 16px;font-family:'DM Mono',monospace;}
+#page-settings .sr{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid #ddd8ce;gap:12px;}
+#page-settings .sr:last-child{border-bottom:none;padding-bottom:0;}
+#page-settings .srl{font-size:12px;color:#635c4e;font-family:'DM Mono',monospace;}
+#page-settings .srs{font-size:10px;color:#9e9485;margin-top:2px;font-family:'DM Mono',monospace;}
+</style>
 </head>
 <body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="authScreen">
+  <div id="authCard">
+    <div id="authLogo"><h1>Chelbourne</h1><p>Property Manager</p></div>
+    <div id="authTabs">
+      <div class="auth-tab active" id="tabAdmin" onclick="authSelectRole('admin')">Admin</div>
+      <div class="auth-tab" id="tabUser" onclick="authSelectRole('user')">User</div>
+    </div>
+    <div id="authErr">Incorrect username or password.</div>
+    <label class="auth-lbl">Username</label>
+    <input class="auth-inp" type="text" id="authUser" placeholder="Enter username" autocomplete="username">
+    <label class="auth-lbl">Password</label>
+    <input class="auth-inp" type="password" id="authPass" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')authLogin()">
+    <div id="authRememberRow" style="display:none">
+      <input type="checkbox" id="authRemember" style="width:15px;height:15px;cursor:pointer;">
+      <span>Keep me signed in on this device</span>
+    </div>
+    <button id="authBtn" onclick="authLogin()">Sign In →</button>
+    <div id="authChangeLink"><span onclick="openChpw()">Change Password</span></div>
+  </div>
+</div>
+<div id="chpwOverlay">
+  <div id="chpwBox">
+    <h3>🔑 Change Password</h3>
+    <div id="chpwErr"></div><div id="chpwOk"></div>
+    <label class="chpw-lbl">Account</label>
+    <select class="chpw-inp" id="chpwAccount"><option value="admin">Admin (master password)</option><option value="user">User — Willow</option></select>
+    <label class="chpw-lbl">Current Master Password</label>
+    <input class="chpw-inp" type="password" id="chpwMaster" placeholder="Required for any change">
+    <label class="chpw-lbl">New Password</label>
+    <input class="chpw-inp" type="password" id="chpwNew" placeholder="New password">
+    <label class="chpw-lbl">Confirm New Password</label>
+    <input class="chpw-inp" type="password" id="chpwConfirm" placeholder="Repeat" onkeydown="if(event.key==='Enter')saveChpw()">
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closeChpw()" style="padding:10px 20px;border-radius:10px;border:1px solid #ddd8ce;background:#f7f4ef;color:#635c4e;font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;">Cancel</button>
+      <button onclick="saveChpw()" style="padding:10px 20px;border-radius:10px;border:none;background:#7d5228;color:#fff;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;cursor:pointer;">Save</button>
+    </div>
+  </div>
+</div>
+<div id="inactivityBanner">⚠ Signing out in <strong id="inactivityCountdown">60</strong>s due to inactivity. <span onclick="resetInactivityTimer()" style="margin-left:12px;cursor:pointer;text-decoration:underline;">Stay signed in</span></div>
+
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <h2>Chelbourne</h2>
@@ -381,6 +465,9 @@ textarea{resize:vertical;min-height:72px;}
   <div class="brand"><h1>Chelbourne</h1><span class="brand-sub">Property Manager</span></div>
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
+    <span id="headerClock" style="font-size:13px;color:var(--accent2);font-family:'DM Mono',monospace;font-weight:700;min-width:220px;display:inline-block;"></span>
+    <span style="color:var(--border2);font-size:11px;">|</span>
+    <span id="headerBackupTimestamp" style="font-size:10px;color:#9e9485;font-family:'DM Mono',monospace;"></span>
     <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
     <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
@@ -392,11 +479,12 @@ textarea{resize:vertical;min-height:72px;}
 </header>
 
 <nav class="nav-tabs">
-  <div class="nav-tab active" onclick="showPage('units',this)">🏠 Units</div>
-  <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
-  <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
   <div class="nav-tab" onclick="showPage('dashboard',this)">📊 Dashboard</div>
+  <div class="nav-tab active" onclick="showPage('units',this)">🏠 Units</div>
+  <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
   <div class="nav-tab" onclick="showPage('reports',this)">📈 Reports</div>
+  <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
+  <div class="nav-tab" onclick="showPage('settings',this)">⚙ Settings</div>
 </nav>
 
 <!-- ═══ UNITS PAGE ═══ -->
@@ -2843,6 +2931,7 @@ function showPage(p,el){
   if(p==='reports')renderReports();
   if(p==='history')renderHistory();
   if(p==='calendar')renderCalendar();
+  if(p==='settings'){}
 }
 
 // ── BACKUP ─────────────────────────────────────────
@@ -2869,20 +2958,24 @@ async function checkBackupStatus() {
     if (local) lastDt = new Date(parseInt(local));
   }
 
+  const headerTs = document.getElementById('headerBackupTimestamp');
   if (!lastDt) {
     btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title='Never backed up!'; } });
     if(status){ status.textContent='Never backed up!'; status.style.color='var(--red)'; }
+    if(headerTs){ headerTs.textContent='No backup yet'; headerTs.style.color='var(--red)'; }
     return;
   }
-
   const hoursAgo = (Date.now() - lastDt) / 3600000;
   const timeStr = lastDt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + lastDt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+  const agoStr = hoursAgo >= 24 ? Math.floor(hoursAgo/24)+'d ago' : Math.floor(hoursAgo)+'h ago';
   if (hoursAgo >= 6) {
-    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; } });
-    if(status){ status.textContent=`Last backup: ${timeStr} (${Math.floor(hoursAgo)}h ago)`; status.style.color='var(--red)'; }
+    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title=`Last backup: ${timeStr}`; } });
+    if(status){ status.textContent=`Last backup: ${timeStr} (${agoStr})`; status.style.color='var(--red)'; }
+    if(headerTs){ headerTs.textContent=`Last backup: ${timeStr}`; headerTs.style.color='var(--red)'; }
   } else {
     btns.forEach(b => { if(b){ b.style.background='var(--green)'; b.innerHTML='💾 Backup Now'; b.title=`Last backup: ${timeStr}`; } });
     if(status){ status.textContent=`Last backup: ${timeStr}`; status.style.color='var(--green)'; }
+    if(headerTs){ headerTs.textContent=`Last backup: ${timeStr}`; headerTs.style.color='#9e9485'; }
   }
 }
 
@@ -4773,5 +4866,32 @@ boot();
   </div>
 </div>
 
+
+<!-- ═══ SETTINGS PAGE ═══ -->
+<div class="page" id="page-settings">
+  <div class="sw">
+    <h2>⚙ Settings</h2>
+    <p class="si">Manage credentials and session preferences.</p>
+    <div class="sc">
+      <h3>🛡 Admin Account</h3>
+      <p class="scd">Full access. Master password required to change any credentials.</p>
+      <div class="sr"><div><div class="srl">Username</div><div class="srs">Fixed — <strong>Admin</strong></div></div></div>
+      <div class="sr"><div><div class="srl">Password</div><div class="srs">Stored in Supabase</div></div><button onclick="openChpwFor('admin')" class="btn btn-secondary btn-sm">Change</button></div>
+      <div class="sr"><div><div class="srl">Stay signed in</div><div class="srs">"Remember me" checkbox at login</div></div></div>
+    </div>
+    <div class="sc">
+      <h3>👤 User Account — Willow</h3>
+      <p class="scd">Standard access. Signs out after 60 min of inactivity.</p>
+      <div class="sr"><div><div class="srl">Username</div><div class="srs">Fixed — <strong>Willow</strong></div></div></div>
+      <div class="sr"><div><div class="srl">Password</div><div class="srs">Stored in Supabase</div></div><button onclick="openChpwFor('user')" class="btn btn-secondary btn-sm">Change</button></div>
+      <div class="sr"><div><div class="srl">Inactivity timeout</div></div><span style="background:#fdf3e8;color:#b86818;border:1px solid #eecfa0;border-radius:12px;padding:2px 10px;font-size:10px;font-weight:500;font-family:'DM Mono',monospace;">60 minutes</span></div>
+    </div>
+    <div class="sc" style="border-color:#eebfba;">
+      <h3 style="color:#b83228;">Sign Out</h3>
+      <p class="scd">End your session and return to the login screen.</p>
+      <button onclick="authSignOut()" class="btn" style="background:#fdf1f0;color:#b83228;border:1px solid #eebfba;">Sign Out</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
