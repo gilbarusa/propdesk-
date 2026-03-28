@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:42</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:49</span>
     </div>
   </div>
 </header>
@@ -3953,11 +3953,21 @@ function renderCalendar() {
   document.getElementById('calUnitsList').innerHTML=units.map(r=>{
     const meta = calMeta[r.apt] || {};
     const sub = meta.brBath || '';
-    // Availability based on TIMELINE not row type:
-    // If there's a future booking for this apt starting after today → unit is available now
-    const nextBooking = (futureBookings[r.apt]||[]).sort((a,b)=>a.from.localeCompare(b.from))[0];
+    // Unit is currently available if:
+    // - type is available, OR
+    // - short-stay with past due, OR  
+    // - display row's own checkin is in the future (no current tenant)
+    const displayRowFuture = !!(r.checkin && r.checkin > todayStr);
+    const unitAvailNow = r.type==='available' || dueStatus(r)==='available' || displayRowFuture;
+
+    // Collect ALL future bookings for this apt including the display row itself if future
+    const allFuture = [...(futureBookings[r.apt]||[])];
+    if(displayRowFuture) allFuture.push({from:r.checkin, to:r.due||r.lease_end||''});
+    allFuture.sort((a,b)=>a.from.localeCompare(b.from));
+    const nextBooking = allFuture[0];
+
     let availText = '';
-    if(nextBooking && nextBooking.from > todayStr){
+    if(unitAvailNow && nextBooking && nextBooking.from > todayStr){
       const d=new Date(nextBooking.from+'T00:00:00');
       d.setDate(d.getDate()-1);
       if(d>=new Date(todayStr)){
