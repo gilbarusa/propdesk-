@@ -286,7 +286,7 @@ textarea{resize:vertical;min-height:72px;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
 
 /* ── AUTH / LOGIN ── */
-.auth-screen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+.auth-screen{position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;
   background:var(--bg);
   background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23b5784a' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
 }
@@ -1273,12 +1273,12 @@ async function authInit() {
 
   const token = localStorage.getItem(REMEMBER_KEY);
   if (token === 'admin_remembered') {
-    // Auto-login as admin
+    // Auto-login as admin — keep auth-screen hidden, go straight to app
     _authRole = 'admin';
-    document.getElementById('authScreen').style.display = 'none';
     boot();
   } else {
-    // Show login screen (loadingOverlay already hidden by default)
+    // Show login screen
+    document.getElementById('authScreen').style.display = 'flex';
   }
 }
 
@@ -2996,8 +2996,9 @@ function showPage(p,el){
 const BACKUP_KEY = 'propdesk_last_backup';
 
 async function checkBackupStatus() {
-  const btns = [document.getElementById('backupBtn'), document.getElementById('headerBackupBtn')];
+  const btns = [document.getElementById('headerBackupBtn')];
   const status = document.getElementById('backupStatus');
+  const headerTs = document.getElementById('headerBackupTimestamp');
 
   // Try to get last backup from Supabase backups table
   let lastDt = null;
@@ -3015,8 +3016,6 @@ async function checkBackupStatus() {
     const local = localStorage.getItem(BACKUP_KEY);
     if (local) lastDt = new Date(parseInt(local));
   }
-
-  const headerTs = document.getElementById('headerBackupTimestamp');
 
   if (!lastDt) {
     btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title='Never backed up!'; } });
@@ -3040,7 +3039,7 @@ async function checkBackupStatus() {
 }
 
 async function runBackup() {
-  const btns = [document.getElementById('backupBtn'), document.getElementById('headerBackupBtn')];
+  const btns = [document.getElementById('headerBackupBtn')];
   btns.forEach(b => { if(b){ b.innerHTML='⏳ Backing up…'; b.disabled=true; b.style.opacity='0.7'; } });
 
   try {
