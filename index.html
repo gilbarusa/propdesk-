@@ -379,7 +379,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:21</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:27</span>
     </div>
   </div>
 </header>
@@ -3897,7 +3897,7 @@ function renderCalendar() {
       if(bf||bt) bars.push({name:r.name,from:bf||bt,to:bt||bf,type:r.type,note:r.note||'',active:true,unitId:r.id});
     }
     // Archived stays
-    (staysByApt[r.apt]||[]).forEach(s=>bars.push(s));
+    (staysByApt[r.apt]||[]).forEach(s=>bars.push({...s,archived:true}));
     // Blocks
     aptBlocks.forEach(b=>bars.push({name:b.reason||'Blocked',from:b.from,to:b.to,type:'__block__',blockData:b}));
 
@@ -3934,13 +3934,14 @@ function renderCalendar() {
       barEl.addEventListener('click',e=>{
         e.stopPropagation();
         if(bar.type==='__block__'){
-          // Open block modal in edit mode
           _calUnitId=r.id; _calApt=r.apt; _editingBlock=bar.blockData;
           openBlockModal();
         } else if(bar.active){
-          // Navigate to unit detail
-          showPage('units',document.querySelector('[data-page="units"]')||document.querySelector('.nav-tab'));
-          openDetail(bar.unitId);
+          // Active unit — open unit detail panel
+          openCalBookingDetail(bar, r, true);
+        } else if(bar.archived && bar.id){
+          // Archived booking — open booking detail panel
+          openCalBookingDetail(bar, r, false);
         }
       });
       rowDiv.appendChild(barEl);
@@ -4093,6 +4094,18 @@ async function saveCalBooking() {
     await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
 
     await loadAll();
+
+    // If this booking's checkin is earlier than the current active unit's checkin,
+    // update the active unit to reflect the earliest upcoming booking
+    const activeUnit = data.find(x => x.apt === _calApt && !x.archived);
+    if (activeUnit && checkin && (!activeUnit.checkin || checkin < activeUnit.checkin)) {
+      activeUnit.checkin = checkin;
+      activeUnit.due     = checkout || activeUnit.due;
+      activeUnit.lease_end = checkout || activeUnit.lease_end;
+      await save(activeUnit);
+      await loadAll();
+    }
+
     closeModal('calBookingModal');
     renderCalendar();
     renderTable();
@@ -4126,6 +4139,52 @@ function initCalScroll() {
     outer.scrollTop = uCol.scrollTop;
     _syncing = false;
   }, { passive: true });
+}
+
+
+// ── CAL BOOKING DETAIL PANEL ───────────────────────────
+
+function openCalBookingDetail(bar, unit, isActive) {
+  const apt = unit.apt;
+  document.getElementById('cbpApt').textContent   = apt;
+  document.getElementById('cbpName').textContent  = bar.name || '—';
+  document.getElementById('cbpDates').textContent = `${fmtDate(bar.from)} → ${fmtDate(bar.to)}`;
+  document.getElementById('cbpOwner').textContent = bar.owner || unit.owner || '—';
+  document.getElementById('cbpRent').textContent  = bar.rent ? fmtMoney(bar.rent) : '—';
+
+  const parsed = parseNoteFields(bar.note || '');
+  const via = parsed.channel === 'Other' ? parsed.channelOther : parsed.channel;
+  document.getElementById('cbpChannel').textContent = via || '—';
+  document.getElementById('cbpPhone').textContent   = parsed.phone || '—';
+  document.getElementById('cbpEmail').textContent   = parsed.email || '—';
+  document.getElementById('cbpNote').textContent    = parsed.extra || '—';
+  document.getElementById('cbpType').textContent    = bar.type || '—';
+
+  // Only show delete for archived bookings, not the active unit bar
+  _calBookingPanelId = (!isActive && bar.id) ? bar.id : null;
+  document.getElementById('cbpDeleteRow').style.display = _calBookingPanelId ? '' : 'none';
+
+  document.getElementById('calBookingPanel').classList.add('open');
+}
+
+function closeCalBookingPanel() {
+  document.getElementById('calBookingPanel').classList.remove('open');
+}
+
+async function deleteCalBooking() {
+  if (!_calBookingPanelId) return;
+  const rec = archived.find(x => x.id === _calBookingPanelId);
+  if (!confirm(`Delete booking "${rec ? rec.name : ''}"? This cannot be undone.`)) return;
+  try {
+    const { error } = await sb.from('units').delete().eq('id', _calBookingPanelId);
+    if (error) throw new Error(error.message);
+    closeCalBookingPanel();
+    await loadAll();
+    renderCalendar();
+    toast('Booking deleted ✓', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
 }
 
 
@@ -4348,6 +4407,40 @@ function bootOffline() {
 
 boot();
 </script>
+
+<!-- Cal Booking Detail Panel -->
+<div class="cal-unit-panel-overlay" id="calBookingPanel">
+  <div class="cal-unit-panel-backdrop" onclick="closeCalBookingPanel()"></div>
+  <div class="cal-unit-panel" style="width:340px;">
+    <div class="cal-unit-panel-hdr">
+      <div>
+        <div class="cal-unit-panel-apt" id="cbpApt" style="font-size:28px;">—</div>
+        <div id="cbpName" style="font-size:15px;font-weight:500;color:var(--text);margin-top:4px;"></div>
+        <div id="cbpDates" style="font-size:11px;color:var(--text3);margin-top:3px;"></div>
+      </div>
+      <button class="modal-close" onclick="closeCalBookingPanel()">✕</button>
+    </div>
+    <div class="cal-unit-panel-body">
+      <div class="detail-row"><span class="dr-label">Channel</span><span class="dr-val" id="cbpChannel">—</span></div>
+      <div class="detail-row"><span class="dr-label">Type</span><span class="dr-val" id="cbpType">—</span></div>
+      <div class="detail-row"><span class="dr-label">Owner</span><span class="dr-val" id="cbpOwner">—</span></div>
+      <div class="detail-row"><span class="dr-label">Phone</span><span class="dr-val" id="cbpPhone">—</span></div>
+      <div class="detail-row"><span class="dr-label">Email</span><span class="dr-val" id="cbpEmail">—</span></div>
+      <div class="detail-row"><span class="dr-label">Rent / Stay</span><span class="dr-val" id="cbpRent">—</span></div>
+      <div class="detail-row"><span class="dr-label">Note</span><span class="dr-val" id="cbpNote" style="font-size:11px;color:var(--text3);text-align:right;max-width:180px;word-break:break-word;">—</span></div>
+      <div id="cbpDeleteRow" style="margin-top:20px;display:none;">
+        <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:10px;padding:14px;">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px;">This is an archived booking record. Deleting it removes it from the calendar permanently.</div>
+          <button class="btn btn-sm" style="background:var(--red);color:#fff;border:none;width:100%;justify-content:center;" onclick="deleteCalBooking()">🗑 Delete This Booking</button>
+        </div>
+      </div>
+    </div>
+    <div class="cal-unit-panel-footer">
+      <button class="btn btn-secondary btn-sm" onclick="closeCalBookingPanel()">Close</button>
+    </div>
+  </div>
+</div>
+
 
 <!-- Cal Unit Panel -->
 <div class="cal-unit-panel-overlay" id="calUnitPanel">
