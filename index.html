@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:30</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 05:35</span>
     </div>
   </div>
 </header>
@@ -3913,11 +3913,15 @@ function renderCalendar() {
   const mlEl=document.getElementById('calMonthLabel');
   if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
 
-  // ── Future bookings: active records with future checkin ──
-  // Includes both cal-booking tagged records AND any active record
-  // with a future checkin (handles bookings added before the tag was introduced)
+  // ── Future bookings: additional active records with future checkin ──
+  // Build a map of which id was chosen as display unit per apt
+  const displayUnitId={};
+  units.forEach(u=>{ displayUnitId[u.apt]=u.id; });
+
   const futureBookings={};
   data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr).forEach(r=>{
+    // Skip the display unit row itself — only include ADDITIONAL booking records
+    if(displayUnitId[r.apt]===r.id) return;
     const ci=r.checkin, co=r.due||r.lease_end||'';
     if(!co||ci>winEnd||co<winStart) return;
     if(!futureBookings[r.apt]) futureBookings[r.apt]=[];
