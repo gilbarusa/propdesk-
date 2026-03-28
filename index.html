@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:46</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 03:50</span>
     </div>
   </div>
 </header>
@@ -2141,7 +2141,7 @@ async function loadAll() {
   const all = allRows.map(fromRow);
   data     = all.filter(r => !r.archived);
   archived = all.filter(r =>  r.archived);
-  nextId   = Math.max(80, ...all.map(r => r.id), 80) + 1;
+  nextId = all.length ? Math.max(...all.map(r => r.id)) + 1 : 81;
   console.log(`loadAll complete: ${data.length} active, ${archived.length} archived`);
   return true;
 }
