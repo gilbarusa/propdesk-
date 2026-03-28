@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 12:46</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 12:56</span>
     </div>
   </div>
 </header>
@@ -2240,7 +2240,13 @@ function getFiltered(){
   const q=document.getElementById('searchInput').value.toLowerCase();
   if(q)rows=rows.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
   if(currentStatFilter!=='all'){if(currentStatFilter==='overdue')rows=rows.filter(r=>dueStatus(r)==='overdue');else if(currentStatFilter==='soon')rows=rows.filter(r=>dueStatus(r)==='soon');else if(currentStatFilter==='ok')rows=rows.filter(r=>dueStatus(r)==='ok');else if(currentStatFilter==='available')rows=rows.filter(r=>r.type==='available');}
-  if(currentTypeFilter!=='all')rows=rows.filter(r=>r.type===currentTypeFilter);
+  if(currentTypeFilter!=='all'){
+  if(currentTypeFilter==='available'){
+    rows=rows.filter(r=>r.type==='available'||dueStatus(r)==='available');
+  } else {
+    rows=rows.filter(r=>r.type===currentTypeFilter);
+  }
+}
   const sel=document.getElementById('sortSel').value;
   rows.sort((a,b)=>{
     if(sel==='due'||sel==='due-desc'){const da=a.due||'9999',db=b.due||'9999';return sel==='due'?da.localeCompare(db):db.localeCompare(da);}
@@ -3886,7 +3892,17 @@ function renderCalendar() {
   // ── Filter units ──
   const q=(document.getElementById('calSearch')?.value||'').toLowerCase();
   let units=data.filter(r=>!r.archived);
-  if(calTypeFilter!=='all') units=units.filter(r=>r.type===calTypeFilter);
+  if(calTypeFilter!=='all'){
+    if(calTypeFilter==='available'){
+      // Show units that are type=available OR have only future bookings (currently vacant)
+      const futureOnlyApts=new Set();
+      data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr).forEach(r=>futureOnlyApts.add(r.apt));
+      units=units.filter(r=>r.type==='available'||dueStatus(r)==='available'||
+        (futureOnlyApts.has(r.apt)&&(!r.checkin||r.checkin>todayStr)));
+    } else {
+      units=units.filter(r=>r.type===calTypeFilter);
+    }
+  }
   if(q) units=units.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
   units.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
 
@@ -3921,9 +3937,12 @@ function renderCalendar() {
   const futureBookings={};
   // Check both active data (excluding display row) AND archived records with future checkin
   const _addFutureBooking=(r,ci,co)=>{
-    if(!ci||!co||ci>winEnd||co<winStart||ci<todayStr) return;
+    if(!co||co<todayStr||co<winStart) return; // must have future checkout
+    if(ci && ci>winEnd) return;
+    if(ci && ci<todayStr) return; // checkin already past — not a future booking
+    const from = (ci && ci>=todayStr) ? ci : todayStr;
     if(!futureBookings[r.apt]) futureBookings[r.apt]=[];
-    futureBookings[r.apt].push({id:r.id,name:r.name,from:ci,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||''});
+    futureBookings[r.apt].push({id:r.id,name:r.name,from:from,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||''});
   };
   // Active records (skip display row)
   data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>=todayStr).forEach(r=>{
