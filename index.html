@@ -379,7 +379,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 27 2026, 23:25</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:14</span>
     </div>
   </div>
 </header>
@@ -3953,55 +3953,58 @@ function openCalBookingModal() {
 }
 
 async function saveCalBooking() {
-  const name=document.getElementById('cbName').value.trim();
-  const type=document.getElementById('cbType').value;
-  const owner=document.getElementById('cbOwner').value.trim();
-  const checkin=document.getElementById('cbCheckin').value;
-  const checkout=document.getElementById('cbCheckout').value;
-  const rent=parseFloat(document.getElementById('cbRent').value)||0;
-  const balance=parseFloat(document.getElementById('cbBalance').value)||0;
-  const note=document.getElementById('cbNote').value.trim();
+  const name    = document.getElementById('cbName').value.trim();
+  const type    = document.getElementById('cbType').value;
+  const owner   = document.getElementById('cbOwner').value.trim();
+  const checkin = document.getElementById('cbCheckin').value;
+  const checkout= document.getElementById('cbCheckout').value;
+  const rent    = parseFloat(document.getElementById('cbRent').value)||0;
+  const balance = parseFloat(document.getElementById('cbBalance').value)||0;
+  const note    = document.getElementById('cbNote').value.trim();
 
-  if(!name){toast('Tenant name required','error');return;}
-  if(!checkin){toast('Check-in date required','error');return;}
-  if(!_calApt){toast('No unit selected','error');return;}
+  if(!name)   { toast('Tenant name required','error'); return; }
+  if(!checkin){ toast('Check-in date required','error'); return; }
+  if(!checkout){ toast('Checkout date required','error'); return; }
+  if(!_calApt){ toast('No unit selected','error'); return; }
 
-  const btn=document.querySelector('#calBookingModal .btn-primary');
-  btn.textContent='Saving…'; btn.disabled=true;
+  const btn = document.querySelector('#calBookingModal .btn-primary');
+  btn.textContent = 'Saving…'; btn.disabled = true;
 
   try {
-    // Get next available ID
-    const {data:maxRow}=await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
-    const newId=(maxRow&&maxRow.length?maxRow[0].id:nextId)+1;
-    nextId=newId+1;
+    const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
+    const newId = (maxRow&&maxRow.length ? maxRow[0].id : nextId) + 1;
+    nextId = newId + 1;
 
-    const histText=checkout
-      ? `$${rent.toLocaleString()} — stay (${checkin} → ${checkout})`
-      : `$${rent.toLocaleString()} — booking from ${checkin}`;
+    const histText = `$${rent.toLocaleString()} — stay (${checkin} → ${checkout})`;
 
-    // Save as an active unit record (not archived) — same apt, overlapping is allowed
-    const newRec={
-      id:newId, apt:_calApt, owner, name, type,
-      rent, balance,
-      checkin, due:checkout||'', lease_end:checkout||'',
+    // Save as ARCHIVED record — shows as a bar on calendar but never creates a 2nd active unit
+    const newRec = {
+      id: newId,
+      apt: _calApt,
+      owner, name, type,
+      rent, balance: 0,
+      checkin,
+      due: checkout,
+      lease_end: checkout,
       note,
-      history:[{date:checkin,amt:rent,text:histText}],
-      archived:false, archived_date:null
+      history: [{date: checkin, amt: rent, text: histText}],
+      archived: true,
+      archived_date: checkout
     };
 
-    const {error}=await sb.from('units').insert(dbRow(newRec));
+    const {error} = await sb.from('units').insert(dbRow(newRec));
     if(error) throw new Error(error.message);
-    await auditLog('cal-booking',_calApt,name,newId,null,dbRow(newRec));
+    await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
 
     await loadAll();
     closeModal('calBookingModal');
     renderCalendar();
     renderTable();
-    toast(`Booking added: ${name} @ ${_calApt} ✓`,'success');
+    toast(`Booking added: ${name} @ ${_calApt} ✓`, 'success');
   } catch(e) {
-    toast('Error: '+e.message,'error');
+    toast('Error: ' + e.message, 'error');
   } finally {
-    btn.textContent='+ Save Booking'; btn.disabled=false;
+    btn.textContent = '+ Save Booking'; btn.disabled = false;
   }
 }
 
