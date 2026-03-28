@@ -324,13 +324,14 @@ textarea{resize:vertical;min-height:72px;}
 .cal-cell.today-col:hover{background:rgba(37,102,69,.12);}
 .cal-cell.blocked{background:repeating-linear-gradient(45deg,rgba(184,50,40,.07),rgba(184,50,40,.07) 4px,transparent 4px,transparent 8px);}
 .cal-cell.blocked:hover{background:repeating-linear-gradient(45deg,rgba(184,50,40,.14),rgba(184,50,40,.14) 4px,transparent 4px,transparent 8px);}
-.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;font-size:11px;font-weight:500;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;overflow:hidden;}
-.cal-bar-inner{position:sticky;left:4px;display:inline-flex;align-items:center;gap:4px;height:100%;padding:0 4px;white-space:nowrap;pointer-events:none;max-width:calc(100% - 8px);}
-.cal-bar:hover{filter:brightness(1.08);box-shadow:0 2px 8px rgba(0,0,0,.22);}
-.cal-bar.bar-lt{background:linear-gradient(90deg,#2563a8,#1e5799);color:#fff;}
-.cal-bar.bar-mtm{background:linear-gradient(90deg,#7c4fbe,#5e3f9e);color:#fff;}
-.cal-bar.bar-ss{background:linear-gradient(90deg,#e07818,#b86818);color:#fff;}
-.cal-bar.bar-block{background:linear-gradient(90deg,#c0392b,#962d22);color:#fff;opacity:.85;}
+.cal-bar{position:absolute;top:6px;height:32px;border-radius:6px;font-size:11px;font-weight:500;z-index:5;cursor:pointer;transition:filter .15s,box-shadow .15s;box-shadow:0 1px 4px rgba(0,0,0,.15);pointer-events:auto;overflow:visible;}
+.cal-bar-bg{position:absolute;inset:0;border-radius:6px;pointer-events:none;}
+.cal-bar-inner{position:sticky;left:2px;display:inline-flex;align-items:center;gap:5px;height:100%;padding:0 6px;white-space:nowrap;pointer-events:none;z-index:1;}
+.cal-bar:hover .cal-bar-bg{filter:brightness(1.1);} .cal-bar:hover{box-shadow:0 2px 8px rgba(0,0,0,.22);}
+.cal-bar.bar-lt{color:#fff;}
+.cal-bar.bar-mtm{color:#fff;}
+.cal-bar.bar-ss{color:#fff;}
+.cal-bar.bar-block{color:#fff;opacity:.85;}
 .cal-bar-icon{margin-right:4px;font-size:10px;flex-shrink:0;}
 .cal-legend{display:flex;gap:16px;align-items:center;margin-left:auto;}
 /* Cal Unit Panel */
@@ -347,7 +348,7 @@ textarea{resize:vertical;min-height:72px;}
 /* Block modal */
 .block-modal-info{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);}
 .block-modal-info strong{color:var(--accent2);}
-.cal-bar-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-bar-label{white-space:nowrap;overflow:visible;}
 .cal-bar-x{margin-left:6px;flex-shrink:0;width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.25);display:inline-flex;align-items:center;justify-content:center;font-size:9px;line-height:1;cursor:pointer;transition:background .15s;}
 .cal-bar-x:hover{background:rgba(255,255,255,.5);}
 .cal-bar{display:flex;align-items:center;}
@@ -382,7 +383,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:54</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 00:57</span>
     </div>
   </div>
 </header>
@@ -4000,7 +4001,15 @@ function renderCalendar() {
         ? `<span class="cal-bar-x" onclick="event.stopPropagation();deleteBlock('${r.apt}','${bar.from}','${bar.to}')">&#x2715;</span>`
         : '';
       // Inner sticky wrapper keeps name visible as bar scrolls
+      // Inherit background color from bar class for the bg pill
+      const bgColor = bar.type==='long-term' ? 'linear-gradient(90deg,#2563a8,#1e5799)'
+        : bar.type==='month-to-month' ? 'linear-gradient(90deg,#7c4fbe,#5e3f9e)'
+        : bar.type==='short-stay'     ? 'linear-gradient(90deg,#e07818,#b86818)'
+        : bar.type==='__block__'      ? 'linear-gradient(90deg,#c0392b,#962d22)'
+        : 'linear-gradient(90deg,#2563a8,#1e5799)';
+
       barEl.innerHTML=`
+        <div class="cal-bar-bg" style="background:${bgColor}"></div>
         <div class="cal-bar-inner">
           <span class="cal-bar-icon">${badge}</span>
           <span class="cal-bar-label">${bar.name}</span>
