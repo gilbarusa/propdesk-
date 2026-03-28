@@ -386,7 +386,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 12:56</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 18:26</span>
     </div>
   </div>
 </header>
@@ -515,8 +515,8 @@ textarea{resize:vertical;min-height:72px;}
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;padding-top:18px;padding-bottom:18px;">
       <button class="btn btn-primary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openCalBookingModal()">
-        &#43; Add Booking
-        <span style="font-size:10px;opacity:.8;margin-left:6px">New tenant / stay on this unit</span>
+        ✏️ <span id="calActionBtnLabel">Add / Edit Booking</span>
+        <span style="font-size:10px;opacity:.8;margin-left:6px">Open unit booking form</span>
       </button>
       <button class="btn btn-secondary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openBlockModal()">
         &#128683; Block Dates
@@ -4155,7 +4155,7 @@ function renderCalendar() {
         } else if(bar.active){
           openCalBookingDetail(bar, r, true);
         } else if(bar.id){
-          // Any non-active bar with an id — open detail with delete option
+          // Non-active bar — open booking detail panel
           openCalBookingDetail(bar, r, false);
         }
       });
@@ -4254,22 +4254,16 @@ function deleteBlock(apt,from,to) {
 
 // ── Calendar Add Booking modal ──
 function openCalBookingModal() {
-  const r=data.find(x=>x.id===_calUnitId);
-  document.getElementById('calBookingApt').textContent=_calApt||'';
-  document.getElementById('cbOwner').value=r?r.owner||'':'';
-  document.getElementById('cbName').value='';
-  document.getElementById('cbType').value='short-stay';
-  document.getElementById('cbCheckin').value=_calDate||today();
-  document.getElementById('cbCheckout').value='';
-  document.getElementById('cbRent').value='';
-  document.getElementById('cbBalance').value='0';
-  document.getElementById('cbNote').value='';
-  document.getElementById('cbChannel').value='';
-  document.getElementById('cbChannelOther').value='';
-  document.getElementById('cbChannelOtherRow').style.display='none';
-  document.getElementById('cbPhone').value='';
-  document.getElementById('cbEmail').value='';
-  openModal('calBookingModal');
+  // Use the standard edit modal — same form, same flow, no duplicates
+  if(_calUnitId) {
+    openEditModal(_calUnitId);
+    // Pre-fill checkin with the clicked date if unit is available
+    const r=data.find(x=>x.id===_calUnitId);
+    if(r && (r.type==='available' || !r.name)) {
+      document.getElementById('fCheckin').value = _calDate || today();
+      document.getElementById('fType').value = 'short-stay';
+    }
+  }
 }
 
 async function saveCalBooking() {
@@ -4291,32 +4285,43 @@ async function saveCalBooking() {
   btn.textContent = 'Saving…'; btn.disabled = true;
 
   try {
-    const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
-    const newId = (maxRow&&maxRow.length ? maxRow[0].id : nextId) + 1;
-    nextId = newId + 1;
-
     const histText = `$${rent.toLocaleString()} — stay (${checkin} → ${checkout})`;
-
-    // Save as active booking record (archived:false) so it doesn't mix with history
-    // note field carries 'cal-booking' marker so calendar can identify it
     const bookingNote = note ? note + ' | cal-booking' : 'cal-booking';
-    const newRec = {
-      id: newId,
-      apt: _calApt,
-      owner, name, type,
-      rent, balance: 0,
-      checkin,
-      due: checkout,
-      lease_end: checkout,
-      note: bookingNote,
-      history: [{date: checkin, amt: rent, text: histText}],
-      archived: false,
-      archived_date: null
-    };
 
-    const {error} = await sb.from('units').insert(dbRow(newRec));
-    if(error) throw new Error(error.message);
-    await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
+    // Check if the unit already has an available/vacant active record for this apt
+    // If yes — update it instead of creating a duplicate row
+    const existingAvail = data.find(r =>
+      !r.archived && r.apt === _calApt &&
+      (r.type === 'available' || !r.name || dueStatus(r) === 'available')
+    );
+
+    if(existingAvail) {
+      // Update the existing available record with booking details
+      const updated = {
+        ...existingAvail,
+        name, type, owner, rent, balance: 0,
+        checkin, due: checkout, lease_end: checkout,
+        note: bookingNote,
+        history: [{date: checkin, amt: rent, text: histText}]
+      };
+      await save(updated);
+      await auditLog('cal-booking', _calApt, name, existingAvail.id, dbRow(existingAvail), dbRow(updated));
+    } else {
+      // No available record — create a new booking record
+      const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
+      const newId = (maxRow&&maxRow.length ? maxRow[0].id : nextId) + 1;
+      nextId = newId + 1;
+      const newRec = {
+        id: newId, apt: _calApt, owner, name, type,
+        rent, balance: 0, checkin, due: checkout, lease_end: checkout,
+        note: bookingNote,
+        history: [{date: checkin, amt: rent, text: histText}],
+        archived: false, archived_date: null
+      };
+      const {error} = await sb.from('units').insert(dbRow(newRec));
+      if(error) throw new Error(error.message);
+      await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
+    }
 
     await loadAll();
 
