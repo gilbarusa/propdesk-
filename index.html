@@ -2316,6 +2316,8 @@ function today(){return new Date().toISOString().split('T')[0];}
 function daysUntil(s){if(!s)return null;const n=new Date();n.setHours(0,0,0,0);return Math.round((new Date(s+'T00:00:00')-n)/86400000);}
 function dueStatus(r){if(r.type==='available')return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
 function fmtDate(s){if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function fmtDateTime(s){if(!s)return'—';const d=new Date(s);if(isNaN(d))return s;return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});}
+function nowISO(){return new Date().toISOString();}
 function fmtMoney(n){return'$'+(Math.round(n||0)).toLocaleString();}
 function nextMonth(s){if(!s)return'';const d=new Date(s+'T00:00:00');d.setMonth(d.getMonth()+1);return d.toISOString().split('T')[0];}
 function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
@@ -2476,7 +2478,7 @@ async function saveTenant(){
     let balance = rec.balance;
     if(fullStay){
       // Record as paid, add history entry
-      history = [{ date: dateStr, amt: rec.rent, text: `$${rec.rent.toLocaleString()} — full stay paid (prorated)` }];
+      history = [{ date: new Date().toISOString(), amt: rec.rent, text: `$${rec.rent.toLocaleString()} — full stay paid (prorated)` }];
       balance = 0;
     }
     const newRec={id:nextId++,...rec,balance,history,archived:false};
@@ -2601,7 +2603,7 @@ async function confirmPayment(){
   const r = data[idx];
   const amt = parseFloat(document.getElementById('payAmount').value) || 0;
   const note = document.getElementById('payNote').value.trim();
-  const dateStr = document.getElementById('payDate').value || today();
+  const dateStr = new Date().toISOString(); // full timestamp for history
   const newCheckout = payType === 'extend' ? document.getElementById('payNewDate').value : r.lease_end;
   const isProrate = document.getElementById('prorateCheck')?.checked && r.type === 'short-stay';
 
@@ -2859,7 +2861,7 @@ function openArchiveDetail(id) {
       total += amt;
       return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
         <div>
-          <span style="color:var(--text3);font-size:11px;margin-right:10px;">${fmtDate(h.date)}</span>
+          <span style="color:var(--text3);font-size:11px;margin-right:10px;">${fmtDateTime(h.date)}</span>
           <span style="color:var(--text2);">${h.text.replace(/^\$[0-9,.]+ — /,'')}</span>
         </div>
         <span style="color:var(--green);font-weight:500;flex-shrink:0;margin-left:12px;">${m ? fmtMoney(amt) : ''}</span>
@@ -2973,7 +2975,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       rentDisplay=`$${r.rent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDateTime(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
@@ -3978,8 +3980,7 @@ function renderReports(){
 
 // ── DEBUG ──────────────────────────────────────────
 // ── INIT ───────────────────────────────────────────
-document.getElementById('sortSel').value='due';
-wireAddModalListeners();
+// sortSel init moved inside boot() to avoid running before DOM is interactive
 
 async function boot() {
   const overlay = document.getElementById('loadingOverlay');
@@ -4032,6 +4033,8 @@ async function boot() {
     }
 
     overlay.style.display = 'none';
+    document.getElementById('sortSel').value='due';
+    wireAddModalListeners();
     renderTable();
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
@@ -4049,6 +4052,8 @@ function bootOffline() {
   data = [...SEED_DATA];
   archived = [...ARCHIVED_SEED].map(r => ({...r, archivedDate: r.archived_date || ''}));
   document.getElementById('loadingOverlay').style.display = 'none';
+  document.getElementById('sortSel').value='due';
+  wireAddModalListeners();
   document.getElementById('syncStatus').textContent = '⚠ offline';
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   renderTable();
