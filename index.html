@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 10:15</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 10:30</span>
     </div>
   </div>
 </header>
@@ -4082,25 +4082,36 @@ function renderReports(){
   if(unclassified.length>0){
     document.getElementById('rCollBody').innerHTML+=`<tr style="opacity:.7"><td style="color:var(--text3);font-style:italic">Other/Unclassified</td><td style="text-align:right;color:var(--text3)">${unclassified.length}</td><td colspan="4" style="text-align:right;font-size:11px;color:var(--text3)">${unclassified.map(r=>r.apt).join(', ')}</td></tr>`;
   }
-  // ── Archive row: short-stay records that CHECKED OUT in this month ──
+  // ── Archive row: short-stay records that overlapped this month ──
+  // EXCLUDE any apt already counted in live rows (occ) to avoid double-counting
+  const liveApts = new Set(occ.map(r => r.apt));
   const mStart = new Date(y, m, 1);
   const mEnd   = new Date(y, m+1, 0);
   const mStr3  = `${y}-${String(m+1).padStart(2,'0')}`;
 
   let archTotal = 0;
   const archUnits = new Set();
+  // Track apt+name combos already counted to avoid double-counting same stay
+  const counted = new Set();
+
   archived.forEach(a => {
     if(!a.archived) return;
-    // Only short-stay records (skip LT monthly archive lines)
+    // Only short-stay (skip LT monthly archive lines)
     if(a.type !== 'short-stay') return;
+    // Skip if this apt is already counted in live rows
+    if(liveApts.has(a.apt)) return;
     const ci = a.checkin || a.checkinDate || '';
     const co = a.archivedDate || a.archived_date || a.lease_end || a.due || '';
     if(!ci || !co) return;
     const ciD = new Date(ci+'T00:00:00');
     const coD = new Date(co+'T00:00:00');
-    // Stay must overlap with this month
+    // Must overlap with this month
     if(ciD > mEnd || coD < mStart) return;
-    // Use calcProration to get the exact portion for this month
+    // Deduplicate same apt+checkin combo (avoid counting same stay twice)
+    const key = `${a.apt}|${ci}|${co}`;
+    if(counted.has(key)) return;
+    counted.add(key);
+    // Use calcProration for consistent math
     const splits = calcProration(ci, co, a.rent||0);
     const thisMonth = splits.find(s => s.monthStr === mStr3);
     if(thisMonth && thisMonth.portion > 0) {
