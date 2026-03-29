@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chelbourne — Property Manager | v2026-03-29 16:30</title>
+<title>Chelbourne — Property Manager | v2026-03-29 16:45</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -47,7 +47,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 #syncStatus{color:var(--text3) !important;font-size:11px;}
 
 /* ── Nav ── */
-.nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;gap:0;box-shadow:var(--shadow);flex-shrink:0;}
+.nav-tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;padding:0 32px;gap:0;box-shadow:var(--shadow);flex-shrink:0;overflow-x:auto;}
 .nav-tab{padding:14px 22px;font-size:11px;font-weight:500;letter-spacing:.5px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .2s;white-space:nowrap;}
 .nav-tab:hover{color:var(--text2);background:var(--surface2);}
 .nav-tab.active{color:var(--accent2);border-bottom-color:var(--accent);background:var(--accent-bg);}
@@ -74,7 +74,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 .pill:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg);transform:translateY(-1px);}
 .pill.active{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(181,120,74,.35);}
 .spacer{flex:1;min-width:0;}
-select.sort-sel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;cursor:pointer;width:auto;flex-shrink:0;box-shadow:var(--shadow);}
+select.sort-sel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;cursor:pointer;width:auto;flex-shrink:0;box-shadow:var(--shadow);overflow-x:auto;}
 
 /* ── Buttons ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius);border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:12px;font-weight:500;transition:all .18s;white-space:nowrap;}
@@ -123,7 +123,7 @@ td{padding:13px 14px;vertical-align:middle;}
 
 /* ── Action buttons ── */
 .actions-cell{display:flex;gap:5px;}
-.icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;flex-shrink:0;box-shadow:var(--shadow);}
+.icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:13px;transition:all .15s;flex-shrink:0;box-shadow:var(--shadow);overflow-x:auto;}
 .icon-btn:hover{background:var(--surface3);color:var(--text);border-color:var(--border2);transform:translateY(-1px);box-shadow:var(--shadow-md);}
 .icon-btn.ib-pay:hover{background:var(--green-bg);color:var(--green);border-color:var(--green);}
 .icon-btn.ib-edit:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue);}
@@ -546,7 +546,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 11:00</span>
+      <span id="buildStamp" style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;"></span>
     </div>
   </div>
 </header>
@@ -5447,6 +5447,10 @@ async function boot() {
     // if (archived.length === 0 && ARCHIVED_SEED.length > 0) { ... }
 
     overlay.style.display = 'none';
+    // Set build stamp dynamically from title
+    const titleMatch = document.title.match(/v(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
+    const stamp = document.getElementById('buildStamp');
+    if (stamp && titleMatch) stamp.textContent = 'updated ' + titleMatch[1].replace('-','').replace('-','').replace(' ',', ').replace(/^(\d{4})(\d{2})(\d{2})/, (_,y,m,d)=>{ const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return mn[parseInt(m)-1]+' '+parseInt(d)+' '+y; });
     renderTable();
     initCalScroll();
     subscribeRealtime();
