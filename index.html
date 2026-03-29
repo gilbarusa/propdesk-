@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 21:25</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:00</span>
     </div>
   </div>
 </header>
@@ -2504,7 +2504,7 @@ function openPayModal(id){
   document.getElementById('prorateCheck').checked=false;
   document.getElementById('prorateBreakdown').innerHTML='';
   // Show prorate option for short stays with checkin+lease_end
-  const showProrate = r.type==='short-stay' && r.checkin && (r.lease_end||r.due);
+  const showProrate = r.checkin && (r.lease_end||r.due);
   document.getElementById('prorateRow').style.display = showProrate ? '' : 'none';
   const s=dueStatus(r);
   document.getElementById('payInfoBox').innerHTML=`
@@ -2590,7 +2590,7 @@ async function confirmPayment(){
   const note = document.getElementById('payNote').value.trim();
   const dateStr = document.getElementById('payDate').value || today();
   const newCheckout = payType === 'extend' ? document.getElementById('payNewDate').value : r.lease_end;
-  const isProrate = document.getElementById('prorateCheck')?.checked && r.type === 'short-stay';
+  const isProrate = document.getElementById('prorateCheck')?.checked && r.checkin && (r.lease_end || r.due);
 
   r.history = r.history || [];
 
@@ -2642,17 +2642,17 @@ async function confirmPayment(){
       await save(r);
     }
 
-  } else if(isProrate && r.type === 'short-stay') {
-    // ── PRORATED FULL STAY ─────────────────────────────────────
+  } else if(isProrate) {
+    // ── PRORATED FULL STAY — works for any lease type ──────────
     const ci = r.checkin || r.due;
     const co = r.lease_end || r.due;
     const splits = calcProration(ci, co, amt);
     r.balance = 0;
-    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — full stay prorated${note ? ' | ' + note : ''}` });
+    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — full stay paid${note ? ' | ' + note : ''}` });
     await save(r);
     for(const s of splits) {
       await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
-        [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days} days)` }]);
+        [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days}d)` }]);
     }
 
   } else {
