@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:55</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 21:10</span>
     </div>
   </div>
 </header>
@@ -794,6 +794,7 @@ textarea{resize:vertical;min-height:72px;}
     </div>
     <div class="r-kpi-grid" id="reportKpis"></div>
     <div class="r-section"><h3>📅 Days Rented</h3><div id="rDaysContent"></div></div>
+    <div class="r-section" id="rShortStaySection"><h3>✈️ Short Stay Performance</h3><div id="rShortStayKpis"></div></div>
     <div class="r-section"><h3>💵 Collection by Lease Type</h3>
       <table class="breakdown-table"><thead id="rCollHead"><tr><th>Type</th><th style="text-align:right">Units</th><th style="text-align:right">Expected</th><th style="text-align:right">Collected</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Avg / Unit</th></tr></thead>
       <tbody id="rCollBody"></tbody></table>
@@ -3965,13 +3966,54 @@ function renderReports(){
   const occ=active.filter(r=>r.type!=='available'&&r.name);
   const dim=daysInMonth(y,m);
 
-  // Days rented
+  // Days rented — max based on ALL 79 units
+  const totalActiveUnits = active.length; // all units regardless of status
   let ltD=0,mtmD=0,shD=0;
   occ.forEach(r=>{const d=rentedDaysInMonth(r,y,m);if(r.type==='long-term')ltD+=d;else if(r.type==='month-to-month')mtmD+=d;else if(r.type==='short-stay')shD+=d;});
   const totD=ltD+mtmD+shD,maxD=Math.max(ltD,mtmD,shD,1);
   document.getElementById('rDaysContent').innerHTML=`
     ${[['Long Term',ltD,'#2563a8'],['Month-to-Month',mtmD,'#6b4ca8'],['Short Stay',shD,'#c0711a']].map(([l,d,c])=>`<div class="dbar-row"><div class="dbar-label">${l}</div><div class="dbar-track"><div class="dbar-fill" style="width:${Math.round(d/maxD*100)}%;background:${c}"></div></div><div class="dbar-val">${d} days</div></div>`).join('')}
-    <div style="border-top:2px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;font-weight:500"><span style="color:var(--text2)">Total rented unit-days</span><span style="color:var(--accent2)">${totD} days <span style="color:var(--text3);font-weight:400">(${dim}-day month × ${occ.length} units = ${dim*occ.length} max)</span></span></div>`;
+    <div style="border-top:2px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;font-weight:500"><span style="color:var(--text2)">Total rented unit-days</span><span style="color:var(--accent2)">${totD} days <span style="color:var(--text3);font-weight:400">(${dim}-day month × ${totalActiveUnits} units = ${dim*totalActiveUnits} max)</span></span></div>`;
+
+  // ── Short Stay Performance KPIs ──
+  // Pool = all short-stay + all available units (33 total)
+  const ssPool = data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available'));
+  const ssOcc  = occ.filter(r=>r.type==='short-stay'); // currently occupied short-stays
+  const ssRevenue = ssOcc.reduce((s,r)=>s+collectedInMonth(r,y,m),0);
+  const ssNights  = shD; // nights booked from above
+  const ssMaxNights = dim * ssPool.length; // dim × 33
+  const ssOccRate = ssMaxNights > 0 ? (ssNights / ssMaxNights * 100) : 0;
+  const ssADR     = ssNights > 0 ? ssRevenue / ssNights : 0; // avg daily rate
+  const ssRevPAR  = ssPool.length > 0 ? ssRevenue / ssPool.length : 0; // rev per available unit
+  document.getElementById('rShortStayKpis').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:8px;">
+      <div class="r-kpi" style="border-top:3px solid #c0711a;">
+        <div class="r-kpi-label">Rental Revenue</div>
+        <div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssRevenue)}</div>
+        <div class="r-kpi-sub">${ssOcc.length} occupied units</div>
+      </div>
+      <div class="r-kpi" style="border-top:3px solid #c0711a;">
+        <div class="r-kpi-label">Nights Booked</div>
+        <div class="r-kpi-value" style="color:#c0711a;">${ssNights}</div>
+        <div class="r-kpi-sub">of ${ssMaxNights} possible</div>
+      </div>
+      <div class="r-kpi" style="border-top:3px solid #c0711a;">
+        <div class="r-kpi-label">Occupancy Rate</div>
+        <div class="r-kpi-value" style="color:#c0711a;">${ssOccRate.toFixed(1)}%</div>
+        <div class="r-kpi-sub">${ssPool.length} units × ${dim} days</div>
+      </div>
+      <div class="r-kpi" style="border-top:3px solid #c0711a;">
+        <div class="r-kpi-label">Avg Daily Rate</div>
+        <div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssADR)}</div>
+        <div class="r-kpi-sub">per night booked</div>
+      </div>
+      <div class="r-kpi" style="border-top:3px solid #c0711a;">
+        <div class="r-kpi-label">RevPAR</div>
+        <div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssRevPAR)}</div>
+        <div class="r-kpi-sub">rev per available unit</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text3);">Based on ${ssPool.length} units (${ssOcc.length} short-stay occupied + ${ssPool.length-ssOcc.length} available) · ${dim}-day month</div>`;
 
   // Collection — short stay counts available units that had archive activity this month
   // For short stay avg: count all active short-stay + all available units (19 + 14 = 33)
