@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 21:10</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 21:25</span>
     </div>
   </div>
 </header>
@@ -4020,6 +4020,9 @@ function renderReports(){
   const shortStayUnitCount = data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available')).length;
 
   const types=[{k:'long-term',l:'Long Term'},{k:'month-to-month',l:'Month-to-Month'},{k:'short-stay',l:'Short Stay'}];
+  // Catch units with unexpected/blank type
+  const classifiedUnits = new Set([...occ.map(r=>r.id), ...ssPool.map(r=>r.id)]);
+  const unclassified = active.filter(r=>!classifiedUnits.has(r.id) && r.type!=='available');
   let gE=0,gC=0,gUnits=0;
   document.getElementById('rCollHead').innerHTML=`<tr><th>Type</th><th style="text-align:right">Units</th><th style="text-align:right">Expected</th><th style="text-align:right">Collected</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Avg / Unit</th></tr>`;
   document.getElementById('rCollBody').innerHTML=types.map(({k,l})=>{
@@ -4040,7 +4043,12 @@ function renderReports(){
     </tr>`;
   }).join('');
   const totalAvg=gUnits>0?gC/gUnits:0;
-  document.getElementById('rCollBody').innerHTML+=`<tr class="total-row"><td>Total</td><td style="text-align:right">${gUnits}</td><td style="text-align:right">${fmtMoney(gE)}</td><td style="text-align:right;color:var(--green)">${fmtMoney(gC)}</td><td style="text-align:right;color:${gE-gC>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,gE-gC))}</td><td style="text-align:right;color:var(--blue)">${fmtMoney(totalAvg)}</td></tr>`;
+  // Add unclassified row if there are units with unexpected types
+  if(unclassified.length>0){
+    document.getElementById('rCollBody').innerHTML+=`<tr style="opacity:.7"><td style="color:var(--text3);font-style:italic">Other/Unclassified</td><td style="text-align:right;color:var(--text3)">${unclassified.length}</td><td colspan="4" style="text-align:right;font-size:11px;color:var(--text3)">${unclassified.map(r=>r.apt).join(', ')}</td></tr>`;
+  }
+  const totalUnitsDisplay = active.length;
+  document.getElementById('rCollBody').innerHTML+=`<tr class="total-row"><td>Total</td><td style="text-align:right">${totalUnitsDisplay}</td><td style="text-align:right">${fmtMoney(gE)}</td><td style="text-align:right;color:var(--green)">${fmtMoney(gC)}</td><td style="text-align:right;color:${gE-gC>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,gE-gC))}</td><td style="text-align:right;color:var(--blue)">${fmtMoney(totalAvg)}</td></tr>`;
 
   const rate=gE>0?Math.round(gC/gE*100):0;
   document.getElementById('reportKpis').innerHTML=`
