@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:10</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:30</span>
     </div>
   </div>
 </header>
@@ -725,6 +725,36 @@ textarea{resize:vertical;min-height:72px;}
 </div>
 
 
+<!-- ═══ REPORT DRILL-DOWN MODAL ═══ -->
+<div class="modal-overlay" id="rDrillModal">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-header">
+      <div>
+        <h2 id="rDrillTitle" style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text)">Detail</h2>
+        <div id="rDrillSub" style="font-size:11px;color:var(--text3);margin-top:2px;"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal('rDrillModal')">&#x2715;</button>
+    </div>
+    <div class="modal-body" style="padding:0;">
+      <table class="breakdown-table" style="width:100%;">
+        <thead>
+          <tr style="background:var(--surface2);">
+            <th style="padding:10px 14px;">Apt</th>
+            <th style="padding:10px 14px;">Tenant</th>
+            <th style="padding:10px 14px;">Owner</th>
+            <th style="padding:10px 14px;text-align:right;">Expected</th>
+            <th style="padding:10px 14px;text-align:right;">Collected</th>
+            <th style="padding:10px 14px;text-align:right;">Outstanding</th>
+            <th style="padding:10px 14px;text-align:right;">Avg/Unit</th>
+          </tr>
+        </thead>
+        <tbody id="rDrillBody"></tbody>
+        <tfoot id="rDrillFoot" style="background:var(--surface2);border-top:2px solid var(--border);font-weight:500;font-size:12px;"></tfoot>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ DASHBOARD PAGE ═══ -->
 <div class="page" id="page-dashboard">
   <div class="dash-wrap">
@@ -765,7 +795,7 @@ textarea{resize:vertical;min-height:72px;}
     <div class="r-kpi-grid" id="reportKpis"></div>
     <div class="r-section"><h3>📅 Days Rented</h3><div id="rDaysContent"></div></div>
     <div class="r-section"><h3>💵 Collection by Lease Type</h3>
-      <table class="breakdown-table"><thead><tr><th>Type</th><th style="text-align:right">Units</th><th style="text-align:right">Expected</th><th style="text-align:right">Collected</th><th style="text-align:right">Outstanding</th></tr></thead>
+      <table class="breakdown-table"><thead id="rCollHead"><tr><th>Type</th><th style="text-align:right">Units</th><th style="text-align:right">Expected</th><th style="text-align:right">Collected</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Avg / Unit</th></tr></thead>
       <tbody id="rCollBody"></tbody></table>
     </div>
     <div class="r-section"><h3>🏘 Collection by Owner</h3><div id="rOwnerContent"></div></div>
@@ -2937,7 +2967,7 @@ function closeDetail(){document.getElementById('detailOverlay').classList.remove
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
-document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal','calActionModal','blockModal','calBookingModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
+document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal','calActionModal','blockModal','calBookingModal','rDrillModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
 function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;document.getElementById('toastWrap').appendChild(t);setTimeout(()=>t.remove(),3200);}
 function exportCSV(){const h=['Apt','Owner','Tenant','Type','Rent','Balance','Due Date','Note'];const rows=data.filter(r=>!r.archived).map(r=>[r.apt,r.owner,r.name,r.type,r.rent,r.balance,r.due,`"${(r.note||'').replace(/"/g,'""')}"`]);const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h,...rows].map(r=>r.join(',')).join('\n'));a.download='propdesk-export.csv';a.click();toast('CSV exported ✓','success');}
 
@@ -3866,6 +3896,69 @@ function renderDashboard(){
 // ══════════════════════════════════════════════════════
 function changeReportMonth(dir){reportMonth+=dir;if(reportMonth>11){reportMonth=0;reportYear++;}if(reportMonth<0){reportMonth=11;reportYear--;}renderReports();}
 
+
+// ── Report drill-down ──
+function openRDrill(typeKey, typeLabel, y, m) {
+  const mStr = `${y}-${String(m+1).padStart(2,'0')}`;
+  const active = data.filter(r=>!r.archived);
+  const occ = active.filter(r=>r.type===typeKey && r.name);
+
+  // For short stay also include available units with archive activity this month
+  let rows = [...occ];
+  if(typeKey==='short-stay') {
+    const availWithActivity = active.filter(r=>(r.type==='available'||!r.name)).filter(r=>
+      archived.some(a=>a.apt===r.apt && a.type==='short-stay' &&
+        (a.archived_date||a.archivedDate||'').startsWith(mStr))
+    );
+    rows = [...rows, ...availWithActivity];
+  }
+
+  // Total units for avg denominator (all active units of this type)
+  const totalUnits = typeKey==='short-stay'
+    ? active.filter(r=>r.type==='short-stay').length + active.filter(r=>(r.type==='available'||!r.name)).filter(r=>
+        archived.some(a=>a.apt===r.apt&&a.type==='short-stay'&&(a.archived_date||a.archivedDate||'').startsWith(mStr))).length
+    : occ.length;
+
+  document.getElementById('rDrillTitle').textContent = `${typeLabel} — Detail`;
+  document.getElementById('rDrillSub').textContent = `${monthName(m,y)} · ${rows.length} units`;
+
+  let totalE=0, totalC=0;
+  const bodyRows = rows.map(r=>{
+    let e=expectedInMonth(r,y,m), c=collectedInMonth(r,y,m);
+    // For available units, pull from archive
+    if(!r.name || r.type==='available') {
+      const archRows=archived.filter(a=>a.apt===r.apt&&a.type==='short-stay'&&(a.archived_date||a.archivedDate||'').startsWith(mStr));
+      e=archRows.reduce((s,a)=>s+(a.rent||0),0);
+      c=archRows.reduce((s,a)=>s+(a.rent||0),0);
+    }
+    totalE+=e; totalC+=c;
+    const out=Math.max(0,e-c);
+    const tenantName = r.name || `<span style="color:var(--text3);font-style:italic">Available (was occupied)</span>`;
+    return `<tr style="cursor:pointer;" onclick="closeModal('rDrillModal');openDetail(${r.id})">
+      <td style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--accent2);">${r.apt}</td>
+      <td style="font-size:12px;">${tenantName}</td>
+      <td style="font-size:11px;color:var(--text3);">${r.owner||'—'}</td>
+      <td style="text-align:right;">${fmtMoney(e)}</td>
+      <td style="text-align:right;color:var(--green);">${fmtMoney(c)}</td>
+      <td style="text-align:right;color:${out>0?'var(--red)':'var(--text3)'};">${fmtMoney(out)}</td>
+      <td style="text-align:right;color:var(--blue);">${fmtMoney(e)}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('rDrillBody').innerHTML = bodyRows || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No data for this period</td></tr>';
+
+  const avg = totalUnits>0 ? totalC/totalUnits : 0;
+  document.getElementById('rDrillFoot').innerHTML = `<tr>
+    <td colspan="3" style="padding:10px 14px;">Total (${totalUnits} units for avg)</td>
+    <td style="text-align:right;padding:10px 14px;">${fmtMoney(totalE)}</td>
+    <td style="text-align:right;padding:10px 14px;color:var(--green);">${fmtMoney(totalC)}</td>
+    <td style="text-align:right;padding:10px 14px;color:${totalE-totalC>0?'var(--red)':'var(--text3)'};">${fmtMoney(Math.max(0,totalE-totalC))}</td>
+    <td style="text-align:right;padding:10px 14px;color:var(--blue);">${fmtMoney(avg)}</td>
+  </tr>`;
+
+  openModal('rDrillModal');
+}
+
 function renderReports(){
   const y=reportYear,m=reportMonth;
   document.getElementById('reportMonthLabel').textContent=monthName(m,y);
@@ -3881,16 +3974,51 @@ function renderReports(){
     ${[['Long Term',ltD,'#2563a8'],['Month-to-Month',mtmD,'#6b4ca8'],['Short Stay',shD,'#c0711a']].map(([l,d,c])=>`<div class="dbar-row"><div class="dbar-label">${l}</div><div class="dbar-track"><div class="dbar-fill" style="width:${Math.round(d/maxD*100)}%;background:${c}"></div></div><div class="dbar-val">${d} days</div></div>`).join('')}
     <div style="border-top:2px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;font-weight:500"><span style="color:var(--text2)">Total rented unit-days</span><span style="color:var(--accent2)">${totD} days <span style="color:var(--text3);font-weight:400">(${dim}-day month × ${occ.length} units = ${dim*occ.length} max)</span></span></div>`;
 
-  // Collection
+  // Collection — short stay counts available units that had archive activity this month
+  const mStr2=`${y}-${String(m+1).padStart(2,'0')}`;
+  // Find available units that had short-stay activity this month via archive
+  const availWithActivity = data.filter(r=>!r.archived && (r.type==='available'||!r.name)).filter(r=>{
+    return archived.some(a=>a.apt===r.apt && a.type==='short-stay' &&
+      (a.archived_date||a.archivedDate||'').startsWith(mStr2));
+  });
+
   const types=[{k:'long-term',l:'Long Term'},{k:'month-to-month',l:'Month-to-Month'},{k:'short-stay',l:'Short Stay'}];
-  let gE=0,gC=0;
+  let gE=0,gC=0,gUnits=0;
+  // Add avg column header
+  document.getElementById('rCollHead').innerHTML=`<tr><th>Type</th><th style="text-align:right">Units</th><th style="text-align:right">Expected</th><th style="text-align:right">Collected</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Avg / Unit</th></tr>`;
   document.getElementById('rCollBody').innerHTML=types.map(({k,l})=>{
-    const us=occ.filter(r=>r.type===k);
+    let us=occ.filter(r=>r.type===k);
+    // For short stay: also include available units with activity + count all active short-stay units for avg
+    let totalUnitsForAvg=us.length;
+    if(k==='short-stay'){
+      totalUnitsForAvg = data.filter(r=>!r.archived && r.type==='short-stay').length + availWithActivity.length;
+    }
     const e=us.reduce((s,r)=>s+expectedInMonth(r,y,m),0);
     const c=us.reduce((s,r)=>s+collectedInMonth(r,y,m),0);
-    gE+=e;gC+=c;
-    return`<tr><td style="color:var(--text2)">${l}</td><td style="text-align:right">${us.length}</td><td style="text-align:right">${fmtMoney(e)}</td><td style="text-align:right;color:var(--green)">${fmtMoney(c)}</td><td style="text-align:right;color:${e-c>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,e-c))}</td></tr>`;
-  }).join('')+`<tr class="total-row"><td>Total</td><td style="text-align:right">${occ.length}</td><td style="text-align:right">${fmtMoney(gE)}</td><td style="text-align:right;color:var(--green)">${fmtMoney(gC)}</td><td style="text-align:right;color:${gE-gC>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,gE-gC))}</td></tr>`;
+    // Add archive revenue for available units that were occupied earlier this month
+    let archE=0,archC=0;
+    if(k==='short-stay'){
+      availWithActivity.forEach(r=>{
+        const archRows=archived.filter(a=>a.apt===r.apt&&a.type==='short-stay'&&(a.archived_date||a.archivedDate||'').startsWith(mStr2));
+        archRows.forEach(a=>{archE+=a.rent||0;archC+=a.rent||0;});
+      });
+    }
+    const totalE=e+archE, totalC=c+archC;
+    const denom=Math.max(totalUnitsForAvg,1);
+    const avg=totalC/denom;
+    gE+=totalE;gC+=totalC;gUnits+=us.length;
+    const linkStyle='cursor:pointer;text-decoration:underline;text-underline-offset:2px;color:var(--accent2);';
+    return`<tr style="cursor:pointer;" onclick="openRDrill('${k}','${l}',${y},${m})">
+      <td style="${linkStyle}">${l} ↗</td>
+      <td style="text-align:right">${totalUnitsForAvg}</td>
+      <td style="text-align:right">${fmtMoney(totalE)}</td>
+      <td style="text-align:right;color:var(--green)">${fmtMoney(totalC)}</td>
+      <td style="text-align:right;color:${totalE-totalC>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,totalE-totalC))}</td>
+      <td style="text-align:right;color:var(--blue)">${fmtMoney(avg)}</td>
+    </tr>`;
+  }).join('');
+  const totalAvg=gUnits>0?gC/gUnits:0;
+  document.getElementById('rCollBody').innerHTML+=`<tr class="total-row"><td>Total</td><td style="text-align:right">${gUnits}</td><td style="text-align:right">${fmtMoney(gE)}</td><td style="text-align:right;color:var(--green)">${fmtMoney(gC)}</td><td style="text-align:right;color:${gE-gC>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,gE-gC))}</td><td style="text-align:right;color:var(--blue)">${fmtMoney(totalAvg)}</td></tr>`;
 
   const rate=gE>0?Math.round(gC/gE*100):0;
   document.getElementById('reportKpis').innerHTML=`
