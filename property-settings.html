@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chelbourne — Property Settings</title>
+<title>Chelbourne — Property Settings | v2026-03-29 18:00</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
@@ -160,7 +161,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 </head>
 <body>
 <div class="header">
-  <div class="header-brand">Chelbourne PropDesk</div>
+  <div style="display:flex;flex-direction:column;gap:1px;">
+    <div class="header-brand">Chelbourne PropDesk</div>
+    <div id="psBuildStamp" style="font-size:9px;color:var(--text3);letter-spacing:.5px;font-family:'DM Mono',monospace;"></div>
+  </div>
   <span style="color:var(--border2);font-size:18px;">›</span>
   <div style="display:flex;align-items:center;gap:8px;position:relative;">
     <div id="propSwitcherBtn" onclick="togglePropSwitcher()" style="display:flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid var(--accent);color:var(--accent2);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;">
@@ -700,7 +704,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addFeeModal')">Cancel</button><button class="btn btn-primary" onclick="addFee()">Add Fee</button></div>
   </div>
 </div>
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+<script>
 const SUPABASE_URL='https://iwohrvkcodqvyoooxzmt.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -723,6 +727,14 @@ const AMENITY_GROUPS=[
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const params=new URLSearchParams(location.search);
+  // Set build stamp from title
+  const psMatch = document.title.match(/v(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
+  const psStamp = document.getElementById('psBuildStamp');
+  if(psStamp && psMatch){
+    const [y,m,d] = psMatch[1].split(' ')[0].split('-');
+    const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    psStamp.textContent = 'v ' + mn[parseInt(m)-1]+' '+parseInt(d)+' '+y+' '+psMatch[1].split(' ')[1];
+  }
   currentApt=params.get('apt')||'';
   if(currentApt){
     document.getElementById('headerAptBadge').textContent=currentApt;
