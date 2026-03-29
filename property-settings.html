@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chelbourne — Property Settings | v2026-03-29 18:15</title>
+<title>Chelbourne — Property Settings | v2026-03-29 18:30</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -161,22 +161,18 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 </head>
 <body>
 <div class="header">
-  <div style="display:flex;flex-direction:column;gap:1px;">
+  <div style="display:flex;flex-direction:column;line-height:1;">
     <div class="header-brand">Chelbourne PropDesk</div>
-    <div id="psBuildStamp" style="font-size:9px;color:var(--text3);letter-spacing:.5px;font-family:'DM Mono',monospace;"></div>
+    <div id="psBuildStamp" style="font-size:9px;color:var(--text3);letter-spacing:.5px;margin-top:2px;"></div>
   </div>
   <span style="color:var(--border2);font-size:18px;">›</span>
   <div style="display:flex;align-items:center;gap:8px;position:relative;">
-    <div id="propSwitcherBtn" onclick="togglePropSwitcher()" style="display:flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid var(--accent);color:var(--accent2);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;">
-      <span id="headerAptBadge">—</span>
-      <span style="font-size:10px;opacity:.7;">▼</span>
-    </div>
+    <span id="headerAptBadge" class="apt-badge" onclick="togglePropSwitcher()" style="cursor:pointer;display:flex;align-items:center;gap:5px;">— <span style="font-size:9px;opacity:.6;">▼</span></span>
     <span style="font-size:12px;color:var(--text2);">Property Settings</span>
-    <!-- Dropdown -->
-    <div id="propSwitcherDropdown" style="display:none;position:absolute;top:36px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);min-width:280px;max-height:400px;overflow-y:auto;z-index:999;padding:8px;">
-      <div style="padding:8px 10px 6px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);">Switch Property</div>
-      <input type="text" id="propSwitcherSearch" placeholder="Search…" oninput="filterPropSwitcher()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;margin-bottom:6px;outline:none;background:var(--surface2);">
-      <div id="propSwitcherList"></div>
+    <div id="propSwitcherDrop" style="display:none;position:absolute;top:34px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);min-width:260px;max-height:380px;overflow-y:auto;z-index:9999;padding:8px;">
+      <div style="padding:4px 8px 6px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);">Switch Property</div>
+      <input type="text" id="propSwitchSearch" placeholder="Search…" oninput="filterPropSwitch()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;margin-bottom:4px;outline:none;box-sizing:border-box;">
+      <div id="propSwitchList"><div style="padding:8px;font-size:12px;color:var(--text3);">Loading…</div></div>
     </div>
   </div>
   <div class="header-right">
@@ -620,7 +616,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
               <tbody>
                 <tr>
                   <td style="font-weight:500;">ERA Holding LLC</td>
-                  <td style="color:var(--text2);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="523720333a3d3e363b3c3521223312353f333b3e7c313d3f">[email&#160;protected]</a></td>
+                  <td style="color:var(--text2);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="d1b4a3b0b9bebdb5b8bfb6a2a1b091b6bcb0b8bdffb2bebc">[email&#160;protected]</a></td>
                   <td style="color:var(--text3);font-size:11px;">Last login Nov 6, 2024</td>
                   <td>0%</td>
                   <td style="display:flex;gap:8px;align-items:center;"><button class="tbl-link">Settings</button><button class="tbl-link">Permissions</button><button class="btn-danger-link">Remove access</button></td>
@@ -705,6 +701,50 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 </div>
 <script>
+// ── PROP SWITCHER ─────────────────────────────────
+let _allPropsForSwitch = [];
+function togglePropSwitcher(){
+  const dd=document.getElementById('propSwitcherDrop');
+  dd.style.display=dd.style.display==='none'?'block':'none';
+  if(dd.style.display==='block'){document.getElementById('propSwitchSearch').focus();}
+}
+function filterPropSwitch(){
+  const q=(document.getElementById('propSwitchSearch').value||'').toLowerCase();
+  renderPropSwitchList(_allPropsForSwitch.filter(p=>(p.name||p.apt||'').toLowerCase().includes(q)));
+}
+function renderPropSwitchList(props){
+  const list=document.getElementById('propSwitchList');
+  if(!list)return;
+  if(!props.length){list.innerHTML='<div style="padding:8px;font-size:12px;color:var(--text3);">No properties found</div>';return;}
+  list.innerHTML=props.map(p=>{
+    const aptKey=p.apt||p.name;
+    const isCur=aptKey===currentApt;
+    const meta=[p.max_guests?p.max_guests+' guests':null,p.bedrooms!=null?p.bedrooms+' bed':null,p.bathrooms!=null?p.bathrooms+' bath':null].filter(Boolean).join(' · ');
+    return `<div onclick="location.href='property-settings.html?apt='+encodeURIComponent('${aptKey.replace(/'/g,"\'")}')" style="padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;background:${isCur?'var(--accent-bg)':'transparent'};border:1px solid ${isCur?'var(--accent)':'transparent'};" onmouseover="this.style.background='var(--accent-bg)'" onmouseout="this.style.background='${isCur?'var(--accent-bg)':'transparent'}'">
+      <div style="font-size:12px;font-weight:500;color:var(--accent2);">${p.name||p.apt}</div>
+      ${meta?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${meta}</div>`:''}
+    </div>`;
+  }).join('');
+}
+async function loadPropsForSwitch(){
+  try{
+    const {data,error}=await sb.from('properties').select('apt,name,bedrooms,bathrooms,max_guests').order('name');
+    if(!error && data && data.length){_allPropsForSwitch=data;renderPropSwitchList(data);return;}
+  }catch(e){}
+  // fallback to units
+  try{
+    const {data}=await sb.from('units').select('apt,name').eq('archived',false).order('apt');
+    _allPropsForSwitch=(data||[]).map(u=>({apt:u.apt,name:u.apt}));
+    renderPropSwitchList(_allPropsForSwitch);
+  }catch(e){_allPropsForSwitch=[];}
+}
+document.addEventListener('click',function(e){
+  const btn=document.getElementById('headerAptBadge');
+  const dd=document.getElementById('propSwitcherDrop');
+  if(dd&&btn&&!btn.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
+});
+// ─────────────────────────────────────────────────
+
 const SUPABASE_URL='https://iwohrvkcodqvyoooxzmt.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -727,24 +767,16 @@ const AMENITY_GROUPS=[
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const params=new URLSearchParams(location.search);
-  // Set build stamp from title
-  const psMatch = document.title.match(/v(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
-  const psStamp = document.getElementById('psBuildStamp');
-  if(psStamp && psMatch){
-    const parts = psMatch[1].split(' ');
-    const [y,mo,d] = parts[0].split('-');
-    const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    psStamp.textContent = mn[parseInt(mo)-1]+' '+parseInt(d)+' '+y+' '+parts[1];
-  }
+  // Timestamp
+  const psM=document.title.match(/v(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
+  const psEl=document.getElementById('psBuildStamp');
+  if(psEl&&psM){const[y,mo,d]=psM[1].split(' ')[0].split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];psEl.textContent=mn[+mo-1]+' '+parseInt(d)+' '+y+' '+psM[1].split(' ')[1];}
   currentApt=params.get('apt')||'';
   if(currentApt){
-    document.getElementById('headerAptBadge').textContent=currentApt;
+    document.getElementById('headerAptBadge').innerHTML=currentApt+' <span style="font-size:9px;opacity:.6;">▼</span>';
     updateAptTitles(currentApt);
-  } else {
-    document.getElementById('headerAptBadge').textContent='Select property';
-    // Auto-open the dropdown so user can pick
-    setTimeout(()=>togglePropSwitcher(), 500);
   }
+  loadPropsForSwitch();
   buildAmenitiesUI();
   await Promise.all([loadApts(),currentApt?loadSettings():Promise.resolve()]);
   document.querySelectorAll('.sidebar-item[data-tab]').forEach(el=>{el.addEventListener('click',()=>switchTab(el.dataset.tab));});
@@ -762,70 +794,9 @@ function switchTab(tab){
 }
 
 async function loadApts(){
-  // Try properties table first
-  try{
-    const {data, error}=await sb.from('properties').select('apt,name,bedrooms,bathrooms,max_guests,status,hostfully_uid').order('name');
-    if(error) throw error;
-    if(data && data.length){
-      allApts=data;
-      renderPropSwitcherList(allApts);
-      return;
-    }
-  } catch(e){
-    console.warn('properties table failed:', e.message);
-  }
-  // Fallback to units table
-  try{
-    const {data, error}=await sb.from('units').select('apt,name').eq('archived',false).order('apt');
-    if(error) throw error;
-    allApts=(data||[]).map(u=>({apt:u.apt,name:u.apt,bedrooms:null,bathrooms:null,max_guests:null}));
-  } catch(e2){
-    console.warn('units table also failed:', e2.message);
-    allApts=[];
-  }
-  renderPropSwitcherList(allApts);
+  try{const {data}=await sb.from('units').select('id,apt,name').eq('archived',false).order('apt');allApts=data||[];}
+  catch(e){allApts=[];}
 }
-
-function togglePropSwitcher(){
-  const dd=document.getElementById('propSwitcherDropdown');
-  dd.style.display=dd.style.display==='none'?'block':'none';
-  if(dd.style.display==='block') document.getElementById('propSwitcherSearch').focus();
-}
-
-function filterPropSwitcher(){
-  const q=document.getElementById('propSwitcherSearch').value.toLowerCase();
-  const filtered=allApts.filter(p=>(p.name||p.apt||'').toLowerCase().includes(q));
-  renderPropSwitcherList(filtered);
-}
-
-function renderPropSwitcherList(props){
-  const list=document.getElementById('propSwitcherList');
-  if(!list)return;
-  if(!props.length){list.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--text3);">No properties found</div>';return;}
-  list.innerHTML=props.map(p=>{
-    const isCurrent=(p.apt||p.name)===currentApt;
-    const meta=[p.max_guests?p.max_guests+' guests':null, p.bedrooms!=null?p.bedrooms+' bed':null, p.bathrooms!=null?p.bathrooms+' bath':null].filter(Boolean).join(' · ');
-    return `<div onclick="switchProperty('${(p.apt||p.name).replace(/'/g,"\'")}','${(p.name||p.apt).replace(/'/g,"\'")}') " style="padding:8px 10px;border-radius:8px;cursor:pointer;background:${isCurrent?'var(--accent-bg)':'transparent'};border:1px solid ${isCurrent?'var(--accent)':'transparent'};margin-bottom:3px;transition:all .15s;"
-      onmouseover="this.style.background='var(--accent-bg)'" onmouseout="this.style.background='${isCurrent?'var(--accent-bg)':'transparent'}'">
-      <div style="font-size:12px;font-weight:500;color:var(--accent2);">${p.name||p.apt}</div>
-      ${meta?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">${meta}</div>`:''}
-    </div>`;
-  }).join('');
-}
-
-function switchProperty(apt, name){
-  document.getElementById('propSwitcherDropdown').style.display='none';
-  window.location.href='property-settings.html?apt='+encodeURIComponent(apt);
-}
-
-// Close dropdown when clicking outside
-document.addEventListener('click', function(e){
-  const btn=document.getElementById('propSwitcherBtn');
-  const dd=document.getElementById('propSwitcherDropdown');
-  if(dd && btn && !btn.contains(e.target) && !dd.contains(e.target)){
-    dd.style.display='none';
-  }
-});
 
 async function loadSettings(){
   if(!currentApt)return;
