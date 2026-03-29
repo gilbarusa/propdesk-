@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:45</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:55</span>
     </div>
   </div>
 </header>
@@ -3915,7 +3915,7 @@ function openRDrill(typeKey, typeLabel, y, m) {
 
   // For short stay: count = all active short-stay + all available units
   const totalUnits = typeKey==='short-stay'
-    ? data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available' || !r.name)).length
+    ? data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available')).length
     : occ.length;
 
   document.getElementById('rDrillTitle').textContent = `${typeLabel} — Detail`;
@@ -3974,10 +3974,8 @@ function renderReports(){
     <div style="border-top:2px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;font-weight:500"><span style="color:var(--text2)">Total rented unit-days</span><span style="color:var(--accent2)">${totD} days <span style="color:var(--text3);font-weight:400">(${dim}-day month × ${occ.length} units = ${dim*occ.length} max)</span></span></div>`;
 
   // Collection — short stay counts available units that had archive activity this month
-  const mStr2=`${y}-${String(m+1).padStart(2,'0')}`;
-  // For short stay avg: count all active short-stay + all available units (they are short-stay capable)
-  const allShortStayUnits = data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available' || !r.name));
-  const shortStayUnitCount = allShortStayUnits.length;
+  // For short stay avg: count all active short-stay + all available units (19 + 14 = 33)
+  const shortStayUnitCount = data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available')).length;
 
   const types=[{k:'long-term',l:'Long Term'},{k:'month-to-month',l:'Month-to-Month'},{k:'short-stay',l:'Short Stay'}];
   let gE=0,gC=0,gUnits=0;
