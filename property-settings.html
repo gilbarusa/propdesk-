@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chelbourne — Property Settings | v2026-03-29 18:30</title>
+<title>Chelbourne — Property Settings | v2026-03-29 19:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -161,17 +161,17 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 </head>
 <body>
 <div class="header">
-  <div style="display:flex;flex-direction:column;line-height:1;">
+  <div style="display:flex;flex-direction:column;line-height:1.2;">
     <div class="header-brand">Chelbourne PropDesk</div>
-    <div id="psBuildStamp" style="font-size:9px;color:var(--text3);letter-spacing:.5px;margin-top:2px;"></div>
+    <div id="psBuildStamp" style="font-size:9px;color:var(--text3);letter-spacing:.5px;font-family:'DM Mono',monospace;margin-top:2px;"></div>
   </div>
   <span style="color:var(--border2);font-size:18px;">›</span>
   <div style="display:flex;align-items:center;gap:8px;position:relative;">
-    <span id="headerAptBadge" class="apt-badge" onclick="togglePropSwitcher()" style="cursor:pointer;display:flex;align-items:center;gap:5px;">— <span style="font-size:9px;opacity:.6;">▼</span></span>
+    <span id="headerAptBadge" class="apt-badge" onclick="togglePropSwitcher()" style="cursor:pointer;">— ▾</span>
     <span style="font-size:12px;color:var(--text2);">Property Settings</span>
-    <div id="propSwitcherDrop" style="display:none;position:absolute;top:34px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);min-width:260px;max-height:380px;overflow-y:auto;z-index:9999;padding:8px;">
+    <div id="propSwitcherDrop" style="display:none;position:absolute;top:34px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);min-width:260px;max-height:380px;overflow-y:auto;z-index:9999;padding:8px;">
       <div style="padding:4px 8px 6px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);">Switch Property</div>
-      <input type="text" id="propSwitchSearch" placeholder="Search…" oninput="filterPropSwitch()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;margin-bottom:4px;outline:none;box-sizing:border-box;">
+      <input type="text" id="propSwitchSearch" placeholder="Search…" oninput="filterPropSwitch()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;margin-bottom:4px;outline:none;box-sizing:border-box;background:var(--surface2);">
       <div id="propSwitchList"><div style="padding:8px;font-size:12px;color:var(--text3);">Loading…</div></div>
     </div>
   </div>
@@ -701,54 +701,47 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 </div>
 <script>
-// ── PROP SWITCHER ─────────────────────────────────
-let _allPropsForSwitch = [];
+// ── PROP SWITCHER ──────────────────────────────────
+let _allPropsSwitch=[];
 function togglePropSwitcher(){
   const dd=document.getElementById('propSwitcherDrop');
   dd.style.display=dd.style.display==='none'?'block':'none';
-  if(dd.style.display==='block'){document.getElementById('propSwitchSearch').focus();}
+  if(dd.style.display==='block') setTimeout(()=>document.getElementById('propSwitchSearch').focus(),50);
 }
 function filterPropSwitch(){
   const q=(document.getElementById('propSwitchSearch').value||'').toLowerCase();
-  renderPropSwitchList(_allPropsForSwitch.filter(p=>(p.name||p.apt||'').toLowerCase().includes(q)));
+  renderPropSwitchList(_allPropsSwitch.filter(p=>(p.name||'').toLowerCase().includes(q)));
 }
 function renderPropSwitchList(props){
   const list=document.getElementById('propSwitchList');
   if(!list)return;
   if(!props.length){list.innerHTML='<div style="padding:8px;font-size:12px;color:var(--text3);">No properties found</div>';return;}
   list.innerHTML=props.map(p=>{
-    const aptKey=p.apt||p.name;
-    const isCur=aptKey===currentApt;
+    const isCur=p.property_uid===currentUid;
     const meta=[p.max_guests?p.max_guests+' guests':null,p.bedrooms!=null?p.bedrooms+' bed':null,p.bathrooms!=null?p.bathrooms+' bath':null].filter(Boolean).join(' · ');
-    return `<div onclick="location.href='property-settings.html?apt='+encodeURIComponent('${aptKey.replace(/'/g,"\'")}')" style="padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;background:${isCur?'var(--accent-bg)':'transparent'};border:1px solid ${isCur?'var(--accent)':'transparent'};" onmouseover="this.style.background='var(--accent-bg)'" onmouseout="this.style.background='${isCur?'var(--accent-bg)':'transparent'}'">
-      <div style="font-size:12px;font-weight:500;color:var(--accent2);">${p.name||p.apt}</div>
+    return `<div onclick="location.href='property-settings.html?uid=${p.property_uid}'" style="padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;background:${isCur?'var(--accent-bg)':'transparent'};border:1px solid ${isCur?'var(--accent)':'transparent'};" onmouseover="this.style.background='var(--accent-bg)'" onmouseout="this.style.background='${isCur?'var(--accent-bg)':'transparent'}'">
+      <div style="font-size:12px;font-weight:500;color:var(--accent2);">${p.name}</div>
       ${meta?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">${meta}</div>`:''}
     </div>`;
   }).join('');
 }
 async function loadPropsForSwitch(){
   try{
-    const {data,error}=await sb.from('properties').select('apt,name,bedrooms,bathrooms,max_guests').order('name');
-    if(!error && data && data.length){_allPropsForSwitch=data;renderPropSwitchList(data);return;}
-  }catch(e){}
-  // fallback to units
-  try{
-    const {data}=await sb.from('units').select('apt,name').eq('archived',false).order('apt');
-    _allPropsForSwitch=(data||[]).map(u=>({apt:u.apt,name:u.apt}));
-    renderPropSwitchList(_allPropsForSwitch);
-  }catch(e){_allPropsForSwitch=[];}
+    const {data,error}=await sb.from('properties').select('property_uid,apt,name,bedrooms,bathrooms,max_guests').order('name');
+    if(!error&&data){_allPropsSwitch=data;renderPropSwitchList(data);}
+  }catch(e){console.warn('Could not load properties for switcher',e);}
 }
 document.addEventListener('click',function(e){
   const btn=document.getElementById('headerAptBadge');
   const dd=document.getElementById('propSwitcherDrop');
   if(dd&&btn&&!btn.contains(e.target)&&!dd.contains(e.target))dd.style.display='none';
 });
-// ─────────────────────────────────────────────────
+// ───────────────────────────────────────────────────
 
 const SUPABASE_URL='https://iwohrvkcodqvyoooxzmt.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentApt='',currentTab='main-settings',allApts=[],priceRules=[],fees=[],photos=[],bulkTargetTab='';
+let currentApt='',currentUid=null,currentPropName='',currentTab='main-settings',allApts=[],priceRules=[],fees=[],photos=[],bulkTargetTab='';
 
 const AMENITY_GROUPS=[
   {group:'Popular',items:[{key:'coffee_maker',label:'Coffee Maker'},{key:'essentials',label:'Essentials'},{key:'free_parking',label:'Free Parking'},{key:'fridge',label:'Fridge'},{key:'hair_dryer',label:'Hair Dryer'},{key:'heating',label:'Heating'},{key:'wifi',label:'Internet WiFi'},{key:'kitchen',label:'Kitchen'},{key:'microwave',label:'Microwave'},{key:'shampoo',label:'Shampoo'},{key:'tv',label:'TV'},{key:'washer',label:'Washer'}]},
@@ -767,18 +760,39 @@ const AMENITY_GROUPS=[
 
 window.addEventListener('DOMContentLoaded',async()=>{
   const params=new URLSearchParams(location.search);
-  // Timestamp
+  // Set build stamp
   const psM=document.title.match(/v(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
   const psEl=document.getElementById('psBuildStamp');
   if(psEl&&psM){const[y,mo,d]=psM[1].split(' ')[0].split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];psEl.textContent=mn[+mo-1]+' '+parseInt(d)+' '+y+' '+psM[1].split(' ')[1];}
-  currentApt=params.get('apt')||'';
-  if(currentApt){
-    document.getElementById('headerAptBadge').innerHTML=currentApt+' <span style="font-size:9px;opacity:.6;">▼</span>';
-    updateAptTitles(currentApt);
+
+  // Support both ?uid=10001 and legacy ?apt=128
+  currentUid = params.get('uid') ? parseInt(params.get('uid')) : null;
+  currentApt = params.get('apt') || '';
+
+  // If uid given, look up the property to get apt and name
+  if(currentUid){
+    try{
+      const {data} = await sb.from('properties').select('apt,name').eq('property_uid',currentUid).single();
+      if(data){ currentApt=data.apt; currentPropName=data.name; }
+    }catch(e){}
+  } else if(currentApt){
+    // Legacy: look up by apt
+    try{
+      const {data} = await sb.from('properties').select('property_uid,name').eq('apt',currentApt).single();
+      if(data){ currentUid=data.property_uid; currentPropName=data.name; }
+    }catch(e){}
   }
-  loadPropsForSwitch();
+
+  if(currentApt){
+    const displayName = currentPropName || currentApt;
+    document.getElementById('headerAptBadge').textContent = displayName + ' ▾';
+    updateAptTitles(displayName);
+  } else {
+    document.getElementById('headerAptBadge').textContent = 'Select property ▾';
+    setTimeout(()=>togglePropSwitcher(), 400);
+  }
   buildAmenitiesUI();
-  await Promise.all([loadApts(),currentApt?loadSettings():Promise.resolve()]);
+  await Promise.all([loadApts(), loadPropsForSwitch(), currentApt ? loadSettings() : Promise.resolve()]);
   document.querySelectorAll('.sidebar-item[data-tab]').forEach(el=>{el.addEventListener('click',()=>switchTab(el.dataset.tab));});
 });
 
@@ -896,7 +910,7 @@ function collectOwner(){return{collect_tax:document.querySelector('input[name="o
 // ── SAVE ───────────────────────────────────
 async function saveCurrentTab(){saveTab(currentTab);}
 async function saveTab(tab){
-  if(!currentApt){toast('No unit selected. Open via ?apt=XXX','error');return;}
+  if(!currentApt){toast('No property selected. Open from the Properties tab.','error');return;}
   let payload={};
   if(tab==='main-settings')payload={main_settings:collectMainSettings()};
   else if(tab==='descriptions')payload={descriptions:collectDescriptions()};
@@ -910,7 +924,7 @@ async function saveTab(tab){
   try{await upsertSettings(payload);toast(capitalize(tab)+' saved ✓','success');setSaveStatus('Saved '+new Date().toLocaleTimeString());}
   catch(e){toast('Save failed: '+e.message,'error');}
 }
-async function upsertSettings(payload){const{error}=await sb.from('property_settings').upsert({apt:currentApt,...payload,updated_at:new Date().toISOString()},{onConflict:'apt'});if(error)throw error;}
+async function upsertSettings(payload){const{error}=await sb.from('property_settings').upsert({apt:currentApt,property_uid:currentUid,...payload,updated_at:new Date().toISOString()},{onConflict:'apt'});if(error)throw error;}
 
 // ── BULK APPLY ─────────────────────────────
 function openBulkModal(tab){bulkTargetTab=tab;document.getElementById('bulk-section-label').textContent=capitalize(tab)+' settings';document.getElementById('bulkModal').classList.add('open');renderAptSelectList();}
