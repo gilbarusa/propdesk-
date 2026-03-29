@@ -697,6 +697,15 @@ textarea{resize:vertical;min-height:72px;}
         <div class="form-row"><label>Email</label><input type="email" id="cbEmail" placeholder="guest@email.com"></div>
       </div>
       <div class="form-row"><label>Additional Note</label><textarea id="cbNote" placeholder="Any other notes…" style="min-height:50px"></textarea></div>
+
+      <p class="section-title" style="margin-top:16px;">Payment Details <span style="font-size:10px;color:var(--text3);font-weight:400;">(optional — record payment now)</span></p>
+      <div class="form-grid">
+        <div class="form-row"><label>Amount Received</label><input type="number" id="cbPayAmount" placeholder="0.00" step="0.01" oninput="updateCbPayPreview()"></div>
+        <div class="form-row"><label>Payment Date</label><input type="date" id="cbPayDate"></div>
+      </div>
+      <div id="cbPayPreviewRow" style="display:none;margin-bottom:8px;">
+        <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--green);" id="cbPayPreview"></div>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('calBookingModal')">Cancel</button>
@@ -4383,7 +4392,7 @@ function deleteBlock(apt,from,to) {
 // ── Calendar Add Booking modal ──
 function openCalBookingModal() {
   // Clear all fields for a fresh booking
-  ['cbName','cbPhone','cbEmail','cbNote','cbRent','cbBalance','cbOwner'].forEach(id => {
+  ['cbName','cbPhone','cbEmail','cbNote','cbRent','cbBalance','cbOwner','cbPayAmount'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
   const cbChannel = document.getElementById('cbChannel');
@@ -4391,10 +4400,39 @@ function openCalBookingModal() {
   document.getElementById('cbType').value = 'short-stay';
   document.getElementById('cbCheckin').value = _calDate || today();
   document.getElementById('cbCheckout').value = '';
+  document.getElementById('cbPayDate').value = today();
+  document.getElementById('cbPayPreviewRow').style.display = 'none';
+  document.getElementById('cbPayPreview').innerHTML = '';
   // Show the apt in the modal header
   const aptLabel = document.getElementById('calBookingApt');
   if(aptLabel) aptLabel.textContent = _calApt || '';
   openModal('calBookingModal');
+}
+
+function updateCbPayPreview() {
+  const amt = parseFloat(document.getElementById('cbPayAmount').value) || 0;
+  const rent = parseFloat(document.getElementById('cbRent').value) || 0;
+  const checkin = document.getElementById('cbCheckin').value;
+  const checkout = document.getElementById('cbCheckout').value;
+  const previewRow = document.getElementById('cbPayPreviewRow');
+  const preview = document.getElementById('cbPayPreview');
+  if (!amt) { previewRow.style.display = 'none'; return; }
+  let msg = '';
+  if (rent && amt >= rent) {
+    msg = `✓ Full payment of $${amt.toLocaleString()} recorded.`;
+    if (checkin && checkout) {
+      const splits = calcProration(checkin, checkout, amt);
+      if (splits.length > 1) {
+        msg += ' Split: ' + splits.map(s=>`${s.month} $${s.portion.toLocaleString()}`).join(' · ');
+      }
+    }
+  } else if (rent && amt < rent) {
+    msg = `⚠ Partial — $${amt.toLocaleString()} of $${rent.toLocaleString()}. Balance: $${(rent-amt).toFixed(2)}`;
+  } else {
+    msg = `✓ $${amt.toLocaleString()} will be recorded as payment.`;
+  }
+  preview.innerHTML = msg;
+  previewRow.style.display = '';
 }
 
 async function saveCalBooking() {
@@ -4406,6 +4444,8 @@ async function saveCalBooking() {
   const rent    = parseFloat(document.getElementById('cbRent').value)||0;
   const balance = parseFloat(document.getElementById('cbBalance').value)||0;
   const note    = buildNoteField('cbChannel','cbChannelOther','cbPhone','cbEmail','cbNote');
+  const payAmt  = parseFloat(document.getElementById('cbPayAmount').value)||0;
+  const payDate = document.getElementById('cbPayDate').value || today();
 
   if(!name)   { toast('Tenant name required','error'); return; }
   if(!checkin){ toast('Check-in date required','error'); return; }
@@ -4416,38 +4456,38 @@ async function saveCalBooking() {
   btn.textContent = 'Saving…'; btn.disabled = true;
 
   try {
-    const histText = `$${rent.toLocaleString()} — stay (${checkin} → ${checkout})`;
     const bookingNote = note ? note + ' | cal-booking' : 'cal-booking';
 
+    // Build history — include payment entry if amount entered
+    const history = [];
+    if (payAmt > 0) {
+      history.push({ date: payDate, amt: payAmt, text: `$${payAmt.toLocaleString()} — payment` });
+    }
+    const finalBalance = payAmt > 0 ? Math.max(0, rent - payAmt) : (balance || rent);
+
     // Check if the unit already has an available/vacant active record for this apt
-    // If yes — update it instead of creating a duplicate row
     const existingAvail = data.find(r =>
       !r.archived && r.apt === _calApt &&
       (r.type === 'available' || !r.name || dueStatus(r) === 'available')
     );
 
     if(existingAvail) {
-      // Update the existing available record with booking details
       const updated = {
         ...existingAvail,
-        name, type, owner, rent, balance: 0,
+        name, type, owner, rent, balance: finalBalance,
         checkin, due: checkout, lease_end: checkout,
-        note: bookingNote,
-        history: [{date: checkin, amt: rent, text: histText}]
+        note: bookingNote, history
       };
       await save(updated);
       await auditLog('cal-booking', _calApt, name, existingAvail.id, dbRow(existingAvail), dbRow(updated));
     } else {
-      // No available record — create a new booking record
       const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
       const newId = (maxRow&&maxRow.length ? maxRow[0].id : nextId) + 1;
       nextId = newId + 1;
       const newRec = {
         id: newId, apt: _calApt, owner, name, type,
-        rent, balance: 0, checkin, due: checkout, lease_end: checkout,
-        note: bookingNote,
-        history: [{date: checkin, amt: rent, text: histText}],
-        archived: false, archived_date: null
+        rent, balance: finalBalance, checkin, due: checkout, lease_end: checkout,
+        note: bookingNote, history, archived: false, archived_date: null
       };
       const {error} = await sb.from('units').insert(dbRow(newRec));
       if(error) throw new Error(error.message);
@@ -4455,11 +4495,11 @@ async function saveCalBooking() {
     }
 
     await loadAll();
-
     closeModal('calBookingModal');
     renderCalendar();
     renderTable();
-    toast(`Booking added: ${name} @ ${_calApt} ✓`, 'success');
+    const payMsg = payAmt > 0 ? ` · $${payAmt.toLocaleString()} recorded` : '';
+    toast(`Booking added: ${name} @ ${_calApt}${payMsg} ✓`, 'success');
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   } finally {
