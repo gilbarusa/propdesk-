@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chelbourne — Property Settings | v2026-03-29 18:00</title>
+<title>Chelbourne — Property Settings | v2026-03-29 18:15</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -731,9 +731,10 @@ window.addEventListener('DOMContentLoaded',async()=>{
   const psMatch = document.title.match(/v(\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
   const psStamp = document.getElementById('psBuildStamp');
   if(psStamp && psMatch){
-    const [y,m,d] = psMatch[1].split(' ')[0].split('-');
+    const parts = psMatch[1].split(' ');
+    const [y,mo,d] = parts[0].split('-');
     const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    psStamp.textContent = 'v ' + mn[parseInt(m)-1]+' '+parseInt(d)+' '+y+' '+psMatch[1].split(' ')[1];
+    psStamp.textContent = mn[parseInt(mo)-1]+' '+parseInt(d)+' '+y+' '+parts[1];
   }
   currentApt=params.get('apt')||'';
   if(currentApt){
@@ -761,16 +762,28 @@ function switchTab(tab){
 }
 
 async function loadApts(){
+  // Try properties table first
   try{
-    const {data}=await sb.from('properties').select('apt,name,bedrooms,bathrooms,max_guests,status,hostfully_uid').order('name');
-    allApts=data||[];
-    renderPropSwitcherList(allApts);
+    const {data, error}=await sb.from('properties').select('apt,name,bedrooms,bathrooms,max_guests,status,hostfully_uid').order('name');
+    if(error) throw error;
+    if(data && data.length){
+      allApts=data;
+      renderPropSwitcherList(allApts);
+      return;
+    }
   } catch(e){
-    // fallback to units
-    try{const {data}=await sb.from('units').select('id,apt,name').eq('archived',false).order('apt');allApts=data||[];}
-    catch(e2){allApts=[];}
-    renderPropSwitcherList(allApts);
+    console.warn('properties table failed:', e.message);
   }
+  // Fallback to units table
+  try{
+    const {data, error}=await sb.from('units').select('apt,name').eq('archived',false).order('apt');
+    if(error) throw error;
+    allApts=(data||[]).map(u=>({apt:u.apt,name:u.apt,bedrooms:null,bathrooms:null,max_guests:null}));
+  } catch(e2){
+    console.warn('units table also failed:', e2.message);
+    allApts=[];
+  }
+  renderPropSwitcherList(allApts);
 }
 
 function togglePropSwitcher(){
