@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:00</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:15</span>
     </div>
   </div>
 </header>
@@ -2560,7 +2560,7 @@ function updatePayPreview(){
   const isProrate = document.getElementById('prorateCheck')?.checked;
   let msg='';
 
-  if(isProrate && r.type==='short-stay'){
+  if(isProrate && r.checkin && (r.lease_end || r.due)){
     const ci = r.checkin || r.due;
     const co = r.lease_end || r.due;
     const splits = calcProration(ci, co, amt);
