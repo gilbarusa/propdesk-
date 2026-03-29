@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chelbourne — Property Manager</title>
+<meta name="version" content="2026-03-28">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -384,8 +385,7 @@ textarea{resize:vertical;min-height:72px;}
 .auth-lbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#9e9485;margin-bottom:6px;font-family:'DM Mono',monospace;}
 .auth-inp{width:100%;background:#f7f4ef;border:1px solid #ddd8ce;border-radius:10px;padding:11px 14px;font-family:'DM Mono',monospace;font-size:13px;color:#18160f;outline:none;box-sizing:border-box;margin-bottom:15px;}
 .auth-inp:focus{border-color:#b5784a;background:#fffefb;box-shadow:0 0 0 3px rgba(181,120,74,.12);}
-#authRememberRow{display:flex;align-items:center;gap:8px;margin-bottom:18px;cursor:pointer;}
-#authRememberRow span{font-size:11px;color:#635c4e;font-family:'DM Mono',monospace;}
+
 #authBtn{width:100%;padding:13px;background:#7d5228;color:#fff;border:none;border-radius:10px;font-family:'DM Mono',monospace;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
 #authBtn:hover{background:#b5784a;}
 #authChangeLink{text-align:center;margin-top:14px;}
@@ -428,10 +428,7 @@ textarea{resize:vertical;min-height:72px;}
     <input class="auth-inp" type="text" id="authUser" placeholder="Enter username" autocomplete="username">
     <label class="auth-lbl">Password</label>
     <input class="auth-inp" type="password" id="authPass" placeholder="Enter password" autocomplete="current-password" onkeydown="if(event.key==='Enter')authLogin()">
-    <div id="authRememberRow" style="display:none">
-      <input type="checkbox" id="authRemember" style="width:15px;height:15px;cursor:pointer;">
-      <span>Keep me signed in on this device</span>
-    </div>
+
     <button id="authBtn" onclick="authLogin()">Sign In →</button>
     <div id="authChangeLink"><span onclick="openChpw()">Change Password</span></div>
   </div>
@@ -4141,16 +4138,32 @@ function renderCalendar() {
     rowDiv.style.width=(dates.length*COL_W)+'px';
 
     const aptBlocks=blocks[r.apt]||[];
+    // Build occupied date ranges for this unit
+    const occupiedRanges=[];
+    // Active tenant
+    if(r.type!=='available'&&r.name){
+      const stripDate=s=>s?String(s).substring(0,10):'';
+      const bf=stripDate(r.checkin||winStart);
+      const endCandidates=[stripDate(r.due),stripDate(r.lease_end)].filter(Boolean).sort();
+      const bt=endCandidates.length?endCandidates[endCandidates.length-1]:'';
+      if(bt) occupiedRanges.push({from:bf,to:bt});
+    }
+    // Future bookings for this apt
+    (futureBookings[r.apt]||[]).forEach(b=>occupiedRanges.push({from:b.from,to:b.to}));
+    // Past stays visible in window
+    (pastStays[r.apt]||[]).forEach(b=>occupiedRanges.push({from:b.from,to:b.to}));
+
     let cellsHtml='';
     dates.forEach(d=>{
       const dt=new Date(d+'T00:00:00'),dow=dt.getDay();
       const isWE=dow===0||dow===6,isToday=d===todayStr;
       const isBlocked=aptBlocks.some(b=>d>=b.from&&d<=b.to);
+      const isOccupied=occupiedRanges.some(b=>d>=b.from&&d<=b.to);
       let cls='cal-cell';
       if(isWE) cls+=' weekend';
       if(isToday) cls+=' today-col';
       if(isBlocked) cls+=' blocked';
-      cellsHtml+=`<div class="${cls}" onclick="onCalCellClick(${r.id},'${r.apt}','${d}')"></div>`;
+      cellsHtml+=`<div class="${cls}" onclick="onCalCellClick(${r.id},'${r.apt}','${d}',${isOccupied})"></div>`;
     });
     rowDiv.innerHTML=cellsHtml;
 
@@ -4293,18 +4306,17 @@ function renderCalendar() {
 }
 
 // ── Cell click: show action picker ──
-function onCalCellClick(unitId, apt, dateStr) {
+function onCalCellClick(unitId, apt, dateStr, isOccupied) {
   _calUnitId=unitId; _calApt=apt; _calDate=dateStr; _editingBlock=null;
-  const r=data.find(x=>x.id===unitId);
 
-  // If the cell is blank/available — go straight to Add Booking
-  const isOccupied = r && r.name && r.type !== 'available';
+  // Blank date — go straight to Add Booking
   if (!isOccupied) {
     openCalBookingModal();
     return;
   }
 
-  // Occupied — show the action menu
+  // Occupied date — show action menu
+  const r=data.find(x=>x.id===unitId);
   document.getElementById('calActionApt').textContent=apt;
   document.getElementById('calActionDate').textContent=
     (r&&r.name?r.name+' · ':'')+fmtDate(dateStr);
@@ -4809,8 +4821,9 @@ boot();
 // ══════════════════════════════════════════════════════
 //  AUTH + CLOCK
 // ══════════════════════════════════════════════════════
-const REMEMBER_KEY = 'chelbourne_admin_token';
-const INACTIVITY_MS = 60 * 60 * 1000;
+const REMEMBER_KEY   = 'chelbourne_admin_token';   // localStorage — permanent "remember me" for admin
+const SESSION_KEY    = 'chelbourne_session';          // sessionStorage — survives refresh, gone on tab close
+const INACTIVITY_MS  = 30 * 60 * 1000;               // 30 min inactivity timeout for everyone
 let _authRole = null, _authLoginRole = 'admin';
 let _inactivityTimer = null, _countdownTimer = null;
 let _passwords = { admin: 'GB8700', user: 'WP0001' };
@@ -4844,7 +4857,7 @@ function authSelectRole(role) {
   _authLoginRole = role;
   document.getElementById('tabAdmin').classList.toggle('active', role === 'admin');
   document.getElementById('tabUser').classList.toggle('active', role === 'user');
-  document.getElementById('authRememberRow').style.display = role === 'admin' ? 'flex' : 'none';
+
   document.getElementById('authUser').value = '';
   document.getElementById('authPass').value = '';
   document.getElementById('authErr').style.display = 'none';
@@ -4861,16 +4874,19 @@ async function authLogin() {
     return;
   }
   _authRole = _authLoginRole;
-  if (_authRole === 'admin' && document.getElementById('authRemember').checked)
-    localStorage.setItem(REMEMBER_KEY, 'admin_remembered');
+  // Save session so refresh keeps user logged in
+  sessionStorage.setItem(SESSION_KEY, _authRole);
+  // Admin also gets localStorage so it persists across browser sessions
+  if (_authRole === 'admin') localStorage.setItem(REMEMBER_KEY, 'admin');
   document.getElementById('authScreen').style.display = 'none';
-  if (_authRole === 'user') startInactivityTimer();
+  startInactivityTimer();
   boot();
 }
 
 function authSignOut() {
   stopInactivityTimer();
   _authRole = null;
+  sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(REMEMBER_KEY);
   document.getElementById('inactivityBanner').style.display = 'none';
   location.reload();
@@ -4933,9 +4949,25 @@ async function saveChpw() {
 
 async function authInit() {
   await loadPasswordsFromSupabase();
-  const token = localStorage.getItem(REMEMBER_KEY);
-  if (token === 'admin_remembered') { _authRole = 'admin'; boot(); }
-  else { document.getElementById('authScreen').style.display = 'flex'; }
+  // Check sessionStorage first (survives refresh, cleared on tab/browser close)
+  const session = sessionStorage.getItem(SESSION_KEY);
+  if (session) {
+    _authRole = session;
+    startInactivityTimer();
+    boot();
+    return;
+  }
+  // Check localStorage for admin persistent login
+  const stored = localStorage.getItem(REMEMBER_KEY);
+  if (stored === 'admin') {
+    _authRole = 'admin';
+    sessionStorage.setItem(SESSION_KEY, 'admin');
+    startInactivityTimer();
+    boot();
+    return;
+  }
+  // No session — show login
+  document.getElementById('authScreen').style.display = 'flex';
 }
 
 function updateHeaderClock() {
