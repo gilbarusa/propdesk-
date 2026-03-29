@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 10:30</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 10:45</span>
     </div>
   </div>
 </header>
@@ -3934,6 +3934,47 @@ function changeReportMonth(dir){reportMonth+=dir;if(reportMonth>11){reportMonth=
 
 
 // ── Report drill-down ──
+function openArchiveDrill() {
+  const d = window._archDrillData;
+  if(!d) return;
+  document.getElementById('rDrillTitle').textContent = '📦 Archive — Detail';
+  document.getElementById('rDrillSub').textContent = `${monthName(d.m, d.y)} · ${d.items.length} stays from archived units`;
+
+  const rows = d.items.sort((a,b) => (b.portion - a.portion)).map(r => `
+    <tr>
+      <td style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--accent2);">${r.apt}</td>
+      <td style="font-size:12px;">${r.name}</td>
+      <td style="font-size:11px;color:var(--text3);">${r.owner}</td>
+      <td style="text-align:right;font-size:11px;color:var(--text3);">${fmtDate(r.checkin)} → ${fmtDate(r.checkout)}</td>
+      <td style="text-align:right;">${fmtMoney(r.totalRent)}</td>
+      <td style="text-align:right;color:var(--green);">${fmtMoney(r.portion)}</td>
+      <td style="text-align:right;color:var(--text3);">${r.days}d</td>
+    </tr>`).join('');
+
+  const total = d.items.reduce((s,r) => s+r.portion, 0);
+
+  // Override the standard drill modal headers for archive
+  document.getElementById('rDrillBody').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No archived stays found</td></tr>';
+  document.getElementById('rDrillFoot').innerHTML = `<tr>
+    <td colspan="4" style="padding:10px 14px;">Total (${d.items.length} stays)</td>
+    <td style="text-align:right;padding:10px 14px;">—</td>
+    <td style="text-align:right;padding:10px 14px;color:var(--green);">${fmtMoney(total)}</td>
+    <td style="text-align:right;padding:10px 14px;color:var(--text3);">—</td>
+  </tr>`;
+
+  // Update drill modal headers for archive columns
+  document.querySelector('#rDrillModal thead tr').innerHTML = `
+    <th style="padding:10px 14px;">Apt</th>
+    <th style="padding:10px 14px;">Tenant</th>
+    <th style="padding:10px 14px;">Owner</th>
+    <th style="padding:10px 14px;text-align:right;">Stay Period</th>
+    <th style="padding:10px 14px;text-align:right;">Total Rent</th>
+    <th style="padding:10px 14px;text-align:right;">Month Portion</th>
+    <th style="padding:10px 14px;text-align:right;">Days</th>`;
+
+  openModal('rDrillModal');
+}
+
 function openRDrill(typeKey, typeLabel, y, m) {
   const mStr = `${y}-${String(m+1).padStart(2,'0')}`;
   const active = data.filter(r=>!r.archived);
@@ -4121,8 +4162,31 @@ function renderReports(){
   });
 
   if(archTotal > 0) {
-    document.getElementById('rCollBody').innerHTML += `<tr style="background:var(--surface2);">
-      <td style="color:var(--text3);font-style:italic;cursor:default;">📦 Archive (checked out this month)</td>
+    // Store archive details for drill-down
+    window._archDrillData = { units: archUnits, items: [], mStr: mStr3, y, m };
+    archived.forEach(a => {
+      if(!a.archived || a.type !== 'short-stay') return;
+      if(liveApts.has(a.apt)) return;
+      const ci = a.checkin || a.checkinDate || '';
+      const co = a.archivedDate || a.archived_date || a.lease_end || a.due || '';
+      if(!ci || !co) return;
+      const ciD = new Date(ci+'T00:00:00');
+      const coD = new Date(co+'T00:00:00');
+      if(ciD > mEnd || coD < mStart) return;
+      const key = `${a.apt}|${ci}|${co}`;
+      const splits = calcProration(ci, co, a.rent||0);
+      const thisMonth = splits.find(s => s.monthStr === mStr3);
+      if(thisMonth && thisMonth.portion > 0) {
+        window._archDrillData.items.push({
+          apt: a.apt, name: a.name||'—', owner: a.owner||'—',
+          checkin: ci, checkout: co, totalRent: a.rent||0,
+          portion: thisMonth.portion, days: thisMonth.days
+        });
+      }
+    });
+
+    document.getElementById('rCollBody').innerHTML += `<tr style="background:var(--surface2);cursor:pointer;" onclick="openArchiveDrill()">
+      <td style="color:var(--accent2);text-decoration:underline;text-underline-offset:2px;">📦 Archive (stayed in month) ↗</td>
       <td style="text-align:right;color:var(--text3);">${archUnits.size}</td>
       <td style="text-align:right;color:var(--text3);">${fmtMoney(archTotal)}</td>
       <td style="text-align:right;color:var(--green);">${fmtMoney(archTotal)}</td>
