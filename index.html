@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 18:40</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:10</span>
     </div>
   </div>
 </header>
@@ -698,14 +698,24 @@ textarea{resize:vertical;min-height:72px;}
       </div>
       <div class="form-row"><label>Additional Note</label><textarea id="cbNote" placeholder="Any other notes…" style="min-height:50px"></textarea></div>
 
-      <p class="section-title" style="margin-top:16px;">Payment Details <span style="font-size:10px;color:var(--text3);font-weight:400;">(optional — record payment now)</span></p>
+      <p class="section-title" style="margin-top:16px;">Payment Details <span style="font-size:10px;color:var(--text3);font-weight:400;">(optional)</span></p>
       <div class="form-grid">
         <div class="form-row"><label>Amount Received</label><input type="number" id="cbPayAmount" placeholder="0.00" step="0.01" oninput="updateCbPayPreview()"></div>
         <div class="form-row"><label>Payment Date</label><input type="date" id="cbPayDate"></div>
       </div>
+      <div class="form-row" id="cbProrateRow" style="display:none">
+        <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:12px;font-size:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;text-transform:none;letter-spacing:0;font-size:12px;color:var(--blue);">
+            <input type="checkbox" id="cbProrateCheck" onchange="updateCbPayPreview()" style="width:auto;margin:0;cursor:pointer;">
+            <strong>Full payment for entire stay</strong> — auto-split by month
+          </label>
+          <div id="cbProrateBreakdown" style="margin-top:8px;color:var(--text2);font-size:11px;line-height:1.8;"></div>
+        </div>
+      </div>
       <div id="cbPayPreviewRow" style="display:none;margin-bottom:8px;">
         <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--green);" id="cbPayPreview"></div>
       </div>
+      <div class="form-row"><label>Payment Note</label><input type="text" id="cbPayNote" placeholder="e.g. Cash, bank transfer…"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('calBookingModal')">Cancel</button>
@@ -4392,7 +4402,7 @@ function deleteBlock(apt,from,to) {
 // ── Calendar Add Booking modal ──
 function openCalBookingModal() {
   // Clear all fields for a fresh booking
-  ['cbName','cbPhone','cbEmail','cbNote','cbRent','cbBalance','cbOwner','cbPayAmount'].forEach(id => {
+  ['cbName','cbPhone','cbEmail','cbNote','cbRent','cbBalance','cbOwner','cbPayAmount','cbPayNote'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
   const cbChannel = document.getElementById('cbChannel');
@@ -4403,36 +4413,56 @@ function openCalBookingModal() {
   document.getElementById('cbPayDate').value = today();
   document.getElementById('cbPayPreviewRow').style.display = 'none';
   document.getElementById('cbPayPreview').innerHTML = '';
-  // Show the apt in the modal header
+  document.getElementById('cbProrateRow').style.display = 'none';
+  document.getElementById('cbProrateCheck').checked = false;
+  document.getElementById('cbProrateBreakdown').innerHTML = '';
   const aptLabel = document.getElementById('calBookingApt');
   if(aptLabel) aptLabel.textContent = _calApt || '';
   openModal('calBookingModal');
+  // Show prorate row when dates/rent change
+  ['cbCheckin','cbCheckout','cbRent'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('change', updateCbPayPreview);
+  });
 }
 
 function updateCbPayPreview() {
-  const amt = parseFloat(document.getElementById('cbPayAmount').value) || 0;
-  const rent = parseFloat(document.getElementById('cbRent').value) || 0;
-  const checkin = document.getElementById('cbCheckin').value;
+  const amt      = parseFloat(document.getElementById('cbPayAmount').value) || 0;
+  const rent     = parseFloat(document.getElementById('cbRent').value) || 0;
+  const checkin  = document.getElementById('cbCheckin').value;
   const checkout = document.getElementById('cbCheckout').value;
+  const isProrate = document.getElementById('cbProrateCheck').checked;
   const previewRow = document.getElementById('cbPayPreviewRow');
-  const preview = document.getElementById('cbPayPreview');
+  const preview    = document.getElementById('cbPayPreview');
+  const prorateRow = document.getElementById('cbProrateRow');
+  const breakdown  = document.getElementById('cbProrateBreakdown');
+
+  // Show prorate option only for short stays with both dates
+  const showProrate = checkin && checkout && checkin < checkout;
+  prorateRow.style.display = showProrate ? '' : 'none';
+
   if (!amt) { previewRow.style.display = 'none'; return; }
+
   let msg = '';
-  if (rent && amt >= rent) {
-    msg = `✓ Full payment of $${amt.toLocaleString()} recorded.`;
-    if (checkin && checkout) {
-      const splits = calcProration(checkin, checkout, amt);
-      if (splits.length > 1) {
-        msg += ' Split: ' + splits.map(s=>`${s.month} $${s.portion.toLocaleString()}`).join(' · ');
-      }
+  if (isProrate && showProrate) {
+    const splits = calcProration(checkin, checkout, amt);
+    if (splits.length) {
+      breakdown.innerHTML = splits.map(s => `${s.month}: <strong>$${s.portion.toLocaleString()}</strong> (${s.days}d)`).join('<br>');
+      msg = `✓ $${amt.toLocaleString()} split across ${splits.length} month${splits.length>1?'s':''}.`;
     }
-  } else if (rent && amt < rent) {
-    msg = `⚠ Partial — $${amt.toLocaleString()} of $${rent.toLocaleString()}. Balance: $${(rent-amt).toFixed(2)}`;
   } else {
-    msg = `✓ $${amt.toLocaleString()} will be recorded as payment.`;
+    if (rent && amt >= rent) {
+      msg = `✓ Full payment of $${amt.toLocaleString()} recorded.`;
+    } else if (rent && amt < rent) {
+      msg = `⚠ Partial — $${amt.toLocaleString()} of $${rent.toLocaleString()}. Balance: $${(rent - amt).toFixed(2)}`;
+    } else {
+      msg = `✓ $${amt.toLocaleString()} will be recorded as payment.`;
+    }
+    breakdown.innerHTML = '';
   }
+
   preview.innerHTML = msg;
-  previewRow.style.display = '';
+  previewRow.style.display = msg ? '' : 'none';
 }
 
 async function saveCalBooking() {
@@ -4446,6 +4476,8 @@ async function saveCalBooking() {
   const note    = buildNoteField('cbChannel','cbChannelOther','cbPhone','cbEmail','cbNote');
   const payAmt  = parseFloat(document.getElementById('cbPayAmount').value)||0;
   const payDate = document.getElementById('cbPayDate').value || today();
+  const payNote = document.getElementById('cbPayNote').value.trim();
+  const isProrate = document.getElementById('cbProrateCheck').checked;
 
   if(!name)   { toast('Tenant name required','error'); return; }
   if(!checkin){ toast('Check-in date required','error'); return; }
@@ -4461,7 +4493,8 @@ async function saveCalBooking() {
     // Build history — include payment entry if amount entered
     const history = [];
     if (payAmt > 0) {
-      history.push({ date: payDate, amt: payAmt, text: `$${payAmt.toLocaleString()} — payment` });
+      const histLabel = payNote ? `$${payAmt.toLocaleString()} — payment | ${payNote}` : `$${payAmt.toLocaleString()} — payment`;
+      history.push({ date: payDate, amt: payAmt, text: histLabel });
     }
     const finalBalance = payAmt > 0 ? Math.max(0, rent - payAmt) : (balance || rent);
 
