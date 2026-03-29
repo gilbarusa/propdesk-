@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:15</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:30</span>
     </div>
   </div>
 </header>
@@ -3796,7 +3796,17 @@ function expectedInMonth(r,y,m){
   const mStr=`${y}-${String(m+1).padStart(2,'0')}`;
   const isCurrent=(y===now.getFullYear()&&m===now.getMonth());
 
-  if(isCurrent) return rentedDaysInMonth(r,y,m)>0?r.rent:0;
+  if(isCurrent){
+    if(rentedDaysInMonth(r,y,m)===0) return 0;
+    // For short-stay spanning multiple months, return only this month's prorated portion
+    if(r.type==='short-stay' && r.checkin && (r.lease_end||r.due)){
+      const co = r.lease_end||r.due;
+      const splits = calcProration(r.checkin, co, r.rent);
+      const thisMonth = splits.find(s=>s.monthStr===mStr);
+      return thisMonth ? thisMonth.portion : r.rent;
+    }
+    return r.rent;
+  }
 
   // Past: check archive rows whose archived_date falls IN this month (short-stay style rows)
   const monthArchive=archived.filter(a=>
@@ -3807,7 +3817,6 @@ function expectedInMonth(r,y,m){
   if(monthArchive.length) return monthArchive.reduce((s,a)=>s+(a.rent||0),0);
 
   // Fall back: scan ALL archive rows for this tenant and sum history entries for this month
-  // (covers long-term tenants whose archived_date is move-out, not monthly)
   const tenantArchive=archived.filter(a=>
     a.apt===r.apt &&
     (a.name||'').toLowerCase()===(r.name||'').toLowerCase()
@@ -3825,9 +3834,21 @@ function collectedInMonth(r,y,m){
   const isCurrent=(y===now.getFullYear()&&m===now.getMonth());
 
   if(isCurrent){
-    // Current month: live unit history first
+    // Current month: check live history first
     const fromLive=sumHistoryForMonth(r.history,mStr);
     if(fromLive>0) return fromLive;
+    // For short-stay spanning multiple months, return prorated portion
+    if(r.type==='short-stay' && r.checkin && (r.lease_end||r.due)){
+      const co = r.lease_end||r.due;
+      const splits = calcProration(r.checkin, co, r.rent);
+      const thisMonth = splits.find(s=>s.monthStr===mStr);
+      if(thisMonth){
+        // If balance=0, fully paid; otherwise prorate the collected portion
+        if(r.balance===0) return thisMonth.portion;
+        const totalPaid = Math.max(0, r.rent - r.balance);
+        return Math.min(thisMonth.portion, totalPaid);
+      }
+    }
     return r.balance>0?Math.max(0,r.rent-r.balance):r.rent;
   }
 
