@@ -724,7 +724,14 @@ const AMENITY_GROUPS=[
 window.addEventListener('DOMContentLoaded',async()=>{
   const params=new URLSearchParams(location.search);
   currentApt=params.get('apt')||'';
-  if(currentApt){document.getElementById('headerAptBadge').textContent=currentApt;updateAptTitles(currentApt);}
+  if(currentApt){
+    document.getElementById('headerAptBadge').textContent=currentApt;
+    updateAptTitles(currentApt);
+  } else {
+    document.getElementById('headerAptBadge').textContent='Select property';
+    // Auto-open the dropdown so user can pick
+    setTimeout(()=>togglePropSwitcher(), 500);
+  }
   buildAmenitiesUI();
   await Promise.all([loadApts(),currentApt?loadSettings():Promise.resolve()]);
   document.querySelectorAll('.sidebar-item[data-tab]').forEach(el=>{el.addEventListener('click',()=>switchTab(el.dataset.tab));});
