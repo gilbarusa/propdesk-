@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:30</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 28 2026, 20:45</span>
     </div>
   </div>
 </header>
@@ -3913,10 +3913,9 @@ function openRDrill(typeKey, typeLabel, y, m) {
     rows = [...rows, ...availWithActivity];
   }
 
-  // Total units for avg denominator (all active units of this type)
+  // For short stay: count = all active short-stay + all available units
   const totalUnits = typeKey==='short-stay'
-    ? active.filter(r=>r.type==='short-stay').length + active.filter(r=>(r.type==='available'||!r.name)).filter(r=>
-        archived.some(a=>a.apt===r.apt&&a.type==='short-stay'&&(a.archived_date||a.archivedDate||'').startsWith(mStr))).length
+    ? data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available' || !r.name)).length
     : occ.length;
 
   document.getElementById('rDrillTitle').textContent = `${typeLabel} — Detail`;
@@ -3976,44 +3975,27 @@ function renderReports(){
 
   // Collection — short stay counts available units that had archive activity this month
   const mStr2=`${y}-${String(m+1).padStart(2,'0')}`;
-  // Find available units that had short-stay activity this month via archive
-  const availWithActivity = data.filter(r=>!r.archived && (r.type==='available'||!r.name)).filter(r=>{
-    return archived.some(a=>a.apt===r.apt && a.type==='short-stay' &&
-      (a.archived_date||a.archivedDate||'').startsWith(mStr2));
-  });
+  // For short stay avg: count all active short-stay + all available units (they are short-stay capable)
+  const allShortStayUnits = data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available' || !r.name));
+  const shortStayUnitCount = allShortStayUnits.length;
 
   const types=[{k:'long-term',l:'Long Term'},{k:'month-to-month',l:'Month-to-Month'},{k:'short-stay',l:'Short Stay'}];
   let gE=0,gC=0,gUnits=0;
-  // Add avg column header
   document.getElementById('rCollHead').innerHTML=`<tr><th>Type</th><th style="text-align:right">Units</th><th style="text-align:right">Expected</th><th style="text-align:right">Collected</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Avg / Unit</th></tr>`;
   document.getElementById('rCollBody').innerHTML=types.map(({k,l})=>{
-    let us=occ.filter(r=>r.type===k);
-    // For short stay: also include available units with activity + count all active short-stay units for avg
-    let totalUnitsForAvg=us.length;
-    if(k==='short-stay'){
-      totalUnitsForAvg = data.filter(r=>!r.archived && r.type==='short-stay').length + availWithActivity.length;
-    }
+    const us=occ.filter(r=>r.type===k);
+    const totalUnitsForAvg = k==='short-stay' ? shortStayUnitCount : us.length;
     const e=us.reduce((s,r)=>s+expectedInMonth(r,y,m),0);
     const c=us.reduce((s,r)=>s+collectedInMonth(r,y,m),0);
-    // Add archive revenue for available units that were occupied earlier this month
-    let archE=0,archC=0;
-    if(k==='short-stay'){
-      availWithActivity.forEach(r=>{
-        const archRows=archived.filter(a=>a.apt===r.apt&&a.type==='short-stay'&&(a.archived_date||a.archivedDate||'').startsWith(mStr2));
-        archRows.forEach(a=>{archE+=a.rent||0;archC+=a.rent||0;});
-      });
-    }
-    const totalE=e+archE, totalC=c+archC;
-    const denom=Math.max(totalUnitsForAvg,1);
-    const avg=totalC/denom;
-    gE+=totalE;gC+=totalC;gUnits+=us.length;
+    const avg = totalUnitsForAvg > 0 ? c/totalUnitsForAvg : 0;
+    gE+=e; gC+=c; gUnits+=us.length;
     const linkStyle='cursor:pointer;text-decoration:underline;text-underline-offset:2px;color:var(--accent2);';
     return`<tr style="cursor:pointer;" onclick="openRDrill('${k}','${l}',${y},${m})">
       <td style="${linkStyle}">${l} ↗</td>
       <td style="text-align:right">${totalUnitsForAvg}</td>
-      <td style="text-align:right">${fmtMoney(totalE)}</td>
-      <td style="text-align:right;color:var(--green)">${fmtMoney(totalC)}</td>
-      <td style="text-align:right;color:${totalE-totalC>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,totalE-totalC))}</td>
+      <td style="text-align:right">${fmtMoney(e)}</td>
+      <td style="text-align:right;color:var(--green)">${fmtMoney(c)}</td>
+      <td style="text-align:right;color:${e-c>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,e-c))}</td>
       <td style="text-align:right;color:var(--blue)">${fmtMoney(avg)}</td>
     </tr>`;
   }).join('');
