@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:30</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:45</span>
     </div>
   </div>
 </header>
@@ -2647,9 +2647,23 @@ async function confirmPayment(){
     const ci = r.checkin || r.due;
     const co = r.lease_end || r.due;
     const splits = calcProration(ci, co, amt);
+    const now = new Date();
+    const curMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const pastSplits    = splits.filter(s => s.monthStr <  curMonthStr);
+    const futureSplits  = splits.filter(s => s.monthStr >= curMonthStr);
+    const curSplit      = splits.find(s => s.monthStr === curMonthStr);
+
+    // Live history stores only THIS month's portion (so collectedInMonth doesn't double-count)
     r.balance = 0;
-    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — full stay paid${note ? ' | ' + note : ''}` });
+    r.history = r.history || [];
+    r.history.unshift({
+      date: dateStr,
+      amt: curSplit ? curSplit.portion : amt,
+      text: `$${amt.toLocaleString()} — full stay paid, this month: $${(curSplit ? curSplit.portion : amt).toLocaleString()}${note ? ' | ' + note : ''}`
+    });
     await save(r);
+
+    // All months get archive records (including current month for reporting)
     for(const s of splits) {
       await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
         [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days}d)` }]);
