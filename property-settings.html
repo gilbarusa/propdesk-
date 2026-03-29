@@ -162,9 +162,18 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <div class="header">
   <div class="header-brand">Chelbourne PropDesk</div>
   <span style="color:var(--border2);font-size:18px;">›</span>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <span id="headerAptBadge" class="apt-badge">—</span>
+  <div style="display:flex;align-items:center;gap:8px;position:relative;">
+    <div id="propSwitcherBtn" onclick="togglePropSwitcher()" style="display:flex;align-items:center;gap:6px;background:var(--accent-bg);border:1px solid var(--accent);color:var(--accent2);padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;user-select:none;">
+      <span id="headerAptBadge">—</span>
+      <span style="font-size:10px;opacity:.7;">▼</span>
+    </div>
     <span style="font-size:12px;color:var(--text2);">Property Settings</span>
+    <!-- Dropdown -->
+    <div id="propSwitcherDropdown" style="display:none;position:absolute;top:36px;left:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);min-width:280px;max-height:400px;overflow-y:auto;z-index:999;padding:8px;">
+      <div style="padding:8px 10px 6px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);">Switch Property</div>
+      <input type="text" id="propSwitcherSearch" placeholder="Search…" oninput="filterPropSwitcher()" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:12px;margin-bottom:6px;outline:none;background:var(--surface2);">
+      <div id="propSwitcherList"></div>
+    </div>
   </div>
   <div class="header-right">
     <a href="index.html" class="back-btn">← Back to PropDesk</a>
@@ -607,7 +616,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
               <tbody>
                 <tr>
                   <td style="font-weight:500;">ERA Holding LLC</td>
-                  <td style="color:var(--text2);">eraholdingspa@gmail.com</td>
+                  <td style="color:var(--text2);"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="523720333a3d3e363b3c3521223312353f333b3e7c313d3f">[email&#160;protected]</a></td>
                   <td style="color:var(--text3);font-size:11px;">Last login Nov 6, 2024</td>
                   <td>0%</td>
                   <td style="display:flex;gap:8px;align-items:center;"><button class="tbl-link">Settings</button><button class="tbl-link">Permissions</button><button class="btn-danger-link">Remove access</button></td>
@@ -691,7 +700,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('addFeeModal')">Cancel</button><button class="btn btn-primary" onclick="addFee()">Add Fee</button></div>
   </div>
 </div>
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const SUPABASE_URL='https://iwohrvkcodqvyoooxzmt.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
@@ -733,9 +742,58 @@ function switchTab(tab){
 }
 
 async function loadApts(){
-  try{const {data}=await sb.from('units').select('id,apt,name').eq('archived',false).order('apt');allApts=data||[];}
-  catch(e){allApts=[];}
+  try{
+    const {data}=await sb.from('properties').select('apt,name,bedrooms,bathrooms,max_guests,status,hostfully_uid').order('name');
+    allApts=data||[];
+    renderPropSwitcherList(allApts);
+  } catch(e){
+    // fallback to units
+    try{const {data}=await sb.from('units').select('id,apt,name').eq('archived',false).order('apt');allApts=data||[];}
+    catch(e2){allApts=[];}
+    renderPropSwitcherList(allApts);
+  }
 }
+
+function togglePropSwitcher(){
+  const dd=document.getElementById('propSwitcherDropdown');
+  dd.style.display=dd.style.display==='none'?'block':'none';
+  if(dd.style.display==='block') document.getElementById('propSwitcherSearch').focus();
+}
+
+function filterPropSwitcher(){
+  const q=document.getElementById('propSwitcherSearch').value.toLowerCase();
+  const filtered=allApts.filter(p=>(p.name||p.apt||'').toLowerCase().includes(q));
+  renderPropSwitcherList(filtered);
+}
+
+function renderPropSwitcherList(props){
+  const list=document.getElementById('propSwitcherList');
+  if(!list)return;
+  if(!props.length){list.innerHTML='<div style="padding:8px 10px;font-size:12px;color:var(--text3);">No properties found</div>';return;}
+  list.innerHTML=props.map(p=>{
+    const isCurrent=(p.apt||p.name)===currentApt;
+    const meta=[p.max_guests?p.max_guests+' guests':null, p.bedrooms!=null?p.bedrooms+' bed':null, p.bathrooms!=null?p.bathrooms+' bath':null].filter(Boolean).join(' · ');
+    return `<div onclick="switchProperty('${(p.apt||p.name).replace(/'/g,"\'")}','${(p.name||p.apt).replace(/'/g,"\'")}') " style="padding:8px 10px;border-radius:8px;cursor:pointer;background:${isCurrent?'var(--accent-bg)':'transparent'};border:1px solid ${isCurrent?'var(--accent)':'transparent'};margin-bottom:3px;transition:all .15s;"
+      onmouseover="this.style.background='var(--accent-bg)'" onmouseout="this.style.background='${isCurrent?'var(--accent-bg)':'transparent'}'">
+      <div style="font-size:12px;font-weight:500;color:var(--accent2);">${p.name||p.apt}</div>
+      ${meta?`<div style="font-size:10px;color:var(--text3);margin-top:2px;">${meta}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function switchProperty(apt, name){
+  document.getElementById('propSwitcherDropdown').style.display='none';
+  window.location.href='property-settings.html?apt='+encodeURIComponent(apt);
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e){
+  const btn=document.getElementById('propSwitcherBtn');
+  const dd=document.getElementById('propSwitcherDropdown');
+  if(dd && btn && !btn.contains(e.target) && !dd.contains(e.target)){
+    dd.style.display='none';
+  }
+});
 
 async function loadSettings(){
   if(!currentApt)return;
@@ -882,13 +940,4 @@ function setSaveStatus(msg){const el=document.getElementById('save-status');if(e
 function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1).replace(/-/g,' ');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 function toast(msg,type='info'){
-  const wrap=document.getElementById('toastWrap');
-  const t=document.createElement('div');
-  t.className='toast '+type;
-  t.innerHTML=(type==='success'?'✓':type==='error'?'✕':'ℹ')+' '+msg;
-  wrap.appendChild(t);
-  setTimeout(()=>t.remove(),3500);
-}
-</script>
-</body>
-</html>
+  const wrap=document.getElementById('toastWrap'
