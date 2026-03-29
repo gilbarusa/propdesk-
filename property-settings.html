@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chelbourne — Property Settings | v2026-03-29 19:30</title>
+<title>Chelbourne — Property Settings | v2026-03-29 20:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -766,39 +766,19 @@ window.addEventListener('DOMContentLoaded',async()=>{
   if(psEl&&psM){const[y,mo,d]=psM[1].split(' ')[0].split('-');const mn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];psEl.textContent=mn[+mo-1]+' '+parseInt(d)+' '+y+' '+psM[1].split(' ')[1];}
 
   // Support both ?uid=10001 and legacy ?apt=128
-  currentUid = params.get('uid') ? parseInt(params.get('uid')) : null;
+  currentUid = params.get('uid') ? params.get('uid') : null; // keep as string for Supabase eq()
   currentApt = params.get('apt') || '';
 
-  // If uid given, look up the property to get apt and name
-  if(currentUid){
-    try{
-      const {data, error} = await sb.from('properties').select('apt,name').eq('property_uid',currentUid).single();
-      if(error) console.warn('uid lookup error:', error.message);
-      if(data){ currentApt=data.apt; currentPropName=data.name; }
-      else { 
-        // fallback: use uid as display if lookup fails
-        currentPropName = 'Property ' + currentUid;
-      }
-    }catch(e){ console.warn('uid lookup failed:', e); }
-  } else if(currentApt){
-    // Legacy: look up by apt
-    try{
-      const {data, error} = await sb.from('properties').select('property_uid,name').eq('apt',currentApt).single();
-      if(error) console.warn('apt lookup error:', error.message);
-      if(data){ currentUid=data.property_uid; currentPropName=data.name; }
-    }catch(e){ console.warn('apt lookup failed:', e); }
-  }
-
-  if(currentApt || currentUid){
-    const displayName = currentPropName || currentApt || ('Property ' + currentUid);
-    document.getElementById('headerAptBadge').textContent = displayName + ' ▾';
-    updateAptTitles(displayName);
-  } else {
+  // Display will be set by loadSettings() after it resolves the property
+  if(!currentUid && !currentApt){
     document.getElementById('headerAptBadge').textContent = 'Select property ▾';
     setTimeout(()=>togglePropSwitcher(), 400);
+  } else {
+    document.getElementById('headerAptBadge').textContent = (currentApt || 'Property '+currentUid) + ' ▾';
   }
   buildAmenitiesUI();
-  await Promise.all([loadApts(), loadPropsForSwitch(), currentApt ? loadSettings() : Promise.resolve()]);
+  await Promise.all([loadApts(), loadPropsForSwitch()]);
+  if(currentUid || currentApt) await loadSettings();
   document.querySelectorAll('.sidebar-item[data-tab]').forEach(el=>{el.addEventListener('click',()=>switchTab(el.dataset.tab));});
 });
 
@@ -819,9 +799,26 @@ async function loadApts(){
 }
 
 async function loadSettings(){
-  if(!currentApt)return;
   try{
-    const {data}=await sb.from('property_settings').select('*').eq('apt',currentApt).single();
+    // Step 1: if we have uid but no apt, resolve apt from properties table
+    if(currentUid && !currentApt){
+      const {data,error}=await sb.from('properties').select('apt,name').eq('property_uid',currentUid).single();
+      if(error) throw new Error('Property lookup failed (uid='+currentUid+'): '+error.message);
+      if(data){ currentApt=data.apt; currentPropName=data.name||data.apt; }
+    } else if(currentApt && !currentUid){
+      const {data}=await sb.from('properties').select('property_uid,name').eq('apt',currentApt).single();
+      if(data){ currentUid=String(data.property_uid); currentPropName=data.name||currentApt; }
+    }
+    if(!currentApt){ toast('Property not found','error'); return; }
+
+    // Update header display
+    const displayName=currentPropName||currentApt;
+    document.getElementById('headerAptBadge').textContent=displayName+' ▾';
+    updateAptTitles(displayName);
+
+    // Step 2: load property_settings by apt
+    const {data,error}=await sb.from('property_settings').select('*').eq('apt',currentApt).single();
+    if(error && error.code!=='PGRST116') console.warn('property_settings:',error.message);
     if(!data){renderPhotos();return;}
     if(data.main_settings)populateMainSettings(data.main_settings);
     if(data.descriptions)populateDescriptions(data.descriptions);
@@ -833,7 +830,11 @@ async function loadSettings(){
     photos=data.photos||[];renderPhotos();
     priceRules=(data.pricing||{}).rules||[];renderPriceRules();
     fees=(data.fees_policies||{}).fees||[];renderFeesTable();
-  }catch(e){renderPhotos();}
+  }catch(e){
+    console.error('loadSettings failed:',e);
+    toast('Load failed: '+e.message,'error');
+    renderPhotos();
+  }
 }
 
 // ── MAIN SETTINGS ──────────────────────────
