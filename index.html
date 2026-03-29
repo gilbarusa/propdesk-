@@ -4382,16 +4382,19 @@ function deleteBlock(apt,from,to) {
 
 // ── Calendar Add Booking modal ──
 function openCalBookingModal() {
-  // Use the standard edit modal — same form, same flow, no duplicates
-  if(_calUnitId) {
-    openEditModal(_calUnitId);
-    // Pre-fill checkin with the clicked date if unit is available
-    const r=data.find(x=>x.id===_calUnitId);
-    if(r && (r.type==='available' || !r.name)) {
-      document.getElementById('fCheckin').value = _calDate || today();
-      document.getElementById('fType').value = 'short-stay';
-    }
-  }
+  // Clear all fields for a fresh booking
+  ['cbName','cbPhone','cbEmail','cbNote','cbRent','cbBalance','cbOwner'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  const cbChannel = document.getElementById('cbChannel');
+  if(cbChannel) cbChannel.value = cbChannel.options[0]?.value || '';
+  document.getElementById('cbType').value = 'short-stay';
+  document.getElementById('cbCheckin').value = _calDate || today();
+  document.getElementById('cbCheckout').value = '';
+  // Show the apt in the modal header
+  const aptLabel = document.getElementById('calBookingApt');
+  if(aptLabel) aptLabel.textContent = _calApt || '';
+  openModal('calBookingModal');
 }
 
 async function saveCalBooking() {
