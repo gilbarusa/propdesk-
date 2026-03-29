@@ -473,7 +473,7 @@ textarea{resize:vertical;min-height:72px;}
     <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
       <button class="btn btn-primary" onclick="openAddModal()">＋ Add Unit</button>
-      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 09:45</span>
+      <span style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;">updated Mar 29 2026, 10:00</span>
     </div>
   </div>
 </header>
@@ -4082,6 +4082,47 @@ function renderReports(){
   if(unclassified.length>0){
     document.getElementById('rCollBody').innerHTML+=`<tr style="opacity:.7"><td style="color:var(--text3);font-style:italic">Other/Unclassified</td><td style="text-align:right;color:var(--text3)">${unclassified.length}</td><td colspan="4" style="text-align:right;font-size:11px;color:var(--text3)">${unclassified.map(r=>r.apt).join(', ')}</td></tr>`;
   }
+  // ── Archive row: stays that had ANY day in this month ──
+  const mStart = new Date(y, m, 1);
+  const mEnd   = new Date(y, m+1, 0); // last day of month
+  const mStr3  = `${y}-${String(m+1).padStart(2,'0')}`;
+
+  let archTotal = 0;
+  const archUnits = new Set();
+  archived.forEach(a => {
+    if(!a.archived) return;
+    const ci = a.checkin || a.checkinDate || '';
+    const co = a.archivedDate || a.archived_date || a.lease_end || a.due || '';
+    if(!ci && !co) return;
+    const ciD = ci ? new Date(ci+'T00:00:00') : null;
+    const coD = co ? new Date(co+'T00:00:00') : null;
+    // Overlaps with month if: checkin <= month end AND checkout >= month start
+    const overlaps = (!ciD || ciD <= mEnd) && (!coD || coD >= mStart);
+    if(!overlaps) return;
+    // Calculate prorated portion for this month
+    const stayStart = ciD || mStart;
+    const stayEnd   = coD || mEnd;
+    const totalDays = Math.max(1, Math.round((stayEnd - stayStart) / 86400000));
+    const monthStart2 = stayStart > mStart ? stayStart : mStart;
+    const monthEnd2   = stayEnd < mEnd ? stayEnd : mEnd;
+    const daysInRange = Math.max(0, Math.round((monthEnd2 - monthStart2) / 86400000) + 1);
+    const portion = Math.round((a.rent||0) * daysInRange / totalDays * 100) / 100;
+    archTotal += portion;
+    archUnits.add(a.apt);
+  });
+
+  if(archTotal > 0) {
+    document.getElementById('rCollBody').innerHTML += `<tr style="background:var(--surface2);">
+      <td style="color:var(--text3);font-style:italic;cursor:default;">📦 Archive (checked out this month)</td>
+      <td style="text-align:right;color:var(--text3);">${archUnits.size}</td>
+      <td style="text-align:right;color:var(--text3);">${fmtMoney(archTotal)}</td>
+      <td style="text-align:right;color:var(--green);">${fmtMoney(archTotal)}</td>
+      <td style="text-align:right;color:var(--text3);">$0</td>
+      <td style="text-align:right;color:var(--text3);">—</td>
+    </tr>`;
+    gE += archTotal; gC += archTotal;
+  }
+
   const totalUnitsDisplay = active.length;
   document.getElementById('rCollBody').innerHTML+=`<tr class="total-row"><td>Total</td><td style="text-align:right">${totalUnitsDisplay}</td><td style="text-align:right">${fmtMoney(gE)}</td><td style="text-align:right;color:var(--green)">${fmtMoney(gC)}</td><td style="text-align:right;color:${gE-gC>0?'var(--red)':'var(--text3)'}">${fmtMoney(Math.max(0,gE-gC))}</td><td style="text-align:right;color:var(--blue)">${fmtMoney(totalAvg)}</td></tr>`;
 
