@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-29 23:45</title>
+<title>Willow — Property Manager | v2026-03-30 00:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -3376,28 +3376,51 @@ async function runBackup() {
   btns.forEach(b => { if(b){ b.innerHTML='⏳ Backing up…'; b.disabled=true; b.style.opacity='0.7'; } });
 
   try {
-    // Fetch ALL records from Supabase
-    let allRows = [];
+    // ── Fetch ALL tables ──
+    // 1. units (paginated)
+    let unitsRows = [];
     const pageSize = 500;
     let page = 0;
     while(true) {
       const from = page * pageSize, to = from + pageSize - 1;
       const {data:rows, error} = await sb.from('units').select('*').order('id').range(from, to);
-      if(error) throw new Error(error.message);
+      if(error) throw new Error('units: ' + error.message);
       if(!rows || rows.length === 0) break;
-      allRows = allRows.concat(rows);
+      unitsRows = unitsRows.concat(rows);
       if(rows.length < pageSize) break;
       page++;
     }
 
+    // 2. properties
+    const {data:propertiesRows, error:pErr} = await sb.from('properties').select('*').order('property_uid');
+    if(pErr) console.warn('properties backup skipped:', pErr.message);
+
+    // 3. property_settings
+    const {data:settingsRows, error:sErr} = await sb.from('property_settings').select('*').order('apt');
+    if(sErr) console.warn('property_settings backup skipped:', sErr.message);
+
+    // 4. audit_log (last 500)
+    const {data:auditRows, error:aErr} = await sb.from('audit_log').select('*').order('created_at', {ascending:false}).limit(500);
+    if(aErr) console.warn('audit_log backup skipped:', aErr.message);
+
+    const snapshot = {
+      backed_up_at: new Date().toISOString(),
+      units:             unitsRows,
+      properties:        propertiesRows || [],
+      property_settings: settingsRows  || [],
+      audit_log:         auditRows     || []
+    };
+
+    const totalRecords = unitsRows.length + (propertiesRows||[]).length + (settingsRows||[]).length;
+
     // ── Save snapshot to Supabase backups table ──
     const { error: bErr } = await sb.from('backups').insert({
-      record_count: allRows.length,
-      snapshot: allRows
+      record_count: totalRecords,
+      snapshot: snapshot
     });
     if (bErr) throw new Error('Supabase save failed: ' + bErr.message);
 
-    // ── Enforce 10-backup cap: delete oldest if over limit ──
+    // ── Enforce 10-backup cap ──
     const { data: allBackups, error: listErr } = await sb
       .from('backups').select('id').order('created_at', { ascending: true });
     if (!listErr && allBackups && allBackups.length > 10) {
@@ -3405,10 +3428,30 @@ async function runBackup() {
       await sb.from('backups').delete().in('id', toDelete);
     }
 
-    // ── Save timestamp to localStorage as well ──
+    // ── Also download a local .sql file ──
+    const sqlLines = [
+      `-- Willow PropDesk Full Backup — ${new Date().toLocaleString()}`,
+      `-- units: ${unitsRows.length} | properties: ${(propertiesRows||[]).length} | property_settings: ${(settingsRows||[]).length}`,
+      '',
+      '-- UNITS',
+      ...unitsRows.map(r => `INSERT INTO units (${Object.keys(r).join(',')}) VALUES (${Object.values(r).map(v=>v===null?'NULL':typeof v==='object'?`'${JSON.stringify(v).replace(/'/g,"''")}'`:`'${String(v).replace(/'/g,"''")}'`).join(',')}) ON CONFLICT (id) DO NOTHING;`),
+      '',
+      '-- PROPERTIES',
+      ...(propertiesRows||[]).map(r => `INSERT INTO properties (${Object.keys(r).join(',')}) VALUES (${Object.values(r).map(v=>v===null?'NULL':typeof v==='object'?`'${JSON.stringify(v).replace(/'/g,"''")}'`:`'${String(v).replace(/'/g,"''")}'`).join(',')}) ON CONFLICT (apt) DO NOTHING;`),
+      '',
+      '-- PROPERTY_SETTINGS',
+      ...(settingsRows||[]).map(r => `INSERT INTO property_settings (${Object.keys(r).join(',')}) VALUES (${Object.values(r).map(v=>v===null?'NULL':typeof v==='object'?`'${JSON.stringify(v).replace(/'/g,"''")}'`:`'${String(v).replace(/'/g,"''")}'`).join(',')}) ON CONFLICT (apt) DO NOTHING;`)
+    ];
+    const blob = new Blob([sqlLines.join('
+')], {type:'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `willow-backup-${new Date().toISOString().slice(0,10)}.sql`;
+    a.click();
+
     localStorage.setItem(BACKUP_KEY, Date.now().toString());
     await checkBackupStatus();
-    toast(`✓ Backup saved to Supabase — ${allRows.length} records`, 'success');
+    toast(`✓ Backup complete — ${unitsRows.length} units, ${(propertiesRows||[]).length} properties, ${(settingsRows||[]).length} settings`, 'success');
 
   } catch(e) {
     console.error('Backup failed:', e);
