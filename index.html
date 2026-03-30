@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chelbourne — Property Manager | v2026-03-29 23:00</title>
+<title>Chelbourne — Property Manager | v2026-03-29 23:15</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -3097,7 +3097,20 @@ async function loadProperties() {
       .select('*')
       .order('name', { ascending: true });
     if (error) throw error;
-    propertiesData = rows || [];
+
+    // Also load public names from property_settings descriptions
+    const { data: settings } = await sb
+      .from('property_settings')
+      .select('apt, descriptions');
+    const settingsMap = {};
+    (settings||[]).forEach(s => {
+      if(s.descriptions?.name) settingsMap[s.apt] = s.descriptions.name;
+    });
+
+    propertiesData = (rows || []).map(p => ({
+      ...p,
+      public_name: settingsMap[p.apt] || null
+    }));
   } catch(e) {
     console.warn('properties table not found, using units data as fallback', e);
     // Fallback: derive property list from the units table (active, unique apts)
@@ -3202,7 +3215,7 @@ function renderPropertyList(props) {
     const metaParts = [guests, beds, baths].filter(Boolean);
     const publicName = p.public_name || null;
     const thumbHtml = p.photo_url
-      ? `<img src="${p.photo_url}" alt="${p.name}" loading="lazy">`
+      ? `<img src="${p.photo_url}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.parentNode.innerHTML='<span class=\"prop-thumb-icon\">🏠</span>'">`
       : `<span class="prop-thumb-icon">🏠</span>`;
     const rawAddr = typeof p.address === 'object' && p.address
       ? (p.address.street || p.address.address1 || p.address.line1 || '')
@@ -3214,8 +3227,8 @@ function renderPropertyList(props) {
       <div class="prop-thumb">${thumbHtml}</div>
       <div class="prop-info">
         <div class="prop-name">${p.name || p.apt || '—'}</div>
-        ${publicName ? `<div style="font-size:11px;color:var(--accent);margin-bottom:2px;font-style:italic;">${publicName}</div>` : ''}
-        ${addrLine ? `<div class="prop-address">${addrLine}</div>` : ''}
+        ${publicName ? `<div style="font-size:12px;color:var(--accent2);font-weight:500;margin-bottom:3px;">${publicName}</div>` : `${addrLine ? `<div class="prop-address">${addrLine}</div>` : ''}`}
+        ${publicName && addrLine ? `<div class="prop-address">${addrLine}</div>` : ''}
         ${metaParts.length ? `<div class="prop-meta">${metaParts.map(m=>`<span class="prop-meta-item">⬩ ${m}</span>`).join('')}</div>` : ''}
         <div class="prop-tags">
           ${(p.tags||[]).map(t=>`<span class="prop-tag">${t}</span>`).join('')}
