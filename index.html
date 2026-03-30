@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-29 23:30</title>
+<title>Willow — Property Manager | v2026-03-29 23:45</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -374,21 +374,27 @@ textarea{resize:vertical;min-height:72px;}
 
 /* ═══ PROPERTIES PAGE CSS ═══ */
 .prop-wrap{padding:0 0 40px;}
-.prop-header{
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
-  padding:20px 32px 16px;background:var(--surface);border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:100;box-shadow:var(--shadow);
+/* Properties page — sidebar layout */
+.prop-wrap{display:flex;min-height:calc(100vh - var(--header-h) - 48px);}
+.prop-sidebar{
+  width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);
+  padding:16px 12px;display:flex;flex-direction:column;gap:8px;
+  position:sticky;top:48px;height:calc(100vh - var(--header-h) - 48px);overflow-y:auto;
 }
-.prop-title-block{display:flex;align-items:baseline;gap:12px;}
-.prop-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--accent2);}
-.prop-count{font-family:'DM Mono',monospace;font-size:12px;color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px 10px;}
-.prop-header-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.prop-search-wrap{position:relative;min-width:200px;}
+.prop-sidebar-section{font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);padding:4px 4px 2px;margin-top:4px;}
+.prop-search-wrap{position:relative;width:100%;}
 .prop-search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;}
-.prop-search-wrap input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px 8px 32px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:all .2s;box-shadow:var(--shadow);}
+.prop-search-wrap input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px 8px 32px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;transition:all .2s;box-shadow:var(--shadow);box-sizing:border-box;}
 .prop-search-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(181,120,74,.12);}
-.prop-filter-sel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;cursor:pointer;box-shadow:var(--shadow);}
-.prop-showing{padding:10px 32px;font-size:11px;color:var(--text3);background:var(--bg);border-bottom:1px solid var(--border);text-align:right;}
+.prop-filter-sel{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);outline:none;cursor:pointer;box-shadow:var(--shadow);}
+.prop-filter-sel:focus{border-color:var(--accent);}
+.prop-sidebar-btns{display:flex;flex-direction:column;gap:6px;margin-top:4px;}
+.prop-main{flex:1;min-width:0;padding:0;}
+.prop-count{font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);padding:8px 20px;border-bottom:1px solid var(--border);text-align:right;background:var(--bg);}
+.prop-showing{padding:8px 20px;font-size:11px;color:var(--text3);background:var(--bg);border-bottom:1px solid var(--border);text-align:right;}
+.prop-list{padding:12px 16px;display:flex;flex-direction:column;gap:0;}
+/* hide old header */
+.prop-header{display:none;}
 .prop-list{padding:0 32px;margin-top:8px;display:flex;flex-direction:column;gap:0;}
 
 /* Property row — matches Hostfully layout */
@@ -438,9 +444,11 @@ textarea{resize:vertical;min-height:72px;}
 .prop-empty{text-align:center;padding:60px 20px;color:var(--text3);}
 
 @media(max-width:768px){
-  .prop-header{padding:14px 16px;}
+  .prop-sidebar{width:100%;height:auto;position:relative;top:0;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--border);}
+  .prop-wrap{flex-direction:column;}
   .prop-list{padding:0 12px;}
   .prop-showing{padding:8px 16px;}
+  .prop-list{padding:8px 12px;}
   .prop-mid{display:none;}
 }
 
@@ -5775,41 +5783,46 @@ setInterval(updateHeaderClock, 1000);
 <!-- ═══ PROPERTIES PAGE ═══ -->
 <div class="page" id="page-properties">
   <div class="prop-wrap">
-    <div class="prop-header">
-      <div class="prop-title-block">
+    <div class="prop-sidebar">
+      <div class="prop-search-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="propSearch" placeholder="Property name or UID…" oninput="filterProperties()">
+      </div>
+      <div class="prop-sidebar-section">Type</div>
+      <select id="propTypeFilter" onchange="filterProperties()" class="prop-filter-sel">
+        <option value="short-stay">Short Stay</option>
+        <option value="">All Units</option>
+        <option value="long-term">Long Term</option>
+        <option value="month-to-month">Month-to-Month</option>
+      </select>
+      <div class="prop-sidebar-section">Status</div>
+      <select id="propStatusFilter" onchange="filterProperties()" class="prop-filter-sel">
+        <option value="Active">Active</option>
+        <option value="">All Statuses</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+      <div class="prop-sidebar-section">Owner</div>
+      <select id="propOwnerFilter" onchange="filterProperties()" class="prop-filter-sel">
+        <option value="">All Owners</option>
+      </select>
+      <div class="prop-sidebar-btns">
+        <button class="btn btn-primary btn-sm" style="justify-content:center;" onclick="openAddPropertyModal()">＋ Add Property</button>
+        <button class="btn btn-secondary btn-sm" style="justify-content:center;" onclick="syncPropertiesFromHostfully()">🔄 Sync</button>
+      </div>
+      <div style="margin-top:auto;padding-top:12px;">
         <span class="prop-count" id="propCountBadge"></span>
       </div>
-      <div class="prop-header-right">
-        <div class="prop-search-wrap">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" id="propSearch" placeholder="Property name or UID…" oninput="filterProperties()">
-        </div>
-        <select id="propTypeFilter" onchange="filterProperties()" class="prop-filter-sel">
-          <option value="short-stay">Short Stay</option>
-          <option value="">All Units</option>
-          <option value="long-term">Long Term</option>
-          <option value="month-to-month">Month-to-Month</option>
-        </select>
-        <select id="propStatusFilter" onchange="filterProperties()" class="prop-filter-sel">
-          <option value="Active">Active</option>
-          <option value="">All Statuses</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-        <select id="propOwnerFilter" onchange="filterProperties()" class="prop-filter-sel">
-          <option value="">All Owners</option>
-        </select>
-        <button class="btn btn-secondary btn-sm" onclick="syncPropertiesFromHostfully()" title="Sync from Hostfully API">🔄 Sync</button>
-        <button class="btn btn-primary btn-sm" onclick="openAddPropertyModal()">＋ Add Property</button>
+    </div>
+    <div class="prop-main">
+      <div class="prop-showing" id="propShowing">Loading properties…</div>
+      <div id="propList" class="prop-list"></div>
+      <div id="propEmpty" class="prop-empty" style="display:none">
+        <div style="font-size:36px;margin-bottom:12px;">🏘</div>
+        <div style="font-size:15px;font-weight:600;color:var(--accent2);margin-bottom:6px;">No properties found</div>
+        <div style="font-size:12px;color:var(--text3);">Try adjusting your search or filters</div>
       </div>
-    </div>
-    <div class="prop-showing" id="propShowing">Loading properties…</div>
-    <div id="propList" class="prop-list"></div>
-    <div id="propEmpty" class="prop-empty" style="display:none">
-      <div style="font-size:36px;margin-bottom:12px;">🏘</div>
-      <div style="font-size:15px;font-weight:600;color:var(--accent2);margin-bottom:6px;">No properties found</div>
-      <div style="font-size:12px;color:var(--text3);">Try adjusting your search or filters</div>
-    </div>
-  </div>
+    </div><!-- end prop-main -->
+  </div><!-- end prop-wrap -->
 </div>
 
 <!-- ADD/EDIT PROPERTY MODAL -->
