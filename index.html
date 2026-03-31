@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-30 11:30</title>
+<title>Willow — Property Manager | v2026-03-30 12:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -2602,7 +2602,7 @@ async function saveTenant(){
     note:buildNoteField('fChannel','fChannelOther','fPhone','fEmail','fNote')
   };
   if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}
-  else{const newRec={id:nextId++,...rec,history:[],archived:false};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}
+  else{const newId=nextId++;const newRec={id:newId,...rec,history:[],archived:false,booking_id:'BK-'+newId};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}
   closeModal('editModal');renderTable();
 }
 
@@ -2872,7 +2872,8 @@ async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyE
       checkin: r.checkin || '',
       note: `${r.name} — ${monthLabel} — $${monthAmt.toLocaleString()}${note ? ' | ' + note : ''}`,
       history: historyEntries,
-      archived: true, archived_date: `${monthStr}-01`
+      archived: true, archived_date: `${monthStr}-01`,
+      booking_id: r.booking_id || ('BK-' + r.id)
     };
     await save(archRec);
     archived.unshift({ ...archRec, archivedDate: `${monthStr}-01`, checkinDate: r.checkin || '' });
@@ -3106,15 +3107,21 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
   // Rent display — for short stays, read from actual archive records
   let rentDisplay = r.rent ? `$${r.rent.toLocaleString()}` : '—';
   if(r.type === 'short-stay' && r.checkin && (r.lease_end || r.due)){
-    // Find all archive records for this tenant/apt
-    const checkinYM = (r.checkin||'').substring(0,7);
-    const archRecords = archived.filter(a =>
-      a.apt === r.apt &&
-      (a.name||'').trim().toLowerCase() === (r.name||'').trim().toLowerCase() &&
-      a.archived_date && a.archived_date.substring(0,7) >= checkinYM
-    ).sort((a,b) => (a.archived_date||'').localeCompare(b.archived_date||''));
-
-    console.log('archRecords for', r.apt, r.name, ':', archRecords.length, archRecords.map(a=>({id:a.id,name:a.name,archived_date:a.archived_date,rent:a.rent})));
+    // Find all archive records using booking_id (reliable) or fallback to apt+name
+    let archRecords = [];
+    if(r.booking_id){
+      archRecords = archived.filter(a =>
+        a.booking_id === r.booking_id && a.archived_date
+      ).sort((a,b) => (a.archived_date||'').localeCompare(b.archived_date||''));
+    }
+    if(!archRecords.length){
+      const checkinYM = (r.checkin||'').substring(0,7);
+      archRecords = archived.filter(a =>
+        a.apt === r.apt &&
+        (a.name||'').trim().toLowerCase() === (r.name||'').trim().toLowerCase() &&
+        a.archived_date && a.archived_date.substring(0,7) >= checkinYM
+      ).sort((a,b) => (a.archived_date||'').localeCompare(b.archived_date||''));
+    }
     // Also include current live month
     const liveTotal = r.rent || 0;
     const grandTotal = Math.round((archRecords.reduce((s,a)=>s+(a.rent||0),0) + liveTotal)*100)/100;
@@ -5264,6 +5271,7 @@ async function saveCalBooking() {
 
   try {
     const bookingNote = note ? note + ' | cal-booking' : 'cal-booking';
+    const calBookingId = 'BK-cal-' + Date.now();
 
     // Build history — include payment entry if amount entered
     const history = [];
@@ -5295,7 +5303,8 @@ async function saveCalBooking() {
       const newRec = {
         id: newId, apt: _calApt, owner, name, type,
         rent, balance: finalBalance, checkin, due: checkout, lease_end: checkout,
-        note: bookingNote, history, archived: false, archived_date: null
+        note: bookingNote, history, archived: false, archived_date: null,
+        booking_id: 'BK-' + newId
       };
       const {error} = await sb.from('units').insert(dbRow(newRec));
       if(error) throw new Error(error.message);
