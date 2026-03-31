@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-30 09:00</title>
+<title>Willow — Property Manager | v2026-03-30 10:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -2709,47 +2709,67 @@ async function confirmPayment(){
     const ci           = r.checkin || r.due || '';
     const origCheckout = r.lease_end || r.due || '';
     const newCO        = (payType === 'extend' && newCheckout) ? newCheckout : origCheckout;
-    const checkinMonth = ci.substring(0, 7);
-    const newCOMonth   = newCO.substring(0, 7);
-
-    // Stay crosses months if checkin month differs from final checkout month
-    const crossesMonth = checkinMonth < newCOMonth;
+    const now          = new Date();
+    const curMonthStr  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
     // Add this payment to live history
     r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — payment${note ? ' | ' + note : ''}` });
 
-    // Total ever paid on this unit = all history entries with amt
-    const totalPaid = Math.round(r.history.reduce((s, h) => s + (typeof h.amt === 'number' ? h.amt : 0), 0) * 100) / 100;
+    if(payType === 'extend' && newCheckout) {
+      // ── EXTENSION PAYMENT ──────────────────────────────────────
+      // Only prorate the NEW payment across the new portion of the stay
+      // Previous months are already archived — don't recalculate them
+      const extSplits = calcProration(origCheckout, newCO, amt);
+      const pastExt   = extSplits.filter(s => s.monthStr < curMonthStr);
+      const currExt   = extSplits.filter(s => s.monthStr >= curMonthStr);
+      const currTotal = Math.round(currExt.reduce((s,x)=>s+x.portion,0)*100)/100;
 
-    if(!crossesMonth) {
-      // ── Pure same-month stay: accumulate, no archive ──
-      r.rent    = totalPaid;
-      r.balance = Math.max(0, (r.balance || 0) - amt);
-      if(payType === 'extend') { r.lease_end = newCO; r.due = newCO; }
+      // Archive any past-month portions of the extension
+      for(const s of pastExt) {
+        await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
+          [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — extension ${s.month} (${s.days}d)` }]);
+      }
+
+      // Also archive the month BEFORE the extension if it's now past
+      // (e.g. March portion of original stay → archive)
+      const origSplits = calcProration(ci, origCheckout, r.rent);
+      for(const s of origSplits) {
+        if(s.monthStr < curMonthStr) {
+          await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
+            [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days}d of original stay)` }]);
+        }
+      }
+
+      r.lease_end = newCO;
+      r.due       = newCO;
+      // Live rent = current month portion of extension (the new days only)
+      r.rent      = currTotal > 0 ? currTotal : amt;
+      r.balance   = Math.max(0, (r.balance || 0) - amt);
       await save(r);
 
     } else {
-      // ── Stay spans months: prorate across all months ──
-      if(payType === 'extend') { r.lease_end = newCO; r.due = newCO; }
-      const splits     = calcProration(ci, newCO, totalPaid);
-      const now        = new Date();
-      const curMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      // ── REGULAR PAYMENT (no extension) ──────────────────────
+      const totalPaid    = Math.round(r.history.reduce((s,h)=>s+(typeof h.amt==='number'?h.amt:0),0)*100)/100;
+      const crossesMonth = ci.substring(0,7) < newCO.substring(0,7);
 
-      // Past months → archive; current/future months → stay live
-      const pastSplits    = splits.filter(s => s.monthStr <  curMonthStr);
-      const currentSplits = splits.filter(s => s.monthStr >= curMonthStr);
-      const currentTotal  = Math.round(currentSplits.reduce((s, x) => s + x.portion, 0) * 100) / 100;
-
-      // Archive all past months (upsert — replaces if already there)
-      for(const s of pastSplits) {
-        await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note, [...r.history]);
+      if(!crossesMonth) {
+        r.rent    = totalPaid;
+        r.balance = Math.max(0, (r.balance || 0) - amt);
+        await save(r);
+      } else {
+        const splits      = calcProration(ci, newCO, totalPaid);
+        const pastSplits  = splits.filter(s => s.monthStr < curMonthStr);
+        const currSplits  = splits.filter(s => s.monthStr >= curMonthStr);
+        const currTotal   = Math.round(currSplits.reduce((s,x)=>s+x.portion,0)*100)/100;
+        for(const s of pastSplits) {
+          await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
+            [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days}d)` }]);
+        }
+        r.rent    = currTotal;
+        r.balance = Math.max(0, currTotal - (totalPaid - pastSplits.reduce((s,x)=>s+x.portion,0)));
+        r.balance = Math.max(0, r.balance);
+        await save(r);
       }
-
-      // Live unit shows only current month prorated amount
-      r.rent    = currentTotal;
-      r.balance = Math.max(0, currentTotal - (totalPaid - pastSplits.reduce((s,x)=>s+x.portion,0)));
-      r.balance = Math.max(0, r.balance);
-      await save(r);
     }
 
   } else if(isProrate) {
@@ -3078,13 +3098,16 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
   // Rent display — full amount for short stays with monthly breakdown
   let rentDisplay = r.rent?`$${r.rent.toLocaleString()}`:'—';
   if(r.type==='short-stay'&&r.rent&&r.checkin&&(r.lease_end||r.due)){
-    const splits=calcProration(r.checkin, r.lease_end||r.due, r.rent);
+    // Total paid = sum of all history entries
+  const totalPaidAll = Math.round((r.history||[]).reduce((s,h)=>s+(typeof h.amt==='number'?h.amt:0),0)*100)/100;
+  const displayRent = r.type==='short-stay' && totalPaidAll > r.rent ? totalPaidAll : r.rent;
+  const splits=calcProration(r.checkin, r.lease_end||r.due, displayRent);
     if(splits.length>1){
       const breakdown=splits.map(s=>`${s.month}: $${s.portion.toLocaleString()} (${s.days}d)`).join(' &middot; ');
       rentDisplay=`$${r.rent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Rent / Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
   // Delete button — available for any booking (not permanent long-term leases)
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
