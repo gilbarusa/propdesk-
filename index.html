@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-30 08:00</title>
+<title>Willow — Property Manager | v2026-03-30 08:30</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -2397,9 +2397,16 @@ function monthName(m,y){return new Date(y,m,1).toLocaleDateString('en-US',{month
 
 // ── STATS ──────────────────────────────────────────
 function updateStats(){
-  const a=data.filter(r=>!r.archived);let ov=0,sn=0,ok=0,av=0;
-  a.forEach(r=>{const s=dueStatus(r);if(s==='overdue')ov++;else if(s==='soon')sn++;else if(s==='ok')ok++;else if(s==='available')av++;});
-  ['overdue','soon','ok','avail','total'].forEach((k,i)=>document.getElementById('st-'+k).textContent=[ov,sn,ok,av,a.length][i]);
+  const a=data.filter(r=>!r.archived);
+  // Deduplicate by apt for stats — same logic as table
+  const aptSeen={};
+  const deduped=[];
+  a.forEach(r=>{
+    if(!aptSeen[r.apt]){aptSeen[r.apt]=true;deduped.push(r);}
+  });
+  let ov=0,sn=0,ok=0,av=0;
+  deduped.forEach(r=>{const s=dueStatus(r);if(s==='overdue')ov++;else if(s==='soon')sn++;else if(s==='ok')ok++;else if(s==='available')av++;});
+  ['overdue','soon','ok','avail','total'].forEach((k,i)=>document.getElementById('st-'+k).textContent=[ov,sn,ok,av,deduped.length][i]);
   document.getElementById('archCount').textContent=archived.length;
 }
 
@@ -3448,34 +3455,6 @@ async function runBackup() {
       const toDelete = allBackups.slice(0, allBackups.length - 10).map(b => b.id);
       await sb.from('backups').delete().in('id', toDelete);
     }
-
-    // ── Also download a local .sql file ──
-    function rowToSQL(table, conflictCol, r) {
-      const cols = Object.keys(r).join(',');
-      const vals = Object.values(r).map(function(v) {
-        if (v === null) return 'NULL';
-        if (typeof v === 'object') return "'" + JSON.stringify(v).replace(/'/g, "''") + "'";
-        return "'" + String(v).replace(/'/g, "''") + "'";
-      }).join(',');
-      return 'INSERT INTO ' + table + ' (' + cols + ') VALUES (' + vals + ') ON CONFLICT (' + conflictCol + ') DO NOTHING;';
-    }
-    const sqlParts = [
-      '-- Willow PropDesk Full Backup -- ' + new Date().toLocaleString(),
-      '-- units: ' + unitsRows.length + ' | properties: ' + (propertiesRows||[]).length + ' | property_settings: ' + (settingsRows||[]).length,
-      '',
-      '-- UNITS',
-    ].concat(
-      unitsRows.map(function(r){ return rowToSQL('units','id',r); }),
-      ['','-- PROPERTIES'],
-      (propertiesRows||[]).map(function(r){ return rowToSQL('properties','apt',r); }),
-      ['','-- PROPERTY_SETTINGS'],
-      (settingsRows||[]).map(function(r){ return rowToSQL('property_settings','apt',r); })
-    );
-    const blob = new Blob([sqlParts.join('\n')], {type:'text/plain'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `willow-backup-${new Date().toISOString().slice(0,10)}.sql`;
-    a.click();
 
     localStorage.setItem(BACKUP_KEY, Date.now().toString());
     await checkBackupStatus();
