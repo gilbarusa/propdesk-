@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-30 08:30</title>
+<title>Willow — Property Manager | v2026-03-30 09:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -4916,6 +4916,18 @@ function renderCalendar() {
 
 
 
+    // Build set of dates that are same-day turnovers for this apt
+    // (a date where one bar ends AND another begins)
+    const turnoverDates = new Set();
+    for(let i=0;i<bars.length;i++){
+      for(let j=0;j<bars.length;j++){
+        if(i===j) continue;
+        if(bars[i].to && bars[j].from && bars[i].to === bars[j].from){
+          turnoverDates.add(bars[i].to);
+        }
+      }
+    }
+
     bars.forEach(bar=>{
       if(!bar.from&&!bar.to) return;
       const cf=bar.from<winStart?winStart:bar.from;
@@ -4924,6 +4936,27 @@ function renderCalendar() {
       const s=dateIdx(cf), e=dateIdx(ct);
       if(s<0||e<0) return;
       const span=e-s+1; if(span<1) return;
+
+      // Same-day turnover adjustments
+      // If this bar's END date is a turnover date → shrink right half of last cell
+      const endIsTurnover = turnoverDates.has(bar.to) && bar.to >= winStart && bar.to <= winEnd;
+      // If this bar's START date is a turnover date → push into right half of first cell
+      const startIsTurnover = turnoverDates.has(bar.from) && bar.from >= winStart && bar.from <= winEnd;
+
+      const HALF = COL_W / 2;
+      let leftPx  = s * COL_W + 2;
+      let widthPx = span * COL_W - 4;
+
+      if(startIsTurnover){
+        // Start at right half of first cell
+        leftPx  += HALF;
+        widthPx -= HALF;
+      }
+      if(endIsTurnover){
+        // End at left half of last cell
+        widthPx -= HALF;
+      }
+      if(widthPx < 4) widthPx = 4;
 
       let barCls='cal-bar ';
       let icon='🏠';
@@ -4938,7 +4971,7 @@ function renderCalendar() {
 
       const barEl=document.createElement('div');
       barEl.className=barCls;
-      barEl.style.cssText='left:'+(s*COL_W+2)+'px;width:'+(span*COL_W-4)+'px;overflow:hidden;z-index:5;';
+      barEl.style.cssText='left:'+leftPx+'px;width:'+widthPx+'px;overflow:hidden;z-index:5;';
       barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
 
       // Sticky label: floats within the visible portion of the bar
