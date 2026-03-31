@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-30 10:00</title>
+<title>Willow — Property Manager | v2026-03-30 10:30</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -3095,16 +3095,42 @@ async function deletePermanent(id){if(!confirm('Permanently delete? Cannot be un
 
 // ── DETAIL ─────────────────────────────────────────
 function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id;document.getElementById('dApt').textContent=r.apt;document.getElementById('dName').textContent=r.name||'Vacant';document.getElementById('dOwner').textContent='Owner: '+(r.owner||'—');document.getElementById('dNote').value=r.note||'';const s=dueStatus(r);
-  // Rent display — full amount for short stays with monthly breakdown
-  let rentDisplay = r.rent?`$${r.rent.toLocaleString()}`:'—';
-  if(r.type==='short-stay'&&r.rent&&r.checkin&&(r.lease_end||r.due)){
-    // Total paid = sum of all history entries
-  const totalPaidAll = Math.round((r.history||[]).reduce((s,h)=>s+(typeof h.amt==='number'?h.amt:0),0)*100)/100;
-  const displayRent = r.type==='short-stay' && totalPaidAll > r.rent ? totalPaidAll : r.rent;
-  const splits=calcProration(r.checkin, r.lease_end||r.due, displayRent);
-    if(splits.length>1){
-      const breakdown=splits.map(s=>`${s.month}: $${s.portion.toLocaleString()} (${s.days}d)`).join(' &middot; ');
-      rentDisplay=`$${r.rent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
+  // Rent display — for short stays, read from actual archive records
+  let rentDisplay = r.rent ? `$${r.rent.toLocaleString()}` : '—';
+  if(r.type === 'short-stay' && r.checkin && (r.lease_end || r.due)){
+    // Find all archive records for this tenant/apt
+    const archRecords = archived.filter(a =>
+      a.apt === r.apt &&
+      (a.name||'').toLowerCase() === (r.name||'').toLowerCase() &&
+      a.archived_date &&
+      a.archived_date >= (r.checkin||'').substring(0,7)+'-01'
+    ).sort((a,b) => (a.archived_date||'').localeCompare(b.archived_date||''));
+
+    // Also include current live month
+    const liveTotal = r.rent || 0;
+    const grandTotal = Math.round((archRecords.reduce((s,a)=>s+(a.rent||0),0) + liveTotal)*100)/100;
+
+    if(archRecords.length > 0){
+      const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      const archBreakdown = archRecords.map(a => {
+        const d = new Date((a.archived_date||a.due||'')+'T00:00:00');
+        const label = MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+        return `${label}: <strong>$${(a.rent||0).toLocaleString()}</strong>`;
+      }).join(' &middot; ');
+      // Current month
+      const now = new Date();
+      const curLabel = MONTHS[now.getMonth()] + ' ' + now.getFullYear();
+      const fullBreakdown = archBreakdown + ` &middot; ${curLabel}: <strong>$${liveTotal.toLocaleString()}</strong>`;
+      rentDisplay = `$${grandTotal.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${fullBreakdown}</small>`;
+    } else {
+      // No archive records — fall back to proration calc
+      const totalPaidAll = Math.round((r.history||[]).reduce((s,h)=>s+(typeof h.amt==='number'?h.amt:0),0)*100)/100;
+      const displayRent = totalPaidAll > r.rent ? totalPaidAll : r.rent;
+      const splits = calcProration(r.checkin, r.lease_end||r.due, displayRent);
+      if(splits.length > 1){
+        const breakdown = splits.map(s=>`${s.month}: <strong>$${s.portion.toLocaleString()}</strong> (${s.days}d)`).join(' &middot; ');
+        rentDisplay = `$${displayRent.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${breakdown}</small>`;
+      }
     }
   }
   document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
