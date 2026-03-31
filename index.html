@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-30 12:30</title>
+<title>Willow — Property Manager | v2026-03-30 13:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -4327,8 +4327,30 @@ function collectedInMonth(r,y,m){
 // ══════════════════════════════════════════════════════
 //  DASHBOARD
 // ══════════════════════════════════════════════════════
+// ── Deduplicated active units (one row per apt, best booking) ──
+function dedupActive(){
+  const all = data.filter(r=>!r.archived);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const aptMap = {};
+  all.forEach(r=>{
+    if(!aptMap[r.apt]){aptMap[r.apt]=r;return;}
+    const ex=aptMap[r.apt];
+    function score(x){
+      if(x.type==='available'||!x.name) return 0;
+      const ci=x.checkin?new Date(x.checkin+'T00:00:00'):null;
+      const due=x.due?new Date(x.due+'T00:00:00'):null;
+      if(ci&&due&&ci<=today&&due>=today) return 3;
+      if(ci&&ci>today) return 2;
+      if(due&&due>=today) return 1;
+      return 0;
+    }
+    if(score(r)>score(ex)) aptMap[r.apt]=r;
+  });
+  return Object.values(aptMap);
+}
+
 function renderDashboard(){
-  const active=data.filter(r=>!r.archived);
+  const active=dedupActive();
   const occ=active.filter(r=>r.type!=='available'&&r.name);
   const totalRent=occ.reduce((s,r)=>s+r.rent,0);
   const totalBal=occ.reduce((s,r)=>s+r.balance,0);
@@ -4480,12 +4502,12 @@ function openRDrill(typeKey, typeLabel, y, m) {
 function renderReports(){
   const y=reportYear,m=reportMonth;
   document.getElementById('reportMonthLabel').textContent=monthName(m,y);
-  const active=data.filter(r=>!r.archived);
+  const active=dedupActive();
   const occ=active.filter(r=>r.type!=='available'&&r.name);
   const dim=daysInMonth(y,m);
 
-  // Days rented — max based on ALL 79 units
-  const totalActiveUnits = active.length; // all units regardless of status
+  // Days rented — max based on deduplicated units
+  const totalActiveUnits = active.length; // deduplicated unit count
   let ltD=0,mtmD=0,shD=0;
   occ.forEach(r=>{const d=rentedDaysInMonth(r,y,m);if(r.type==='long-term')ltD+=d;else if(r.type==='month-to-month')mtmD+=d;else if(r.type==='short-stay')shD+=d;});
   const totD=ltD+mtmD+shD,maxD=Math.max(ltD,mtmD,shD,1);
@@ -4495,7 +4517,7 @@ function renderReports(){
 
   // ── Short Stay Performance KPIs ──
   // Pool = all short-stay + all available units (33 total)
-  const ssPool = data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available'));
+  const ssPool = active.filter(r=>r.type==='short-stay' || r.type==='available');
   const ssOcc  = occ.filter(r=>r.type==='short-stay'); // currently occupied short-stays
   const ssRevenue = ssOcc.reduce((s,r)=>s+collectedInMonth(r,y,m),0);
   const ssNights  = shD; // nights booked from above
