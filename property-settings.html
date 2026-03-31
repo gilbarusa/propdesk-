@@ -288,6 +288,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
             <div class="form-row"><label>Accounting ID</label><input type="text" id="ms-accounting-id"></div>
             <div class="form-row"><label>Rental License #</label><input type="text" id="ms-license"></div>
             <div class="form-row"><label>License Expiration</label><input type="text" id="ms-license-exp" placeholder="MM/DD/YYYY"></div>
+            <div class="form-row"><label>Door / Keypad Code</label><input type="text" id="ms-door-code" placeholder="e.g. 1234#"></div>
+            <div class="form-row"><label>Lockbox Code</label><input type="text" id="ms-lockbox-code" placeholder="e.g. 5678"></div>
             <div class="form-row"><label>WiFi Network</label><input type="text" id="ms-wifi-name"></div>
             <div class="form-row"><label>WiFi Password</label><input type="text" id="ms-wifi-pass"></div>
           </div>
@@ -826,7 +828,9 @@ async function loadSettings(){
       zip:prop.zip||'',state:prop.state||'',lat:prop.latitude||'',lng:prop.longitude||'',
       bedrooms:prop.bedrooms??'',bathrooms:prop.bathrooms??'',max_guests:prop.max_guests??'',
       min_stay:prop.min_stay??'',airbnb_id:prop.airbnb_id||'',vrbo_id:prop.vrbo_id||'',
-      notes:prop.notes||'',weblink:prop.hostfully_listing_url||''
+      notes:prop.notes||'',weblink:prop.hostfully_listing_url||'',
+      door_code:prop.door_code||'',lockbox_code:prop.lockbox_code||'',
+      wifi_name:prop.wifi_name||'',wifi_pass:prop.wifi_password||''
     });
 
     // Step 3: overlay with property_settings if exists
@@ -852,13 +856,13 @@ async function loadSettings(){
 
 // ── MAIN SETTINGS ──────────────────────────
 function populateMainSettings(d){
-  const ids={prop_type:'ms-prop-type',prop_name:'ms-prop-name',weblink:'ms-weblink',size:'ms-size',size_unit:'ms-size-unit',floors:'ms-floors',addr1:'ms-addr1',addr2:'ms-addr2',city:'ms-city',zip:'ms-zip',state:'ms-state',lat:'ms-lat',lng:'ms-lng',bedrooms:'ms-bedrooms',beds:'ms-beds',bathrooms:'ms-bathrooms',base_guests:'ms-base-guests',max_guests:'ms-max-guests',extra_fee:'ms-extra-fee',min_stay:'ms-min-stay',max_stay:'ms-max-stay',min_weekend_stay:'ms-min-weekend-stay',wifi_name:'ms-wifi-name',wifi_pass:'ms-wifi-pass',external_id:'ms-external-id',accounting_id:'ms-accounting-id',license:'ms-license',license_exp:'ms-license-exp',airbnb_id:'ms-airbnb-id',bcom_hotel_id:'ms-bcom-hotel-id',bcom_room_id:'ms-bcom-room-id',bcom_status:'ms-bcom-status',vrbo_id:'ms-vrbo-id',notes:'ms-notes',booking_type:'ms-booking-type',airbnb_listing_type:'ms-airbnb-listing-type',airbnb_booking_type:'ms-airbnb-booking-type',airbnb_cancel:'ms-airbnb-cancel',bcom_booking_type:'ms-bcom-booking-type',vrbo_booking_type:'ms-vrbo-booking-type'};
+  const ids={prop_type:'ms-prop-type',prop_name:'ms-prop-name',weblink:'ms-weblink',size:'ms-size',size_unit:'ms-size-unit',floors:'ms-floors',addr1:'ms-addr1',addr2:'ms-addr2',city:'ms-city',zip:'ms-zip',state:'ms-state',lat:'ms-lat',lng:'ms-lng',bedrooms:'ms-bedrooms',beds:'ms-beds',bathrooms:'ms-bathrooms',base_guests:'ms-base-guests',max_guests:'ms-max-guests',extra_fee:'ms-extra-fee',min_stay:'ms-min-stay',max_stay:'ms-max-stay',min_weekend_stay:'ms-min-weekend-stay',door_code:'ms-door-code',lockbox_code:'ms-lockbox-code',wifi_name:'ms-wifi-name',wifi_pass:'ms-wifi-pass',external_id:'ms-external-id',accounting_id:'ms-accounting-id',license:'ms-license',license_exp:'ms-license-exp',airbnb_id:'ms-airbnb-id',bcom_hotel_id:'ms-bcom-hotel-id',bcom_room_id:'ms-bcom-room-id',bcom_status:'ms-bcom-status',vrbo_id:'ms-vrbo-id',notes:'ms-notes',booking_type:'ms-booking-type',airbnb_listing_type:'ms-airbnb-listing-type',airbnb_booking_type:'ms-airbnb-booking-type',airbnb_cancel:'ms-airbnb-cancel',bcom_booking_type:'ms-bcom-booking-type',vrbo_booking_type:'ms-vrbo-booking-type'};
   Object.entries(ids).forEach(([k,id])=>{if(d[k]!==undefined&&d[k]!==null){const el=document.getElementById(id);if(el)el.value=d[k];}});
 }
 function collectMainSettings(){
   const g=id=>{const el=document.getElementById(id);return el?el.value:''};
   const gn=id=>{const v=g(id);return v!==''&&v!==undefined?parseFloat(v):undefined};
-  return{prop_type:g('ms-prop-type'),prop_name:g('ms-prop-name'),weblink:g('ms-weblink'),size:gn('ms-size'),size_unit:g('ms-size-unit'),floors:gn('ms-floors'),addr1:g('ms-addr1'),addr2:g('ms-addr2'),city:g('ms-city'),zip:g('ms-zip'),state:g('ms-state'),lat:g('ms-lat'),lng:g('ms-lng'),bedrooms:gn('ms-bedrooms'),beds:gn('ms-beds'),bathrooms:gn('ms-bathrooms'),base_guests:gn('ms-base-guests'),max_guests:gn('ms-max-guests'),extra_fee:gn('ms-extra-fee'),min_stay:gn('ms-min-stay'),max_stay:gn('ms-max-stay'),min_weekend_stay:gn('ms-min-weekend-stay'),wifi_name:g('ms-wifi-name'),wifi_pass:g('ms-wifi-pass'),external_id:g('ms-external-id'),accounting_id:g('ms-accounting-id'),license:g('ms-license'),license_exp:g('ms-license-exp'),airbnb_id:g('ms-airbnb-id'),bcom_hotel_id:g('ms-bcom-hotel-id'),bcom_room_id:g('ms-bcom-room-id'),vrbo_id:g('ms-vrbo-id'),notes:g('ms-notes'),booking_type:g('ms-booking-type'),airbnb_listing_type:g('ms-airbnb-listing-type'),airbnb_booking_type:g('ms-airbnb-booking-type'),airbnb_cancel:g('ms-airbnb-cancel'),bcom_booking_type:g('ms-bcom-booking-type'),vrbo_booking_type:g('ms-vrbo-booking-type')};
+  return{prop_type:g('ms-prop-type'),prop_name:g('ms-prop-name'),weblink:g('ms-weblink'),size:gn('ms-size'),size_unit:g('ms-size-unit'),floors:gn('ms-floors'),addr1:g('ms-addr1'),addr2:g('ms-addr2'),city:g('ms-city'),zip:g('ms-zip'),state:g('ms-state'),lat:g('ms-lat'),lng:g('ms-lng'),bedrooms:gn('ms-bedrooms'),beds:gn('ms-beds'),bathrooms:gn('ms-bathrooms'),base_guests:gn('ms-base-guests'),max_guests:gn('ms-max-guests'),extra_fee:gn('ms-extra-fee'),min_stay:gn('ms-min-stay'),max_stay:gn('ms-max-stay'),min_weekend_stay:gn('ms-min-weekend-stay'),door_code:g('ms-door-code'),lockbox_code:g('ms-lockbox-code'),wifi_name:g('ms-wifi-name'),wifi_pass:g('ms-wifi-pass'),external_id:g('ms-external-id'),accounting_id:g('ms-accounting-id'),license:g('ms-license'),license_exp:g('ms-license-exp'),airbnb_id:g('ms-airbnb-id'),bcom_hotel_id:g('ms-bcom-hotel-id'),bcom_room_id:g('ms-bcom-room-id'),vrbo_id:g('ms-vrbo-id'),notes:g('ms-notes'),booking_type:g('ms-booking-type'),airbnb_listing_type:g('ms-airbnb-listing-type'),airbnb_booking_type:g('ms-airbnb-booking-type'),airbnb_cancel:g('ms-airbnb-cancel'),bcom_booking_type:g('ms-bcom-booking-type'),vrbo_booking_type:g('ms-vrbo-booking-type')};
 }
 
 // ── DESCRIPTIONS ───────────────────────────
@@ -944,7 +948,22 @@ async function saveTab(tab){
   try{await upsertSettings(payload);toast(capitalize(tab)+' saved ✓','success');setSaveStatus('Saved '+new Date().toLocaleTimeString());}
   catch(e){toast('Save failed: '+e.message,'error');}
 }
-async function upsertSettings(payload){const{error}=await sb.from('property_settings').upsert({apt:currentApt,property_uid:currentUid,...payload,updated_at:new Date().toISOString()},{onConflict:'apt'});if(error)throw error;}
+async function upsertSettings(payload){
+  const{error}=await sb.from('property_settings').upsert({apt:currentApt,property_uid:currentUid,...payload,updated_at:new Date().toISOString()},{onConflict:'apt'});
+  if(error)throw error;
+  // Also sync access fields directly to properties table
+  if(payload.main_settings){
+    const ms=payload.main_settings;
+    const propUpdate={};
+    if(ms.door_code!==undefined) propUpdate.door_code=ms.door_code||null;
+    if(ms.lockbox_code!==undefined) propUpdate.lockbox_code=ms.lockbox_code||null;
+    if(ms.wifi_name!==undefined) propUpdate.wifi_name=ms.wifi_name||null;
+    if(ms.wifi_password!==undefined) propUpdate.wifi_password=ms.wifi_password||null;
+    if(Object.keys(propUpdate).length){
+      await sb.from('properties').update({...propUpdate,updated_at:new Date().toISOString()}).eq('apt',currentApt);
+    }
+  }
+}
 
 // ── BULK APPLY ─────────────────────────────
 function openBulkModal(tab){bulkTargetTab=tab;document.getElementById('bulk-section-label').textContent=capitalize(tab)+' settings';document.getElementById('bulkModal').classList.add('open');renderAptSelectList();}
