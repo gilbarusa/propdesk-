@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Settings | v2026-04-02 11:00</title>
+<title>Willow — Property Settings | v2026-04-02 15:30</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -237,8 +237,13 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
             <div class="form-row"><label>Postal Code</label><input type="text" id="ms-zip" placeholder="19027"></div>
             <div class="form-row"><label>State</label><input type="text" id="ms-state" placeholder="PA"></div>
             <div class="form-row"><label>Country</label><select id="ms-country"><option value="US">United States</option><option value="CA">Canada</option><option value="GB">United Kingdom</option></select></div>
-            <div class="form-row"><label>Latitude</label><input type="text" id="ms-lat" placeholder="40.0794226"></div>
-            <div class="form-row"><label>Longitude</label><input type="text" id="ms-lng" placeholder="-75.1145082"></div>
+            <div class="form-row"><label>Latitude</label><input type="text" id="ms-lat" placeholder="auto-filled on save"></div>
+            <div class="form-row"><label>Longitude</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="text" id="ms-lng" placeholder="auto-filled on save" style="flex:1;">
+                <button type="button" onclick="geocodeNow()" class="btn btn-secondary btn-sm" title="Geocode address now">📍 Geocode</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1238,6 +1243,46 @@ async function upsertSettings(payload){
     if(ms.bathrooms!==undefined&&ms.bathrooms!=='') propUpdate.bathrooms=parseFloat(ms.bathrooms)||null;
     if(ms.max_guests!==undefined&&ms.max_guests!=='') propUpdate.max_guests=parseInt(ms.max_guests)||null;
     if(ms.min_stay!==undefined&&ms.min_stay!=='') propUpdate.min_stay=parseInt(ms.min_stay)||null;
+
+    // Sync address fields
+    if(ms.addr1!==undefined) propUpdate.address=ms.addr1||null;
+    if(ms.city!==undefined)  propUpdate.city=ms.city||null;
+    if(ms.state!==undefined) propUpdate.state=ms.state||null;
+    if(ms.zip!==undefined)   propUpdate.zip=ms.zip||null;
+
+    // Use manually entered lat/lng if provided
+    if(ms.lat&&ms.lng){
+      propUpdate.latitude  = parseFloat(ms.lat)  || null;
+      propUpdate.longitude = parseFloat(ms.lng) || null;
+    } else if(ms.addr1 && ms.city) {
+      // Check verified coords first, then geocode
+      const verified = lookupVerifiedCoords(ms.addr1, ms.city, ms.zip);
+      if(verified){
+        propUpdate.latitude  = verified.lat;
+        propUpdate.longitude = verified.lng;
+        const latEl=document.getElementById('ms-lat'), lngEl=document.getElementById('ms-lng');
+        if(latEl) latEl.value=verified.lat.toFixed(6);
+        if(lngEl) lngEl.value=verified.lng.toFixed(6);
+      } else {
+        try {
+          const q = [ms.addr1, ms.city, ms.state||'PA', ms.zip, 'USA'].filter(Boolean).join(', ');
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=us`);
+          const json = await res.json();
+          if(json.length){
+            const lat=parseFloat(json[0].lat), lng=parseFloat(json[0].lon);
+            if(lat>39.5&&lat<41.5&&lng>-76.5&&lng<-74.5){
+              propUpdate.latitude=lat;
+              propUpdate.longitude=lng;
+              const latEl=document.getElementById('ms-lat'), lngEl=document.getElementById('ms-lng');
+              if(latEl) latEl.value=lat.toFixed(6);
+              if(lngEl) lngEl.value=lng.toFixed(6);
+              toast('Address geocoded and saved ✓','success');
+            }
+          }
+        } catch(e){ console.warn('Geocode failed:',e); }
+      }
+    }
+
     if(Object.keys(propUpdate).length){
       await sb.from('properties').update({...propUpdate,updated_at:new Date().toISOString()}).eq('apt',currentApt);
     }
@@ -1268,7 +1313,60 @@ async function confirmBulkApply(){
   toast('Applied to '+ok+' unit(s)'+(fail?' · '+fail+' failed':''),ok?'success':'error');
 }
 
-// ── HELPERS ────────────────────────────────
+// ── GEOCODE ──────────────────────────────────
+// Verified coordinates for known Willow buildings
+const VERIFIED_COORDS = {
+  '46 township line':  { lat: 40.073775, lng: -75.104224 },
+  '426 central':       { lat: 40.079800, lng: -75.127000 },
+  '431 valley':        { lat: 40.077400, lng: -75.129800 },
+  '7845 montgomery':   { lat: 40.082000, lng: -75.131000 },
+  '926 fox chase':     { lat: 40.072600, lng: -75.078000 },
+};
+
+function lookupVerifiedCoords(addr, city, zip) {
+  const key = (addr || '').toLowerCase();
+  for (const [pattern, coords] of Object.entries(VERIFIED_COORDS)) {
+    if (key.includes(pattern.split(' ').slice(0,2).join(' '))) return coords;
+  }
+  return null;
+}
+
+async function geocodeNow(){
+  const addr  = document.getElementById('ms-addr1')?.value?.trim();
+  const city  = document.getElementById('ms-city')?.value?.trim();
+  const state = document.getElementById('ms-state')?.value?.trim() || 'PA';
+  const zip   = document.getElementById('ms-zip')?.value?.trim();
+  if(!addr && !city){ toast('Enter an address first','error'); return; }
+
+  // Check verified coords first
+  const verified = lookupVerifiedCoords(addr, city, zip);
+  if(verified){
+    await applyCoords(verified.lat, verified.lng);
+    toast('Verified coordinates applied ✓','success');
+    return;
+  }
+
+  toast('Geocoding...','info');
+  try {
+    // Include zip for precision — avoids wrong "Township Line Rd" matches
+    const q = [addr, city, state, zip, 'USA'].filter(Boolean).join(', ');
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=us`);
+    const json = await res.json();
+    if(json.length){
+      const lat=parseFloat(json[0].lat), lng=parseFloat(json[0].lon);
+      if(lat>39&&lat<42&&lng>-77&&lng<-74){
+        await applyCoords(lat, lng);
+        toast(`Geocoded: ${lat.toFixed(5)}, ${lng.toFixed(5)} ✓`,'success');
+      } else { toast('Address found but outside expected area','error'); }
+    } else { toast('Address not found — try adding zip code','error'); }
+  } catch(e){ toast('Geocode failed: '+e.message,'error'); }
+}
+
+async function applyCoords(lat, lng){
+  document.getElementById('ms-lat').value = lat.toFixed(6);
+  document.getElementById('ms-lng').value  = lng.toFixed(6);
+  await sb.from('properties').update({ latitude:lat, longitude:lng, updated_at:new Date().toISOString() }).eq('apt',currentApt);
+}
 function toggleSection(hdr){const body=hdr.nextElementSibling;const chevron=hdr.querySelector('.section-chevron');body.classList.toggle('collapsed');chevron?.classList.toggle('collapsed');}
 function updateCharCount(el,countId){const counter=document.getElementById(countId);if(counter)counter.textContent=el.value.length;}
 function setSaveStatus(msg){const el=document.getElementById('save-status');if(el)el.textContent=msg;}
