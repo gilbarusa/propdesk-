@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Settings | v2026-03-30 16:30</title>
+<title>Willow — Property Settings | v2026-04-02 09:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -193,6 +193,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="sidebar-item" data-tab="reviews"><span class="dot"></span>Reviews</div>
     <div class="sidebar-item" data-tab="service-providers"><span class="dot"></span>Service Providers</div>
     <div class="sidebar-item" data-tab="owner"><span class="dot"></span>Owner</div>
+    <div class="sidebar-section" style="margin-top:8px;">Distribution</div>
+    <div class="sidebar-item" data-tab="channels"><span class="dot"></span>Channels</div>
   </nav>
   <main class="main">
     <!-- MAIN SETTINGS TAB -->
@@ -641,6 +643,248 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       </div>
     </div>
 
+
+    <!-- CHANNELS TAB -->
+    <div id="tab-channels" class="tab-content">
+      <div class="page-hdr">
+        <div>
+          <div class="page-title">Channels — <span id="ch-apt-title">—</span></div>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px;">Enable channels and set rate multipliers per platform. Multiplier covers channel commission on top of your base rate.</div>
+        </div>
+      </div>
+
+      <!-- Airbnb -->
+      <div class="section-card">
+        <div class="section-hdr" onclick="toggleSection(this)">
+          <div class="section-hdr-label">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#FF5A5F"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 4.8c1.326 0 2.4 1.074 2.4 2.4S13.326 9.6 12 9.6 9.6 8.526 9.6 7.2 10.674 4.8 12 4.8zm5.52 13.44c-.12.24-.36.36-.6.36H7.08c-.24 0-.48-.12-.6-.36-.12-.24-.12-.48 0-.72l1.44-2.88c.12-.24.36-.36.6-.36h.6v-2.4H7.8c-.48 0-.84-.36-.84-.84v-.72c0-.48.36-.84.84-.84h8.4c.48 0 .84.36.84.84v.72c0 .48-.36.84-.84.84h-1.32v2.4h.6c.24 0 .48.12.6.36l1.44 2.88c.12.24.12.48 0 .72z"/></svg>
+            Airbnb
+          </div>
+          <span class="section-chevron">▾</span>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Status</label>
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="ch-airbnb-enabled" onchange="chUpdateStatus('airbnb')"><span class="toggle-slider"></span></label>
+                <span id="ch-airbnb-status-label" style="font-size:12px;color:var(--text2);">Off</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Rate Multiplier <span class="info">(% added to base price)</span></label>
+              <div class="input-addon">
+                <span class="addon left">+</span>
+                <input type="number" id="ch-airbnb-multiplier" min="0" max="50" step="0.5" value="12" style="border-radius:0;">
+                <span class="addon right">%</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Cancellation Policy</label>
+              <select id="ch-airbnb-cancel">
+                <option value="flexible">Flexible</option>
+                <option value="moderate">Moderate</option>
+                <option value="firm">Firm</option>
+                <option value="strict" selected>Strict</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Booking Type</label>
+              <select id="ch-airbnb-booking-type">
+                <option value="INSTANT_BOOKING" selected>Instant Booking</option>
+                <option value="BOOKING_REQUEST">Booking Request</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Listing Type</label>
+              <select id="ch-airbnb-listing-type">
+                <option value="ENTIREHOME" selected>Entire Home</option>
+                <option value="PRIVATEROOM">Private Room</option>
+                <option value="SHAREDROOM">Shared Room</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Airbnb Listing ID <span class="info">(read-only)</span></label>
+              <input type="text" id="ch-airbnb-id" placeholder="Synced from Hostfully" readonly style="background:var(--surface2);color:var(--text3);">
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:10px 14px;background:var(--accent-bg);border:1px solid var(--accent);border-radius:6px;font-size:11px;color:var(--accent2);">
+            💡 Airbnb charges ~3% host fee. A +12% multiplier is typical to maintain net revenue.
+          </div>
+        </div>
+      </div>
+
+      <!-- VRBO -->
+      <div class="section-card">
+        <div class="section-hdr" onclick="toggleSection(this)">
+          <div class="section-hdr-label">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#1B6EAE"><rect width="24" height="24" rx="4" fill="#1B6EAE"/><text x="4" y="17" font-size="10" fill="white" font-family="sans-serif" font-weight="bold">Vrbo</text></svg>
+            Vrbo
+          </div>
+          <span class="section-chevron">▾</span>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Status</label>
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="ch-vrbo-enabled" onchange="chUpdateStatus('vrbo')"><span class="toggle-slider"></span></label>
+                <span id="ch-vrbo-status-label" style="font-size:12px;color:var(--text2);">Off</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Rate Multiplier</label>
+              <div class="input-addon">
+                <span class="addon left">+</span>
+                <input type="number" id="ch-vrbo-multiplier" min="0" max="50" step="0.5" value="8" style="border-radius:0;">
+                <span class="addon right">%</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Cancellation Policy</label>
+              <select id="ch-vrbo-cancel">
+                <option value="relaxed_14">Relaxed — 14 days</option>
+                <option value="moderate">Moderate</option>
+                <option value="strict" selected>Strict</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Booking Type</label>
+              <select id="ch-vrbo-booking-type">
+                <option value="INSTANT_BOOKING" selected>Instant Booking</option>
+                <option value="BOOKING_REQUEST">Booking Request</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Show Property Location</label>
+              <select id="ch-vrbo-location">
+                <option value="approx" selected>Approximate</option>
+                <option value="exact">Exact</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label>Vrbo Property ID <span class="info">(read-only)</span></label>
+              <input type="text" id="ch-vrbo-id" placeholder="Synced from Hostfully" readonly style="background:var(--surface2);color:var(--text3);">
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;font-size:11px;color:var(--blue);">
+            💡 Vrbo charges ~5% host fee. A +8% multiplier is typical.
+          </div>
+        </div>
+      </div>
+
+      <!-- Booking.com -->
+      <div class="section-card">
+        <div class="section-hdr" onclick="toggleSection(this)">
+          <div class="section-hdr-label">
+            <svg width="18" height="18" viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#003580"/><text x="3" y="16" font-size="8" fill="white" font-family="sans-serif" font-weight="bold">BDC</text></svg>
+            Booking.com
+          </div>
+          <span class="section-chevron">▾</span>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Status</label>
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="ch-bdc-enabled" onchange="chUpdateStatus('bdc')"><span class="toggle-slider"></span></label>
+                <span id="ch-bdc-status-label" style="font-size:12px;color:var(--text2);">Off</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Rate Multiplier</label>
+              <div class="input-addon">
+                <span class="addon left">+</span>
+                <input type="number" id="ch-bdc-multiplier" min="0" max="50" step="0.5" value="15" style="border-radius:0;">
+                <span class="addon right">%</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Booking.com Property ID <span class="info">(read-only)</span></label>
+              <input type="text" id="ch-bdc-id" placeholder="Synced from Hostfully" readonly style="background:var(--surface2);color:var(--text3);">
+            </div>
+            <div class="form-row">
+              <label>Cancellation Policy</label>
+              <select id="ch-bdc-cancel">
+                <option value="flexible">Flexible</option>
+                <option value="moderate">Moderate</option>
+                <option value="strict" selected>Strict</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:10px 14px;background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:6px;font-size:11px;color:var(--blue);">
+            💡 Booking.com charges ~15% commission. A +15% multiplier maintains your net rate.
+          </div>
+        </div>
+      </div>
+
+      <!-- WillowStay Direct -->
+      <div class="section-card">
+        <div class="section-hdr" onclick="toggleSection(this)">
+          <div class="section-hdr-label">
+            <svg width="18" height="18" viewBox="0 0 24 24"><rect width="24" height="24" rx="4" fill="#4a6741"/><path d="M12 3 C8 8 5 10 5 14 C5 17.3 8.1 20 12 20 C15.9 20 19 17.3 19 14 C19 10 16 8 12 3Z" fill="#a8c89a"/></svg>
+            WillowStay Direct
+          </div>
+          <span class="section-chevron">▾</span>
+        </div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Status</label>
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="ch-direct-enabled" checked onchange="chUpdateStatus('direct')"><span class="toggle-slider"></span></label>
+                <span id="ch-direct-status-label" style="font-size:12px;color:var(--text2);">On</span>
+              </div>
+            </div>
+            <div class="form-row">
+              <label>Rate Multiplier <span class="info">(0% = base rate, no commission)</span></label>
+              <div class="input-addon">
+                <span class="addon left">+</span>
+                <input type="number" id="ch-direct-multiplier" min="0" max="50" step="0.5" value="0" style="border-radius:0;">
+                <span class="addon right">%</span>
+              </div>
+            </div>
+            <div class="form-row span2">
+              <label>Direct Booking URL</label>
+              <input type="text" id="ch-direct-url" placeholder="Auto-generated from stay.willowpa.com" readonly style="background:var(--surface2);color:var(--text3);">
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:10px 14px;background:var(--green-bg);border:1px solid var(--green-border);border-radius:6px;font-size:11px;color:var(--green);">
+            ✓ Direct bookings have no commission — keep multiplier at 0% or offer a discount vs OTA rates.
+          </div>
+        </div>
+      </div>
+
+      <!-- Rate Summary -->
+      <div class="section-card">
+        <div class="section-hdr" onclick="toggleSection(this)">
+          <div class="section-hdr-label">📊 Rate Preview</div>
+          <span class="section-chevron">▾</span>
+        </div>
+        <div class="section-body">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:12px;">Based on base nightly rate set in Pricing tab.</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:var(--surface2);">
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid var(--border);font-weight:500;color:var(--text2);">Channel</th>
+                <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);font-weight:500;color:var(--text2);">Base Rate</th>
+                <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);font-weight:500;color:var(--text2);">Multiplier</th>
+                <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);font-weight:500;color:var(--text2);">Guest Pays</th>
+                <th style="padding:8px 12px;text-align:right;border-bottom:2px solid var(--border);font-weight:500;color:var(--text2);">Status</th>
+              </tr>
+            </thead>
+            <tbody id="ch-rate-preview">
+              <tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text3);">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn btn-primary" onclick="saveChannels()">💾 Save Channel Settings</button>
+      </div>
+    </div><!-- end tab-channels -->
+
   </main>
 </div>
 
@@ -819,6 +1063,7 @@ async function loadSettings(){
     currentApt=prop.apt||currentApt;
     currentUid=String(prop.property_uid||currentUid||'');
     currentPropName=prop.name||prop.apt||'Property';
+    window._currentApt = currentApt; // expose for channels tab
     document.getElementById('headerAptBadge').textContent=currentPropName+' ▾';
     updateAptTitles(currentPropName);
 
@@ -847,6 +1092,7 @@ async function loadSettings(){
     photos=ps.photos||[];renderPhotos();
     priceRules=(ps.pricing||{}).rules||[];renderPriceRules();
     fees=(ps.fees_policies||{}).fees||[];renderFeesTable();
+    loadChannels(ps); // load channel settings
   }catch(e){
     console.error('loadSettings:',e);
     toast('Load failed: '+e.message,'error');
@@ -944,6 +1190,7 @@ async function saveTab(tab){
   else if(tab==='fees-policies')payload={fees_policies:collectFeesPolicies()};
   else if(tab==='service-providers')payload={service_providers:collectServiceProviders()};
   else if(tab==='owner')payload={owner_info:collectOwner()};
+  else if(tab==='channels'){await saveChannels();return;}
   else if(tab==='reviews'){toast('Reviews are read-only from Hostfully','info');return;}
   try{await upsertSettings(payload);toast(capitalize(tab)+' saved ✓','success');setSaveStatus('Saved '+new Date().toLocaleTimeString());}
   catch(e){toast('Save failed: '+e.message,'error');}
@@ -1008,6 +1255,109 @@ function toast(msg,type='info'){
   wrap.appendChild(t);
   setTimeout(()=>t.remove(),3200);
 }
+
+// ── CHANNELS ────────────────────────────────
+const CH_KEYS = ['airbnb','vrbo','bdc','direct'];
+
+function chUpdateStatus(ch) {
+  const enabled = document.getElementById(`ch-${ch}-enabled`)?.checked;
+  const label   = document.getElementById(`ch-${ch}-status-label`);
+  if (label) label.textContent = enabled ? 'On' : 'Off';
+  label.style.color = enabled ? 'var(--green)' : 'var(--text3)';
+  chUpdateRatePreview();
+}
+
+function chUpdateRatePreview() {
+  const baseRate = parseFloat(
+    document.getElementById('pr-base-price')?.value ||
+    document.getElementById('ms-base-price')?.value || 0
+  );
+  const channels = [
+    { key:'airbnb',  label:'Airbnb',           icon:'&#x1F3E0;' },
+    { key:'vrbo',    label:'Vrbo',              icon:'&#x1F3E1;' },
+    { key:'bdc',     label:'Booking.com',       icon:'&#x1F3E8;' },
+    { key:'direct',  label:'WillowStay Direct', icon:'&#x1F33F;' },
+  ];
+  const tbody = document.getElementById('ch-rate-preview');
+  if (!tbody) return;
+  tbody.innerHTML = channels.map(c => {
+    const enabled    = document.getElementById(`ch-${c.key}-enabled`)?.checked || false;
+    const multiplier = parseFloat(document.getElementById(`ch-${c.key}-multiplier`)?.value || 0);
+    const guestPays  = baseRate > 0 ? Math.round(baseRate * (1 + multiplier/100)) : null;
+    const statusHtml = enabled
+      ? '<span style="color:var(--green);font-weight:500;">ON</span>'
+      : '<span style="color:var(--text3);">off</span>';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:9px 12px;">${c.icon} ${c.label}</td>
+      <td style="padding:9px 12px;text-align:right;color:var(--text2);">${baseRate > 0 ? '$'+baseRate : '—'}</td>
+      <td style="padding:9px 12px;text-align:right;color:var(--accent);">+${multiplier}%</td>
+      <td style="padding:9px 12px;text-align:right;font-weight:500;color:${enabled?'var(--text)':'var(--text3)'};">${guestPays ? '$'+guestPays : '—'}</td>
+      <td style="padding:9px 12px;text-align:right;">${statusHtml}</td>
+    </tr>`;
+  }).join('');
+}
+
+function loadChannels(settingsData) {
+  const ch = settingsData?.channels || {};
+  CH_KEYS.forEach(key => {
+    const cfg = ch[key] || {};
+    const enabledEl    = document.getElementById(`ch-${key}-enabled`);
+    const multiplierEl = document.getElementById(`ch-${key}-multiplier`);
+    if (enabledEl) enabledEl.checked = key === 'direct' ? (cfg.enabled !== false) : (cfg.enabled === true);
+    if (multiplierEl && cfg.multiplier !== undefined) multiplierEl.value = cfg.multiplier;
+    ['cancel','booking-type','listing-type','location'].forEach(f => {
+      const el = document.getElementById(`ch-${key}-${f}`);
+      if (el && cfg[f]) el.value = cfg[f];
+    });
+    chUpdateStatus(key);
+  });
+  // Populate read-only IDs from main settings fields
+  const aId = document.getElementById('ms-airbnb-id')?.value;
+  const vId = document.getElementById('ms-vrbo-id')?.value;
+  if (aId) { const el = document.getElementById('ch-airbnb-id'); if(el) el.value = aId; }
+  if (vId) { const el = document.getElementById('ch-vrbo-id');   if(el) el.value = vId; }
+  // Direct booking URL
+  const aptCode = window._currentApt || '';
+  const urlEl = document.getElementById('ch-direct-url');
+  if (urlEl && aptCode) urlEl.value = 'https://stay.willowpa.com/?apt=' + encodeURIComponent(aptCode);
+  chUpdateRatePreview();
+}
+
+function collectChannels() {
+  const ch = {};
+  CH_KEYS.forEach(key => {
+    ch[key] = {
+      enabled:    document.getElementById(`ch-${key}-enabled`)?.checked || false,
+      multiplier: parseFloat(document.getElementById(`ch-${key}-multiplier`)?.value || 0),
+    };
+    ['cancel','booking-type','listing-type','location'].forEach(f => {
+      const el = document.getElementById(`ch-${key}-${f}`);
+      if (el) ch[key][f] = el.value;
+    });
+  });
+  return ch;
+}
+
+async function saveChannels() {
+  const apt = window._currentApt;
+  if (!apt) { toast('No property loaded','error'); return; }
+  try {
+    const { error } = await sb.from('property_settings').upsert(
+      { apt, channels: collectChannels(), updated_at: new Date().toISOString() },
+      { onConflict: 'apt' }
+    );
+    if (error) throw error;
+    toast('Channel settings saved ✓','success');
+  } catch(e) {
+    toast('Save failed: '+e.message,'error');
+  }
+}
+
+// Update rate preview when base price changes anywhere
+document.addEventListener('input', e => {
+  if (e.target.id === 'pr-base-price' || e.target.id === 'ms-base-price') chUpdateRatePreview();
+  if (e.target.id?.startsWith('ch-') && e.target.id?.endsWith('-multiplier')) chUpdateRatePreview();
+});
 </script>
 </body>
 </html>
