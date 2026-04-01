@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-03-31 23:00</title>
+<title>Willow — Property Manager | v2026-03-31 23:30</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -6525,10 +6525,10 @@ function pxRender() {
       if (isOcc || isBlk) {
         // Show occupied — colour bar inside cell
         const occType = isBlk ? '__block__' : (occupied.find(b => d>=b.from && d<=b.to)?.type || '');
-        const barColor = occType==='long-term' ? 'rgba(37,99,168,.18)'
-          : occType==='month-to-month' ? 'rgba(124,79,190,.18)'
-          : occType==='short-stay'     ? 'rgba(224,120,24,.18)'
-          : occType==='__block__'      ? 'rgba(192,57,43,.18)' : 'rgba(100,100,100,.15)';
+        const barColor = occType==='long-term' ? '#2563a8'
+          : occType==='month-to-month' ? '#7c4fbe'
+          : occType==='short-stay'     ? '#e07818'
+          : occType==='__block__'      ? '#c0392b' : '#888';
         cls += ' occupied';
         cellsHtml += `<div class="${cls}" data-apt="${r.apt}" data-date="${d}">
           <div class="px-occ-bar" style="background:${barColor};"></div>
@@ -6599,11 +6599,11 @@ function pxRender() {
       if (s < 0 || e < 0) return;
       const span = e - s + 1; if (span < 1) return;
 
-      const bgColor = bar.type==='long-term'       ? 'linear-gradient(90deg,rgba(37,99,168,.28),rgba(30,87,153,.28))'
-        : bar.type==='month-to-month' ? 'linear-gradient(90deg,rgba(124,79,190,.28),rgba(94,63,158,.28))'
-        : bar.type==='short-stay'     ? 'linear-gradient(90deg,rgba(224,120,24,.28),rgba(184,104,24,.28))'
-        : bar.type==='__block__'      ? 'linear-gradient(90deg,rgba(192,57,43,.28),rgba(150,45,34,.28))'
-        : 'linear-gradient(90deg,rgba(37,99,168,.28),rgba(30,87,153,.28))';
+      const bgColor = bar.type==='long-term'       ? 'linear-gradient(90deg,#2563a8,#1e5799)'
+        : bar.type==='month-to-month' ? 'linear-gradient(90deg,#7c4fbe,#5e3f9e)'
+        : bar.type==='short-stay'     ? 'linear-gradient(90deg,#e07818,#b86818)'
+        : bar.type==='__block__'      ? 'linear-gradient(90deg,#c0392b,#962d22)'
+        : 'linear-gradient(90deg,#2563a8,#1e5799)';
 
       const badge = getChannelBadge ? getChannelBadge(bar.note) : '';
       const leftPx  = s * PX_COL_W + 2;
@@ -6617,7 +6617,7 @@ function pxRender() {
       barEl.dataset.barRight = leftPx + widthPx;
       barEl.dataset.barName  = bar.name;
       barEl.dataset.barBadge = badge.replace(/"/g,"'");
-      barEl.dataset.barColor = 'rgba(0,0,0,0.5)';
+      barEl.dataset.barColor = '#fff';
       barEl.innerHTML = `<div class="cal-bar-bg" style="background:${bgColor}"></div>`;
       rowDiv.appendChild(barEl);
     });
@@ -6637,47 +6637,45 @@ function pxRender() {
   document.getElementById('pxDaysHeader').style.width   = totalW + 'px';
   document.getElementById('pxMonthRow').style.width     = totalW + 'px';
 
-  // Floating labels (reuse booking calendar's label system)
-  if (typeof _setupCalFloatingLabels === 'function') {
-    // Temporarily point the label updater at the pricing grid outer
-    const origOuter = document.getElementById('calGridOuter');
-    const pxOuter   = document.getElementById('pxGridOuter');
-    // Labels are updated on scroll — hook into pricing grid scroll
-    pxOuter.onscroll = function() {
-      document.getElementById('pxUnitsCol').scrollTop = pxOuter.scrollTop;
-      // Update floating labels in pricing rows
-      document.querySelectorAll('#pxRows .cal-row-labels').forEach(labelsDiv => {
-        const row = labelsDiv.parentElement;
-        const bars = row.querySelectorAll('.cal-bar');
-        bars.forEach(bar => {
-          const left  = parseFloat(bar.dataset.barLeft  || 0);
-          const right = parseFloat(bar.dataset.barRight || 0);
-          const name  = bar.dataset.barName  || '';
-          const badge = bar.dataset.barBadge || '';
-          const color = bar.dataset.barColor || '#fff';
-          const visL = Math.max(left,  pxOuter.scrollLeft);
-          const visR = Math.min(right, pxOuter.scrollLeft + pxOuter.clientWidth);
-          if (visR <= visL) return;
-          const labelLeft = visL - left + 6;
-          let existing = labelsDiv.querySelector(`[data-for="${bar.dataset.barName}"]`);
-          if (!existing) {
-            existing = document.createElement('div');
-            existing.className = 'cal-float-label';
-            existing.dataset.for = name;
-            existing.innerHTML = `${badge}<span class="cal-bar-label">${name}</span>`;
-            existing.style.color = color;
-            labelsDiv.appendChild(existing);
-          }
-          existing.style.left = labelLeft + 'px';
-          existing.style.maxWidth = (visR - visL - 12) + 'px';
-        });
-      });
-    };
-  }
-
-  // Units col vertical sync (always needed)
+  // Units col vertical sync
   const pxUnitsCol2 = document.getElementById('pxUnitsCol');
   const pxGridOuter = document.getElementById('pxGridOuter');
+
+  function _pxUpdateFloatingLabels() {
+    const scrollLeft   = pxGridOuter.scrollLeft;
+    const visibleWidth = pxGridOuter.clientWidth;
+    // Sync vertical scroll of units col
+    pxUnitsCol2.scrollTop = pxGridOuter.scrollTop;
+
+    document.querySelectorAll('#pxRows .cal-row-labels').forEach(labelsDiv => {
+      labelsDiv.innerHTML = '';
+      const row  = labelsDiv.parentElement;
+      const bars = row.querySelectorAll('.cal-bar');
+      bars.forEach(bar => {
+        const barLeft  = parseFloat(bar.dataset.barLeft  || 0);
+        const barRight = parseFloat(bar.dataset.barRight || 0);
+        const name     = bar.dataset.barName  || '';
+        const badge    = bar.dataset.barBadge || '';
+        const color    = bar.dataset.barColor || '#fff';
+        if (!name) return;
+
+        // Visible portion of the bar
+        const visL = Math.max(barLeft,  scrollLeft);
+        const visR = Math.min(barRight, scrollLeft + visibleWidth);
+        if (visR <= visL) return;
+
+        const labelEl = document.createElement('div');
+        labelEl.className = 'cal-float-label';
+        labelEl.style.left     = (visL - barLeft + 6) + 'px';
+        labelEl.style.maxWidth = (visR - visL - 12) + 'px';
+        labelEl.style.color    = color;
+        labelEl.innerHTML      = `${badge}<span class="cal-bar-label">${name}</span>`;
+        labelsDiv.appendChild(labelEl);
+      });
+    });
+  }
+
+  pxGridOuter.onscroll = _pxUpdateFloatingLabels;
   pxUnitsCol2.onscroll = () => { pxGridOuter.scrollTop = pxUnitsCol2.scrollTop; };
 
   // Scroll to today on first render
@@ -6686,6 +6684,9 @@ function pxRender() {
     const todayIdx = _pxDates.indexOf(todayStr);
     if (todayIdx >= 0) pxGridOuter.scrollLeft = Math.max(0, todayIdx * PX_COL_W - 150);
   }
+
+  // Initial label render after DOM settles
+  requestAnimationFrame(_pxUpdateFloatingLabels);
 }
 
 // ── Mouse selection ──
