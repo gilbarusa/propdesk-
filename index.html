@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-04-01 05:00</title>
+<title>Willow — Property Manager | v2026-04-01 06:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -6417,7 +6417,7 @@ function pxRender() {
         const mins=per?.min_stay!=null?per.min_stay:(prop?.min_stay!=null?prop.min_stay:null);
         const ov=!!per;
         const rh=rate!=null?`<span class="prate${ov?' ov':''}">$${Math.round(rate)}</span>`:'<span class="prate" style="color:var(--border2);">—</span>';
-        const mh=mins!=null?`<span class="pmin">${mins}nt</span>`:'';
+        const mh=mins!=null?`<span class="pmin" style="display:flex;align-items:center;gap:1px;"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>${mins}nt</span>`:'';
         html+=`<div class="${cls}" data-a="${r.apt}" data-d="${d}"
           onmousedown="pxDn(event,'${r.apt}','${d}')"
           onmousemove="pxMv(event,'${r.apt}','${d}')"
@@ -6468,19 +6468,24 @@ function pxRender() {
   const go=document.getElementById('pxGouter');
   const uc=document.getElementById('pxUcol');
   function pxLabels(){
-    const sl=go.scrollLeft,vw=go.clientWidth;
+    const sl=go.scrollLeft, vw=go.clientWidth;
     uc.scrollTop=go.scrollTop;
     document.querySelectorAll('#pxRowsEl .cal-row-labels').forEach(ld=>{
       ld.innerHTML='';
+      // Position the labels overlay to match scroll position
+      ld.style.left = sl+'px';
+      ld.style.width = vw+'px';
       ld.parentElement.querySelectorAll('.cal-bar').forEach(b=>{
-        const bL=parseFloat(b.dataset.bL||0),bR=parseFloat(b.dataset.bR||0);
-        const nm=b.dataset.bN||'',bg=b.dataset.bB||'';
+        const bL=parseFloat(b.dataset.bL||0), bR=parseFloat(b.dataset.bR||0);
+        const nm=b.dataset.bN||'', bg=b.dataset.bB||'';
         if(!nm) return;
-        const vL=Math.max(bL,sl),vR=Math.min(bR,sl+vw);
-        if(vR<=vL) return;
+        // Visible portion in scroll coords
+        const vL=Math.max(bL,sl), vR=Math.min(bR,sl+vw);
+        if(vR<=vL+20) return; // not enough room
         const e=document.createElement('div');
         e.className='cal-float-label';
-        e.style.cssText=`left:${vL-bL+6}px;max-width:${vR-vL-12}px;color:#fff;`;
+        // left is relative to the labels div which is now offset by sl
+        e.style.cssText=`left:${vL-sl+6}px;max-width:${vR-vL-12}px;color:#fff;`;
         e.innerHTML=`${bg}<span class="cal-bar-label">${nm}</span>`;
         ld.appendChild(e);
       });
