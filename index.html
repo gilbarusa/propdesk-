@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-04-01 00:00</title>
+<title>Willow — Property Manager | v2026-04-01 01:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -350,29 +350,26 @@ textarea{resize:vertical;min-height:72px;}
 .cal-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
 .cal-leg-dot{width:10px;height:10px;border-radius:3px;}
 
-/* ══ PRICING VIEW LAYER — additive only, no existing styles touched ══ */
+/* ── PRICING VIEW — additive only ── */
 .cal-view-toggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-shrink:0;}
 .cal-view-btn{padding:5px 16px;font-family:'DM Mono',monospace;font-size:11px;font-weight:500;border:none;background:var(--surface);color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;}
 .cal-view-btn.active{background:var(--accent);color:#fff;}
 .cal-view-btn:first-child{border-right:1px solid var(--border);}
-
-/* Pricing grid — mirrors booking grid layout exactly */
-.px-layer{display:flex;flex-direction:column;flex:1;min-height:0;}
-.px-body{display:flex;flex:1;min-height:0;overflow:hidden;}
-.px-units-col{width:200px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;min-height:0;}
+/* Pricing grid mirrors booking layout */
+.px-units-col{width:200px;flex-shrink:0;border-right:2px solid var(--border2);overflow-y:auto;overflow-x:hidden;background:var(--surface);z-index:10;}
 .px-units-col::-webkit-scrollbar{display:none;}
-.px-header-spacer{height:76px;border-bottom:2px solid var(--border2);display:flex;align-items:center;padding:0 14px;background:var(--surface2);flex-shrink:0;}
-.px-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);cursor:default;flex-shrink:0;gap:6px;}
+.px-header-spacer{height:76px;border-bottom:2px solid var(--border2);display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:0 14px;background:var(--surface2);flex-shrink:0;gap:2px;}
+.px-unit-row{height:44px;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
 .px-unit-name{font-size:12px;font-weight:500;color:var(--accent2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .px-unit-sub{font-size:9px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
-.px-grid-outer{flex:1;overflow:auto;position:relative;}
+.px-grid-outer{flex:1;overflow:auto;}
 .px-grid-outer::-webkit-scrollbar{height:8px;width:8px;}
 .px-grid-outer::-webkit-scrollbar-track{background:var(--surface3);border-radius:4px;}
 .px-grid-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px;}
 .px-grid-outer::-webkit-scrollbar-thumb:hover{background:var(--accent);}
 .px-grid{position:relative;min-width:max-content;}
 .px-month-row{display:flex;height:24px;position:sticky;top:0;z-index:21;background:var(--surface2);border-bottom:1px solid var(--border);}
-.px-days-header{display:flex;height:52px;position:sticky;top:24px;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
+.px-days-hdr{display:flex;height:52px;position:sticky;top:24px;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
 .px-day-hdr{display:flex;flex-direction:column;align-items:center;justify-content:center;width:55px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;gap:2px;}
 .px-day-hdr.weekend{background:rgba(181,120,74,.06);}
 .px-day-hdr.today{background:var(--green);color:#fff;}
@@ -380,47 +377,34 @@ textarea{resize:vertical;min-height:72px;}
 .px-day-hdr .day-name{font-size:8px;letter-spacing:.5px;}
 .px-rows{}
 .px-row{display:flex;height:44px;border-bottom:1px solid var(--border);position:relative;align-items:stretch;}
-/* Individual cells */
-.px-cell{width:55px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none;}
+.px-cell{width:55px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;user-select:none;font-size:10px;}
 .px-cell.weekend{background:rgba(181,120,74,.04);}
 .px-cell.today-col{background:rgba(37,102,69,.06);}
-.px-cell.occupied{background:rgba(0,0,0,.03);cursor:default;}
 .px-cell.available{cursor:crosshair;}
 .px-cell.available:hover{background:rgba(181,120,74,.1);}
-.px-cell.px-sel{background:rgba(30,87,153,.15)!important;outline:1px solid rgba(30,87,153,.45);outline-offset:-1px;z-index:2;}
-.px-cell.px-sel-hover{background:rgba(30,87,153,.08)!important;}
-/* Cell content */
-.px-cell-nights{font-size:10px;color:var(--text3);line-height:1;display:flex;align-items:center;gap:1px;}
-.px-cell-rate{font-size:12px;font-weight:400;color:var(--accent2);line-height:1;}
-.px-cell-override{font-size:12px;font-weight:400;color:var(--blue);line-height:1;}
-/* Occupied bar inside pricing grid */
-.px-occ-bar{position:absolute;top:8px;left:2px;right:2px;bottom:8px;border-radius:5px;opacity:.35;pointer-events:none;}
-
+.px-cell.occupied{cursor:default;}
+.px-cell.px-sel{background:rgba(30,87,153,.15)!important;outline:1px solid rgba(30,87,153,.4);outline-offset:-1px;z-index:2;}
+.px-rate{color:var(--accent2);font-size:12px;line-height:1;}
+.px-rate.override{color:var(--blue);}
+.px-nights{color:var(--text3);font-size:10px;line-height:1;}
+.px-occ-bar{position:absolute;top:7px;left:2px;right:2px;bottom:7px;border-radius:5px;pointer-events:none;opacity:.45;}
 /* Edit modal */
-.px-modal-section{border:1px solid var(--border);border-radius:8px;overflow:hidden;}
-.px-modal-section+.px-modal-section{margin-top:10px;}
-.px-sec-hdr{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:var(--surface2);font-size:11px;font-weight:600;color:var(--text2);letter-spacing:.3px;cursor:pointer;user-select:none;}
+.px-sec{border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.px-sec-hdr{padding:9px 14px;background:var(--surface2);font-size:11px;font-weight:600;color:var(--text2);display:flex;justify-content:space-between;align-items:center;}
 .px-sec-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
-.px-row-f{display:flex;align-items:center;gap:8px;}
+.px-field{display:flex;align-items:center;gap:8px;}
 .px-lbl{font-size:11px;color:var(--text2);min-width:100px;flex-shrink:0;}
 .px-inp{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;min-width:0;}
 .px-inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(181,120,74,.1);}
-.px-sel-inp{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;cursor:pointer;min-width:0;}
-.px-unit-tag{background:var(--accent);color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px;}
+.px-sel{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-family:'DM Mono',monospace;font-size:12px;color:var(--text);outline:none;cursor:pointer;}
+.px-badge{background:var(--accent);color:#fff;border-radius:20px;font-size:10px;font-weight:700;padding:2px 8px;margin-left:6px;}
 .px-date-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 .px-sub{font-size:10px;color:var(--text3);margin-bottom:3px;}
-.px-unit-lbl{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;}
 .px-day-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.px-day-col-hdr{font-size:10px;color:var(--text3);margin-bottom:6px;}
-.px-day-checks{display:flex;flex-direction:column;gap:4px;}
-.px-day-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);cursor:pointer;}
-.px-day-check input{cursor:pointer;accent-color:var(--accent);}
-.px-all-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer;margin-bottom:4px;border-bottom:1px solid var(--border);padding-bottom:4px;}
-.px-all-check input{cursor:pointer;accent-color:var(--accent);}
-/* Legend for pricing */
-.px-legend{display:flex;gap:14px;align-items:center;margin-left:auto;flex-shrink:0;}
-.px-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2);}
-.px-leg-dot{width:10px;height:10px;border-radius:3px;}
+.px-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);cursor:pointer;padding:2px 0;}
+.px-check input{cursor:pointer;accent-color:var(--accent);}
+.px-check-all{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text3);cursor:pointer;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:2px;}
+.px-check-all input{cursor:pointer;accent-color:var(--accent);}
 /* Block modal */
 .block-modal-info{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text2);}
 .block-modal-info strong{color:var(--accent2);}
@@ -707,27 +691,23 @@ textarea{resize:vertical;min-height:72px;}
 
 <!-- ═══ CALENDAR PAGE ═══ -->
 <div class="page" id="page-calendar">
-
-  <!-- Shared toolbar — always visible in both booking and pricing views -->
-  <div style="display:flex;align-items:center;gap:10px;padding:8px 20px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;">
+  <!-- Shared toolbar — visible in both views -->
+  <div style="display:flex;align-items:center;gap:12px;padding:8px 20px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;">
     <div class="cal-view-toggle">
-      <button class="cal-view-btn active" id="calViewBookingBtn" onclick="setCalView('booking')">📅 Booking</button>
-      <button class="cal-view-btn" id="calViewPricingBtn" onclick="setCalView('pricing')">💲 Pricing</button>
+      <button class="cal-view-btn active" id="calViewBookingBtn" onclick="setCalView('booking')">&#128197; Booking</button>
+      <button class="cal-view-btn" id="calViewPricingBtn" onclick="setCalView('pricing')">&#36; Pricing</button>
     </div>
-    <div style="width:1px;height:22px;background:var(--border);flex-shrink:0;"></div>
-    <!-- Booking legend (hidden in pricing view) -->
-    <div class="cal-legend" id="pxBookingLegend">
+    <div style="width:1px;height:20px;background:var(--border);"></div>
+    <div id="pxLegendBooking" style="display:flex;gap:14px;align-items:center;">
       <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#2563a8"></div>Long Term</div>
       <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#7c4fbe"></div>M-to-M</div>
       <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#e07818"></div>Short Stay</div>
       <div class="cal-leg-item"><div class="cal-leg-dot" style="background:#c0392b"></div>Blocked</div>
     </div>
-    <!-- Pricing legend (hidden in booking view) -->
-    <div id="pxPricingLegend" style="display:none;display:flex;gap:14px;align-items:center;">
-      <div class="cal-leg-item"><div class="cal-leg-dot" style="background:rgba(181,120,74,.25);border:1px solid var(--accent);"></div>Available</div>
-      <div class="cal-leg-item"><div class="cal-leg-dot" style="background:rgba(30,87,153,.2);border:1px solid #2563a8;"></div>Selected</div>
-      <div class="cal-leg-item" style="color:var(--blue);font-size:10px;">Overridden price</div>
-      <div class="cal-leg-item" style="color:var(--text3);font-size:10px;font-style:italic;">Drag cells to set pricing</div>
+    <div id="pxLegendPricing" style="display:none;gap:14px;align-items:center;">
+      <div class="cal-leg-item"><div class="cal-leg-dot" style="background:rgba(30,87,153,.3);border:1px solid #2563a8;"></div>Selected</div>
+      <div class="cal-leg-item" style="color:var(--blue);font-size:10px;">Blue = overridden price</div>
+      <div class="cal-leg-item" style="color:var(--text3);font-size:10px;font-style:italic;">Drag to select dates &amp; set pricing</div>
     </div>
   </div>
 
@@ -763,31 +743,28 @@ textarea{resize:vertical;min-height:72px;}
         </div>
       </div>
     </div>
-  </div><!-- end cal-wrap (booking layer) -->
+  </div><!-- end cal-wrap -->
 
-  <!-- ═══ PRICING LAYER — separate, independent from booking calendar ═══ -->
-  <div id="pxLayer" style="display:none;flex:1;min-height:0;flex-direction:column;">
-    <div class="px-layer">
-      <div class="px-body">
-        <!-- Units column -->
-        <div class="px-units-col" id="pxUnitsCol">
-          <div class="px-header-spacer" style="flex-direction:column;align-items:flex-start;gap:2px;">
-            <span style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);" id="pxUnitCount">Units (0)</span>
-            <span style="font-size:9px;color:var(--text3);">Drag to select dates</span>
-          </div>
-          <div id="pxUnitsList"></div>
+  <!-- PRICING LAYER — completely separate -->
+  <div id="pxLayer" style="display:none;flex:1;min-height:0;overflow:hidden;">
+    <div style="display:flex;flex:1;height:100%;min-height:0;">
+      <div class="px-units-col" id="pxUnitsCol">
+        <div class="px-header-spacer">
+          <span style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);" id="pxUnitCount">Units (0)</span>
+          <span style="font-size:9px;color:var(--text3);">Short Stay only &bull; drag to select</span>
         </div>
-        <!-- Grid -->
-        <div class="px-grid-outer" id="pxGridOuter">
-          <div class="px-grid" id="pxGrid">
-            <div class="px-month-row" id="pxMonthRow"></div>
-            <div class="px-days-header" id="pxDaysHeader"></div>
-            <div class="px-rows" id="pxRows"></div>
-          </div>
+        <div id="pxUnitsList"></div>
+      </div>
+      <div class="px-grid-outer" id="pxGridOuter">
+        <div class="px-grid" id="pxGrid">
+          <div class="px-month-row" id="pxMonthRow"></div>
+          <div class="px-days-hdr" id="pxDaysHdr"></div>
+          <div class="px-rows" id="pxRows"></div>
         </div>
       </div>
     </div>
-  </div><!-- end pxLayer -->
+  </div>
+
 </div><!-- end page-calendar -->
 
 <!-- Cal Action Picker Modal -->
@@ -6249,385 +6226,288 @@ setInterval(updateHeaderClock, 1000);
   </div>
 </div>
 
-<!-- ═══ PRICING EDIT MODAL ═══ -->
-<div class="modal-overlay" id="pxEditModal">
-  <div class="modal" style="max-width:500px;">
+<!-- PRICING EDIT MODAL -->
+<div class="modal-overlay" id="pxModal">
+  <div class="modal" style="max-width:480px;">
     <div class="modal-header">
       <div>
-        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);">
-          Edit Pricing
-          <span class="px-unit-tag" id="pxEditCount">0</span>
+        <h2 style="font-family:'Playfair Display',serif;font-size:18px;font-weight:700;">
+          Edit Pricing <span class="px-badge" id="pxModalCount">0</span>
         </h2>
-        <div id="pxEditNames" style="font-size:11px;color:var(--text3);margin-top:3px;max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+        <div id="pxModalApts" style="font-size:11px;color:var(--text3);margin-top:3px;"></div>
       </div>
-      <button class="modal-close" onclick="closeModal('pxEditModal')">&#x2715;</button>
+      <button class="modal-close" onclick="closeModal('pxModal')">&#x2715;</button>
     </div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:0;padding:16px 0;">
-
-      <!-- Date Range -->
-      <div class="px-modal-section" style="margin:0 24px 10px;">
-        <div class="px-sec-hdr">📅 Date Range</div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:10px;padding:16px 24px;">
+      <div class="px-sec">
+        <div class="px-sec-hdr">Date Range</div>
         <div class="px-sec-body">
           <div class="px-date-grid">
-            <div>
-              <div class="px-sub">Start Date</div>
-              <input type="date" id="pxEditStart" class="px-inp" style="width:100%;">
-            </div>
-            <div>
-              <div class="px-sub">End Date</div>
-              <input type="date" id="pxEditEnd" class="px-inp" style="width:100%;">
-            </div>
+            <div><div class="px-sub">Start Date</div><input type="date" id="pxStart" class="px-inp" style="width:100%;"></div>
+            <div><div class="px-sub">End Date</div><input type="date" id="pxEnd" class="px-inp" style="width:100%;"></div>
           </div>
         </div>
       </div>
-
-      <!-- Pricing -->
-      <div class="px-modal-section" style="margin:0 24px 10px;">
-        <div class="px-sec-hdr">💲 Pricing</div>
+      <div class="px-sec">
+        <div class="px-sec-hdr">Pricing</div>
         <div class="px-sec-body">
-          <div class="px-row-f">
+          <div class="px-field">
             <span class="px-lbl">Daily Rate</span>
-            <select id="pxRateType" class="px-sel-inp" style="max-width:130px;" onchange="pxOnRateTypeChange()">
+            <select id="pxRateType" class="px-sel" style="max-width:130px;" onchange="pxRateTypeChange()">
               <option value="fixed">Fixed</option>
               <option value="inc_pct">Increase %</option>
               <option value="dec_pct">Decrease %</option>
               <option value="inc_amt">Increase $</option>
               <option value="dec_amt">Decrease $</option>
             </select>
-            <input type="number" id="pxRateVal" class="px-inp" placeholder="0" min="0" step="1" style="max-width:90px;">
-            <span id="pxRateUnit" style="font-size:12px;color:var(--text3);min-width:20px;">$</span>
+            <input type="number" id="pxRateVal" class="px-inp" placeholder="0" min="0" style="max-width:80px;">
+            <span id="pxRateUnit" style="font-size:12px;color:var(--text3);min-width:16px;">$</span>
           </div>
-          <div class="px-row-f">
-            <span class="px-lbl">Minimum Stay</span>
-            <input type="number" id="pxMinStay" class="px-inp" placeholder="1" min="1" step="1" style="max-width:80px;">
-            <span style="font-size:12px;color:var(--text3);">night(s)</span>
+          <div class="px-field">
+            <span class="px-lbl">Min Stay</span>
+            <input type="number" id="pxMinStay" class="px-inp" placeholder="1" min="1" style="max-width:70px;">
+            <span style="font-size:12px;color:var(--text3);">nights</span>
           </div>
         </div>
       </div>
-
-      <!-- Check-in / checkout restrictions (collapsible) -->
-      <div class="px-modal-section" style="margin:0 24px 0;">
-        <div class="px-sec-hdr" id="pxRestrictHdr" onclick="pxToggleRestrictions()">
-          <span>📋 Check-in &amp; Checkout Restrictions</span>
-          <span id="pxRestrictArrow">▼</span>
+      <div class="px-sec">
+        <div class="px-sec-hdr" style="cursor:pointer;" onclick="pxToggleRestrict()">
+          <span>Check-in &amp; Checkout Restrictions</span>
+          <span id="pxRestrictArrow">&#9660;</span>
         </div>
-        <div class="px-sec-body" id="pxRestrictBody" style="display:none;">
+        <div id="pxRestrictBody" style="display:none;padding:12px 14px;">
           <div class="px-day-grid">
             <div>
-              <div class="px-day-col-hdr">Allow check-in on:</div>
-              <label class="px-all-check"><input type="checkbox" id="pxCiAll" onchange="pxToggleAllDays('ci',this.checked)" checked> All days</label>
-              <div class="px-day-checks" id="pxCiChecks"></div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:5px;">Allow check-in on:</div>
+              <label class="px-check-all"><input type="checkbox" id="pxCiAll" onchange="pxAllDays('ci',this.checked)" checked> All days</label>
+              <div id="pxCiDays"></div>
             </div>
             <div>
-              <div class="px-day-col-hdr">Allow checkout on:</div>
-              <label class="px-all-check"><input type="checkbox" id="pxCoAll" onchange="pxToggleAllDays('co',this.checked)" checked> All days</label>
-              <div class="px-day-checks" id="pxCoChecks"></div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:5px;">Allow checkout on:</div>
+              <label class="px-check-all"><input type="checkbox" id="pxCoAll" onchange="pxAllDays('co',this.checked)" checked> All days</label>
+              <div id="pxCoDays"></div>
             </div>
           </div>
         </div>
       </div>
-
-    </div><!-- end modal-body -->
+    </div>
     <div class="modal-footer" style="justify-content:space-between;">
-      <button class="btn btn-secondary" onclick="pxResetAndClose()" style="color:var(--red);border-color:var(--red-border);">Reset</button>
+      <button class="btn btn-secondary" onclick="pxReset()" style="color:var(--red);border-color:var(--red-border);">Reset</button>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-secondary" onclick="closeModal('pxEditModal')">Cancel</button>
-        <button class="btn btn-primary" id="pxSaveBtn" onclick="pxSave()">💾 Save</button>
+        <button class="btn btn-secondary" onclick="closeModal('pxModal')">Cancel</button>
+        <button class="btn btn-primary" id="pxSaveBtn" onclick="pxSave()">&#128190; Save</button>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// ════════════════════════════════════════════════════════
-// PRICING VIEW — completely separate layer, no existing code touched
-// ════════════════════════════════════════════════════════
-
-// ── State ──
-let _pxView = false;              // true = pricing layer visible
-let _pxPeriods = [];              // pricing_periods rows from Supabase
-let _pxUnits = [];                // current unit list (same filter as booking view)
-let _pxDates = [];                // date strings for grid window
-const PX_COL_W = 55;             // cell width (20% larger than booking)
-
-// Selection state
+// ═══════════════════════════════════════════════
+// PRICING VIEW — completely separate layer
+// ═══════════════════════════════════════════════
+const PX_W = 55; // cell width px
+let _pxPeriods = [];
+let _pxUnits   = [];
+let _pxDates   = [];
 let _pxDragging = false;
 let _pxDragStartDate = null;
-let _pxDragStartApt = null;
-let _pxSelApts = new Set();
+let _pxSelApts  = new Set();
 let _pxSelStart = null;
-let _pxSelEnd = null;
+let _pxSelEnd   = null;
 
 // ── Toggle ──
 function setCalView(mode) {
-  _pxView = (mode === 'pricing');
-  document.getElementById('calViewBookingBtn').classList.toggle('active', !_pxView);
-  document.getElementById('calViewPricingBtn').classList.toggle('active',  _pxView);
-
-  const calWrap = document.getElementById('calWrap');
-  const pxLayer = document.getElementById('pxLayer');
-  const bookingLegend = document.getElementById('pxBookingLegend');
-  const pricingLegend = document.getElementById('pxPricingLegend');
-
-  if (_pxView) {
-    calWrap.style.display = 'none';
-    pxLayer.style.display = 'flex';
-    if (bookingLegend) bookingLegend.style.display = 'none';
-    if (pricingLegend) pricingLegend.style.display = 'flex';
-    pxRender();
-  } else {
-    calWrap.style.display = '';
-    pxLayer.style.display = 'none';
-    if (bookingLegend) bookingLegend.style.display = '';
-    if (pricingLegend) pricingLegend.style.display = 'none';
-    _pxClearSel();
-  }
+  const isPricing = mode === 'pricing';
+  document.getElementById('calViewBookingBtn').classList.toggle('active', !isPricing);
+  document.getElementById('calViewPricingBtn').classList.toggle('active',  isPricing);
+  document.getElementById('calWrap').style.display      = isPricing ? 'none' : '';
+  document.getElementById('pxLayer').style.display      = isPricing ? 'flex' : 'none';
+  document.getElementById('pxLegendBooking').style.display = isPricing ? 'none' : 'flex';
+  document.getElementById('pxLegendPricing').style.display = isPricing ? 'flex' : 'none';
+  if (isPricing) pxRender();
+  else { _pxSelApts = new Set(); _pxSelStart = null; _pxSelEnd = null; }
 }
 
-// ── Load from Supabase ──
-async function pxLoadPeriods() {
+// ── Load ──
+async function pxLoad() {
   try {
-    const {data, error} = await sb.from('pricing_periods').select('*');
-    if (!error && data) _pxPeriods = data;
-  } catch(e) { console.warn('pricing_periods table not found'); }
+    const {data: rows, error} = await sb.from('pricing_periods').select('*');
+    if (!error && rows) _pxPeriods = rows;
+  } catch(e) { console.warn('pricing_periods table missing'); }
 }
 
-// ── Get override for a specific apt + date ──
-function pxGetPeriod(apt, dateStr) {
-  const hits = _pxPeriods.filter(p =>
-    p.apt === apt && p.start_date <= dateStr && p.end_date >= dateStr
-  );
-  if (!hits.length) return null;
-  return hits.sort((a,b) => b.id - a.id)[0]; // most recent wins
+function pxGetPeriod(apt, d) {
+  const hits = _pxPeriods.filter(p => p.apt === apt && p.start_date <= d && p.end_date >= d);
+  return hits.length ? hits.sort((a,b) => b.id - a.id)[0] : null;
 }
 
-// ── Main render ──
+// ── Render ──
 function pxRender() {
-  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const DAY_ABBR   = ['SU','MO','TU','WE','TH','FR','SA'];
-  const todayStr   = new Date().toISOString().split('T')[0];
+  const DAY  = ['SU','MO','TU','WE','TH','FR','SA'];
+  const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const todayStr = new Date().toISOString().split('T')[0];
 
-  // Same date window as booking calendar: 90 back, 150 forward
+  // Date window: 90 back, 150 forward
   _pxDates = [];
-  const _t = new Date();
-  const from = new Date(_t); from.setDate(_t.getDate() - 90);
-  const to   = new Date(_t); to.setDate(_t.getDate() + 150);
-  for (let d = new Date(from); d <= to; d.setDate(d.getDate()+1)) {
-    _pxDates.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+  const t = new Date();
+  for (let i = -90; i <= 150; i++) {
+    const d = new Date(t); d.setDate(t.getDate() + i);
+    _pxDates.push(d.toISOString().split('T')[0]);
   }
+  const winStart = _pxDates[0], winEnd = _pxDates[_pxDates.length-1];
 
-  // ── Build unit list — pricing view shows short-stay units only ──
+  // Units: short-stay + available only
   const q = (document.getElementById('calSearch')?.value || '').toLowerCase();
-  // Only properties that are short-stay type OR currently available (could be rented as short-stay)
   let units = data.filter(r => !r.archived && (r.type === 'short-stay' || r.type === 'available'));
   if (q) units = units.filter(r =>
     (r.apt||'').toLowerCase().includes(q) ||
-    (r.name||'').toLowerCase().includes(q) ||
-    (r.owner||'').toLowerCase().includes(q)
+    (r.name||'').toLowerCase().includes(q)
   );
-
-  // Deduplicate by apt (same logic as booking)
+  // Dedup by apt — keep active/current booking row
   const byApt = new Map();
   for (const r of units) {
     const prev = byApt.get(r.apt);
     if (!prev) { byApt.set(r.apt, r); continue; }
-    const rFut = !!(r.checkin && r.checkin > todayStr);
-    const pFut = !!(prev.checkin && prev.checkin > todayStr);
-    if (!rFut && pFut) { byApt.set(r.apt, r); continue; }
-    if (!pFut && rFut) continue;
-    if ((r.id||0) < (prev.id||0)) byApt.set(r.apt, r);
+    const rCur = r.checkin && r.checkin <= todayStr && (!r.due || r.due >= todayStr);
+    const pCur = prev.checkin && prev.checkin <= todayStr && (!prev.due || prev.due >= todayStr);
+    if (rCur && !pCur) byApt.set(r.apt, r);
   }
   _pxUnits = [...byApt.values()].sort((a,b) => (a.apt||'').localeCompare(b.apt||'', undefined, {numeric:true}));
-
   document.getElementById('pxUnitCount').textContent = `Units (${_pxUnits.length})`;
 
-  // ── Units column ──
+  // Units col
+  const calMeta = typeof getCalUnitMeta === 'function' ? getCalUnitMeta() : {};
   document.getElementById('pxUnitsList').innerHTML = _pxUnits.map(r => {
-    const meta = getCalUnitMeta ? (getCalUnitMeta()[r.apt] || {}) : {};
-    return `<div class="px-unit-row">
-      <div style="flex:1;overflow:hidden;">
-        <div class="px-unit-name">${r.apt}</div>
-        ${meta.brBath ? `<div class="px-unit-sub">${meta.brBath}</div>` : ''}
-      </div>
-    </div>`;
+    const meta = calMeta[r.apt] || {};
+    return `<div class="px-unit-row"><div style="flex:1;overflow:hidden;">
+      <div class="px-unit-name">${r.apt}</div>
+      ${meta.brBath ? `<div class="px-unit-sub">${meta.brBath}</div>` : ''}
+    </div></div>`;
   }).join('');
 
-  // ── Month label row ──
-  let lastMo = -1, monthGroups = [];
+  // Month row
+  let lastMo = -1, mGroups = [];
   _pxDates.forEach(d => {
     const mo = parseInt(d.substring(5,7))-1, yr = parseInt(d.substring(0,4));
-    if (mo !== lastMo) { monthGroups.push({mo, yr, count:1}); lastMo = mo; }
-    else monthGroups[monthGroups.length-1].count++;
+    if (mo !== lastMo) { mGroups.push({mo, yr, count:1}); lastMo = mo; }
+    else mGroups[mGroups.length-1].count++;
   });
-  document.getElementById('pxMonthRow').innerHTML = monthGroups.map(g =>
-    `<div style="width:${g.count*PX_COL_W}px;flex-shrink:0;display:flex;align-items:center;padding:0 8px;
-      font-family:'Playfair Display',serif;font-size:12px;font-weight:700;color:var(--accent2);
-      border-right:2px solid var(--border2);box-sizing:border-box;background:var(--surface2);">
-      ${MONTH_SHORT[g.mo]} ${g.yr}</div>`
+  document.getElementById('pxMonthRow').innerHTML = mGroups.map(g =>
+    `<div style="width:${g.count*PX_W}px;flex-shrink:0;display:flex;align-items:center;padding:0 8px;font-family:'Playfair Display',serif;font-size:12px;font-weight:700;color:var(--accent2);border-right:2px solid var(--border2);box-sizing:border-box;">${MONS[g.mo]} ${g.yr}</div>`
   ).join('');
 
-  // ── Day headers ──
-  document.getElementById('pxDaysHeader').innerHTML = _pxDates.map(d => {
+  // Day headers
+  document.getElementById('pxDaysHdr').innerHTML = _pxDates.map(d => {
     const dt = new Date(d+'T00:00:00'), dow = dt.getDay();
-    const isWE = dow===0||dow===6, isToday = d===todayStr;
-    return `<div class="px-day-hdr${isWE?' weekend':''}${isToday?' today':''}">
-      <div class="day-name">${DAY_ABBR[dow]}</div>
-      <div class="day-num">${dt.getDate()}</div>
+    return `<div class="px-day-hdr${dow===0||dow===6?' weekend':''}${d===todayStr?' today':''}">
+      <div class="day-name">${DAY[dow]}</div><div class="day-num">${dt.getDate()}</div>
     </div>`;
   }).join('');
 
-  // ── Rows ──
+  // Rows
   const rowsEl = document.getElementById('pxRows');
   rowsEl.innerHTML = '';
 
-  _pxUnits.forEach((r, rowIdx) => {
+  _pxUnits.forEach(r => {
     const rowDiv = document.createElement('div');
     rowDiv.className = 'px-row';
-    rowDiv.style.width = (_pxDates.length * PX_COL_W) + 'px';
+    rowDiv.style.width = (_pxDates.length * PX_W) + 'px';
 
-    // Build occupied ranges for this apt
-    const occupied = [];
-    if (r.type !== 'available' && r.name) {
-      const bf = r.checkin || _pxDates[0];
-      const bt = r.due || r.lease_end || '';
-      if (bt) occupied.push({from: bf, to: bt, type: r.type});
-    }
-    // Future bookings
-    (data.filter(x => !x.archived && x.apt===r.apt && x.id!==r.id && x.checkin && x.checkin > todayStr)).forEach(x => {
-      occupied.push({from: x.checkin, to: x.due||x.lease_end||x.checkin, type: x.type});
+    // Collect ALL bookings for this apt (active + future + past in window)
+    const allBars = [];
+
+    // All active records for this apt
+    data.filter(x => !x.archived && x.apt === r.apt && x.name && x.type !== 'available').forEach(x => {
+      const from = x.checkin || winStart;
+      const to   = x.due || x.lease_end || '';
+      if (to && to >= winStart) allBars.push({name:x.name, from, to, type:x.type, note:x.note||''});
     });
-    // Past stays in window
-    (archived.filter(x => x.apt===r.apt && (x.archivedDate||x.due))).forEach(x => {
-      const from = x.checkin || x.archivedDate || x.due;
-      const to   = x.archivedDate || x.due;
-      if (to >= _pxDates[0]) occupied.push({from, to, type: x.type});
+    // Past stays from archive
+    archived.filter(x => x.apt === r.apt && x.name).forEach(x => {
+      const from = x.checkin || x.archivedDate || x.due || '';
+      const to   = x.archivedDate || x.due || '';
+      if (from && to && to >= winStart && from <= winEnd)
+        allBars.push({name:x.name, from, to, type:x.type, note:x.note||''});
+    });
+    // Blocks
+    const aptBlocks = typeof getBlocks === 'function' ? (getBlocks()[r.apt] || []) : [];
+    aptBlocks.forEach(b => allBars.push({name:b.reason||'Blocked', from:b.from, to:b.to, type:'__block__'}));
+
+    // Build set of occupied dates
+    const occSet = new Set();
+    allBars.forEach(b => {
+      const s = _pxDates.indexOf(b.from < winStart ? winStart : b.from);
+      const e = _pxDates.indexOf(b.to   > winEnd   ? winEnd   : b.to  );
+      for (let i = Math.max(0,s); i <= Math.min(_pxDates.length-1, e); i++) occSet.add(_pxDates[i]);
     });
 
-    // Get blocks
-    const aptBlocks = getBlocks ? (getBlocks()[r.apt] || []) : [];
-
+    // Build cells
     let cellsHtml = '';
-    _pxDates.forEach((d, di) => {
-      const dt  = new Date(d+'T00:00:00'), dow = dt.getDay();
-      const isWE    = dow===0||dow===6;
-      const isToday = d === todayStr;
-      const isOcc   = occupied.some(b => d >= b.from && d <= b.to);
-      const isBlk   = aptBlocks.some(b => d >= b.from && d <= b.to);
-      const isSel   = _pxSelApts.has(r.apt) && _pxSelStart && _pxSelEnd &&
-                      d >= _pxSelStart && d <= _pxSelEnd;
+    _pxDates.forEach(d => {
+      const dt = new Date(d+'T00:00:00'), dow = dt.getDay();
+      const isWE  = dow===0||dow===6, isToday = d===todayStr;
+      const isOcc = occSet.has(d);
+      const isSel = _pxSelApts.has(r.apt) && _pxSelStart && _pxSelEnd && d>=_pxSelStart && d<=_pxSelEnd;
 
-      let cls = 'px-cell';
-      if (isWE)    cls += ' weekend';
-      if (isToday) cls += ' today-col';
-      if (isSel)   cls += ' px-sel';
+      let cls = 'px-cell' + (isWE?' weekend':'') + (isToday?' today-col':'') + (isSel?' px-sel':'');
 
-      if (isOcc || isBlk) {
-        // Show occupied — colour bar inside cell
-        const occType = isBlk ? '__block__' : (occupied.find(b => d>=b.from && d<=b.to)?.type || '');
-        const barColor = occType==='long-term' ? '#2563a8'
-          : occType==='month-to-month' ? '#7c4fbe'
-          : occType==='short-stay'     ? '#e07818'
-          : occType==='__block__'      ? '#c0392b' : '#888';
+      if (isOcc) {
         cls += ' occupied';
-        cellsHtml += `<div class="${cls}" data-apt="${r.apt}" data-date="${d}">
-          <div class="px-occ-bar" style="background:${barColor};"></div>
-        </div>`;
+        cellsHtml += `<div class="${cls}" data-apt="${r.apt}" data-date="${d}"></div>`;
       } else {
-        // Available — show pricing
+        cls += ' available';
         const period   = pxGetPeriod(r.apt, d);
         const propRow  = propertiesData ? propertiesData.find(p => p.internal_apt===r.apt||p.apt===r.apt) : null;
         const rate     = period?.nightly_rate ?? propRow?.base_price ?? null;
         const minNts   = period?.min_stay     ?? propRow?.min_stay   ?? null;
-        const hasOverride = !!period;
-
-        const nightEl = minNts != null
-          ? `<span class="px-cell-nights">🌙${minNts}</span>` : '';
-        const rateEl  = rate != null
-          ? `<span class="${hasOverride ? 'px-cell-override' : 'px-cell-rate'}">$${Math.round(rate)}</span>` : '';
-
-        cls += ' available';
+        const isOverride = !!period;
+        const nightHtml = minNts != null ? `<span class="px-nights">\uD83C\uDF19 ${minNts}</span>` : '';
+        const rateHtml  = rate  != null ? `<span class="px-rate${isOverride?' override':''}">\$${Math.round(rate)}</span>` : '';
         cellsHtml += `<div class="${cls}" data-apt="${r.apt}" data-date="${d}"
-          onmousedown="pxOnMouseDown(event,'${r.apt}','${d}')"
-          onmousemove="pxOnMouseMove(event,'${r.apt}','${d}')"
-          onmouseup="pxOnMouseUp(event)"
-          title="Apt ${r.apt} · ${d}${rate!=null?' · $'+Math.round(rate)+'/nt':''}${minNts!=null?' · min '+minNts+' nights':''}">
-          ${nightEl}${rateEl}
+          onmousedown="pxDown(event,'${r.apt}','${d}')"
+          onmousemove="pxMove(event,'${r.apt}','${d}')"
+          onmouseup="pxUp()"
+          title="${r.apt} ${d}${rate!=null?' $'+Math.round(rate)+'/nt':''}${minNts!=null?' min '+minNts+'nts':''}">
+          ${nightHtml}${rateHtml}
         </div>`;
       }
     });
-
     rowDiv.innerHTML = cellsHtml;
 
-    // ── Overlay booking bars with tenant names (same as booking view) ──
-    const winStart = _pxDates[0], winEnd = _pxDates[_pxDates.length-1];
-    const pxBars = [];
-    // Active tenant
-    if (r.type !== 'available' && r.name) {
-      const bf = r.checkin && r.checkin >= winStart ? r.checkin : winStart;
-      const bt = r.due || r.lease_end || '';
-      if (bt) pxBars.push({name:r.name, from:bf, to:bt, type:r.type, note:r.note||''});
-    }
-    // Future bookings
-    data.filter(x => !x.archived && x.apt===r.apt && x.id!==r.id && x.checkin && x.checkin>=todayStr).forEach(x => {
-      pxBars.push({name:x.name, from:x.checkin, to:x.due||x.lease_end||x.checkin, type:x.type, note:x.note||''});
-    });
-    // Past stays in window
-    archived.filter(x => x.apt===r.apt).forEach(x => {
-      const from = x.checkin || x.archivedDate || x.due;
-      const to   = x.archivedDate || x.due;
-      if (from && to && to >= winStart && from <= winEnd)
-        pxBars.push({name:x.name, from, to, type:x.type, note:x.note||''});
-    });
-    // Blocks
-    aptBlocks.forEach(b => pxBars.push({name:b.reason||'Blocked', from:b.from, to:b.to, type:'__block__'}));
-
-    const pxDateIdx = d => {
-      if (d <= _pxDates[0]) return 0;
-      if (d >= _pxDates[_pxDates.length-1]) return _pxDates.length-1;
-      let lo=0, hi=_pxDates.length-1;
-      while(lo<=hi){const mid=(lo+hi)>>1;if(_pxDates[mid]===d)return mid;if(_pxDates[mid]<d)lo=mid+1;else hi=mid-1;}
-      return lo;
-    };
-
-    pxBars.forEach(bar => {
-      if (!bar.from || !bar.to) return;
+    // ── Overlay booking bars (exact same as booking view — full color, with names) ──
+    allBars.forEach(bar => {
       const cf = bar.from < winStart ? winStart : bar.from;
       const ct = bar.to   > winEnd   ? winEnd   : bar.to;
       if (cf > winEnd || ct < winStart) return;
-      const s = pxDateIdx(cf), e = pxDateIdx(ct);
-      if (s < 0 || e < 0) return;
-      const span = e - s + 1; if (span < 1) return;
+      const si = _pxDates.indexOf(cf), ei = _pxDates.indexOf(ct);
+      if (si < 0 || ei < 0) return;
+      const span = ei - si + 1; if (span < 1) return;
 
-      const bgColor = bar.type==='long-term'       ? 'linear-gradient(90deg,rgba(37,99,168,.55),rgba(30,87,153,.55))'
-        : bar.type==='month-to-month' ? 'linear-gradient(90deg,rgba(124,79,190,.55),rgba(94,63,158,.55))'
-        : bar.type==='short-stay'     ? 'linear-gradient(90deg,rgba(224,120,24,.55),rgba(184,104,24,.55))'
-        : bar.type==='__block__'      ? 'linear-gradient(90deg,rgba(192,57,43,.55),rgba(150,45,34,.55))'
-        : 'linear-gradient(90deg,rgba(37,99,168,.55),rgba(30,87,153,.55))';
+      const leftPx  = si * PX_W + 2;
+      const widthPx = span * PX_W - 4;
 
-      const badge = getChannelBadge ? getChannelBadge(bar.note) : '';
-      const leftPx  = s * PX_COL_W + 2;
-      const widthPx = span * PX_COL_W - 4;
+      const bg = bar.type==='long-term'       ? 'linear-gradient(90deg,#2563a8,#1e5799)'
+               : bar.type==='month-to-month'  ? 'linear-gradient(90deg,#7c4fbe,#5e3f9e)'
+               : bar.type==='short-stay'      ? 'linear-gradient(90deg,#e07818,#b86818)'
+               : bar.type==='__block__'       ? 'linear-gradient(90deg,#c0392b,#962d22)'
+               :                                'linear-gradient(90deg,#2563a8,#1e5799)';
+
+      const badge = typeof getChannelBadge === 'function' ? getChannelBadge(bar.note||'') : '';
 
       const barEl = document.createElement('div');
-      const barTypeCls = bar.type==='long-term' ? ' bar-lt'
-        : bar.type==='month-to-month' ? ' bar-mtm'
-        : bar.type==='short-stay'     ? ' bar-ss'
-        : bar.type==='__block__'      ? ' bar-block' : '';
-      barEl.className = 'cal-bar' + barTypeCls;
-      barEl.style.cssText = `left:${leftPx}px;width:${widthPx}px;z-index:5;overflow:hidden;`;
-      barEl.title = `${bar.name} · ${bar.from} → ${bar.to}`;
+      barEl.className = 'cal-bar';
+      barEl.style.cssText = `left:${leftPx}px;width:${widthPx}px;opacity:0.6;z-index:5;overflow:hidden;`;
+      barEl.title = `${bar.name} (${bar.from} - ${bar.to})`;
       barEl.dataset.barLeft  = leftPx;
       barEl.dataset.barRight = leftPx + widthPx;
       barEl.dataset.barName  = bar.name;
       barEl.dataset.barBadge = badge.replace(/"/g,"'");
       barEl.dataset.barColor = '#fff';
-      barEl.style.boxShadow  = '0 1px 3px rgba(0,0,0,.1)';
-      barEl.innerHTML = `<div class="cal-bar-bg" style="background:${bgColor}"></div>`;
+      barEl.innerHTML = `<div class="cal-bar-bg" style="background:${bg}"></div>`;
       rowDiv.appendChild(barEl);
     });
 
-    // Floating label overlay
+    // Floating label overlay div (populated on scroll)
     const labelsDiv = document.createElement('div');
     labelsDiv.className = 'cal-row-labels';
     rowDiv.appendChild(labelsDiv);
@@ -6635,234 +6515,176 @@ function pxRender() {
     rowsEl.appendChild(rowDiv);
   });
 
-  // Set explicit widths
-  const totalW = _pxDates.length * PX_COL_W;
-  document.getElementById('pxGrid').style.width         = totalW + 'px';
-  document.getElementById('pxRows').style.width         = totalW + 'px';
-  document.getElementById('pxDaysHeader').style.width   = totalW + 'px';
-  document.getElementById('pxMonthRow').style.width     = totalW + 'px';
+  // Set widths
+  const totalW = _pxDates.length * PX_W;
+  ['pxGrid','pxRows','pxDaysHdr','pxMonthRow'].forEach(id => {
+    document.getElementById(id).style.width = totalW + 'px';
+  });
 
-  // Units col vertical sync
-  const pxUnitsCol2 = document.getElementById('pxUnitsCol');
-  const pxGridOuter = document.getElementById('pxGridOuter');
+  // Floating labels on scroll
+  const outer = document.getElementById('pxGridOuter');
+  const ucol  = document.getElementById('pxUnitsCol');
 
-  function _pxUpdateFloatingLabels() {
-    const scrollLeft   = pxGridOuter.scrollLeft;
-    const visibleWidth = pxGridOuter.clientWidth;
-    // Sync vertical scroll of units col
-    pxUnitsCol2.scrollTop = pxGridOuter.scrollTop;
-
-    document.querySelectorAll('#pxRows .cal-row-labels').forEach(labelsDiv => {
-      labelsDiv.innerHTML = '';
-      const row  = labelsDiv.parentElement;
-      const bars = row.querySelectorAll('.cal-bar');
-      bars.forEach(bar => {
-        const barLeft  = parseFloat(bar.dataset.barLeft  || 0);
-        const barRight = parseFloat(bar.dataset.barRight || 0);
-        const name     = bar.dataset.barName  || '';
-        const badge    = bar.dataset.barBadge || '';
-        const color    = bar.dataset.barColor || '#fff';
-        if (!name) return;
-
-        // Visible portion of the bar
-        const visL = Math.max(barLeft,  scrollLeft);
-        const visR = Math.min(barRight, scrollLeft + visibleWidth);
+  function pxDrawLabels() {
+    const sl = outer.scrollLeft, vw = outer.clientWidth;
+    ucol.scrollTop = outer.scrollTop;
+    document.querySelectorAll('#pxRows .cal-row-labels').forEach(ld => {
+      ld.innerHTML = '';
+      ld.parentElement.querySelectorAll('.cal-bar').forEach(bar => {
+        const bL = parseFloat(bar.dataset.barLeft  || 0);
+        const bR = parseFloat(bar.dataset.barRight || 0);
+        const nm = bar.dataset.barName  || '';
+        const bg = bar.dataset.barBadge || '';
+        if (!nm) return;
+        const visL = Math.max(bL, sl), visR = Math.min(bR, sl + vw);
         if (visR <= visL) return;
-
-        const labelEl = document.createElement('div');
-        labelEl.className = 'cal-float-label';
-        labelEl.style.left     = (visL - barLeft + 6) + 'px';
-        labelEl.style.maxWidth = (visR - visL - 12) + 'px';
-        labelEl.style.color    = color;
-        labelEl.innerHTML      = `${badge}<span class="cal-bar-label">${name}</span>`;
-        labelsDiv.appendChild(labelEl);
+        const el = document.createElement('div');
+        el.className = 'cal-float-label';
+        el.style.cssText = `left:${visL-bL+6}px;max-width:${visR-visL-12}px;color:#fff;`;
+        el.innerHTML = `${bg}<span class="cal-bar-label">${nm}</span>`;
+        ld.appendChild(el);
       });
     });
   }
 
-  pxGridOuter.onscroll = _pxUpdateFloatingLabels;
-  pxUnitsCol2.onscroll = () => { pxGridOuter.scrollTop = pxUnitsCol2.scrollTop; };
+  outer.onscroll = pxDrawLabels;
+  ucol.onscroll  = () => { outer.scrollTop = ucol.scrollTop; };
 
-  // Scroll to today on first render, then draw labels
-  if (!pxGridOuter._pxScrolled) {
-    pxGridOuter._pxScrolled = true;
-    const todayIdx = _pxDates.indexOf(todayStr);
-    if (todayIdx >= 0) {
-      pxGridOuter.scrollLeft = Math.max(0, todayIdx * PX_COL_W - 150);
-    }
+  // Scroll to today first render
+  if (!outer._pxScrolled) {
+    outer._pxScrolled = true;
+    const ti = _pxDates.indexOf(todayStr);
+    if (ti >= 0) outer.scrollLeft = Math.max(0, ti * PX_W - 150);
   }
-  // Draw labels after browser has applied scroll position
-  setTimeout(_pxUpdateFloatingLabels, 50);
+  setTimeout(pxDrawLabels, 60);
 }
 
-// ── Mouse selection ──
-function pxOnMouseDown(e, apt, dateStr) {
+// ── Selection mouse events ──
+function pxDown(e, apt, d) {
   e.preventDefault();
-  _pxDragging = true;
-  _pxDragStartDate = dateStr;
-  _pxDragStartApt  = apt;
-  if (!e.shiftKey) {
-    _pxSelApts  = new Set();
-    _pxSelStart = dateStr;
-    _pxSelEnd   = dateStr;
-  }
+  _pxDragging = true; _pxDragStartDate = d;
+  if (!e.shiftKey) { _pxSelApts = new Set(); _pxSelStart = d; _pxSelEnd = d; }
   _pxSelApts.add(apt);
-  _pxSelStart = _pxSelStart && e.shiftKey ? (_pxSelStart < dateStr ? _pxSelStart : dateStr) : dateStr;
-  _pxSelEnd   = dateStr;
-  _pxHighlight();
+  _pxSelStart = (!e.shiftKey || !_pxSelStart) ? d : (_pxSelStart < d ? _pxSelStart : d);
+  _pxSelEnd   = d;
+  pxHighlight();
 }
-
-function pxOnMouseMove(e, apt, dateStr) {
+function pxMove(e, apt, d) {
   if (!_pxDragging) return;
-  const a = _pxDragStartDate, b = dateStr;
-  _pxSelStart = a < b ? a : b;
-  _pxSelEnd   = a > b ? a : b;
+  const a = _pxDragStartDate;
+  _pxSelStart = a < d ? a : d; _pxSelEnd = a > d ? a : d;
   _pxSelApts.add(apt);
-  _pxHighlight();
+  pxHighlight();
 }
-
-function pxOnMouseUp(e) {
-  if (!_pxDragging) return;
-  _pxDragging = false;
-  if (_pxSelApts.size > 0 && _pxSelStart) pxOpenEditModal();
+function pxUp() {
+  if (!_pxDragging) return; _pxDragging = false;
+  if (_pxSelApts.size && _pxSelStart) pxOpenModal();
 }
-
-// Global mouseup so release outside a cell still opens modal
-document.addEventListener('mouseup', (e) => {
-  if (_pxDragging) {
-    _pxDragging = false;
-    if (_pxSelApts.size > 0 && _pxSelStart) pxOpenEditModal();
-  }
+document.addEventListener('mouseup', () => {
+  if (_pxDragging) { _pxDragging = false; if (_pxSelApts.size && _pxSelStart) pxOpenModal(); }
 });
-
-function _pxHighlight() {
-  document.querySelectorAll('#pxRows .px-cell').forEach(cell => {
-    const inSel = _pxSelApts.has(cell.dataset.apt) &&
-      cell.dataset.date >= _pxSelStart &&
-      cell.dataset.date <= _pxSelEnd;
-    cell.classList.toggle('px-sel', inSel);
+function pxHighlight() {
+  document.querySelectorAll('#pxRows .px-cell').forEach(c => {
+    c.classList.toggle('px-sel',
+      _pxSelApts.has(c.dataset.apt) && c.dataset.date >= _pxSelStart && c.dataset.date <= _pxSelEnd
+    );
   });
 }
 
-function _pxClearSel() {
-  _pxSelApts  = new Set();
-  _pxSelStart = null;
-  _pxSelEnd   = null;
-  document.querySelectorAll('#pxRows .px-sel').forEach(c => c.classList.remove('px-sel'));
-}
-
-// ── Edit modal ──
-function pxOpenEditModal() {
+// ── Modal ──
+function pxOpenModal() {
   const apts = [..._pxSelApts];
-  document.getElementById('pxEditCount').textContent = `${apts.length} propert${apts.length===1?'y':'ies'}`;
-  document.getElementById('pxEditNames').textContent = apts.join(', ');
-  document.getElementById('pxEditStart').value = _pxSelStart || '';
-  document.getElementById('pxEditEnd').value   = _pxSelEnd   || '';
-  document.getElementById('pxRateType').value  = 'fixed';
+  document.getElementById('pxModalCount').textContent = `${apts.length} propert${apts.length===1?'y':'ies'}`;
+  document.getElementById('pxModalApts').textContent  = apts.join(', ');
+  document.getElementById('pxStart').value    = _pxSelStart || '';
+  document.getElementById('pxEnd').value      = _pxSelEnd   || '';
+  document.getElementById('pxRateType').value = 'fixed';
   document.getElementById('pxRateUnit').textContent = '$';
-  document.getElementById('pxRateVal').value   = '';
-  document.getElementById('pxMinStay').value   = '';
-
-  // Prefill from first apt if single selection
+  document.getElementById('pxRateVal').value  = '';
+  document.getElementById('pxMinStay').value  = '';
+  // Prefill from first apt
   if (apts.length === 1 && _pxSelStart) {
-    const period  = pxGetPeriod(apts[0], _pxSelStart);
-    const propRow = propertiesData?.find(p => p.internal_apt===apts[0]||p.apt===apts[0]);
-    const rate    = period?.nightly_rate ?? propRow?.base_price ?? null;
-    const minNts  = period?.min_stay     ?? propRow?.min_stay   ?? null;
-    if (rate   != null) document.getElementById('pxRateVal').value  = Math.round(rate);
-    if (minNts != null) document.getElementById('pxMinStay').value  = minNts;
+    const p = pxGetPeriod(apts[0], _pxSelStart);
+    const pr = propertiesData?.find(x => x.internal_apt===apts[0]||x.apt===apts[0]);
+    const r = p?.nightly_rate ?? pr?.base_price ?? null;
+    const m = p?.min_stay     ?? pr?.min_stay   ?? null;
+    if (r != null) document.getElementById('pxRateVal').value  = Math.round(r);
+    if (m != null) document.getElementById('pxMinStay').value  = m;
   }
-
-  // Build day checkboxes
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
-  ['pxCiChecks','pxCoChecks'].forEach(id => {
+  ['pxCiDays','pxCoDays'].forEach(id => {
     document.getElementById(id).innerHTML = DAYS.map(d =>
-      `<label class="px-day-check"><input type="checkbox" value="${d}" checked> ${d}</label>`
+      `<label class="px-check"><input type="checkbox" checked> ${d}</label>`
     ).join('');
   });
   document.getElementById('pxCiAll').checked = true;
   document.getElementById('pxCoAll').checked = true;
   document.getElementById('pxRestrictBody').style.display = 'none';
-  document.getElementById('pxRestrictArrow').textContent  = '▼';
-
-  openModal('pxEditModal');
+  document.getElementById('pxRestrictArrow').innerHTML    = '&#9660;';
+  openModal('pxModal');
 }
-
-function pxToggleRestrictions() {
-  const body   = document.getElementById('pxRestrictBody');
-  const arrow  = document.getElementById('pxRestrictArrow');
-  const isOpen = body.style.display !== 'none';
-  body.style.display = isOpen ? 'none' : 'block';
-  arrow.textContent  = isOpen ? '▼' : '▲';
+function pxToggleRestrict() {
+  const b = document.getElementById('pxRestrictBody');
+  const a = document.getElementById('pxRestrictArrow');
+  const open = b.style.display !== 'none';
+  b.style.display = open ? 'none' : 'block';
+  a.innerHTML = open ? '&#9660;' : '&#9650;';
 }
-
-function pxOnRateTypeChange() {
-  const t = document.getElementById('pxRateType').value;
-  document.getElementById('pxRateUnit').textContent = t.endsWith('_pct') ? '%' : '$';
+function pxRateTypeChange() {
+  document.getElementById('pxRateUnit').textContent =
+    document.getElementById('pxRateType').value.endsWith('_pct') ? '%' : '$';
 }
-
-function pxToggleAllDays(type, checked) {
-  const id = type==='ci' ? 'pxCiChecks' : 'pxCoChecks';
-  document.querySelectorAll(`#${id} input[type=checkbox]`).forEach(cb => cb.checked = checked);
+function pxAllDays(type, checked) {
+  document.querySelectorAll(`#px${type==='ci'?'Ci':'Co'}Days input`).forEach(cb => cb.checked = checked);
 }
-
-function pxResetAndClose() {
-  _pxClearSel();
-  closeModal('pxEditModal');
+function pxReset() {
+  _pxSelApts = new Set(); _pxSelStart = null; _pxSelEnd = null;
+  document.querySelectorAll('#pxRows .px-sel').forEach(c => c.classList.remove('px-sel'));
+  closeModal('pxModal');
 }
-
 async function pxSave() {
-  const startDate = document.getElementById('pxEditStart').value;
-  const endDate   = document.getElementById('pxEditEnd').value;
-  if (!startDate || !endDate)  { toast('Please set start and end dates','error'); return; }
-  if (endDate < startDate)     { toast('End date must be after start','error'); return; }
-
-  const rateType = document.getElementById('pxRateType').value;
-  const rateVal  = parseFloat(document.getElementById('pxRateVal').value);
-  const minStay  = parseInt(document.getElementById('pxMinStay').value)   || null;
-  const apts     = [..._pxSelApts];
-
-  if (isNaN(rateVal) && !minStay) { toast('Enter a rate or minimum stay','error'); return; }
-
+  const s = document.getElementById('pxStart').value;
+  const e = document.getElementById('pxEnd').value;
+  if (!s||!e) { toast('Set start and end dates','error'); return; }
+  if (e < s)  { toast('End must be after start','error'); return; }
+  const rt = document.getElementById('pxRateType').value;
+  const rv = parseFloat(document.getElementById('pxRateVal').value);
+  const ms = parseInt(document.getElementById('pxMinStay').value) || null;
+  const apts = [..._pxSelApts];
+  if (isNaN(rv) && !ms) { toast('Enter a rate or min stay','error'); return; }
   const btn = document.getElementById('pxSaveBtn');
-  btn.textContent = '⏳ Saving…'; btn.disabled = true;
-
+  btn.textContent = 'Saving...'; btn.disabled = true;
   try {
     const records = apts.map(apt => {
       let nightly_rate = null;
-      if (!isNaN(rateVal)) {
-        if (rateType === 'fixed') {
-          nightly_rate = rateVal;
-        } else {
-          const existing = pxGetPeriod(apt, startDate);
-          const propRow  = propertiesData?.find(p => p.internal_apt===apt||p.apt===apt);
-          const base     = existing?.nightly_rate ?? propRow?.base_price ?? 0;
-          if      (rateType==='inc_pct') nightly_rate = Math.round(base * (1 + rateVal/100));
-          else if (rateType==='dec_pct') nightly_rate = Math.max(0, Math.round(base * (1 - rateVal/100)));
-          else if (rateType==='inc_amt') nightly_rate = base + rateVal;
-          else if (rateType==='dec_amt') nightly_rate = Math.max(0, base - rateVal);
+      if (!isNaN(rv)) {
+        if (rt==='fixed') { nightly_rate = rv; }
+        else {
+          const p  = pxGetPeriod(apt, s);
+          const pr = propertiesData?.find(x => x.internal_apt===apt||x.apt===apt);
+          const base = p?.nightly_rate ?? pr?.base_price ?? 0;
+          if      (rt==='inc_pct') nightly_rate = Math.round(base*(1+rv/100));
+          else if (rt==='dec_pct') nightly_rate = Math.max(0,Math.round(base*(1-rv/100)));
+          else if (rt==='inc_amt') nightly_rate = base+rv;
+          else if (rt==='dec_amt') nightly_rate = Math.max(0,base-rv);
         }
       }
-      return {apt, start_date: startDate, end_date: endDate, nightly_rate, min_stay: minStay};
+      return {apt, start_date:s, end_date:e, nightly_rate, min_stay:ms};
     });
-
     const {error} = await sb.from('pricing_periods').insert(records);
     if (error) throw new Error(error.message);
-
-    await pxLoadPeriods();
-    closeModal('pxEditModal');
-    _pxClearSel();
+    await pxLoad();
+    closeModal('pxModal');
+    _pxSelApts = new Set(); _pxSelStart = null; _pxSelEnd = null;
     pxRender();
-    toast(`Pricing saved for ${apts.length} propert${apts.length===1?'y':'ies'} ✓`, 'success');
-  } catch(e) {
-    toast('Save failed: ' + e.message, 'error');
-  } finally {
-    btn.textContent = '💾 Save'; btn.disabled = false;
-  }
+    toast(`Pricing saved for ${apts.length} unit${apts.length===1?'':'s'} ✓`, 'success');
+  } catch(err) {
+    toast('Save failed: '+err.message, 'error');
+  } finally { btn.textContent = 'Save'; btn.disabled = false; }
 }
 
-// Load pricing periods at boot (non-blocking)
-pxLoadPeriods().catch(()=>{});
+// Load pricing at boot (non-blocking)
+pxLoad().catch(()=>{});
 </script>
 
 </body>
