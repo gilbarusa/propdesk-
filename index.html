@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-04-01 10:00</title>
+<title>Willow — Property Manager | v2026-04-01 12:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -741,12 +741,15 @@ textarea{resize:vertical;min-height:72px;}
   <!-- PRICING LAYER — completely separate, never touches booking code -->
   <div id="pxLayer">
     <div class="body">
-      <div class="ucol" id="pxUcol">
+      <!-- Left column: fixed header + scrollable unit list -->
+      <div style="width:200px;flex-shrink:0;border-right:2px solid var(--border2);display:flex;flex-direction:column;background:var(--surface);">
         <div class="uhdr">
           <span style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:var(--text3);" id="pxUcount">Units (0)</span>
           <span style="font-size:9px;color:var(--text3);">Short Stay &bull; drag to set pricing</span>
         </div>
-        <div id="pxUlist"></div>
+        <div id="pxUcol" style="flex:1;overflow-y:auto;overflow-x:hidden;">
+          <div id="pxUlist"></div>
+        </div>
       </div>
       <div class="gouter" id="pxGouter">
         <div class="grid" id="pxGrid">
@@ -4897,13 +4900,22 @@ function renderCalendar() {
   // ── Filter units ──
   const q=(document.getElementById('calSearch')?.value||'').toLowerCase();
   let units=data.filter(r=>!r.archived);
+
+  // Build set of apts that are currently occupied (have an active short-stay with current dates)
+  const currentlyBookedApts=new Set();
+  data.filter(r=>!r.archived&&r.type==='short-stay'&&r.name&&r.checkin&&r.due&&
+    r.checkin<=todayStr&&r.due>=todayStr).forEach(r=>currentlyBookedApts.add(r.apt));
+
   if(calTypeFilter!=='all'){
     if(calTypeFilter==='available'){
-      // Show units that are type=available OR have only future bookings (currently vacant)
+      // Show apts that are NOT currently occupied by a short-stay booking
       const futureOnlyApts=new Set();
       data.filter(r=>!r.archived&&r.name&&r.checkin&&r.checkin>todayStr).forEach(r=>futureOnlyApts.add(r.apt));
-      units=units.filter(r=>r.type==='available'||dueStatus(r)==='available'||
-        (futureOnlyApts.has(r.apt)&&(!r.checkin||r.checkin>todayStr)));
+      units=units.filter(r=>{
+        if(currentlyBookedApts.has(r.apt)) return false; // has active short-stay booking
+        return r.type==='available'||dueStatus(r)==='available'||
+          (futureOnlyApts.has(r.apt)&&(!r.checkin||r.checkin>todayStr));
+      });
     } else {
       units=units.filter(r=>r.type===calTypeFilter);
     }
@@ -6391,7 +6403,7 @@ function pxRender() {
       const from=x.checkin||wS, to=x.due||x.lease_end||'';
       if(from&&to&&from<=wE) bars.push({name:x.name,from,to,type:x.type,note:x.note||''});
     });
-    // Archive past stays in window
+    // Archive past stays — only show if within visible window AND not ended before today
     archived.filter(x=>x.apt===r.apt&&x.name).forEach(x=>{
       const from=x.checkin||x.archivedDate||x.due||'';
       const to=x.archivedDate||x.due||'';
