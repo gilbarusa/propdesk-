@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-04-01 07:00</title>
+<title>Willow — Property Manager | v2026-04-01 08:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -367,13 +367,13 @@ textarea{resize:vertical;min-height:72px;}
 #pxLayer .grid{position:relative;min-width:max-content;}
 #pxLayer .mrow{display:flex;height:24px;position:sticky;top:0;z-index:21;background:var(--surface2);border-bottom:1px solid var(--border);}
 #pxLayer .dhdr{display:flex;height:52px;position:sticky;top:24px;z-index:20;background:var(--surface2);border-bottom:2px solid var(--border2);}
-#pxLayer .dcell{display:flex;flex-direction:column;align-items:center;justify-content:center;width:62px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;gap:2px;}
+#pxLayer .dcell{display:flex;flex-direction:column;align-items:center;justify-content:center;width:68px;flex-shrink:0;border-right:1px solid var(--border);font-size:9px;color:var(--text3);text-transform:uppercase;gap:2px;}
 #pxLayer .dcell.we{background:rgba(181,120,74,.06);}
 #pxLayer .dcell.td{background:var(--green);color:#fff;}
 #pxLayer .dcell .dn{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;line-height:1;}
 #pxLayer .rows{}
-#pxLayer .prow{display:flex;height:44px;border-bottom:1px solid var(--border);position:relative;align-items:stretch;}
-#pxLayer .pcell{width:62px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none;}
+#pxLayer .prow{display:flex;height:44px;border-bottom:1px solid var(--border);position:relative;align-items:stretch;background:#fff;}
+#pxLayer .pcell{width:68px;flex-shrink:0;height:100%;border-right:1px solid var(--border);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none;background:#fff;}
 #pxLayer .pcell.we{background:rgba(181,120,74,.04);}
 #pxLayer .pcell.td{background:rgba(37,102,69,.06);}
 #pxLayer .pcell.av{cursor:crosshair;}
@@ -6293,7 +6293,7 @@ setInterval(updateHeaderClock, 1000);
 // ═══════════════════════════════════════
 // PRICING VIEW — standalone, additive
 // ═══════════════════════════════════════
-const PXW = 62;
+const PXW = 68;
 let _pxPer = [], _pxUnits = [], _pxDts = [];
 let _pxDrag = false, _pxDragD = null;
 let _pxSelA = new Set(), _pxSelS = null, _pxSelE = null;
