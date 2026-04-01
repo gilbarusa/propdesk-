@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Manager | v2026-04-01 09:00</title>
+<title>Willow — Property Manager | v2026-04-01 10:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -6338,18 +6338,21 @@ function pxRender() {
   // Get all unique apts that have short-stay or available units
   let us=data.filter(r=>!r.archived&&(r.type==='short-stay'||r.type==='available'));
   if(q) us=us.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q));
+  // Dedup: IDENTICAL logic to booking calendar
+  // Priority: 1. available type row  2. current row  3. future row  4. lowest id
   const bA=new Map();
   for(const r of us){
-    const p=bA.get(r.apt);
-    if(!p){bA.set(r.apt,r);continue;}
-    // Priority: current active short-stay > future short-stay > available placeholder
-    const score=x=>{
-      if(x.type==='short-stay'&&x.checkin&&x.checkin<=tod&&x.due&&x.due>=tod) return 3; // current guest
-      if(x.type==='short-stay'&&x.checkin&&x.checkin>tod) return 2; // future booking
-      if(x.type==='short-stay') return 1; // past short-stay row
-      return 0; // available
-    };
-    if(score(r)>score(p)) bA.set(r.apt,r);
+    const prev=bA.get(r.apt);
+    if(!prev){bA.set(r.apt,r);continue;}
+    const rFuture=!!(r.checkin&&r.checkin>tod);
+    const prevFuture=!!(prev.checkin&&prev.checkin>tod);
+    const rAvail=(r.type==='available');
+    const prevAvail=(prev.type==='available');
+    if(rAvail&&!prevAvail){bA.set(r.apt,r);continue;}
+    if(prevAvail&&!rAvail){continue;}
+    if(!rFuture&&prevFuture){bA.set(r.apt,r);continue;}
+    if(!prevFuture&&rFuture){continue;}
+    if((r.id||0)<(prev.id||0)) bA.set(r.apt,r);
   }
   _pxUnits=[...bA.values()].sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
   document.getElementById('pxUcount').textContent=`Units (${_pxUnits.length})`;
@@ -6383,8 +6386,8 @@ function pxRender() {
 
     // Collect all bookings for this apt — active AND archived — for bar rendering
     const bars=[];
-    // Active records (all types with a name and dates, including past due)
-    data.filter(x=>!x.archived&&x.apt===r.apt&&x.name&&x.type!=='available').forEach(x=>{
+    // Active records — same logic as booking calendar: type != available AND has name
+    data.filter(x=>!x.archived&&x.apt===r.apt&&x.type!=='available'&&x.name).forEach(x=>{
       const from=x.checkin||wS, to=x.due||x.lease_end||'';
       if(from&&to&&from<=wE) bars.push({name:x.name,from,to,type:x.type,note:x.note||''});
     });
