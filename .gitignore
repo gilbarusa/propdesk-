@@ -1,0 +1,22 @@
+# Secrets - never commit real config with API keys
+portal/config.php
+js/config.js
+delivery/config.php
+parking/config.php
+.env
+
+# Local test/session data
+portal/api/data/sessions.json
+portal/uploads/*
+!portal/uploads/.gitkeep
+
+# Archive
+_archive/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+*.log

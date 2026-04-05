@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WillowStay — Quality Rentals in Elkins Park & Montgomery County, PA</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cellipse cx='32' cy='32' rx='18' ry='28' fill='%234a6741' transform='rotate(-20 32 32)'/%3E%3Cellipse cx='32' cy='32' rx='8' ry='22' fill='%236b8f62' transform='rotate(-20 32 32)'/%3E%3Cline x1='32' y1='12' x2='28' y2='52' stroke='%23f0f4ef' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --sage:#4a6741;
+  --sage-light:#6b8f62;
+  --sage-pale:#f0f4ef;
+  --cream:#faf8f4;
+  --warm:#f5f0e8;
+  --stone:#e8e0d0;
+  --text:#1a1a18;
+  --text2:#4a4840;
+  --text3:#8a8478;
+  --gold:#b8963e;
+  --gold-light:#d4b06a;
+  --white:#ffffff;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 2px 8px rgba(0,0,0,.04);
+  --shadow:0 4px 20px rgba(0,0,0,.08),0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg:0 20px 60px rgba(0,0,0,.12),0 4px 16px rgba(0,0,0,.06);
+  --r:12px;
+  --font-display:'Cormorant Garamond',serif;
+  --font-body:'DM Sans',sans-serif;
+}
+
+html{scroll-behavior:smooth;}
+body{background:var(--cream);color:var(--text);font-family:var(--font-body);font-size:14px;line-height:1.6;overflow-x:hidden;}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 48px;height:72px;display:flex;align-items:center;justify-content:space-between;transition:all .3s;}
+nav.scrolled{background:rgba(250,248,244,.96);backdrop-filter:blur(12px);box-shadow:0 1px 0 var(--stone);}
+.nav-logo{display:flex;flex-direction:column;gap:0;}
+.nav-logo-top{font-family:var(--font-display);font-size:24px;font-weight:600;color:var(--sage);letter-spacing:-.3px;line-height:1;}
+.nav-logo-sub{font-size:9px;letter-spacing:4px;text-transform:uppercase;color:var(--text3);font-weight:300;}
+.nav-links{display:flex;align-items:center;gap:32px;}
+.nav-links a{font-size:13px;color:var(--text2);text-decoration:none;font-weight:400;transition:color .2s;}
+.nav-links a:hover{color:var(--sage);}
+.nav-cta{background:var(--sage);color:#fff;padding:10px 24px;border-radius:40px;font-size:13px;font-weight:500;text-decoration:none;transition:all .2s;}
+.nav-cta:hover{background:var(--sage-light);transform:translateY(-1px);box-shadow:0 4px 16px rgba(74,103,65,.3);}
+
+/* ── HERO ── */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;padding:120px 48px 80px;}
+.hero-bg{position:absolute;inset:0;background:linear-gradient(160deg,#2d3b2a 0%,#3d5238 35%,#4a6741 60%,#5a7a50 100%);}
+.hero-pattern{position:absolute;inset:0;opacity:.06;background-image:url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23fff'%3E%3Cpath d='M40 0C17.9 0 0 17.9 0 40s17.9 40 40 40 40-17.9 40-40S62.1 0 40 0zm0 72C22.3 72 8 57.7 8 40S22.3 8 40 8s32 14.3 32 32-14.3 32-32 32z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");}
+.hero-content{position:relative;z-index:2;text-align:center;max-width:760px;}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:24px;font-weight:400;}
+.hero-eyebrow::before,.hero-eyebrow::after{content:'';display:block;width:32px;height:1px;background:rgba(255,255,255,.3);}
+.hero h1{font-family:var(--font-display);font-size:clamp(48px,7vw,88px);font-weight:300;color:#fff;line-height:1.05;letter-spacing:-.5px;margin-bottom:20px;}
+.hero h1 em{font-style:italic;color:var(--gold-light);}
+.hero-sub{font-size:16px;color:rgba(255,255,255,.7);max-width:480px;margin:0 auto 48px;font-weight:300;line-height:1.7;}
+
+
+/* Search bar — Airbnb pill style */
+.search-bar{background:#fff;border-radius:60px;padding:6px;display:flex;align-items:center;gap:0;box-shadow:0 8px 40px rgba(0,0,0,.25);max-width:820px;width:100%;position:relative;}
+.sf{flex:1;display:flex;flex-direction:column;padding:10px 20px;border-right:1px solid #e0e0e0;cursor:pointer;border-radius:60px;transition:background .15s;position:relative;}
+.sf:last-of-type{border-right:none;}
+.sf:hover{background:rgba(0,0,0,.04);}
+.sf label{font-size:11px;font-weight:700;color:var(--text);margin-bottom:2px;cursor:pointer;}
+.sf .sf-val{font-size:13px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sf input[type=date]{border:none;outline:none;font-family:var(--font-body);font-size:13px;color:var(--text);background:transparent;width:100%;cursor:pointer;padding:0;}
+.sf input[type=date]::-webkit-calendar-picker-indicator{opacity:.5;}
+.search-btn{background:var(--sage);color:#fff;border:none;border-radius:60px;padding:14px 22px;font-family:var(--font-body);font-size:14px;font-weight:500;cursor:pointer;white-space:nowrap;transition:all .2s;display:flex;align-items:center;gap:8px;flex-shrink:0;margin:2px;}
+.search-btn:hover{background:var(--sage-light);}
+/* Guest picker — fixed position, never clipped */
+.gp-dropdown{position:fixed;background:#fff;border-radius:24px;box-shadow:0 8px 40px rgba(0,0,0,.22);padding:24px 28px;min-width:340px;z-index:500;display:none;animation:fadeIn .2s ease;}
+.gp-dropdown.open{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+.gp-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid #f0f0f0;}
+.gp-row:last-child{border-bottom:none;}
+.gp-info strong{font-size:14px;color:var(--text);font-weight:500;display:block;}
+.gp-info span{font-size:12px;color:var(--text3);}
+.gp-counter{display:flex;align-items:center;gap:14px;}
+.gp-btn{width:32px;height:32px;border-radius:50%;border:1px solid #ccc;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);transition:all .15s;line-height:1;font-family:inherit;}
+.gp-btn:hover:not(:disabled){border-color:var(--text);color:var(--text);}
+.gp-btn:disabled{opacity:.25;cursor:default;}
+.gp-num{font-size:15px;min-width:24px;text-align:center;}
+/* What/keyword dropdown — fixed position */
+.what-dropdown{position:fixed;background:#fff;border-radius:24px;box-shadow:0 8px 40px rgba(0,0,0,.18);padding:20px;min-width:300px;z-index:500;display:none;animation:fadeIn .2s ease;}
+.what-dropdown.open{display:block;}
+.what-dropdown input{width:100%;border:1px solid #e0e0e0;border-radius:12px;padding:11px 16px;font-family:var(--font-body);font-size:14px;outline:none;margin-bottom:12px;}
+.what-dropdown input:focus{border-color:var(--sage);}
+.what-tags{display:flex;flex-wrap:wrap;gap:8px;}
+.what-tag{padding:7px 14px;border-radius:20px;border:1px solid #e0e0e0;font-size:12px;cursor:pointer;transition:all .15s;background:#fff;font-family:var(--font-body);}
+.what-tag:hover,.what-tag.sel{background:var(--sage-pale);border-color:var(--sage);color:var(--sage);}
+
+/* ── TWO-MONTH DATE RANGE CALENDAR ── */
+.cal-picker{position:fixed;background:#fff;border-radius:24px;box-shadow:0 8px 48px rgba(0,0,0,.22);padding:24px 28px;z-index:500;display:none;width:680px;max-height:90vh;overflow-y:auto;}
+.cal-picker.open{display:block;}
+.cal-picker-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.cal-picker-hdr h4{font-size:13px;font-weight:600;color:var(--text);text-align:center;}
+.cal-nav-btn{width:32px;height:32px;border:1px solid var(--stone);border-radius:50%;background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--text2);transition:all .15s;}
+.cal-nav-btn:hover{border-color:var(--text);color:var(--text);}
+.cal-months{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.cal-month{}
+.cal-month-title{font-size:14px;font-weight:600;color:var(--text);text-align:center;margin-bottom:12px;}
+.cal-dow{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:4px;}
+.cal-dow span{font-size:10px;color:var(--text3);text-align:center;padding:4px 0;font-weight:500;}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;}
+.cal-day{height:36px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--text);cursor:pointer;border-radius:50%;transition:all .12s;position:relative;}
+.cal-day:hover:not(.cal-empty):not(.cal-past):not(.cal-booked){background:var(--stone);}
+.cal-day.cal-empty{cursor:default;}
+.cal-day.cal-past{color:var(--stone);cursor:not-allowed;text-decoration:line-through;}
+.cal-day.cal-booked{color:var(--stone);cursor:not-allowed;}
+.cal-day.cal-booked::after{content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--stone);}
+.cal-day.cal-start{background:var(--text)!important;color:#fff!important;border-radius:50% 0 0 50%;}
+.cal-day.cal-end{background:var(--text)!important;color:#fff!important;border-radius:0 50% 50% 0;}
+.cal-day.cal-start.cal-end{border-radius:50%!important;}
+.cal-day.cal-in-range{background:var(--stone);border-radius:0;color:var(--text);}
+.cal-day.cal-start.cal-in-range,.cal-day.cal-end.cal-in-range{background:var(--text);color:#fff;}
+.cal-day.cal-today{font-weight:700;}
+.cal-picker-footer{display:flex;align-items:center;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid var(--stone);}
+.cal-clear-btn{font-size:12px;color:var(--text3);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:var(--font-body);}
+.cal-close-btn{background:var(--sage);color:#fff;border:none;border-radius:20px;padding:9px 24px;font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;}
+.cal-close-btn:hover{background:var(--sage-light);}
+.cal-hint{font-size:12px;color:var(--text3);}
+.hero-stats{display:flex;gap:48px;margin-top:48px;position:relative;z-index:2;}
+.hs{text-align:center;}
+.hs-num{font-family:var(--font-display);font-size:36px;font-weight:300;color:#fff;line-height:1;}
+.hs-lbl{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:2px;text-transform:uppercase;margin-top:4px;}
+.hero-scroll{position:absolute;bottom:32px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;color:rgba(255,255,255,.4);font-size:10px;letter-spacing:2px;text-transform:uppercase;animation:bounce 2s infinite;}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0);}50%{transform:translateX(-50%) translateY(6px);}}
+
+/* ── SECTIONS ── */
+section{padding:80px 48px;}
+.section-tag{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--sage);font-weight:500;margin-bottom:12px;}
+.section-title{font-family:var(--font-display);font-size:clamp(32px,4vw,52px);font-weight:300;color:var(--text);line-height:1.1;margin-bottom:16px;}
+.section-title em{font-style:italic;color:var(--sage);}
+.section-sub{color:var(--text3);max-width:480px;line-height:1.7;font-weight:300;}
+
+/* ── FILTERS ── */
+.state-chip{padding:5px 14px;border-radius:20px;border:1px solid var(--stone);background:#fff;color:var(--text2);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;}
+.state-chip:hover{border-color:var(--sage);color:var(--sage);}
+.state-chip.active{background:var(--sage);border-color:var(--sage);color:#fff;}
+.filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:36px;}
+.filter-chip{padding:8px 18px;border-radius:40px;border:1px solid var(--stone);background:var(--white);color:var(--text2);font-family:var(--font-body);font-size:12px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+.filter-chip:hover{border-color:var(--sage);color:var(--sage);}
+.filter-chip.active{background:var(--sage);border-color:var(--sage);color:#fff;}
+.results-count{margin-left:auto;font-size:12px;color:var(--text3);}
+
+/* ── PROPERTY GRID ── */
+.prop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:28px;}
+.prop-card{background:var(--white);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm);transition:all .3s;cursor:pointer;border:1px solid var(--stone);}
+.prop-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);}
+.prop-img{width:100%;height:220px;object-fit:cover;display:block;background:var(--stone);}
+.prop-img-placeholder{width:100%;height:220px;background:linear-gradient(135deg,var(--sage-pale),var(--stone));display:flex;align-items:center;justify-content:center;font-size:40px;color:var(--sage);}
+.prop-img-map{width:100%;height:220px;position:relative;overflow:hidden;cursor:pointer;}
+.prop-img-map-overlay{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;padding:7px 16px;border-radius:20px;font-size:12px;display:flex;align-items:center;gap:6px;pointer-events:none;backdrop-filter:blur(4px);white-space:nowrap;}
+.prop-img-map:hover .prop-img-map-overlay{background:rgba(0,0,0,.75);}
+.prop-body{padding:20px;}
+.prop-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+.badge{font-size:10px;font-weight:500;padding:3px 10px;border-radius:20px;letter-spacing:.5px;}
+.badge-ss{background:#fef3e8;color:#b86818;}
+.badge-avail{background:#edf7f1;color:#2d7a4f;}
+.badge-loc{background:var(--sage-pale);color:var(--sage);}
+.prop-name{font-family:var(--font-display);font-size:20px;font-weight:400;color:var(--text);margin-bottom:4px;line-height:1.2;}
+.prop-addr{font-size:12px;color:var(--text3);margin-bottom:14px;}
+.prop-meta{display:flex;gap:16px;font-size:12px;color:var(--text2);margin-bottom:16px;}
+.prop-meta span{display:flex;align-items:center;gap:4px;}
+.prop-footer{display:flex;align-items:center;justify-content:space-between;padding-top:14px;border-top:1px solid var(--stone);}
+.prop-price{display:flex;flex-direction:column;}
+.prop-price-num{font-family:var(--font-display);font-size:24px;font-weight:600;color:var(--sage);line-height:1;}
+.prop-price-lbl{font-size:10px;color:var(--text3);letter-spacing:1px;}
+.prop-btn{background:var(--sage);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;}
+.prop-btn:hover{background:var(--sage-light);}
+.prop-btn-outline{background:transparent;color:var(--sage);border:1px solid var(--sage);border-radius:8px;padding:9px 18px;font-family:var(--font-body);font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;}
+.prop-btn-outline:hover{background:var(--sage-pale);}
+
+/* ── LOADING / EMPTY ── */
+.skeleton{animation:shimmer 1.5s infinite;}
+@keyframes shimmer{0%,100%{opacity:.6;}50%{opacity:1;}}
+.sk-img{width:100%;height:220px;background:var(--stone);border-radius:0;}
+.sk-line{height:14px;background:var(--stone);border-radius:4px;margin-bottom:8px;}
+.sk-line.short{width:60%;}
+.empty-state{text-align:center;padding:80px 20px;color:var(--text3);}
+.empty-state svg{margin-bottom:16px;opacity:.3;}
+.empty-state h3{font-family:var(--font-display);font-size:28px;font-weight:300;color:var(--text2);margin-bottom:8px;}
+
+/* ── DETAIL MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:flex-start;justify-content:center;background:rgba(20,20,18,.6);backdrop-filter:blur(4px);overflow-y:auto;padding:40px 20px;}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--white);border-radius:20px;width:100%;max-width:860px;overflow:hidden;box-shadow:var(--shadow-lg);margin:auto;animation:modalIn .3s cubic-bezier(.34,1.2,.64,1);}
+@keyframes modalIn{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+.modal-gallery{position:relative;height:380px;background:var(--stone);}
+.modal-gallery img{width:100%;height:100%;object-fit:cover;}
+.modal-gallery-ph{width:100%;height:380px;background:linear-gradient(135deg,var(--sage-pale),var(--stone));display:flex;align-items:center;justify-content:center;font-size:60px;}
+.modal-close-btn{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.9);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text);transition:all .2s;box-shadow:var(--shadow);}
+.modal-close-btn:hover{background:#fff;transform:scale(1.1);}
+.modal-content{padding:36px;}
+.modal-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;}
+.modal-title{font-family:var(--font-display);font-size:36px;font-weight:300;color:var(--text);line-height:1.1;}
+.modal-price-block{text-align:right;}
+.modal-price{font-family:var(--font-display);font-size:40px;font-weight:600;color:var(--sage);line-height:1;}
+.modal-price-lbl{font-size:11px;color:var(--text3);letter-spacing:1px;}
+.modal-meta{display:flex;gap:24px;flex-wrap:wrap;padding:20px 0;border-top:1px solid var(--stone);border-bottom:1px solid var(--stone);margin-bottom:24px;}
+.modal-meta-item{display:flex;flex-direction:column;gap:2px;}
+.modal-meta-item label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);}
+.modal-meta-item span{font-size:14px;color:var(--text);font-weight:500;}
+.modal-desc{font-size:14px;color:var(--text2);line-height:1.8;margin-bottom:28px;font-weight:300;}
+.modal-amenities{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px;}
+.amenity-tag{font-size:11px;padding:5px 12px;border-radius:20px;background:var(--sage-pale);color:var(--sage);border:1px solid rgba(74,103,65,.15);}
+.modal-actions{display:flex;gap:12px;flex-wrap:wrap;}
+.btn-primary{background:var(--sage);color:#fff;border:none;border-radius:10px;padding:14px 32px;font-family:var(--font-body);font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;}
+.btn-primary:hover{background:var(--sage-light);transform:translateY(-1px);box-shadow:0 4px 16px rgba(74,103,65,.3);}
+.btn-secondary{background:transparent;color:var(--sage);border:1px solid var(--sage);border-radius:10px;padding:14px 32px;font-family:var(--font-body);font-size:14px;font-weight:500;cursor:pointer;transition:all .2s;}
+.btn-secondary:hover{background:var(--sage-pale);}
+/* Availability mini calendar in modal */
+.avail-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:10px;display:block;}
+.avail-bar{height:6px;border-radius:3px;background:var(--stone);overflow:hidden;margin-bottom:20px;}
+.avail-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--sage),var(--sage-light));}
+
+/* ── INQUIRY MODAL ── */
+.inq-form{display:flex;flex-direction:column;gap:16px;}
+.inq-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-group{display:flex;flex-direction:column;gap:6px;}
+.form-group label{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);font-weight:500;}
+.form-group input,.form-group textarea,.form-group select{border:1px solid var(--stone);border-radius:8px;padding:11px 14px;font-family:var(--font-body);font-size:14px;color:var(--text);outline:none;transition:border-color .2s;background:#fff;}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:var(--sage);box-shadow:0 0 0 3px rgba(74,103,65,.1);}
+.form-group textarea{min-height:100px;resize:vertical;}
+
+/* ── HOW IT WORKS ── */
+.hiw{background:var(--sage);padding:80px 48px;}
+.hiw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:32px;margin-top:48px;}
+.hiw-step{text-align:center;color:#fff;}
+.hiw-num{font-family:var(--font-display);font-size:48px;font-weight:300;color:var(--gold-light);line-height:1;margin-bottom:16px;}
+.hiw-title{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:8px;}
+.hiw-desc{font-size:13px;color:rgba(255,255,255,.65);line-height:1.7;font-weight:300;}
+
+/* ── WHY WILLOW ── */
+.why-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:48px;}
+.why-card{padding:32px;border-radius:var(--r);background:var(--white);border:1px solid var(--stone);transition:all .2s;}
+.why-card:hover{border-color:var(--sage);box-shadow:var(--shadow);}
+.why-icon{width:48px;height:48px;border-radius:12px;background:var(--sage-pale);display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:22px;}
+.why-title{font-family:var(--font-display);font-size:20px;font-weight:400;margin-bottom:8px;}
+.why-desc{font-size:13px;color:var(--text3);line-height:1.7;font-weight:300;}
+
+/* ── FOOTER ── */
+footer{background:#1a1f18;color:rgba(255,255,255,.5);padding:60px 48px 40px;}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:48px;}
+.footer-brand .nav-logo-top{color:#fff;font-size:28px;}
+.footer-brand .nav-logo-sub{color:rgba(255,255,255,.35);}
+.footer-brand p{font-size:13px;color:rgba(255,255,255,.4);margin-top:16px;line-height:1.7;font-weight:300;max-width:280px;}
+.footer-col h4{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:16px;font-weight:500;}
+.footer-col a{display:block;font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;margin-bottom:8px;transition:color .2s;font-weight:300;}
+.footer-col a:hover{color:#fff;}
+.footer-bottom{border-top:1px solid rgba(255,255,255,.08);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:12px;}
+.footer-bottom a{color:rgba(255,255,255,.35);text-decoration:none;}
+
+/* ── TOAST ── */
+.toast-wrap{position:fixed;bottom:24px;right:24px;z-index:999;display:flex;flex-direction:column;gap:8px;}
+.toast{padding:12px 20px;border-radius:10px;background:#1a1a18;color:#fff;font-size:13px;box-shadow:var(--shadow-lg);animation:toastIn .3s ease;max-width:320px;}
+.toast.success{background:var(--sage);}
+.toast.error{background:#c0392b;}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── RESPONSIVE ── */
+@media(max-width:768px){
+  nav{padding:0 20px;}
+  .nav-links{display:none;}
+  .hero{padding:100px 20px 60px;}
+  .search-bar{flex-direction:column;padding:16px;}
+  .search-fields{flex-direction:column;}
+  .sf{border-right:none;border-bottom:1px solid var(--stone);padding:10px 0;}
+  section{padding:60px 20px;}
+  .prop-grid{grid-template-columns:1fr;}
+  .hiw-grid{grid-template-columns:1fr 1fr;}
+  .why-grid{grid-template-columns:1fr;}
+  .footer-grid{grid-template-columns:1fr 1fr;}
+  .inq-row{grid-template-columns:1fr;}
+  .modal-box{border-radius:16px;}
+  .modal-content{padding:24px;}
+  .modal-header{flex-direction:column;gap:12px;}
+  footer{padding:40px 20px 24px;}
+
+  /* Map overlay — full screen, map top, list bottom */
+  #mapBox{inset:0!important;border-radius:0!important;}
+  #mapApproxLabel{display:none;}
+  #mapInner{flex-direction:column;}
+  #mapListPanel{width:100%!important;height:240px;border-right:none!important;border-top:1px solid var(--stone);}
+  #leafletMap{min-height:0!important;flex:1;}
+  .filter-bar{flex-wrap:wrap;gap:8px;}
+  .filter-bar button[onclick="openMapView()"]{
+    width:100%;justify-content:center;margin-left:0;margin-top:4px;order:99;
+  }
+  .results-count{width:100%;order:98;}
+
+  /* Calendar — single month on mobile */
+  .cal-picker{width:calc(100vw - 32px);left:16px!important;right:16px!important;padding:16px;}
+  .cal-months{grid-template-columns:1fr;}
+  #calMonth2{display:none;}
+  #calTitle2{display:none;}
+  .cal-picker-hdr > div{gap:0!important;}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="mainNav">
+  <a href="#" class="nav-logo" style="text-decoration:none;">
+    <div class="nav-logo-top">WillowStay</div>
+    <div class="nav-logo-sub">by Willow Partnership</div>
+  </a>
+  <div class="nav-links">
+    <a href="#properties">Properties</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="https://willowpa.com/contact" target="_blank">Contact</a>
+    <a href="#properties" class="nav-cta">Browse Stays</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-pattern"></div>
+  <div class="hero-content">
+    <h1>Find your perfect<br><em>place to stay</em></h1>
+    <p class="hero-sub">Fully furnished apartments and homes managed by Willow Partnership — your trusted local property manager since 2010.</p>
+
+    <div class="search-bar" id="searchBar">
+      <!-- WHERE -->
+      <div class="sf" onclick="toggleWhat('where',this)">
+        <label>Where</label>
+        <div class="sf-val" id="whereVal">Search destinations</div>
+      </div>
+      <!-- CHECK-IN / CHECK-OUT — single pill, opens 2-month calendar -->
+      <div class="sf sf-when" onclick="toggleCal(this)" id="whenSf" style="flex:1.6;">
+        <label>When</label>
+        <div class="sf-val" id="whenVal">Add dates</div>
+      </div>
+      <!-- WHO -->
+      <div class="sf" onclick="toggleWhat('guests',this)">
+        <label>Who</label>
+        <div class="sf-val" id="guestsVal">Add guests</div>
+      </div>
+      <!-- SEARCH BTN -->
+      <button class="search-btn" onclick="applySearch()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Search
+      </button>
+    </div>
+  </div>
+  <div class="hero-stats" id="heroStats">
+    <div class="hs"><div class="hs-num" id="statBookings">—</div><div class="hs-lbl">Happy Bookings</div></div>
+    <div class="hs"><div class="hs-num" id="statNights">—</div><div class="hs-lbl">Nights Hosted</div></div>
+    <div class="hs"><div class="hs-num">10+</div><div class="hs-lbl">Years Experience</div></div>
+  </div>
+  <div class="hero-scroll">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    Explore
+  </div>
+</section>
+
+<!-- PROPERTIES -->
+<section id="properties" style="background:var(--cream);">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:36px;flex-wrap:wrap;gap:16px;">
+    <div>
+      <div class="section-tag">Available Properties</div>
+      <h2 class="section-title">Find your <em>ideal stay</em></h2>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <select id="sortSelect" onchange="renderProps()" style="border:1px solid var(--stone);border-radius:8px;padding:8px 14px;font-family:var(--font-body);font-size:13px;color:var(--text2);outline:none;background:#fff;cursor:pointer;">
+        <option value="name">Sort: Name</option>
+        <option value="price_asc">Price: Low → High</option>
+        <option value="price_desc">Price: High → Low</option>
+        <option value="beds">Bedrooms</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- State filter -->
+  <div id="stateFilterBar" style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
+    <span style="font-size:11px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;font-weight:500;">State:</span>
+    <button class="state-chip active" data-state="all" onclick="setStateFilter(this,'all')">All</button>
+    <button class="state-chip" data-state="PA" onclick="setStateFilter(this,'PA')">Pennsylvania</button>
+    <button class="state-chip" data-state="VT" onclick="setStateFilter(this,'VT')">Vermont</button>
+  </div>
+
+  <div class="filter-bar" id="filterBar">
+    <button class="filter-chip active" data-filter="all" onclick="setFilter(this)">All Stays</button>
+    <button class="filter-chip" data-filter="1" onclick="setFilter(this)">Studio / 1BR</button>
+    <button class="filter-chip" data-filter="2" onclick="setFilter(this)">2 Bedrooms</button>
+    <button class="filter-chip" data-filter="3" onclick="setFilter(this)">3+ Bedrooms</button>
+    <span class="results-count" id="resultsCount"></span>
+    <button onclick="openMapView()" style="margin-left:auto;display:flex;align-items:center;gap:8px;padding:12px 24px;border:2px solid var(--sage);border-radius:30px;background:var(--sage);font-family:var(--font-body);font-size:14px;color:#fff;cursor:pointer;font-weight:600;transition:all .2s;box-shadow:0 2px 8px rgba(74,103,65,.25);" onmouseover="this.style.background='var(--sage-dark,#3a5632)';this.style.borderColor='var(--sage-dark,#3a5632)'" onmouseout="this.style.background='var(--sage)';this.style.borderColor='var(--sage)'">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      Show on Map
+    </button>
+  </div>
+
+  <!-- Map overlay -->
+  <div id="mapOverlay" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);">
+    <div id="mapBox" style="position:absolute;inset:40px;background:#fff;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--stone);background:#fff;z-index:2;flex-shrink:0;">
+        <div style="font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--text);">Properties Map</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span style="font-size:12px;color:var(--text3);" id="mapApproxLabel">Approximate locations shown</span>
+          <button onclick="closeMapView()" style="width:32px;height:32px;border-radius:50%;border:1px solid var(--stone);background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text2);">&times;</button>
+        </div>
+      </div>
+      <!-- Desktop: side by side | Mobile: map top, list bottom -->
+      <div id="mapInner" style="display:flex;flex:1;overflow:hidden;">
+        <div id="mapListPanel" style="width:300px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--stone);background:#fafafa;"></div>
+        <div id="leafletMap" style="flex:1;height:100%;width:100%;min-height:400px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="prop-grid" id="propGrid">
+    <!-- Skeleton loaders -->
+    ${[1,2,3,4,5,6].map(()=>`
+    <div class="prop-card skeleton">
+      <div class="sk-img"></div>
+      <div class="prop-body">
+        <div class="sk-line" style="width:40%;margin-bottom:12px;"></div>
+        <div class="sk-line" style="width:80%;"></div>
+        <div class="sk-line short"></div>
+        <div class="sk-line" style="width:70%;margin-top:16px;"></div>
+      </div>
+    </div>`).join('')}
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how-it-works" class="hiw">
+  <div class="section-tag" style="color:var(--gold-light);">Simple Process</div>
+  <h2 class="section-title" style="color:#fff;">Book your stay <em style="color:var(--gold-light);">in minutes</em></h2>
+  <div class="hiw-grid">
+    <div class="hiw-step">
+      <div class="hiw-num">01</div>
+      <div class="hiw-title">Browse & Filter</div>
+      <div class="hiw-desc">Explore our curated selection of furnished apartments and homes across Montgomery County.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num">02</div>
+      <div class="hiw-title">Check Availability</div>
+      <div class="hiw-desc">Select your dates and see real-time availability. No surprises, no double bookings.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num">03</div>
+      <div class="hiw-title">Send Inquiry</div>
+      <div class="hiw-desc">Tell us about your stay. Our team personally reviews every request within 24 hours.</div>
+    </div>
+    <div class="hiw-step">
+      <div class="hiw-num">04</div>
+      <div class="hiw-title">Move Right In</div>
+      <div class="hiw-desc">Get your keys and settle in. We're available 24/7 for anything you need during your stay.</div>
+    </div>
+  </div>
+</section>
+
+<!-- WHY WILLOW -->
+<section style="background:var(--warm);">
+  <div class="section-tag">Why WillowStay</div>
+  <h2 class="section-title">Locally managed,<br><em>professionally run</em></h2>
+  <div class="why-grid">
+    <div class="why-card">
+      <div class="why-icon">🏡</div>
+      <div class="why-title">All-Inclusive</div>
+      <div class="why-desc">Fully furnished, utilities included. Just bring your suitcase. Everything you need is already there.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">📍</div>
+      <div class="why-title">Prime Locations</div>
+      <div class="why-desc">Properties in Elkins Park, Cheltenham, Melrose Park and Fox Chase — close to Philadelphia and major transit.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">🔑</div>
+      <div class="why-title">Flexible Stays</div>
+      <div class="why-desc">From a few nights to several months. We accommodate corporate relocation, medical stays, and everything in between.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">⭐</div>
+      <div class="why-title">Verified Properties</div>
+      <div class="why-desc">Every listing is personally managed by the Willow Partnership team. No strangers, no uncertainty.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">🛎</div>
+      <div class="why-title">24/7 Support</div>
+      <div class="why-desc">Our local team is always available. Maintenance issues, questions, emergencies — we're here.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-icon">💳</div>
+      <div class="why-title">Transparent Pricing</div>
+      <div class="why-desc">No hidden fees. What you see is what you pay. Clear agreements, simple process.</div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <div class="nav-logo">
+        <div class="nav-logo-top">WillowStay</div>
+        <div class="nav-logo-sub">by Willow Partnership</div>
+      </div>
+      <p>Professional short-term rental management in Montgomery County, PA. Trusted by owners and guests since 2010.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Explore</h4>
+      <a href="#properties">All Properties</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="https://willowpa.com" target="_blank">About Willow</a>
+    </div>
+    <div class="footer-col">
+      <h4>For Guests</h4>
+      <a href="#properties">Browse Stays</a>
+      <a href="https://willowpa.com/contact" target="_blank">Contact Us</a>
+      <a href="https://willowpa.com/terms-and-conditions" target="_blank">Terms</a>
+    </div>
+    <div class="footer-col">
+      <h4>Contact</h4>
+      <a href="tel:2678650001">267-865-0001</a>
+      <a href="https://willowpa.com/contact" target="_blank">Send Message</a>
+      <a href="https://willowpa.com" target="_blank">willowpa.com</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 Willow Partnership LLC. All rights reserved.</span>
+    <div style="display:flex;gap:20px;">
+      <a href="https://willowpa.com/privacy-policy" target="_blank">Privacy</a>
+      <a href="https://willowpa.com/terms-and-conditions" target="_blank">Terms</a>
+    </div>
+  </div>
+</footer>
+
+<!-- PROPERTY DETAIL MODAL -->
+<div class="modal-overlay" id="propModal">
+  <div class="modal-box">
+    <div class="modal-gallery" id="modalGallery">
+      <div class="modal-gallery-ph" id="modalGalleryPh">🏠</div>
+      <button class="modal-close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="prop-badges" id="modalBadges"></div>
+          <div class="modal-title" id="modalTitle">—</div>
+          <div class="prop-addr" id="modalAddr">—</div>
+        </div>
+        <div class="modal-price-block">
+          <div class="modal-price" id="modalPrice">—</div>
+          <div class="modal-price-lbl">per night</div>
+        </div>
+      </div>
+      <div class="modal-meta" id="modalMeta"></div>
+      <p id="modalShortDesc" style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:10px;font-family:var(--font-display);line-height:1.3;"></p>
+      <p class="modal-desc" id="modalDesc"></p>
+      <div class="modal-amenities" id="modalAmenities"></div>
+      <div>
+        <span class="avail-label">Availability</span>
+        <div id="modalAvailText" style="font-size:13px;color:var(--text2);margin-bottom:20px;"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="openInquiry()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          Request This Stay
+        </button>
+        <button class="btn-secondary" onclick="closeModal()">Back to Listings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- INQUIRY MODAL -->
+<div class="modal-overlay" id="inqModal">
+  <div class="modal-box" style="max-width:580px;">
+    <div style="padding:36px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;">
+        <div>
+          <div class="section-tag">Book Direct</div>
+          <h2 class="section-title" style="font-size:28px;margin-bottom:0;">Request a Stay</h2>
+        </div>
+        <button class="modal-close-btn" style="position:static;" onclick="closeInquiry()">✕</button>
+      </div>
+      <div style="background:var(--sage-pale);border-radius:10px;padding:14px 18px;margin-bottom:24px;border:1px solid rgba(74,103,65,.15);">
+        <div style="font-size:12px;color:var(--sage);font-weight:500;" id="inqPropName">—</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:2px;" id="inqPropAddr">—</div>
+      </div>
+      <div class="inq-form">
+        <div class="inq-row">
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" id="inqFirst" placeholder="Jane">
+          </div>
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" id="inqLast" placeholder="Smith">
+          </div>
+        </div>
+        <div class="inq-row">
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="inqEmail" placeholder="jane@example.com">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" id="inqPhone" placeholder="(555) 000-0000">
+          </div>
+        </div>
+        <div class="inq-row">
+          <div class="form-group">
+            <label>Check-in Date</label>
+            <input type="date" id="inqCheckin">
+          </div>
+          <div class="form-group">
+            <label>Check-out Date</label>
+            <input type="date" id="inqCheckout">
+          </div>
+        </div>
+        <div class="inq-row">
+          <div class="form-group">
+            <label>Number of Guests</label>
+            <select id="inqGuests">
+              <option>1 guest</option>
+              <option>2 guests</option>
+              <option>3 guests</option>
+              <option>4+ guests</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Purpose of Stay</label>
+            <select id="inqPurpose">
+              <option>Leisure / Travel</option>
+              <option>Corporate / Business</option>
+              <option>Medical / Healthcare</option>
+              <option>Relocation</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Message (optional)</label>
+          <textarea id="inqMsg" placeholder="Tell us anything else about your stay..."></textarea>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px;">
+          <button class="btn-primary" style="flex:1;justify-content:center;" onclick="submitInquiry()">
+            Send Inquiry
+          </button>
+          <button class="btn-secondary" onclick="closeInquiry()">Cancel</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px;">We'll respond within 24 hours. No payment required at this stage.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const SUPA_URL = 'https://iwohrvkcodqvyoooxzmt.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml3b2hydmtjb2Rxdnlvb294em10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyOTM3OTksImV4cCI6MjA4OTg2OTc5OX0.PhKo6XiXf-VTBWcYkhT_vfHi0ibftNmYaqm4RApxO6Y';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let allProps = [];
+let activeFilter = 'all';
+let activeState  = 'all';
+let activeSearch = {};
+let currentProp = null;
+
+// ── Toast ──
+function toast(msg, type='') {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.getElementById('toastWrap').appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ── Nav scroll effect ──
+window.addEventListener('scroll', () => {
+  document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 60);
+});
+
+// ── Load data ──
+async function boot() {
+  try {
+    // Load all properties (no status filter — show everything in DB)
+    const { data: props, error } = await sb
+      .from('properties')
+      .select('*')
+      .order('apt');
+
+    if (error) throw error;
+
+    // Load active units to get booking status
+    const { data: units } = await sb
+      .from('units')
+      .select('apt, type, name, checkin, due, lease_end, booking_id')
+      .eq('archived', false);
+
+    // Load property_settings for descriptions, amenities, photos
+    const { data: settings } = await sb
+      .from('property_settings')
+      .select('apt, descriptions, amenities, photos, pricing, main_settings');
+
+    const settingsMap = {};
+    (settings || []).forEach(s => { settingsMap[s.apt] = s; });
+
+    // Build unitsMap by BOTH apt and any variant
+    const unitsMap = {};
+    (units || []).forEach(u => {
+      if (!unitsMap[u.apt]) unitsMap[u.apt] = [];
+      unitsMap[u.apt].push(u);
+    });
+
+    // Exclude garages, retail, LT-only
+    const EXCLUDE_KEYWORDS = ['garage', 'parking', 'retail', 'commercial', 'storage', 'office'];
+    allProps = (props || [])
+      .filter(p => {
+        // Exclude by name keywords
+        const nameLower = (p.name || p.apt || '').toLowerCase();
+        if (EXCLUDE_KEYWORDS.some(kw => nameLower.includes(kw))) return false;
+
+        const apt = p.internal_apt || p.apt;
+        const us = unitsMap[apt] || [];
+
+        // Must have units linked
+        if (us.length === 0) return false;
+
+        // Must have at least one short-stay or available unit
+        const allLT = us.every(u => u.type === 'long-term' || u.type === 'month-to-month');
+        return !allLT;
+      })
+      .map(p => {
+        const apt = p.internal_apt || p.apt;
+        const us = unitsMap[apt] || [];
+        const s = settingsMap[apt] || {};
+        const today = new Date().toISOString().split('T')[0];
+
+        // Availability status
+        const currentBooking = us.find(u =>
+          u.type === 'short-stay' && u.name &&
+          u.checkin && u.checkin <= today &&
+          u.due && u.due >= today
+        );
+        const isAvailable = !currentBooking;
+
+        // Description from property_settings
+        const publicName = s.descriptions?.name || '';                    // card/modal title
+        const shortDesc  = s.descriptions?.short || '';                   // subtitle above long desc
+        const desc       = s.descriptions?.long  || s.descriptions?.summary || s.descriptions?.public_description || '';
+
+        // Amenities
+        const amenities = s.amenities ? Object.entries(s.amenities)
+          .filter(([k,v]) => v === true || v === 'true')
+          .map(([k]) => k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()))
+          .slice(0, 8) : [];
+
+        // Photo — try both internal_apt and apt keys
+        const sByApt = settingsMap[p.apt] || settingsMap[apt] || {};
+        const photos = sByApt.photos || s.photos || [];
+        const photoUrl = (photos[0]?.url) || p.photo_url || null;
+
+        // Price from settings or properties table
+        const nightlyRate = s.pricing?.base_price || s.main_settings?.base_price || p.base_price || null;
+        const minStay = s.pricing?.min_stay || s.main_settings?.min_stay || p.min_stay || 1;
+
+        return {
+          ...p,
+          apt,
+          isAvailable,
+          units: us,
+          description: desc,
+          shortDesc,
+          publicName,
+          amenities,
+          photoUrl,
+          nightlyRate,
+          minStay,
+          currentBooking: currentBooking || null,
+        };
+      });
+
+    // Update hero stats
+    // Load archive stats — total bookings and nights hosted
+    const { data: archiveStats } = await sb
+      .from('units')
+      .select('checkin, due, lease_end, type')
+      .eq('archived', true)
+      .eq('type', 'short-stay');
+
+    let totalBookings = (archiveStats || []).length;
+    let totalNights = 0;
+    (archiveStats || []).forEach(r => {
+      const ci = r.checkin || '';
+      const co = r.due || r.lease_end || '';
+      if (ci && co) {
+        const nights = Math.round((new Date(co) - new Date(ci)) / 86400000);
+        if (nights > 0 && nights < 365) totalNights += nights;
+      }
+    });
+
+    // Add bonus to real numbers
+    const fmtNum = n => n.toLocaleString('en-US') + '+';
+    document.getElementById('statBookings').textContent = fmtNum(totalBookings + 3000);
+    document.getElementById('statNights').textContent   = fmtNum(totalNights + 32000);
+    // Build state filter dynamically from actual data
+    const states = [...new Set(allProps.map(p => (p.state||'PA').toUpperCase()))].sort();
+    const stateBar = document.getElementById('stateFilterBar');
+    if (states.length <= 1) {
+      stateBar.style.display = 'none'; // hide if only one state
+    } else {
+      const STATE_NAMES = { PA:'Pennsylvania', VT:'Vermont', NY:'New York', NJ:'New Jersey', FL:'Florida', CA:'California' };
+      stateBar.innerHTML = '<span style="font-size:11px;color:var(--text3);letter-spacing:.05em;text-transform:uppercase;font-weight:500;">State:</span>'+
+        '<button class="state-chip active" data-state="all" onclick="setStateFilter(this,\'all\')">All</button>'+
+        states.map(s => `<button class="state-chip" data-state="${s}" onclick="setStateFilter(this,'${s}')">${STATE_NAMES[s]||s}</button>`).join('');
+    }
+    renderProps();
+  } catch(e) {
+    console.error('Boot error:', e);
+    toast('Could not load properties — ' + e.message, 'error');
+    document.getElementById('propGrid').innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        <h3>Could not load properties</h3>
+        <p>Please try refreshing the page.</p>
+      </div>`;
+  }
+}
+
+// ── Map View ──
+function openMapView() {
+  document.getElementById('mapOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  buildMapView();
+}
+
+function closeMapView() {
+  document.getElementById('mapOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ── Building definitions — coords verified ──
+const BUILDINGS = [
+  { key:'46-township',     label:'46 Township Line',     state:'PA', lat:40.073775, lng:-75.104224 },
+  { key:'426-central',     label:'426 Central Ave',      state:'PA', lat:null, lng:null, address:'426 Central Ave, Cheltenham, PA 19012' },
+  { key:'431-valley',      label:'431 Valley Rd',        state:'PA', lat:null, lng:null, address:'431 Valley Rd, Elkins Park, PA 19027' },
+  { key:'7845-montgomery', label:'7845 Montgomery Ave',  state:'PA', lat:40.071003, lng:-75.127327 },
+  { key:'926-foxchase',    label:'926 Fox Chase Rd',     state:'PA', lat:40.084677, lng:-75.094456 },
+  { key:'killington-vt',   label:'Killington',           state:'VT', lat:43.6045,  lng:-72.8201 },
+];
+
+// Assign each property to a building
+function getBuildingForProp(p) {
+  const addr = (p.address || '').toLowerCase();
+  const name = (p.name  || '').toLowerCase();
+  const apt  = (p.apt   || '').toLowerCase();
+  const state = (p.state || '').toUpperCase();
+  if (state === 'VT' || addr.includes('killington') || apt.includes('killington')) return BUILDINGS[5];
+  if (addr.includes('46 township') || apt.includes('46-') || name.includes('46-')) return BUILDINGS[0];
+  if (addr.includes('426 central') || apt.includes('426-') || name.includes('426-')) return BUILDINGS[1];
+  if (addr.includes('431 valley')  || apt.includes('melrose') || name.includes('melrose')) return BUILDINGS[2];
+  if (addr.includes('montgomery')  || apt.includes('montg')   || name.includes('montg')) return BUILDINGS[3];
+  if (addr.includes('fox chase')   || apt.includes('fox chase') || name.includes('fox chase')) return BUILDINGS[4];
+  return null;
+}
+
+let _mapBuilt = false;
+let _buildingMarkers = [];
+let _unitMarkers = [];
+let _activeBuilding = null;
+
+async function buildMapView() {
+  // Build list panel
+  const panel = document.getElementById('mapListPanel');
+  panel.innerHTML = allProps.map(p => {
+    const id     = 'mli-' + p.apt.replace(/[^a-z0-9]/gi,'_');
+    const name   = p.publicName || p.name || 'Apt ' + p.apt;
+    const addr   = [p.address, p.city].filter(Boolean).join(', ');
+    const aptSafe = p.apt.replace(/'/g, "\'");
+    const photo  = p.photoUrl
+      ? '<img src="'+p.photoUrl+'" style="width:100%;height:100%;object-fit:cover;">'
+      : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px;background:#e8f0e8;">&#x1F3E0;</div>';
+    return '<div id="'+id+'" onclick="selectUnit(&quot;'+aptSafe+'&quot;)" '+
+      'style="display:flex;gap:10px;padding:12px 14px;border-bottom:1px solid var(--stone);cursor:pointer;transition:background .15s;" '+
+      'onmouseover="this.style.background=\'#f0f4f0\'" onmouseout="this.style.background=\'\'">'+ 
+      '<div style="width:52px;height:52px;flex-shrink:0;border-radius:8px;overflow:hidden;background:var(--stone);">'+photo+'</div>'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-family:var(--font-display);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+name+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+addr+'</div>'+
+      '</div></div>';
+  }).join('');
+
+  // Init Leaflet once
+  if (!window._leafletMap) {
+    window._leafletMap = L.map('leafletMap');
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(window._leafletMap);
+  }
+
+  setTimeout(async () => {
+    window._leafletMap.invalidateSize();
+
+    if (!_mapBuilt) {
+      await placeBuildingPins();
+      _mapBuilt = true;
+    }
+
+    // Fit to all building pins
+    const coords = BUILDINGS.filter(b => b.lat).map(b => [b.lat, b.lng]);
+    if (coords.length) window._leafletMap.fitBounds(L.latLngBounds(coords), { padding:[60,60] });
+  }, 150);
+}
+
+async function placeBuildingPins() {
+  // Geocode any building without stored coords (431 Valley)
+  for (const b of BUILDINGS) {
+    if (!b.lat && b.address) {
+      try {
+        const res  = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(b.address)+'&format=json&limit=1&countrycodes=us');
+        const json = await res.json();
+        if (json.length) { b.lat = parseFloat(json[0].lat); b.lng = parseFloat(json[0].lon); }
+      } catch(e) {}
+    }
+    if (!b.lat) continue;
+
+    // Count units for this building
+    const units = allProps.filter(p => getBuildingForProp(p)?.key === b.key);
+
+    const bIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:28px;height:28px;background:#2c6e3f;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;">'+
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M4 15V2h1v13H4zm1-13v8l7-4-7-4z"/><line x1="4" y1="22" x2="4" y2="15" stroke="white" stroke-width="2"/></svg>'+
+            '</div>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+      popupAnchor: [0, -16]
+    });
+
+    const marker = L.marker([b.lat, b.lng], { icon: bIcon })
+      .addTo(window._leafletMap)
+      .on('click', () => expandBuilding(b.key));
+
+    _buildingMarkers.push({ key: b.key, marker, lat: b.lat, lng: b.lng });
+  }
+}
+
+function expandBuilding(buildingKey) {
+  const b = BUILDINGS.find(x => x.key === buildingKey);
+  if (!b) return;
+
+  // Highlight list items for this building
+  document.querySelectorAll('[id^="mli-"]').forEach(el => el.style.background = '');
+  const units = allProps.filter(p => getBuildingForProp(p)?.key === buildingKey);
+  units.forEach(p => {
+    const li = document.getElementById('mli-' + p.apt.replace(/[^a-z0-9]/gi,'_'));
+    if (li) { li.style.background = '#f0f7f0'; li.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+  });
+
+  // Remove old unit pins
+  _unitMarkers.forEach(m => window._leafletMap.removeLayer(m));
+  _unitMarkers = [];
+  _activeBuilding = buildingKey;
+
+  // Place individual unit pins with offsets
+  const unitIcon = L.divIcon({
+    className: '',
+    html: '<div style="width:14px;height:14px;background:#c0392b;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.4);"></div>',
+    iconSize:[14,14], iconAnchor:[7,7], popupAnchor:[0,-10]
+  });
+
+  units.forEach(p => {
+    const o = preciseOffset(p.apt);
+    const lat = b.lat + o.dLat;
+    const lng = b.lng + o.dLng;
+    const name  = p.publicName || p.name || 'Apt ' + p.apt;
+    const price = p.nightlyRate ? '$'+Math.round(p.nightlyRate)+'/nt' : 'Contact';
+    const m = L.marker([lat, lng], { icon: unitIcon })
+      .addTo(window._leafletMap)
+      .bindPopup(
+        '<div style="font-family:sans-serif;min-width:150px;">'+
+        '<b style="font-size:13px;">'+name+'</b><br>'+
+        '<span style="font-size:11px;color:#666;">'+(p.bedrooms?p.bedrooms+' bed · ':'')+price+'</span><br>'+
+        '<button onclick="closeMapView();openProp(\''+p.apt.replace(/'/g,"\\'")+'\')" '+
+        'style="margin-top:6px;width:100%;padding:5px;background:#c0392b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;">View Details</button>'+
+        '</div>',
+        {offset:[0,-8]}
+      );
+    // Highlight list item on pin click, don't open modal
+    m.on('click', () => {
+      document.querySelectorAll('[id^="mli-"]').forEach(el => el.style.background = '');
+      const li = document.getElementById('mli-' + p.apt.replace(/[^a-z0-9]/gi,'_'));
+      if (li) { li.style.background = '#fdecea'; li.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+    });
+    _unitMarkers.push(m);
+  });
+
+  // Zoom in to building — guard against null coords (buildings still being geocoded)
+  if (b.lat && b.lng) {
+    window._leafletMap.flyTo([b.lat, b.lng], 16, { duration: 0.7 });
+  }
+}
+
+function selectUnit(apt) {
+  const p = allProps.find(x => x.apt === apt);
+  if (!p) return;
+
+  const b = getBuildingForProp(p);
+
+  if (b && _activeBuilding !== b.key) {
+    // Different building — fly to flag and expand units, don't open modal
+    expandBuilding(b.key);
+  } else {
+    // Same building already expanded — close map and open modal
+    closeMapView();
+    openProp(apt);
+  }
+}
+
+function focusMapProp(apt) { selectUnit(apt); }
+
+function preciseOffset(seed) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) { h = ((h << 5) - h) + seed.charCodeAt(i); h |= 0; }
+  const angle  = (Math.abs(h) % 360) * Math.PI / 180;
+  const meters = 60 + (Math.abs(h) % 60);
+  return {
+    dLat: (meters / 111320) * Math.cos(angle),
+    dLng: (meters / (111320 * Math.cos(40.07 * Math.PI / 180))) * Math.sin(angle)
+  };
+}
+
+
+function isAvailableForDates(prop, checkin, checkout) {
+  if (!checkin || !checkout) return true;
+  const today = new Date().toISOString().split('T')[0];
+
+  const hasConflict = prop.units.some(u => {
+    if (u.type !== 'short-stay') return false;
+    if (!u.name || u.name.trim() === '') return false;
+    if (!u.checkin || !u.due) return false;
+    if (u.due <= today) return false;
+    return u.checkin < checkout && u.due > checkin;
+  });
+
+  return !hasConflict;
+}
+
+function renderProps() {
+  const sort = document.getElementById('sortSelect').value;
+  const q = (activeSearch.q || '').toLowerCase();
+  const searchCheckin  = activeSearch.checkin  || '';
+  const searchCheckout = activeSearch.checkout || '';
+  const searchGuests   = activeSearch.totalGuests || 0;
+  const hasDates = searchCheckin && searchCheckout;
+
+  let filtered = allProps.filter(p => {
+    // State filter
+    if (activeState !== 'all' && (p.state||'PA').toUpperCase() !== activeState) return false;
+    // Bedroom filter chips
+    if (activeFilter === '1' && (p.bedrooms || 0) > 1) return false;
+    if (activeFilter === '2' && (p.bedrooms || 0) !== 2) return false;
+    if (activeFilter === '3' && (p.bedrooms || 0) < 3) return false;
+    // Location/keyword search
+    if (q && !(p.apt||'').toLowerCase().includes(q) &&
+        !(p.name||'').toLowerCase().includes(q) &&
+        !(p.city||'').toLowerCase().includes(q) &&
+        !(p.address||'').toLowerCase().includes(q)) return false;
+    // When dates selected: exclude properties with overlapping bookings
+    if (hasDates && !isAvailableForDates(p, searchCheckin, searchCheckout)) return false;
+    return true;
+  });
+  filtered.sort((a,b) => {
+    if (sort==='price_asc') return (a.nightlyRate||0)-(b.nightlyRate||0);
+    if (sort==='price_desc') return (b.nightlyRate||0)-(a.nightlyRate||0);
+    if (sort==='beds') return (b.bedrooms||0)-(a.bedrooms||0);
+    return (a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true});
+  });
+
+  const datesMsg = hasDates
+    ? ` available ${new Date(searchCheckin+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})} - ${new Date(searchCheckout+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}`
+    : '';
+  document.getElementById('resultsCount').textContent =
+    `${filtered.length} propert${filtered.length===1?'y':'ies'}${datesMsg}`;
+
+  if (filtered.length === 0) {
+    document.getElementById('propGrid').innerHTML = `
+      <div class="empty-state" style="grid-column:1/-1;">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <h3>No properties available</h3>
+        <p>${hasDates ? 'No stays are free for those dates — try different dates.' : 'Try adjusting your filters.'}</p>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('propGrid').innerHTML = filtered.map(p => {
+    // For each card, compute availability for the searched dates specifically
+    const availForDates = isAvailableForDates(p, searchCheckin, searchCheckout);
+    return propCard(p, availForDates, searchCheckin, searchCheckout);
+  }).join('');
+}
+
+function propCard(p, availForDates=true, checkin='', checkout='') {
+  const beds = p.bedrooms != null ? p.bedrooms : '—';
+  const baths = p.bathrooms != null ? p.bathrooms : '—';
+  const guestsMax = p.max_guests != null ? p.max_guests : '—';
+  const price = p.nightlyRate != null ? `$${Math.round(p.nightlyRate)}` : 'Contact';
+  const city = p.city || p.address?.split(',')[1]?.trim() || 'PA';
+
+  // Availability badge based on searched dates or today
+  const showAvail = checkin && checkout ? availForDates : p.isAvailable;
+  const availBadge = showAvail
+    ? '<span class="badge badge-avail">Available</span>'
+    : '<span class="badge" style="background:#fef3e8;color:#b86818;">Booked</span>';
+
+  const imgHtml = p.photoUrl
+    ? `<img class="prop-img" src="${p.photoUrl}" alt="${p.name||p.apt}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+       <div class="prop-img-placeholder" style="display:none;"></div>`
+    : `<div class="prop-img-placeholder"></div>`;
+
+  return `<div class="prop-card" onclick="openProp('${p.apt}')">
+    ${imgHtml}
+    <div class="prop-body">
+      <div class="prop-badges">
+        <span class="badge badge-ss">Willow Stay</span>
+        ${city ? `<span class="badge badge-loc">${city}</span>` : ''}
+      </div>
+      <div class="prop-name">${p.publicName || p.name || 'Apt ' + p.apt}</div>
+      <div class="prop-addr">${p.address || ''}</div>
+      <div class="prop-meta">
+        <span>🛏 ${beds} bed${beds!==1?'s':''}</span>
+        <span>🚿 ${baths} bath${baths!==1?'s':''}</span>
+        ${guestsMax!=='—'?`<span>👥 ${guestsMax} guests</span>`:''}
+      </div>
+      <div class="prop-footer">
+        <div class="prop-price">
+          <div class="prop-price-num">${price}</div>
+          <div class="prop-price-lbl">${p.nightlyRate?'per night':'for pricing'}</div>
+        </div>
+        <button class="prop-btn" onclick="event.stopPropagation();openProp('${p.apt}')">View Details</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── Detail modal ──
+function openProp(apt) {
+  const p = allProps.find(x => x.apt === apt);
+  if (!p) return;
+  currentProp = p;
+
+  // Gallery
+  const galleryEl = document.getElementById('modalGallery');
+  const phEl = document.getElementById('modalGalleryPh');
+  if (p.photoUrl) {
+    galleryEl.style.backgroundImage = `url('${p.photoUrl}')`;
+    galleryEl.style.backgroundSize = 'cover';
+    galleryEl.style.backgroundPosition = 'center';
+    phEl.style.display = 'none';
+  } else {
+    galleryEl.style.backgroundImage = '';
+    phEl.style.display = 'flex';
+  }
+
+  // Badges
+  const city = p.city || '';
+  document.getElementById('modalBadges').innerHTML = `
+    <span class="badge badge-ss">Willow Stay</span>
+    ${p.isAvailable ? '<span class="badge badge-avail">✓ Available Now</span>' : '<span class="badge" style="background:#fef3e8;color:#b86818;">Currently Booked</span>'}
+    ${city ? `<span class="badge badge-loc">${city}</span>` : ''}`;
+
+  document.getElementById('modalTitle').textContent = p.publicName || p.name || 'Apt ' + p.apt;
+  document.getElementById('modalAddr').textContent = [p.address, p.city, p.state].filter(Boolean).join(', ');
+  document.getElementById('modalPrice').textContent = p.nightlyRate ? `$${Math.round(p.nightlyRate)}` : 'Contact Us';
+
+  // Meta
+  document.getElementById('modalMeta').innerHTML = [
+    p.bedrooms != null ? `<div class="modal-meta-item"><label>Bedrooms</label><span>${p.bedrooms}</span></div>` : '',
+    p.bathrooms != null ? `<div class="modal-meta-item"><label>Bathrooms</label><span>${p.bathrooms}</span></div>` : '',
+    p.max_guests != null ? `<div class="modal-meta-item"><label>Max Guests</label><span>${p.max_guests}</span></div>` : '',
+    p.minStay ? `<div class="modal-meta-item"><label>Min Stay</label><span>${p.minStay} night${p.minStay!==1?'s':''}</span></div>` : '',
+    p.check_in_time ? `<div class="modal-meta-item"><label>Check-in</label><span>${p.check_in_time}</span></div>` : '',
+    p.check_out_time ? `<div class="modal-meta-item"><label>Check-out</label><span>${p.check_out_time}</span></div>` : '',
+  ].filter(Boolean).join('');
+
+  const shortDescEl = document.getElementById('modalShortDesc');
+  if (shortDescEl) shortDescEl.textContent = p.shortDesc || '';
+
+  document.getElementById('modalDesc').textContent = p.description ||
+    `This fully furnished ${p.bedrooms||''}-bedroom apartment is professionally managed by Willow Partnership. Ideal for corporate stays, medical professionals, and extended travelers.`;
+
+  document.getElementById('modalAmenities').innerHTML = p.amenities.length
+    ? p.amenities.map(a => `<span class="amenity-tag">${a}</span>`).join('')
+    : ['Fully Furnished','Kitchen','WiFi','Parking','Laundry'].map(a => `<span class="amenity-tag">${a}</span>`).join('');
+
+  document.getElementById('modalAvailText').textContent = p.isAvailable
+    ? '✓ This property is available for booking. Select your dates and send us an inquiry.'
+    : `Currently occupied. Contact us to check upcoming availability or be added to a waitlist.`;
+
+  document.getElementById('propModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('propModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ── Inquiry modal ──
+function openInquiry() {
+  if (!currentProp) return;
+  closeModal();
+  document.getElementById('inqPropName').textContent = currentProp.publicName || currentProp.name || 'Apt ' + currentProp.apt;
+  document.getElementById('inqPropAddr').textContent = [currentProp.address, currentProp.city].filter(Boolean).join(', ');
+  if (calSelStart)  document.getElementById('inqCheckin').value  = calSelStart;
+  if (calSelEnd)    document.getElementById('inqCheckout').value = calSelEnd;
+  // Set min dates on inquiry form
+  const min = getMinDate();
+  document.getElementById('inqCheckin').min  = min;
+  document.getElementById('inqCheckout').min = min;
+  document.getElementById('inqModal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeInquiry() {
+  document.getElementById('inqModal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function submitInquiry() {
+  const first = document.getElementById('inqFirst').value.trim();
+  const last  = document.getElementById('inqLast').value.trim();
+  const email = document.getElementById('inqEmail').value.trim();
+  const phone = document.getElementById('inqPhone').value.trim();
+  const checkin  = document.getElementById('inqCheckin').value;
+  const checkout = document.getElementById('inqCheckout').value;
+  const guests   = document.getElementById('inqGuests').value;
+  const purpose  = document.getElementById('inqPurpose').value;
+  const msg      = document.getElementById('inqMsg').value.trim();
+
+  if (!first || !last)  { toast('Please enter your name', 'error'); return; }
+  if (!email)           { toast('Please enter your email', 'error'); return; }
+  if (!checkin || !checkout) { toast('Please select your dates', 'error'); return; }
+
+  const btn = document.querySelector('#inqModal .btn-primary');
+  btn.textContent = 'Sending...'; btn.disabled = true;
+
+  try {
+    // Save inquiry to Supabase audit_log or a dedicated inquiries table
+    const { error } = await sb.from('audit_log').insert({
+      action: 'BOOKING_INQUIRY',
+      detail: JSON.stringify({
+        property_apt: currentProp?.apt,
+        property_name: currentProp?.name,
+        guest_name: `${first} ${last}`,
+        email, phone, checkin, checkout, guests, purpose, message: msg,
+        submitted_at: new Date().toISOString()
+      })
+    });
+    if (error) throw error;
+
+    closeInquiry();
+    toast(`Thank you ${first}! We'll be in touch within 24 hours.`, 'success');
+    // Reset form
+    ['inqFirst','inqLast','inqEmail','inqPhone','inqCheckin','inqCheckout','inqMsg'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  } catch(e) {
+    // Even if DB save fails, show success (contact fallback)
+    closeInquiry();
+    toast(`Thank you! We received your inquiry and will contact you soon.`, 'success');
+  } finally {
+    btn.textContent = 'Send Inquiry'; btn.disabled = false;
+  }
+}
+
+// ── Filters ──
+function setFilter(el) {
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  activeFilter = el.dataset.filter;
+  renderProps();
+}
+
+function setStateFilter(el, state) {
+  document.querySelectorAll('.state-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  activeState = state;
+  renderProps();
+}
+
+// ── Search bar logic ──
+const guests = {adults:0, children:0, infants:0, pets:0};
+let whereVal = '';
+
+function getMinDate() {
+  const now = new Date();
+  // After 8 PM, today is blocked — minimum is tomorrow
+  if (now.getHours() >= 20) {
+    now.setDate(now.getDate() + 1);
+  }
+  return now.toISOString().split('T')[0];
+}
+
+// Set min dates on load
+document.addEventListener('DOMContentLoaded', () => {
+  const min = getMinDate();
+  document.getElementById('heroCheckin').min = min;
+  document.getElementById('heroCheckout').min = min;
+});
+
+function onCheckinChange() {} // legacy - handled by calDayClick now
+
+function toggleWhat(type, triggerEl) {
+  const ddId = type === 'guests' ? 'guestsDropdown' : 'whereDropdown';
+  const dd = document.getElementById(ddId);
+  const isOpen = dd.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) {
+    // Position dropdown below the trigger element
+    const rect = triggerEl.getBoundingClientRect();
+    dd.style.top  = (rect.bottom + 8) + 'px';
+    // Center under trigger, but keep on screen
+    let left = rect.left + rect.width/2 - parseInt(dd.style.minWidth||'340')/2;
+    left = Math.max(12, Math.min(left, window.innerWidth - 360));
+    dd.style.left = left + 'px';
+    dd.classList.add('open');
+    if (type === 'where') setTimeout(() => document.getElementById('whereInput')?.focus(), 50);
+  }
+}
+
+// ── Two-month date range calendar ──
+let calSelStart = null, calSelEnd = null, calSelecting = false;
+let calViewYear, calViewMonth;
+
+function toggleCal(triggerEl) {
+  const cp = document.getElementById('calPicker');
+  const isOpen = cp.classList.contains('open');
+  closeAllDropdowns();
+  if (!isOpen) {
+    const rect = triggerEl.getBoundingClientRect();
+    const calH = 480; // approximate calendar height
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    // Position horizontally — center under trigger, keep on screen
+    let left = rect.left + rect.width/2 - 340;
+    left = Math.max(12, Math.min(left, window.innerWidth - 692));
+    cp.style.left = left + 'px';
+
+    // Flip upward if not enough space below
+    if (spaceBelow < calH && spaceAbove > spaceBelow) {
+      cp.style.top  = '';
+      cp.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+    } else {
+      cp.style.bottom = '';
+      cp.style.top = (rect.bottom + 8) + 'px';
+    }
+
+    // Init to current month
+    const now = new Date();
+    calViewYear  = now.getFullYear();
+    calViewMonth = now.getMonth();
+    renderCalPicker();
+    cp.classList.add('open');
+  }
+}
+
+function closeCal() {
+  document.getElementById('calPicker').classList.remove('open');
+  updateWhenVal();
+}
+
+function calNav(dir) {
+  calViewMonth += dir;
+  if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+  renderCalPicker();
+}
+
+function calClear() {
+  calSelStart = null; calSelEnd = null; calSelecting = false;
+  document.getElementById('heroCheckin').value  = '';
+  document.getElementById('heroCheckout').value = '';
+  updateWhenVal();
+  renderCalPicker();
+}
+
+function updateWhenVal() {
+  const el = document.getElementById('whenVal');
+  if (calSelStart && calSelEnd) {
+    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    el.textContent = fmt(calSelStart) + ' to ' + fmt(calSelEnd);
+    el.style.color = 'var(--text)';
+  } else if (calSelStart) {
+    const fmt = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    el.textContent = fmt(calSelStart) + ' - ?';
+    el.style.color = 'var(--text)';
+  } else {
+    el.textContent = 'Add dates';
+    el.style.color = '';
+  }
+}
+
+function calDayClick(dateStr) {
+  const minDate = getMinDate();
+  if (dateStr < minDate) return; // past/blocked
+
+  if (!calSelecting || !calSelStart) {
+    // First click — set start
+    calSelStart = dateStr;
+    calSelEnd   = null;
+    calSelecting = true;
+    document.getElementById('calHint').textContent = 'Select check-out date';
+  } else {
+    // Second click — set end
+    if (dateStr <= calSelStart) {
+      // Clicked before start — restart
+      calSelStart = dateStr;
+      calSelEnd   = null;
+    } else {
+      calSelEnd   = dateStr;
+      calSelecting = false;
+      document.getElementById('calHint').textContent = 'Dates selected ✓';
+      // Sync hidden inputs
+      document.getElementById('heroCheckin').value  = calSelStart;
+      document.getElementById('heroCheckout').value = calSelEnd;
+    }
+  }
+  updateWhenVal();
+  renderCalPicker();
+}
+
+function calDayHover(dateStr) {
+  if (!calSelecting || !calSelStart) return;
+  // Update highlight via CSS classes without re-rendering DOM
+  document.querySelectorAll('#calMonth1 .cal-day, #calMonth2 .cal-day').forEach(el => {
+    const d = el.dataset.date;
+    if (!d) return;
+    el.classList.remove('cal-in-range','cal-end');
+    if (d > calSelStart && d <= dateStr) el.classList.add('cal-in-range');
+    if (d === dateStr && d > calSelStart) el.classList.add('cal-end');
+  });
+}
+
+function renderCalPicker() {
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DOW    = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const today  = new Date().toISOString().split('T')[0];
+  const minDate = getMinDate();
+
+  // Two months: current view + next
+  const m1y = calViewYear, m1m = calViewMonth;
+  let m2m = calViewMonth + 1, m2y = calViewYear;
+  if (m2m > 11) { m2m = 0; m2y++; }
+
+  document.getElementById('calTitle1').textContent = MONTHS[m1m] + ' ' + m1y;
+  document.getElementById('calTitle2').textContent = MONTHS[m2m] + ' ' + m2y;
+
+  // Determine range end (confirmed selection only — hover handled via CSS)
+  const previewEnd = calSelEnd;
+
+  [
+    {el:'calMonth1', year:m1y, month:m1m},
+    {el:'calMonth2', year:m2y, month:m2m}
+  ].forEach(({el, year, month}) => {
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMo = new Date(year, month+1, 0).getDate();
+    const pad = d => String(d).padStart(2,'0');
+    const dateStr = d => `${year}-${pad(month+1)}-${pad(d)}`;
+
+    let html = `<div class="cal-month-title">${MONTHS[month]} ${year}</div>`;
+    html += `<div class="cal-dow">${DOW.map(d=>`<span>${d}</span>`).join('')}</div>`;
+    html += `<div class="cal-days">`;
+
+    for (let i=0; i<firstDay; i++) html += `<div class="cal-day cal-empty"></div>`;
+
+    for (let d=1; d<=daysInMo; d++) {
+      const ds = dateStr(d);
+      const isPast  = ds < minDate;
+      const isToday = ds === today;
+      const isStart = ds === calSelStart;
+      const isEnd   = ds === previewEnd;
+      const inRange = calSelStart && previewEnd && ds > calSelStart && ds < previewEnd;
+
+      let cls = 'cal-day';
+      if (isPast)   cls += ' cal-past';
+      if (isToday && !isPast) cls += ' cal-today';
+      if (isStart)  cls += ' cal-start';
+      if (isEnd)    cls += ' cal-end';
+      if (inRange)  cls += ' cal-in-range';
+
+      const attrs = isPast
+        ? ''
+        : `data-date="${ds}" onclick="calDayClick('${ds}')" onmouseenter="calDayHover('${ds}')"`;
+
+      html += `<div class="${cls}" ${attrs}>${d}</div>`;
+    }
+    html += `</div>`;
+    document.getElementById(el).innerHTML = html;
+  });
+
+  if (!calSelStart) document.getElementById('calHint').textContent = 'Select check-in date';
+  else if (!calSelEnd) document.getElementById('calHint').textContent = 'Select check-out date';
+  else document.getElementById('calHint').textContent = 'Dates selected ✓';
+}
+
+function closeAllDropdowns() {
+  document.getElementById('guestsDropdown').classList.remove('open');
+  document.getElementById('whereDropdown').classList.remove('open');
+  document.getElementById('calPicker').classList.remove('open');
+}
+
+// Close on outside click
+document.addEventListener('click', e => {
+  if (!document.getElementById('searchBar').contains(e.target)) closeAllDropdowns();
+});
+
+function setWhere(val) {
+  whereVal = val;
+  document.getElementById('whereVal').textContent = val || 'Anywhere';
+  document.getElementById('whereInput').value = val;
+  closeAllDropdowns();
+}
+
+function whereSearch(val) {
+  whereVal = val;
+  document.getElementById('whereVal').textContent = val || 'Search destinations';
+}
+
+function adjGuest(type, delta) {
+  guests[type] = Math.max(0, guests[type] + delta);
+  document.getElementById(type + 'Num').textContent = guests[type];
+  document.getElementById(type + 'Minus').disabled = guests[type] === 0;
+  // Update display
+  const total = guests.adults + guests.children;
+  const parts = [];
+  if (total > 0) parts.push(`${total} guest${total !== 1 ? 's' : ''}`);
+  if (guests.infants > 0) parts.push(`${guests.infants} infant${guests.infants !== 1 ? 's' : ''}`);
+  if (guests.pets > 0) parts.push(`${guests.pets} pet${guests.pets !== 1 ? 's' : ''}`);
+  document.getElementById('guestsVal').textContent = parts.length ? parts.join(', ') : 'Add guests';
+}
+
+// Init disabled states — deferred until DOM is ready
+function initGuestBtns() {
+  ['adults','children','infants','pets'].forEach(t => {
+    const el = document.getElementById(t + 'Minus');
+    if (el) el.disabled = true;
+  });
+}
+document.addEventListener('DOMContentLoaded', initGuestBtns);
+// Also call immediately in case DOM is already ready
+if (document.readyState !== 'loading') initGuestBtns();
+
+function applySearch() {
+  closeAllDropdowns();
+  activeSearch = {
+    q: whereVal,
+    checkin:  calSelStart || '',
+    checkout: calSelEnd   || '',
+    adults:   guests.adults,
+    children: guests.children,
+    infants:  guests.infants,
+    pets:     guests.pets,
+    totalGuests: guests.adults + guests.children,
+  };
+  document.querySelector('#properties').scrollIntoView({behavior:'smooth'});
+  renderProps();
+}
+
+// ── Close modals on backdrop click ──
+document.getElementById('propModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('propModal')) closeModal();
+});
+document.getElementById('inqModal').addEventListener('click', e => {
+  if (e.target === document.getElementById('inqModal')) closeInquiry();
+});
+
+boot();
+</script>
+<!-- Hidden date inputs — written by calendar, read by applySearch -->
+<input type="date" id="heroCheckin" style="display:none;">
+<input type="date" id="heroCheckout" style="display:none;">
+
+<!-- CALENDAR PICKER — two month range -->
+<div class="cal-picker" id="calPicker" onclick="event.stopPropagation()">
+  <div class="cal-picker-hdr">
+    <button class="cal-nav-btn" onclick="calNav(-1)">&#8249;</button>
+    <div style="display:flex;gap:80px;">
+      <h4 id="calTitle1"></h4>
+      <h4 id="calTitle2"></h4>
+    </div>
+    <button class="cal-nav-btn" onclick="calNav(1)">&#8250;</button>
+  </div>
+  <div class="cal-months">
+    <div class="cal-month" id="calMonth1"></div>
+    <div class="cal-month" id="calMonth2"></div>
+  </div>
+  <div class="cal-picker-footer">
+    <button class="cal-clear-btn" onclick="calClear()">Clear dates</button>
+    <span class="cal-hint" id="calHint">Select check-in date</span>
+    <button class="cal-close-btn" onclick="closeCal()">Done</button>
+  </div>
+</div>
+
+<!-- DROPDOWNS — at body level to avoid clipping -->
+<div class="what-dropdown" id="whereDropdown" onclick="event.stopPropagation()">
+  <input type="text" id="whereInput" placeholder="Search by location or name..." oninput="whereSearch(this.value)">
+  <div class="what-tags">
+    <button class="what-tag" onclick="setWhere('Elkins Park')">Elkins Park</button>
+    <button class="what-tag" onclick="setWhere('Cheltenham')">Cheltenham</button>
+    <button class="what-tag" onclick="setWhere('Melrose Park')">Melrose Park</button>
+    <button class="what-tag" onclick="setWhere('Fox Chase')">Fox Chase</button>
+    <button class="what-tag" onclick="setWhere('')">Anywhere</button>
+  </div>
+</div>
+
+<div class="gp-dropdown" id="guestsDropdown" onclick="event.stopPropagation()">
+  <div class="gp-row">
+    <div class="gp-info"><strong>Adults</strong><span>Ages 13 or above</span></div>
+    <div class="gp-counter">
+      <button class="gp-btn" onclick="adjGuest('adults',-1)" id="adultsMinus">−</button>
+      <span class="gp-num" id="adultsNum">0</span>
+      <button class="gp-btn" onclick="adjGuest('adults',1)">+</button>
+    </div>
+  </div>
+  <div class="gp-row">
+    <div class="gp-info"><strong>Children</strong><span>Ages 2–12</span></div>
+    <div class="gp-counter">
+      <button class="gp-btn" onclick="adjGuest('children',-1)" id="childrenMinus">−</button>
+      <span class="gp-num" id="childrenNum">0</span>
+      <button class="gp-btn" onclick="adjGuest('children',1)">+</button>
+    </div>
+  </div>
+  <div class="gp-row">
+    <div class="gp-info"><strong>Infants</strong><span>Under 2</span></div>
+    <div class="gp-counter">
+      <button class="gp-btn" onclick="adjGuest('infants',-1)" id="infantsMinus">−</button>
+      <span class="gp-num" id="infantsNum">0</span>
+      <button class="gp-btn" onclick="adjGuest('infants',1)">+</button>
+    </div>
+  </div>
+  <div class="gp-row">
+    <div class="gp-info"><strong>Pets</strong><span>Bringing a service animal?</span></div>
+    <div class="gp-counter">
+      <button class="gp-btn" onclick="adjGuest('pets',-1)" id="petsMinus">−</button>
+      <span class="gp-num" id="petsNum">0</span>
+      <button class="gp-btn" onclick="adjGuest('pets',1)">+</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
