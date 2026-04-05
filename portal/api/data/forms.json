@@ -1,0 +1,20 @@
+[
+  {
+    "id": "frm_lease_agreement",
+    "title": "Lease Agreement",
+    "description": "Standard residential lease agreement for your unit",
+    "content": "RESIDENTIAL LEASE AGREEMENT\n\nThis Lease Agreement is entered into between Chelbourne Plaza Condominium Association (\"Landlord\") and the undersigned tenant (\"Tenant\").\n\n1. PREMISES: The landlord agrees to rent to the Tenant the residential unit as assigned.\n\n2. TERM: The lease term begins on the check-in date and ends on the lease end date as specified in your booking.\n\n3. RENT: Tenant agrees to pay rent as specified in the rental agreement. Rent is due on the date specified.\n\n4. SECURITY DEPOSIT: A security deposit may be required and will be returned within 30 days of move-out, less any deductions for damages.\n\n5. UTILITIES: Unless otherwise stated, utilities are included in rent.\n\n6. MAINTENANCE: Tenant shall promptly report any maintenance issues. Tenant is responsible for damages caused by negligence.\n\n7. RULES: Tenant agrees to abide by all house rules and building policies.\n\n8. TERMINATION: Either party may terminate with 30 days written notice for month-to-month arrangements.\n\nBy signing below, you acknowledge that you have read, understood, and agree to all terms of this lease agreement.",
+    "unit": "*",
+    "user_types": ["short-term", "short-stay", "month-to-month", "long-term"],
+    "required": true
+  },
+  {
+    "id": "frm_house_rules",
+    "title": "House Rules Acknowledgment",
+    "description": "Acknowledge you have read and will follow the house rules",
+    "content": "HOUSE RULES ACKNOWLEDGMENT\n\nBy signing this document, you confirm that you have read and agree to follow all house rules for Chelbourne Plaza:\n\n1. NO SMOKING in any unit or common area.\n2. QUIET HOURS are 10:00 PM to 8:00 AM.\n3. NO PETS without prior written approval from management.\n4. NO PARTIES or gatherings of more than 6 people without management approval.\n5. TRASH must be disposed of in designated areas only.\n6. COMMON AREAS must be kept clean and tidy.\n7. PARKING is only in assigned or visitor spots.\n8. REPORT all maintenance issues promptly via the portal.\n9. NO ILLEGAL ACTIVITY of any kind.\n10. RESPECT fellow residents and their right to quiet enjoyment.\n\nViolation of these rules may result in fines or termination of your lease.",
+    "unit": "*",
+    "user_types": ["short-term", "short-stay"],
+    "required": true
+  }
+]

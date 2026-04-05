@@ -1,0 +1,60 @@
+/* ═══════════════════════════════════════════════════
+   SKIN C — WARM & BRANDED (Willow earth tones)
+   Imports all base styles from skin-a, overrides vars
+   ═══════════════════════════════════════════════════ */
+@import url('skin-a.css');
+
+:root {
+  --bg:              #faf6f1;
+  --bg-card:         #ffffff;
+  --bg-input:        #f5efe8;
+  --bg-nav:          rgba(250,246,241,.95);
+  --bg-header:       #faf6f1;
+  --bg-auth:         #faf6f1;
+  --text:            #2c2014;
+  --text-secondary:  #8B7355;
+  --text-muted:      #c4aa8a;
+  --border:          #e8dcc8;
+  --border-input:    #d9c9ad;
+  --accent:          #7d5228;
+  --accent-soft:     #f4ede2;
+  --badge-bg:        #D97706;
+  --badge-text:      #ffffff;
+  --success:         #059669;
+  --success-bg:      #ECFDF5;
+  --warning:         #D97706;
+  --warning-bg:      #FFFBEB;
+  --info-bg:         #FDF4E8;
+  --info-text:       #92400E;
+  --danger:          #B91C1C;
+  --danger-bg:       #FEF2F2;
+  --nav-active:      #7d5228;
+  --nav-inactive:    #c4aa8a;
+  --shadow-sm:       0 1px 3px rgba(100,70,30,.06);
+  --shadow-md:       0 4px 12px rgba(100,70,30,.08);
+  --shadow-lg:       0 8px 24px rgba(100,70,30,.12);
+  --font:            'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+}
+
+/* Override card icon backgrounds with warm tones */
+.ci-checkin   { background:#eef3ee; }
+.ci-checkout  { background:#eef5fa; }
+.ci-forms     { background:#faf3e8; }
+.ci-parking   { background:#f3eef8; }
+.ci-maint     { background:#fdf0e6; }
+.ci-chat      { background:#eef0f5; }
+.ci-packages  { background:#fceef1; }
+.ci-payments  { background:#eef3ee; }
+.ci-info      { background:#faf7f0; }
+.ci-ai        { background:#f0eeec; }
+
+/* Slightly rounder corners */
+:root {
+  --radius-sm:  12px;
+  --radius-md:  16px;
+  --radius-lg:  20px;
+  --radius-xl:  24px;
+}
+
+/* Auth logo — branded look */
+.auth-logo-icon { background:linear-gradient(135deg,#8B6914,#C49A6C); }

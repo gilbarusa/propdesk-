@@ -1,0 +1,111 @@
+/* ═══════════════════════════════════════════════════
+   SKIN E — BOLD & PLAYFUL
+   Deep navy, vivid gradients, chunky cards
+   ═══════════════════════════════════════════════════ */
+@import url('skin-a.css');
+
+:root {
+  --bg:              #16213e;
+  --bg-card:         rgba(255,255,255,.06);
+  --bg-input:        rgba(255,255,255,.08);
+  --bg-nav:          rgba(22,33,62,.92);
+  --bg-header:       #16213e;
+  --bg-auth:         #16213e;
+  --text:            #ffffff;
+  --text-secondary:  rgba(255,255,255,.5);
+  --text-muted:      rgba(255,255,255,.25);
+  --border:          rgba(255,255,255,.08);
+  --border-input:    rgba(255,255,255,.15);
+  --accent:          #FF6B6B;
+  --accent-soft:     rgba(255,107,107,.15);
+  --badge-bg:        #FF6B6B;
+  --badge-text:      #ffffff;
+  --success:         #4ECDC4;
+  --success-bg:      rgba(78,205,196,.12);
+  --warning:         #FF8E53;
+  --warning-bg:      rgba(255,142,83,.12);
+  --info-bg:         rgba(99,102,241,.12);
+  --info-text:       #818CF8;
+  --danger:          #EF4444;
+  --danger-bg:       rgba(239,68,68,.12);
+  --nav-active:      #FF6B6B;
+  --nav-inactive:    rgba(255,255,255,.3);
+  --shadow-sm:       0 1px 3px rgba(0,0,0,.2);
+  --shadow-md:       0 4px 12px rgba(0,0,0,.3);
+  --shadow-lg:       0 8px 24px rgba(0,0,0,.4);
+  --font:            'Nunito', 'Inter', system-ui, sans-serif;
+  --radius-sm:       14px;
+  --radius-md:       18px;
+  --radius-lg:       22px;
+  --radius-xl:       26px;
+}
+
+/* Bold card icon colors — vivid gradients */
+.ci-checkin   { background:linear-gradient(145deg,#FF6B6B,#EE5A5A); }
+.ci-checkout  { background:linear-gradient(145deg,#4ECDC4,#44B8B0); }
+.ci-forms     { background:linear-gradient(145deg,#A855F7,#9333EA); }
+.ci-parking   { background:linear-gradient(145deg,#FF8E53,#F97316); }
+.ci-maint     { background:linear-gradient(145deg,#6366F1,#4F46E5); }
+.ci-chat      { background:linear-gradient(145deg,#EC4899,#DB2777); }
+.ci-packages  { background:linear-gradient(145deg,#10B981,#059669); }
+.ci-payments  { background:linear-gradient(145deg,#38BDF8,#0EA5E9); }
+.ci-info      { background:linear-gradient(145deg,#475569,#334155); }
+.ci-ai        { background:linear-gradient(145deg,#D946EF,#C026D3); }
+
+/* Dash card — glass effect on dark */
+.dash-card {
+  border:1px solid rgba(255,255,255,.1);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.dash-card:active { background:rgba(255,255,255,.1); }
+
+/* Auth logo */
+.auth-logo-icon { background:linear-gradient(135deg,#FF6B6B,#FF8E53); box-shadow:0 4px 14px rgba(255,107,107,.3); }
+
+/* Buttons — coral gradient */
+.btn-primary { background:linear-gradient(135deg,#FF6B6B,#FF8E53); }
+.btn-send { background:linear-gradient(135deg,#FF6B6B,#FF8E53); }
+
+/* Chat bubble */
+.chat-msg.from-tenant { background:linear-gradient(135deg,#FF6B6B,#FF8E53); }
+
+/* Tag overrides for dark */
+.tag-success { background:rgba(78,205,196,.15); color:#4ECDC4; }
+.tag-warning { background:rgba(255,142,83,.15); color:#FF8E53; }
+.tag-info    { background:rgba(99,102,241,.15); color:#818CF8; }
+.tag-danger  { background:rgba(239,68,68,.15); color:#EF4444; }
+
+/* Form inputs on dark */
+.form-group input, .form-group select, .form-group textarea {
+  background:rgba(255,255,255,.06);
+  border-color:rgba(255,255,255,.12);
+  color:#fff;
+}
+.form-group input::placeholder, .form-group textarea::placeholder {
+  color:rgba(255,255,255,.3);
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  border-color:var(--accent);
+}
+.form-group select {
+  background-image:url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Auth tabs */
+.auth-tabs { background:rgba(255,255,255,.06); }
+.auth-tab.active { background:rgba(255,255,255,.1); color:#fff; }
+.auth-hint { background:rgba(255,255,255,.06); }
+.auth-hint strong { color:#fff; }
+
+/* Notification items on dark */
+.notif-item { border-color:rgba(255,255,255,.08); }
+.notif-item.unread { border-left-color:var(--accent); }
+
+/* Plan cards */
+.plan-card { border-color:rgba(255,255,255,.1); }
+.plan-card.selected { border-color:var(--accent); background:var(--accent-soft); }
+
+/* Radio card */
+.radio-card { border-color:rgba(255,255,255,.12); color:#fff; }
+.radio-card:has(input:checked) { border-color:var(--accent); background:var(--accent-soft); }

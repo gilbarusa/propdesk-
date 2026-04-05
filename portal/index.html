@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ffffff">
+<title>Willow — Resident App</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231a1a1a'/%3E%3Ctext x='50%25' y='55%25' font-size='18' fill='white' text-anchor='middle' dominant-baseline='middle' font-family='system-ui'%3EW%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link id="skinCSS" rel="stylesheet" href="css/skin-a.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- ═══ AUTH SCREEN ═══ -->
+<div id="authScreen" class="screen active">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">W</div>
+      <h1>Willow</h1>
+      <p>Resident App</p>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="PL.authTab('login')">Sign In</button>
+      <button class="auth-tab" onclick="PL.authTab('guest')">Guest Access</button>
+    </div>
+
+    <!-- Login form -->
+    <div id="loginForm" class="auth-form">
+      <div class="auth-hint">Your username is your <strong>last name</strong> + <strong>last 4 digits</strong> of your phone number.<br>Example: <em>smith1234</em></div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="loginUser" placeholder="lastname1234" autocomplete="username" autocapitalize="off">
+      </div>
+      <div id="loginErr" class="auth-error"></div>
+      <button class="btn-primary btn-full" onclick="PL.login()">Sign In</button>
+    </div>
+
+    <!-- Guest form -->
+    <div id="guestForm" class="auth-form" style="display:none">
+      <div class="auth-hint">No account? Enter your info for limited access to maintenance requests and parking.</div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="guestName" placeholder="John Smith">
+      </div>
+      <div class="form-group">
+        <label>Address / Building</label>
+        <input type="text" id="guestAddress" placeholder="46 Township Line Rd">
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Apt / Unit</label><input type="text" id="guestUnit" placeholder="317"></div>
+        <div class="form-group"><label>Phone</label><input type="tel" id="guestPhone" placeholder="(267) 555-1234"></div>
+      </div>
+      <div id="guestErr" class="auth-error"></div>
+      <button class="btn-primary btn-full" onclick="PL.guestAccess()">Continue as Guest</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div id="appShell" style="display:none">
+
+  <!-- Top Bar -->
+  <header id="topBar">
+    <div class="top-left">
+      <button id="backBtn" class="top-icon-btn" onclick="PL.goBack()" style="display:none">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span id="topTitle" class="top-title">Home</span>
+    </div>
+    <div class="top-right">
+      <button class="top-icon-btn notif-btn" onclick="PL.showScreen('notifications')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <span id="notifBadge" class="badge" style="display:none">0</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Page Container -->
+  <main id="pageContainer">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="pageDashboard" class="page">
+      <div class="dash-greeting">
+        <span class="dash-hello" id="dashHello">Good evening</span>
+        <span class="dash-name" id="dashName">Carol</span>
+      </div>
+
+      <div id="dashAlert" class="dash-alert" style="display:none">
+        <div class="alert-dot"></div>
+        <span id="dashAlertText"></span>
+      </div>
+
+      <div class="section-label">Quick Access</div>
+      <div id="dashCards" class="dash-cards">
+        <!-- Cards rendered by JS based on user type -->
+      </div>
+    </div>
+
+    <!-- ── CHECK-IN ── -->
+    <div id="pageCheckin" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">🔑</span>
+        <h2>Check-In Info</h2>
+      </div>
+      <div id="checkinContent" class="info-cards">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── CHECK-OUT ── -->
+    <div id="pageCheckout" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">📋</span>
+        <h2>Check-Out Info</h2>
+      </div>
+      <div id="checkoutContent" class="info-cards">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── USEFUL INFO ── -->
+    <div id="pageInfo" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">ℹ️</span>
+        <h2>Useful Info</h2>
+      </div>
+      <div id="infoContent" class="info-cards">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── MAINTENANCE LIST ── -->
+    <div id="pageMaintenance" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">🔧</span>
+        <h2>Maintenance</h2>
+      </div>
+      <button class="btn-primary btn-full" onclick="PL.showScreen('maintenanceNew')" style="margin-bottom:16px">+ New Request</button>
+      <div id="maintenanceList" class="maint-list">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── NEW MAINTENANCE REQUEST ── -->
+    <div id="pageMaintenanceNew" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">🔧</span>
+        <h2>New Request</h2>
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <select id="maintCategory">
+          <option>Plumbing</option><option>Electrical</option><option>HVAC / Heating</option>
+          <option>Appliance</option><option>Lock / Key</option><option>Pest Control</option>
+          <option>Water Damage</option><option>General</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Describe the issue</label>
+        <textarea id="maintDesc" rows="4" placeholder="What's the problem? Where is it located?"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Urgency</label>
+        <div class="radio-row">
+          <label class="radio-card"><input type="radio" name="maintUrg" value="low"><span>Low</span></label>
+          <label class="radio-card active"><input type="radio" name="maintUrg" value="normal" checked><span>Normal</span></label>
+          <label class="radio-card"><input type="radio" name="maintUrg" value="urgent"><span>Urgent</span></label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-row">
+          <input type="checkbox" id="maintPermission" checked>
+          <span>Permission to enter unit when I'm not home</span>
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Photos (optional)</label>
+        <div id="maintPhotos" class="photo-grid"></div>
+        <label class="photo-add-btn">
+          <input type="file" accept="image/*" multiple onchange="PL.addMaintPhotos(this.files)" style="display:none">
+          + Add Photos
+        </label>
+      </div>
+      <div id="maintErr" class="auth-error"></div>
+      <button class="btn-primary btn-full" onclick="PL.submitMaintenance()">Submit Request</button>
+    </div>
+
+    <!-- ── MAINTENANCE DETAIL + CHAT ── -->
+    <div id="pageMaintenanceDetail" class="page" style="display:none">
+      <div id="maintDetailHeader" class="maint-detail-header"></div>
+      <div id="maintChat" class="chat-container"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')PL.sendChat()">
+        <button class="btn-send" onclick="PL.sendChat()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── PARKING ── -->
+    <div id="pageParking" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">🚗</span>
+        <h2>Parking</h2>
+      </div>
+      <div id="parkingActive" style="display:none" class="parking-active-card"></div>
+      <button class="btn-primary btn-full" onclick="PL.showScreen('parkingBook')" style="margin-bottom:16px">Reserve a Spot</button>
+      <div class="section-label">Your Reservations</div>
+      <div id="parkingList" class="maint-list">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── PARKING BOOKING ── -->
+    <div id="pageParkingBook" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">🚗</span>
+        <h2>Reserve Parking</h2>
+      </div>
+      <div class="form-group">
+        <label>Building</label>
+        <select id="pkBuilding" onchange="PL.loadParkingPlans()">
+          <option value="">Select building...</option>
+        </select>
+      </div>
+      <div id="pkPlans" class="plan-cards" style="display:none"></div>
+      <div class="form-group" id="pkVehicleSection" style="display:none">
+        <label>Vehicle Info</label>
+        <div class="form-row">
+          <input type="text" id="pkMake" placeholder="Make (Honda)">
+          <input type="text" id="pkModel" placeholder="Model (Civic)">
+        </div>
+        <div class="form-row">
+          <input type="text" id="pkColor" placeholder="Color">
+          <input type="text" id="pkPlate" placeholder="License Plate">
+        </div>
+      </div>
+      <div id="pkErr" class="auth-error"></div>
+      <button id="pkBookBtn" class="btn-primary btn-full" onclick="PL.bookParking()" style="display:none">Complete Reservation</button>
+    </div>
+
+    <!-- ── PACKAGES ── -->
+    <div id="pagePackages" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">📦</span>
+        <h2>Packages</h2>
+      </div>
+      <div id="pkgPending" class="pkg-section"></div>
+      <button id="pkgConfirmBtn" class="btn-primary btn-full" onclick="PL.confirmPickup()" style="display:none;margin:16px 0">Confirm Pickup</button>
+      <div class="section-label" style="margin-top:20px">History</div>
+      <div id="pkgHistory" class="maint-list">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── NOTIFICATIONS ── -->
+    <div id="pageNotifications" class="page" style="display:none">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:center">
+        <div><span class="page-icon">🔔</span><h2 style="display:inline">Notifications</h2></div>
+        <button class="btn-text" onclick="PL.readAllNotifs()">Mark all read</button>
+      </div>
+      <div id="notifList" class="notif-list">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── MESSAGES (placeholder) ── -->
+    <div id="pageMessages" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">💬</span>
+        <h2>Messages</h2>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">💬</div>
+        <p>No messages yet. Messages from management will appear here.</p>
+      </div>
+    </div>
+
+    <!-- ── FORMS / AGREEMENTS ── -->
+    <div id="pageForms" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">📝</span>
+        <h2>Forms & Agreements</h2>
+      </div>
+      <div id="formsList">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── FORM DETAIL ── -->
+    <div id="pageFormDetail" class="page" style="display:none">
+      <div id="formDetailContent"></div>
+    </div>
+
+    <!-- ── PAYMENTS ── -->
+    <div id="pagePayments" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">💳</span>
+        <h2>Payments</h2>
+      </div>
+      <div id="payContent">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── AI ASSISTANT ── -->
+    <div id="pageAi" class="page" style="display:none">
+      <div id="aiChat" class="ai-chat"></div>
+      <div class="chat-input-row" style="position:sticky;bottom:90px">
+        <input type="text" id="aiInput" placeholder="Ask me anything..." onkeydown="if(event.key==='Enter')PL.aiAsk()">
+        <button class="btn-send" onclick="PL.aiAsk()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div id="pageSettings" class="page" style="display:none">
+      <div class="page-header">
+        <span class="page-icon">⚙️</span>
+        <h2>Settings</h2>
+      </div>
+      <div class="info-card">
+        <h3>Appearance</h3>
+        <p>Choose a theme for the portal</p>
+        <div class="skin-picker" style="margin-top:12px">
+          <div class="skin-dot" data-skin="a" onclick="PL.setSkin('a')" title="Clean & Minimal"></div>
+          <div class="skin-dot" data-skin="c" onclick="PL.setSkin('c')" title="Warm & Branded"></div>
+          <div class="skin-dot" data-skin="e" onclick="PL.setSkin('e')" title="Bold & Playful"></div>
+        </div>
+      </div>
+      <div class="info-card mt-16">
+        <h3>Account</h3>
+        <p id="settingsUser" style="margin-bottom:12px"></p>
+        <button class="btn-secondary" onclick="PL.logout()" style="color:var(--danger)">Sign Out</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Bottom Nav -->
+  <nav id="bottomNav">
+    <button class="nav-btn active" data-page="dashboard" onclick="PL.navTo('dashboard')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      <span>Home</span>
+    </button>
+    <button class="nav-btn" data-page="maintenance" onclick="PL.navTo('maintenance')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+      <span>Requests</span>
+    </button>
+    <button class="nav-btn" data-page="parking" onclick="PL.navTo('parking')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      <span>Parking</span>
+    </button>
+    <button class="nav-btn" data-page="packages" onclick="PL.navTo('packages')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      <span>Packages</span>
+    </button>
+    <button class="nav-btn" data-page="info" onclick="PL.navTo('info')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span>Info</span>
+    </button>
+  </nav>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

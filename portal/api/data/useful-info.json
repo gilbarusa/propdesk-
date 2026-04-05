@@ -1,0 +1,25 @@
+{
+  "wifi": {"name": "ChelPlaza-Guest", "password": "WillowGuest2026"},
+  "emergency": {
+    "police": "911",
+    "fire": "911",
+    "maintenance_urgent": "+12678650001",
+    "management": "+12678650001"
+  },
+  "trash": "Trash room is on each floor near the elevator. Recycling bins are in the basement. Trash pickup is Monday and Thursday.",
+  "parking": "Visitor parking is available in the rear lot. Residents can reserve spots through this portal.",
+  "roku": "Roku devices are pre-configured with Netflix, Hulu, and YouTube. Use the Roku remote (black remote with purple tag). Sign in with your own accounts.",
+  "laundry": "Laundry room on basement level. Coin-operated washers ($2.00) and dryers ($1.75). Available 7 AM - 10 PM daily.",
+  "mail": "Mailboxes are in the lobby. Packages are held at the front desk and you will receive a notification.",
+  "checkout_time": "11:00 AM",
+  "checkin_time": "3:00 PM",
+  "house_rules": [
+    "No smoking in units or common areas",
+    "Quiet hours: 10 PM - 8 AM",
+    "No pets without prior written approval",
+    "Report maintenance issues promptly through this portal",
+    "Lock your door when leaving",
+    "Do not prop open building entry doors",
+    "Dispose of trash in designated areas only"
+  ]
+}
