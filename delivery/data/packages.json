@@ -1,0 +1,22 @@
+[
+  {"id":"pkg_001","unit":"103","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-20 12:45:00","modified":"2026-03-20 12:45:00","collected":null},
+  {"id":"pkg_002","unit":"104","count":3,"total":3,"courier":"","status":"Pending","created":"2023-08-03 12:21:00","modified":"2023-08-03 12:21:00","collected":null},
+  {"id":"pkg_003","unit":"107","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-25 10:58:00","modified":"2026-03-25 10:58:00","collected":null},
+  {"id":"pkg_004","unit":"110","count":8,"total":8,"courier":"","status":"Pending","created":"2026-03-20 12:46:00","modified":"2026-03-20 12:46:00","collected":null},
+  {"id":"pkg_005","unit":"111","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-31 16:40:00","modified":"2026-03-31 16:40:00","collected":null},
+  {"id":"pkg_006","unit":"127","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-20 12:45:00","modified":"2026-03-20 12:45:00","collected":null},
+  {"id":"pkg_007","unit":"132","count":3,"total":3,"courier":"","status":"Pending","created":"2026-03-20 12:45:00","modified":"2026-03-20 12:45:00","collected":null},
+  {"id":"pkg_008","unit":"219","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-20 12:46:00","modified":"2026-03-20 12:46:00","collected":null},
+  {"id":"pkg_009","unit":"225","count":1,"total":1,"courier":"","status":"Pending","created":"2024-01-02 14:31:00","modified":"2024-01-02 14:31:00","collected":null},
+  {"id":"pkg_010","unit":"226","count":4,"total":4,"courier":"","status":"Pending","created":"2026-03-20 12:45:00","modified":"2026-03-20 12:45:00","collected":null},
+  {"id":"pkg_011","unit":"305","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-20 12:45:00","modified":"2026-03-20 12:45:00","collected":null},
+  {"id":"pkg_012","unit":"306","count":3,"total":3,"courier":"","status":"Pending","created":"2026-03-20 12:45:00","modified":"2026-03-20 12:45:00","collected":null},
+  {"id":"pkg_013","unit":"309","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-28 11:43:00","modified":"2026-03-28 11:43:00","collected":null},
+  {"id":"pkg_014","unit":"311","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-20 12:46:00","modified":"2026-03-20 12:46:00","collected":null},
+  {"id":"pkg_015","unit":"315","count":2,"total":2,"courier":"","status":"Pending","created":"2026-03-20 12:46:00","modified":"2026-03-20 12:46:00","collected":null},
+  {"id":"pkg_016","unit":"316","count":3,"total":3,"courier":"","status":"Pending","created":"2026-03-20 12:45:00","modified":"2026-03-20 12:45:00","collected":null},
+  {"id":"pkg_017","unit":"317","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-13 09:50:00","modified":"2026-03-13 09:50:00","collected":null},
+  {"id":"pkg_018","unit":"322","count":1,"total":1,"courier":"","status":"Pending","created":"2026-02-16 09:59:00","modified":"2026-02-16 09:59:00","collected":null},
+  {"id":"pkg_019","unit":"327","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-23 09:58:00","modified":"2026-03-23 09:58:00","collected":null},
+  {"id":"pkg_020","unit":"333","count":1,"total":1,"courier":"","status":"Pending","created":"2026-03-28 14:05:00","modified":"2026-03-28 14:05:00","collected":null}
+]
