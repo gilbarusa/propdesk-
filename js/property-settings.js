@@ -395,6 +395,7 @@ async function confirmBulkApply(){
   else if(bulkTargetTab==='amenities')payload={amenities:collectAmenities()};
   else if(bulkTargetTab==='main-settings')payload={main_settings:collectMainSettings()};
   else if(bulkTargetTab==='fees-policies')payload={fees_policies:collectFeesPolicies()};
+  else if(bulkTargetTab==='app-content')payload={app_content:collectAppContent()};
   closeBulkModal();toast('Applying to '+selected.length+' unit(s)…','info');
   let ok=0,fail=0;
   for(const apt of selected){try{const{error}=await sb.from('property_settings').upsert({apt,...payload,updated_at:new Date().toISOString()},{onConflict:'apt'});if(error)throw error;ok++;}catch(e){fail++;}}
