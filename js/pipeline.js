@@ -1148,7 +1148,7 @@ function renderBookingDetail(booking) {
       right: 0;
       top: 0;
       height: 100vh;
-      width: 400px;
+      width: 420px;
       background: var(--surface);
       box-shadow: -4px 0 12px rgba(0,0,0,0.15);
       z-index: 1000;
@@ -1161,35 +1161,47 @@ function renderBookingDetail(booking) {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
         }
+        .bd-tab { padding:8px 16px; border:none; background:none; cursor:pointer; font-size:13px; font-weight:500; color:var(--text2); border-bottom:2px solid transparent; font-family:inherit; }
+        .bd-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+        .bd-tab-content { display:none; }
+        .bd-tab-content.active { display:block; }
+        .form-status-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:600; text-transform:capitalize; }
+        .form-status-badge.pending { background:#fef3cd; color:#856404; }
+        .form-status-badge.submitted { background:#cce5ff; color:#004085; }
+        .form-status-badge.approved { background:#d4edda; color:#155724; }
+        .form-status-badge.rejected { background:#f8d7da; color:#721c24; }
+        .form-action-btn { padding:6px 14px; border:none; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600; font-family:inherit; }
+        .form-action-btn.approve { background:#28a745; color:white; }
+        .form-action-btn.reject { background:#dc3545; color:white; }
+        .form-action-btn.resubmit { background:#ffc107; color:#333; }
       </style>
 
       <!-- Header -->
       <div style="
-        padding: 20px;
+        padding: 16px 20px 0;
         border-bottom: 1px solid #e0ddd5;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
       ">
-        <h2 style="margin: 0; font-size: 18px; color: var(--text);">Booking Details</h2>
-        <button id="close-booking-detail" style="
-          background: none;
-          border: none;
-          font-size: 24px;
-          cursor: pointer;
-          color: var(--text2);
-          padding: 0;
-          width: 30px;
-          height: 30px;
-        ">×</button>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <h2 style="margin: 0; font-size: 18px; color: var(--text);">${_escHtml(booking.guest_name)}</h2>
+          <button id="close-booking-detail" style="
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text2);
+            padding: 0;
+            width: 30px;
+            height: 30px;
+          ">×</button>
+        </div>
+        <div style="display:flex; gap:0;">
+          <button class="bd-tab active" data-bd-tab="details">Details</button>
+          <button class="bd-tab" data-bd-tab="forms">Forms</button>
+        </div>
       </div>
 
-      <!-- Content -->
-      <div style="
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px;
-      ">
+      <!-- Tab: Details -->
+      <div class="bd-tab-content active" data-bd-panel="details" style="flex:1; overflow-y:auto; padding:20px;">
         <!-- Guest Info -->
         <div style="margin-bottom: 20px;">
           <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 12px;">
@@ -1215,6 +1227,18 @@ function renderBookingDetail(booking) {
             <div>📧 <a href="mailto:${_escHtml(booking.guest_email)}" style="color: var(--accent); text-decoration: none;">${_escHtml(booking.guest_email)}</a></div>
             <div>📱 ${_escHtml(booking.guest_phone)}</div>
           </div>
+        </div>
+
+        <!-- Forms Status Summary -->
+        <div id="forms-status-summary" style="
+          background: var(--surface2);
+          padding: 12px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          display: none;
+        ">
+          <div style="font-weight: 600; color: var(--text); margin-bottom: 10px; font-size: 13px;">FORMS STATUS</div>
+          <div id="forms-status-content" style="font-size: 12px; color: var(--text2); line-height: 1.8;"></div>
         </div>
 
         <!-- Booking Info -->
@@ -1314,6 +1338,17 @@ function renderBookingDetail(booking) {
         ` : ''}
       </div>
 
+      <!-- Tab: Forms -->
+      <div class="bd-tab-content" data-bd-panel="forms" style="flex:1; overflow-y:auto; padding:20px;">
+        <div id="bd-forms-loading" style="text-align:center; padding:40px; color:var(--text2);">Loading forms...</div>
+        <div id="bd-forms-content" style="display:none;"></div>
+        <div id="bd-forms-empty" style="display:none; text-align:center; padding:40px;">
+          <div style="font-size:40px; margin-bottom:12px;">📋</div>
+          <h3 style="color:var(--text); margin:0 0 6px;">No Forms Submitted</h3>
+          <p style="color:var(--text2); font-size:13px;">Guest hasn't submitted any forms yet.</p>
+        </div>
+      </div>
+
       <!-- Footer Actions -->
       <div style="
         padding: 12px 20px;
@@ -1351,6 +1386,240 @@ function renderBookingDetail(booking) {
       </div>
     </div>
   `;
+}
+
+// ============================================================================
+// GUEST FORMS — fetch, render, approve/reject/resubmit
+// ============================================================================
+
+async function loadGuestForms(unitName) {
+  const el = document.getElementById('bd-forms-content');
+  const loading = document.getElementById('bd-forms-loading');
+  const empty = document.getElementById('bd-forms-empty');
+  if (!el) return;
+
+  try {
+    const { data, error } = await sb
+      .from('guest_forms')
+      .select('*')
+      .eq('unit', unitName)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (loading) loading.style.display = 'none';
+
+    if (error || !data || data.length === 0) {
+      if (empty) empty.style.display = 'block';
+      updateFormsSummary(null);
+      return;
+    }
+
+    const form = data[0];
+    el.style.display = 'block';
+    el.innerHTML = renderGuestFormDetail(form);
+    updateFormsSummary(form);
+
+    // Attach action button listeners
+    el.querySelectorAll('[data-form-action]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.formAction;
+        const formId = btn.dataset.formId;
+        handleFormAction(formId, action);
+      });
+    });
+  } catch (e) {
+    if (loading) loading.style.display = 'none';
+    if (empty) { empty.style.display = 'block'; empty.querySelector('p').textContent = 'Error loading forms.'; }
+  }
+}
+
+function renderGuestFormDetail(f) {
+  const statusBadge = (s) => `<span class="form-status-badge ${s || 'pending'}">${s || 'pending'}</span>`;
+
+  let html = '';
+
+  // Pre-Arrival Form
+  html += `<div style="background:var(--surface2); padding:14px; border-radius:8px; margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-weight:600; color:var(--text); font-size:13px;">PRE-ARRIVAL FORM</div>
+      ${statusBadge(f.pre_arrival_status)}
+    </div>`;
+
+  if (f.pre_arrival_status !== 'pending') {
+    html += `<div style="font-size:12px; color:var(--text2); line-height:2;">
+      <div><strong>Name:</strong> ${_escHtml((f.guest_first || '') + ' ' + (f.guest_last || ''))}</div>
+      <div><strong>Email:</strong> ${_escHtml(f.guest_email || '—')}</div>
+      <div><strong>Phone:</strong> ${_escHtml(f.guest_phone || '—')}</div>
+      <div><strong>Guests:</strong> ${f.num_guests || 1}</div>
+      <div><strong>Vehicle:</strong> ${_escHtml(f.vehicle_info || '—')}</div>
+    </div>`;
+  } else {
+    html += `<div style="font-size:12px; color:var(--text2);">Not submitted yet.</div>`;
+  }
+
+  // Action buttons for pre-arrival
+  if (f.pre_arrival_status === 'submitted') {
+    html += `<div style="display:flex; gap:6px; margin-top:10px;">
+      <button class="form-action-btn approve" data-form-action="approve-pre-arrival" data-form-id="${f.id}">Approve</button>
+      <button class="form-action-btn reject" data-form-action="reject-pre-arrival" data-form-id="${f.id}">Reject</button>
+      <button class="form-action-btn resubmit" data-form-action="resubmit-pre-arrival" data-form-id="${f.id}">Request Resubmit</button>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Government ID
+  html += `<div style="background:var(--surface2); padding:14px; border-radius:8px; margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-weight:600; color:var(--text); font-size:13px;">GOVERNMENT ID</div>
+      ${statusBadge(f.id_status)}
+    </div>`;
+
+  if (f.id_file_path) {
+    html += `<div style="font-size:12px; color:var(--text2); line-height:2;">
+      <div><strong>File:</strong> ${_escHtml(f.id_file_name || 'Uploaded')}</div>
+      <div><a href="${_escHtml(f.id_file_path)}" target="_blank" style="color:var(--accent);">View ID Image</a></div>
+    </div>`;
+    if (f.id_status === 'submitted') {
+      html += `<div style="display:flex; gap:6px; margin-top:10px;">
+        <button class="form-action-btn approve" data-form-action="approve-id" data-form-id="${f.id}">Approve</button>
+        <button class="form-action-btn reject" data-form-action="reject-id" data-form-id="${f.id}">Reject</button>
+        <button class="form-action-btn resubmit" data-form-action="resubmit-id" data-form-id="${f.id}">Request Resubmit</button>
+      </div>`;
+    }
+  } else {
+    html += `<div style="font-size:12px; color:var(--text2);">Not uploaded yet.</div>`;
+  }
+  html += `</div>`;
+
+  // Rental Agreement
+  html += `<div style="background:var(--surface2); padding:14px; border-radius:8px; margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="font-weight:600; color:var(--text); font-size:13px;">RENTAL AGREEMENT</div>
+      ${statusBadge(f.agreement_status)}
+    </div>`;
+
+  if (f.agreement_accepted) {
+    html += `<div style="font-size:12px; color:var(--text2); line-height:2;">
+      <div><strong>Accepted:</strong> ${f.agreement_accepted_at ? new Date(f.agreement_accepted_at).toLocaleString() : 'Yes'}</div>
+      <div><strong>IP:</strong> ${_escHtml(f.agreement_ip || '—')}</div>
+    </div>`;
+    if (f.agreement_status === 'submitted') {
+      html += `<div style="display:flex; gap:6px; margin-top:10px;">
+        <button class="form-action-btn approve" data-form-action="approve-agreement" data-form-id="${f.id}">Approve</button>
+        <button class="form-action-btn reject" data-form-action="reject-agreement" data-form-id="${f.id}">Reject</button>
+        <button class="form-action-btn resubmit" data-form-action="resubmit-agreement" data-form-id="${f.id}">Request Resubmit</button>
+      </div>`;
+    }
+  } else {
+    html += `<div style="font-size:12px; color:var(--text2);">Not accepted yet.</div>`;
+  }
+  html += `</div>`;
+
+  // Overall status + approve all / reject all
+  html += `<div style="background:var(--surface2); padding:14px; border-radius:8px; margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <div style="font-weight:600; color:var(--text); font-size:13px;">OVERALL</div>
+      ${statusBadge(f.overall_status)}
+    </div>
+    <div style="display:flex; gap:6px; margin-top:10px;">
+      <button class="form-action-btn approve" data-form-action="approve-all" data-form-id="${f.id}">Approve All</button>
+      <button class="form-action-btn reject" data-form-action="reject-all" data-form-id="${f.id}">Reject All</button>
+      <button class="form-action-btn resubmit" data-form-action="resubmit-all" data-form-id="${f.id}">Resubmit All</button>
+    </div>
+  </div>`;
+
+  // Admin notes
+  html += `<div style="background:var(--surface2); padding:14px; border-radius:8px;">
+    <div style="font-weight:600; color:var(--text); margin-bottom:8px; font-size:13px;">ADMIN NOTES</div>
+    <textarea id="form-admin-notes" style="width:100%;min-height:60px;border:1px solid #e0ddd5;border-radius:6px;padding:8px;font-size:12px;font-family:inherit;resize:vertical;">${_escHtml(f.admin_notes || '')}</textarea>
+    <button class="form-action-btn" data-form-action="save-notes" data-form-id="${f.id}" style="background:var(--accent);color:white;margin-top:8px;">Save Notes</button>
+  </div>`;
+
+  return html;
+}
+
+function updateFormsSummary(form) {
+  const wrap = document.getElementById('forms-status-summary');
+  const content = document.getElementById('forms-status-content');
+  if (!wrap || !content) return;
+
+  if (!form) { wrap.style.display = 'none'; return; }
+
+  const dot = (status) => {
+    const colors = { pending:'#ffc107', submitted:'#17a2b8', approved:'#28a745', rejected:'#dc3545' };
+    return `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colors[status] || colors.pending};margin-right:6px;"></span>`;
+  };
+
+  wrap.style.display = 'block';
+  content.innerHTML = `
+    <div>${dot(form.pre_arrival_status)}Pre-Arrival: <span style="text-transform:capitalize;">${form.pre_arrival_status || 'pending'}</span></div>
+    <div>${dot(form.id_status)}Government ID: <span style="text-transform:capitalize;">${form.id_status || 'pending'}</span></div>
+    <div>${dot(form.agreement_status)}Agreement: <span style="text-transform:capitalize;">${form.agreement_status || 'pending'}</span></div>
+  `;
+}
+
+async function handleFormAction(formId, action) {
+  if (!formId || !action) return;
+
+  let updateData = {};
+  const now = new Date().toISOString();
+
+  switch (action) {
+    case 'approve-pre-arrival': updateData = { pre_arrival_status: 'approved', updated_at: now }; break;
+    case 'reject-pre-arrival':  updateData = { pre_arrival_status: 'rejected', updated_at: now }; break;
+    case 'resubmit-pre-arrival': updateData = { pre_arrival_status: 'pending', updated_at: now }; break;
+    case 'approve-id':          updateData = { id_status: 'approved', updated_at: now }; break;
+    case 'reject-id':           updateData = { id_status: 'rejected', updated_at: now }; break;
+    case 'resubmit-id':         updateData = { id_status: 'pending', id_file_path: null, id_file_name: null, updated_at: now }; break;
+    case 'approve-agreement':   updateData = { agreement_status: 'approved', updated_at: now }; break;
+    case 'reject-agreement':    updateData = { agreement_status: 'rejected', updated_at: now }; break;
+    case 'resubmit-agreement':  updateData = { agreement_status: 'pending', agreement_accepted: false, agreement_accepted_at: null, updated_at: now }; break;
+    case 'approve-all':
+      updateData = { pre_arrival_status:'approved', id_status:'approved', agreement_status:'approved', overall_status:'approved', updated_at: now };
+      break;
+    case 'reject-all':
+      updateData = { pre_arrival_status:'rejected', id_status:'rejected', agreement_status:'rejected', overall_status:'rejected', updated_at: now };
+      break;
+    case 'resubmit-all':
+      updateData = { pre_arrival_status:'pending', id_status:'pending', agreement_status:'pending', overall_status:'pending',
+                     id_file_path:null, id_file_name:null, agreement_accepted:false, agreement_accepted_at:null, updated_at: now };
+      break;
+    case 'save-notes':
+      const notes = document.getElementById('form-admin-notes');
+      updateData = { admin_notes: notes ? notes.value : '', updated_at: now };
+      break;
+    default: return;
+  }
+
+  // If approving individual items, check if all are now approved to update overall
+  if (action.startsWith('approve-') && action !== 'approve-all') {
+    // We'll recalculate overall after the update
+  }
+
+  const { error } = await sb.from('guest_forms').update(updateData).eq('id', formId);
+
+  if (error) {
+    alert('Error updating form: ' + error.message);
+    return;
+  }
+
+  // Recalculate overall status for individual actions
+  if (action !== 'approve-all' && action !== 'reject-all' && action !== 'resubmit-all' && action !== 'save-notes') {
+    const { data } = await sb.from('guest_forms').select('pre_arrival_status,id_status,agreement_status').eq('id', formId).single();
+    if (data) {
+      const statuses = [data.pre_arrival_status, data.id_status, data.agreement_status];
+      let overall = 'pending';
+      if (statuses.every(s => s === 'approved')) overall = 'approved';
+      else if (statuses.some(s => s === 'rejected')) overall = 'rejected';
+      else if (statuses.some(s => s === 'submitted')) overall = 'submitted';
+      await sb.from('guest_forms').update({ overall_status: overall, updated_at: now }).eq('id', formId);
+    }
+  }
+
+  // Reload the forms tab
+  if (pipelineState.selectedBooking) {
+    loadGuestForms(pipelineState.selectedBooking.unit_name);
+  }
 }
 
 // ============================================================================
@@ -2211,6 +2480,24 @@ function attachPipelineEventListeners() {
       pipelineState.selectedBooking = null;
       renderPipeline();
     });
+  }
+
+  // Booking detail tab switching
+  container.querySelectorAll('.bd-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.bdTab;
+      container.querySelectorAll('.bd-tab').forEach(t => t.classList.toggle('active', t.dataset.bdTab === target));
+      container.querySelectorAll('.bd-tab-content').forEach(p => p.classList.toggle('active', p.dataset.bdPanel === target));
+      // Auto-load forms when Forms tab is clicked
+      if (target === 'forms' && pipelineState.selectedBooking) {
+        loadGuestForms(pipelineState.selectedBooking.unit_name);
+      }
+    });
+  });
+
+  // Auto-load forms summary on detail open
+  if (pipelineState.selectedBooking) {
+    loadGuestForms(pipelineState.selectedBooking.unit_name);
   }
 
   // Update booking status
