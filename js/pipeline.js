@@ -1181,7 +1181,7 @@ function renderBookingDetail(booking) {
         padding: 16px 20px 0;
         border-bottom: 1px solid #e0ddd5;
       ">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <h2 style="margin: 0; font-size: 18px; color: var(--text);">${_escHtml(booking.guest_name)}</h2>
           <button id="close-booking-detail" style="
             background: none;
@@ -1193,6 +1193,10 @@ function renderBookingDetail(booking) {
             width: 30px;
             height: 30px;
           ">×</button>
+        </div>
+        <div style="font-size:12px; color:var(--text2); line-height:1.6; margin-bottom:10px;">
+          <span>📧 <a href="mailto:${_escHtml(booking.guest_email)}" style="color:var(--accent);text-decoration:none;">${_escHtml(booking.guest_email)}</a></span>
+          <span style="margin-left:12px;">📱 ${_escHtml(booking.guest_phone)}</span>
         </div>
         <div style="display:flex; gap:0;">
           <button class="bd-tab active" data-bd-tab="details">Details</button>
@@ -1392,19 +1396,47 @@ function renderBookingDetail(booking) {
 // GUEST FORMS — fetch, render, approve/reject/resubmit
 // ============================================================================
 
-async function loadGuestForms(unitName) {
+async function loadGuestForms(booking) {
   const el = document.getElementById('bd-forms-content');
   const loading = document.getElementById('bd-forms-loading');
   const empty = document.getElementById('bd-forms-empty');
-  if (!el) return;
+  if (!el || !booking) return;
 
   try {
-    const { data, error } = await sb
-      .from('guest_forms')
-      .select('*')
-      .eq('unit', unitName)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // Try matching by unit_apt first, then by guest name as fallback
+    const unitKey = booking.unit_apt || booking.unit_name || '';
+    let data = null, error = null;
+
+    if (unitKey && unitKey !== 'unit') {
+      const res = await sb
+        .from('guest_forms')
+        .select('*')
+        .eq('unit', unitKey)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      data = res.data;
+      error = res.error;
+    }
+
+    // Fallback: match by guest first+last name
+    if ((!data || data.length === 0) && booking.guest_name) {
+      const parts = booking.guest_name.trim().split(/\s+/);
+      const first = parts[0] || '';
+      const last = parts.slice(1).join(' ') || '';
+      if (first) {
+        const res2 = await sb
+          .from('guest_forms')
+          .select('*')
+          .ilike('guest_first', first)
+          .ilike('guest_last', last || '%')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (!res2.error && res2.data && res2.data.length > 0) {
+          data = res2.data;
+          error = null;
+        }
+      }
+    }
 
     if (loading) loading.style.display = 'none';
 
@@ -1618,7 +1650,7 @@ async function handleFormAction(formId, action) {
 
   // Reload the forms tab
   if (pipelineState.selectedBooking) {
-    loadGuestForms(pipelineState.selectedBooking.unit_name);
+    loadGuestForms(pipelineState.selectedBooking);
   }
 }
 
@@ -2490,14 +2522,14 @@ function attachPipelineEventListeners() {
       container.querySelectorAll('.bd-tab-content').forEach(p => p.classList.toggle('active', p.dataset.bdPanel === target));
       // Auto-load forms when Forms tab is clicked
       if (target === 'forms' && pipelineState.selectedBooking) {
-        loadGuestForms(pipelineState.selectedBooking.unit_name);
+        loadGuestForms(pipelineState.selectedBooking);
       }
     });
   });
 
   // Auto-load forms summary on detail open
   if (pipelineState.selectedBooking) {
-    loadGuestForms(pipelineState.selectedBooking.unit_name);
+    loadGuestForms(pipelineState.selectedBooking);
   }
 
   // Update booking status
