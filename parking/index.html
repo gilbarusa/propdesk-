@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WillowPA Parking</title>
+<script src="https://js.stripe.com/v3/"></script>
+<style>
+:root{
+  --bg:#f5f1eb;--surface:#fff;--surface2:#faf8f5;--border:#e8e4de;
+  --text:#1a1a1a;--text2:#5a5248;--text3:#8a7e72;
+  --accent:#5a3a28;--accent2:#2c1810;
+  --green:#2e7d52;--green-bg:#e8f5ec;--red:#b91c1c;--red-bg:#fef2f2;
+  --blue:#2563a8;--orange:#c0711a;--purple:#6b4ca8;
+  --r:12px;--shadow:0 2px 8px rgba(0,0,0,.06);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* Header */
+.pk-header{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;padding:20px 24px;text-align:center}
+.pk-header h1{font-size:20px;font-weight:700;letter-spacing:1px}
+.pk-header p{font-size:12px;opacity:.7;margin-top:4px}
+
+/* Main Container */
+.pk-container{max-width:480px;margin:0 auto;padding:16px}
+
+/* Step indicators */
+.pk-steps{display:flex;gap:4px;margin-bottom:20px}
+.pk-step{flex:1;height:4px;border-radius:2px;background:var(--border);transition:background .3s}
+.pk-step.active{background:var(--accent)}
+.pk-step.done{background:var(--green)}
+
+/* Cards */
+.pk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);margin-bottom:16px}
+.pk-card h2{font-size:15px;font-weight:700;color:var(--accent2);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+
+/* Form elements */
+.pk-field{margin-bottom:14px}
+.pk-label{display:block;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:6px}
+.pk-input,.pk-select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);transition:border-color .2s}
+.pk-input:focus,.pk-select:focus{outline:none;border-color:var(--accent)}
+.pk-input::placeholder{color:var(--text3)}
+
+/* Building selector */
+.pk-buildings{display:grid;gap:10px}
+.pk-bld-btn{background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;text-align:left;transition:all .2s;font-family:inherit}
+.pk-bld-btn:hover{border-color:var(--accent);background:#fff}
+.pk-bld-btn.selected{border-color:var(--accent);background:var(--accent);color:#fff}
+.pk-bld-btn .bld-name{font-size:15px;font-weight:700}
+.pk-bld-btn .bld-addr{font-size:12px;opacity:.7;margin-top:2px}
+
+/* Plans grid */
+.pk-plans{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pk-plan-btn{background:var(--surface2);border:2px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;text-align:center;transition:all .2s}
+.pk-plan-btn:hover{border-color:var(--accent)}
+.pk-plan-btn.selected{border-color:var(--accent);background:var(--accent);color:#fff}
+.pk-plan-btn .plan-days{font-size:20px;font-weight:700}
+.pk-plan-btn .plan-label{font-size:11px;opacity:.7;margin-top:2px}
+.pk-plan-btn .plan-price{font-size:16px;font-weight:700;margin-top:6px}
+
+/* Coupon */
+.pk-coupon-row{display:flex;gap:8px}
+.pk-coupon-row input{flex:1}
+.pk-coupon-btn{padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.pk-coupon-msg{font-size:12px;margin-top:6px;padding:6px 10px;border-radius:6px}
+.pk-coupon-msg.ok{background:var(--green-bg);color:var(--green)}
+.pk-coupon-msg.err{background:var(--red-bg);color:var(--red)}
+
+/* Summary */
+.pk-summary-row{display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--border)}
+.pk-summary-row:last-child{border:none}
+.pk-summary-row.total{font-size:18px;font-weight:700;color:var(--accent2);border:none;padding-top:12px}
+
+/* Buttons */
+.pk-btn{width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.pk-btn-primary{background:var(--accent);color:#fff}
+.pk-btn-primary:hover{background:var(--accent2)}
+.pk-btn-primary:disabled{opacity:.5;cursor:not-allowed}
+.pk-btn-back{background:var(--surface2);color:var(--text2);border:1px solid var(--border);margin-top:8px}
+.pk-btn-back:hover{background:var(--border)}
+
+/* Disclaimer */
+.pk-disclaimer{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.pk-disclaimer h4{font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px}
+.pk-disclaimer p{font-size:11px;color:var(--text2);line-height:1.6}
+.pk-consent{display:flex;align-items:flex-start;gap:10px;margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px}
+.pk-consent input[type=checkbox]{width:18px;height:18px;margin-top:2px;accent-color:var(--accent);flex-shrink:0}
+.pk-consent label{font-size:12px;color:var(--text2);line-height:1.5;cursor:pointer}
+
+/* Stripe element */
+#stripe-element{padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);margin-bottom:14px}
+
+/* Success */
+.pk-success{text-align:center;padding:30px 20px}
+.pk-success .check-icon{font-size:48px;margin-bottom:16px}
+.pk-success h2{color:var(--green);margin-bottom:8px}
+.pk-success p{font-size:13px;color:var(--text2);line-height:1.6}
+.pk-receipt-link{display:inline-block;margin-top:16px;padding:12px 24px;background:var(--accent);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px}
+
+/* Hide steps */
+.pk-step-page{display:none}
+.pk-step-page.active{display:block}
+
+/* Error */
+.pk-error{background:var(--red-bg);color:var(--red);padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px;display:none}
+
+/* Loading */
+.pk-loading{display:none;text-align:center;padding:40px}
+.pk-spinner{display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="pk-header">
+  <h1>🅿 WillowPA Parking</h1>
+  <p>Quick & easy guest parking</p>
+</div>
+
+<div class="pk-container">
+  <!-- Step indicators -->
+  <div class="pk-steps">
+    <div class="pk-step active" id="step-ind-1"></div>
+    <div class="pk-step" id="step-ind-2"></div>
+    <div class="pk-step" id="step-ind-3"></div>
+    <div class="pk-step" id="step-ind-4"></div>
+  </div>
+
+  <div id="pk-error" class="pk-error"></div>
+
+  <!-- ═══ STEP 1: Building & Unit ═══ -->
+  <div class="pk-step-page active" id="step-1">
+    <div class="pk-card">
+      <h2>Select Building</h2>
+      <div class="pk-buildings" id="buildingList">
+        <div class="pk-loading" style="display:block"><div class="pk-spinner"></div><p style="margin-top:10px;font-size:12px;color:var(--text3)">Loading buildings...</p></div>
+      </div>
+    </div>
+    <div class="pk-card">
+      <h2>Your Information</h2>
+      <div class="pk-field">
+        <label class="pk-label">Unit / Apt # *</label>
+        <input type="text" class="pk-input" id="unitNumber" placeholder="e.g. 4B, 205" required>
+      </div>
+      <div class="pk-field">
+        <label class="pk-label">Guest Name</label>
+        <input type="text" class="pk-input" id="guestName" placeholder="Your name">
+      </div>
+    </div>
+    <button class="pk-btn pk-btn-primary" onclick="goStep(2)">Continue →</button>
+  </div>
+
+  <!-- ═══ STEP 2: Plan & Vehicle ═══ -->
+  <div class="pk-step-page" id="step-2">
+    <div class="pk-card">
+      <h2>Parking Plan</h2>
+      <div class="pk-field">
+        <label class="pk-label">Start Date</label>
+        <input type="date" class="pk-input" id="startDate">
+      </div>
+      <div class="pk-plans" id="planList"></div>
+    </div>
+    <div class="pk-card">
+      <h2>Vehicle Details</h2>
+      <div class="pk-field">
+        <label class="pk-label">Make / Brand *</label>
+        <input type="text" class="pk-input" id="carMake" placeholder="e.g. Toyota, Honda, BMW">
+      </div>
+      <div class="pk-field">
+        <label class="pk-label">Model</label>
+        <input type="text" class="pk-input" id="carModel" placeholder="e.g. Camry, Civic">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="pk-field">
+          <label class="pk-label">Color *</label>
+          <input type="text" class="pk-input" id="carColor" placeholder="e.g. White, Black">
+        </div>
+        <div class="pk-field">
+          <label class="pk-label">License Plate *</label>
+          <input type="text" class="pk-input" id="licensePlate" placeholder="ABC-1234" style="text-transform:uppercase">
+        </div>
+      </div>
+    </div>
+    <button class="pk-btn pk-btn-primary" onclick="goStep(3)">Continue →</button>
+    <button class="pk-btn pk-btn-back" onclick="goStep(1)">← Back</button>
+  </div>
+
+  <!-- ═══ STEP 3: Contact & Coupon ═══ -->
+  <div class="pk-step-page" id="step-3">
+    <div class="pk-card">
+      <h2>Contact & Coupon</h2>
+      <div class="pk-field">
+        <label class="pk-label">SMS Phone Number</label>
+        <input type="tel" class="pk-input" id="phone" placeholder="(267) 555-1234">
+      </div>
+      <div class="pk-field">
+        <label class="pk-label">Email Address</label>
+        <input type="email" class="pk-input" id="email" placeholder="you@email.com">
+      </div>
+      <div class="pk-field">
+        <label class="pk-label">Coupon Code (optional)</label>
+        <div class="pk-coupon-row">
+          <input type="text" class="pk-input" id="couponCode" placeholder="Enter code" style="text-transform:uppercase">
+          <button class="pk-coupon-btn" onclick="applyCoupon()">Apply</button>
+        </div>
+        <div id="couponMsg"></div>
+      </div>
+    </div>
+
+    <!-- SMS Consent -->
+    <div class="pk-consent" id="smsConsentBlock">
+      <input type="checkbox" id="smsConsent">
+      <label for="smsConsent">
+        <strong>SMS / Text Message Consent & Privacy Notice</strong><br>
+        By checking this box, you consent to receive text messages from WillowPA Parking regarding your parking confirmation, receipt, and expiration reminders. Message & data rates may apply. Reply STOP to opt out at any time. We do not sell your contact information.
+      </label>
+    </div>
+
+    <!-- Parking Disclaimer -->
+    <div class="pk-disclaimer">
+      <h4>⚠ Parking Liability Disclaimer</h4>
+      <p>By purchasing a parking permit, you acknowledge and agree to the following: Parking is entirely at your own risk. WillowPA, its owners, management, employees, and agents are <strong>not responsible</strong> for any theft, vandalism, damage, fire, acts of nature, accidents, personal injury, or any loss or damage to your vehicle, its contents, or personal property while parked on or around the premises. This includes but is not limited to damage caused by other vehicles, weather events, falling objects, mechanical failure, or any other cause. No bailment is created by the use of this parking facility. Your purchase of a parking permit is solely for the use of a parking space and does not create any duty of care on the part of WillowPA. You agree to hold WillowPA harmless from any and all claims, losses, or expenses arising from your use of this parking facility.</p>
+    </div>
+
+    <div class="pk-consent">
+      <input type="checkbox" id="disclaimerAgree" required>
+      <label for="disclaimerAgree"><strong>I have read and agree to the Parking Liability Disclaimer *</strong></label>
+    </div>
+
+    <button class="pk-btn pk-btn-primary" onclick="goStep(4)" style="margin-top:12px">Review & Pay →</button>
+    <button class="pk-btn pk-btn-back" onclick="goStep(2)">← Back</button>
+  </div>
+
+  <!-- ═══ STEP 4: Review & Pay ═══ -->
+  <div class="pk-step-page" id="step-4">
+    <div class="pk-card">
+      <h2>Order Summary</h2>
+      <div id="orderSummary"></div>
+    </div>
+    <div class="pk-card">
+      <h2>Payment</h2>
+      <div id="stripe-element"></div>
+      <div id="stripeError" style="color:var(--red);font-size:12px;margin-bottom:10px"></div>
+    </div>
+    <button class="pk-btn pk-btn-primary" id="payBtn" onclick="processPayment()">🔒 Pay Now</button>
+    <button class="pk-btn pk-btn-back" onclick="goStep(3)">← Back</button>
+
+    <div class="pk-loading" id="payLoading">
+      <div class="pk-spinner"></div>
+      <p style="margin-top:10px;font-size:13px;color:var(--text3)">Processing payment...</p>
+    </div>
+  </div>
+
+  <!-- ═══ STEP 5: Success ═══ -->
+  <div class="pk-step-page" id="step-5">
+    <div class="pk-card pk-success">
+      <div class="check-icon">✅</div>
+      <h2>Parking Confirmed!</h2>
+      <p id="successMsg">Your parking has been booked. A confirmation was sent to your phone.</p>
+      <a class="pk-receipt-link" id="receiptLink" href="#" target="_blank">🧾 View Receipt & QR Code</a>
+    </div>
+  </div>
+</div>
+
+<script>
+var API = 'api.php';
+var _buildings = [];
+var _selectedBuilding = null;
+var _selectedPlan = null;
+var _appliedCoupon = null;
+var _stripe = null;
+var _stripeElements = null;
+var _cardElement = null;
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('startDate').value = todayStr();
+  loadBuildings();
+  initStripe();
+});
+
+function todayStr() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ── Load Buildings ──
+function loadBuildings() {
+  fetch(API + '?action=buildings')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      _buildings = d.buildings || [];
+      var el = document.getElementById('buildingList');
+      if (_buildings.length === 0) {
+        el.innerHTML = '<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">No buildings configured yet. Contact management.</p>';
+        return;
+      }
+      el.innerHTML = _buildings.map(function(b) {
+        return '<button class="pk-bld-btn" onclick="selectBuilding(\'' + b.id + '\')" id="bld-' + b.id + '">' +
+          '<div class="bld-name">🏢 ' + esc(b.name) + '</div>' +
+          (b.address ? '<div class="bld-addr">' + esc(b.address) + '</div>' : '') +
+          '</button>';
+      }).join('');
+    })
+    .catch(function(e) {
+      document.getElementById('buildingList').innerHTML = '<p style="color:var(--red);font-size:13px">Error loading buildings. Please refresh.</p>';
+    });
+}
+
+function selectBuilding(id) {
+  _selectedBuilding = null;
+  _buildings.forEach(function(b) { if (b.id === id) _selectedBuilding = b; });
+  document.querySelectorAll('.pk-bld-btn').forEach(function(el) { el.classList.remove('selected'); });
+  document.getElementById('bld-' + id).classList.add('selected');
+  _selectedPlan = null;
+  _appliedCoupon = null;
+  document.getElementById('couponMsg').innerHTML = '';
+  renderPlans();
+}
+
+function renderPlans() {
+  var el = document.getElementById('planList');
+  if (!_selectedBuilding || !_selectedBuilding.plans || _selectedBuilding.plans.length === 0) {
+    el.innerHTML = '<p style="grid-column:1/-1;color:var(--text3);font-size:12px;text-align:center">No plans configured for this building.</p>';
+    return;
+  }
+  el.innerHTML = _selectedBuilding.plans.map(function(p, i) {
+    return '<button class="pk-plan-btn" onclick="selectPlan(' + i + ')" id="plan-' + i + '">' +
+      '<div class="plan-days">' + p.days + '</div>' +
+      '<div class="plan-label">' + (p.label || (p.days === 1 ? 'day' : 'days')) + '</div>' +
+      '<div class="plan-price">$' + parseFloat(p.price).toFixed(2) + '</div>' +
+      '</button>';
+  }).join('');
+}
+
+function selectPlan(idx) {
+  _selectedPlan = _selectedBuilding.plans[idx];
+  document.querySelectorAll('.pk-plan-btn').forEach(function(el) { el.classList.remove('selected'); });
+  document.getElementById('plan-' + idx).classList.add('selected');
+}
+
+// ── Init Stripe ──
+function initStripe() {
+  // We'll use Stripe.js with Payment Element
+  // The publishable key will be fetched or set from config
+  // For now, use a placeholder — admin sets this in PropDesk settings
+  fetch(API + '?action=stripe-key').then(function(r) { return r.json(); }).then(function(d) {
+    if (d.key) {
+      _stripe = Stripe(d.key);
+      _stripeElements = _stripe.elements();
+      _cardElement = _stripeElements.create('card', {
+        style: { base: { fontSize: '15px', color: '#1a1a1a', '::placeholder': { color: '#8a7e72' } } }
+      });
+      _cardElement.mount('#stripe-element');
+      _cardElement.on('change', function(e) {
+        document.getElementById('stripeError').textContent = e.error ? e.error.message : '';
+      });
+    }
+  }).catch(function() {
+    // Stripe key not configured yet — show message
+    document.getElementById('stripe-element').innerHTML = '<p style="color:var(--text3);font-size:12px">Payment not configured. Contact management.</p>';
+  });
+}
+
+// ── Coupon ──
+function applyCoupon() {
+  var code = document.getElementById('couponCode').value.trim();
+  if (!code) return;
+  var msgEl = document.getElementById('couponMsg');
+  msgEl.innerHTML = '<div class="pk-coupon-msg" style="background:var(--surface2);color:var(--text3)">Checking...</div>';
+
+  fetch(API + '?action=validate-coupon', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code: code, building_id: _selectedBuilding ? _selectedBuilding.id : '' })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.ok) {
+      _appliedCoupon = d.coupon;
+      var desc = d.coupon.type === 'percent' ? d.coupon.value + '% off' :
+                 d.coupon.type === 'fixed' ? '$' + d.coupon.value + ' off' :
+                 d.coupon.value + ' free days';
+      msgEl.innerHTML = '<div class="pk-coupon-msg ok">✓ ' + esc(d.coupon.code) + ' — ' + desc + '</div>';
+    } else {
+      _appliedCoupon = null;
+      msgEl.innerHTML = '<div class="pk-coupon-msg err">✗ ' + esc(d.error || 'Invalid coupon') + '</div>';
+    }
+  });
+}
+
+// ── Step Navigation ──
+function goStep(n) {
+  hideError();
+  // Validate before advancing
+  if (n === 2) {
+    if (!_selectedBuilding) { showError('Please select a building'); return; }
+    if (!document.getElementById('unitNumber').value.trim()) { showError('Please enter your unit / apt number'); return; }
+    renderPlans();
+  }
+  if (n === 3) {
+    if (!_selectedPlan) { showError('Please select a parking plan'); return; }
+    if (!document.getElementById('carMake').value.trim()) { showError('Please enter your car make/brand'); return; }
+    if (!document.getElementById('carColor').value.trim()) { showError('Please enter your car color'); return; }
+    if (!document.getElementById('licensePlate').value.trim()) { showError('Please enter your license plate'); return; }
+  }
+  if (n === 4) {
+    if (!document.getElementById('disclaimerAgree').checked) { showError('You must agree to the Parking Liability Disclaimer to continue'); return; }
+    var phone = document.getElementById('phone').value.trim();
+    var email = document.getElementById('email').value.trim();
+    if (!phone && !email) { showError('Please enter a phone number or email for your receipt'); return; }
+    if (phone && !document.getElementById('smsConsent').checked) { showError('Please consent to SMS messages to receive your receipt by text'); return; }
+    renderSummary();
+  }
+
+  // Show step
+  document.querySelectorAll('.pk-step-page').forEach(function(el) { el.classList.remove('active'); });
+  document.getElementById('step-' + n).classList.add('active');
+  // Update indicators
+  for (var i = 1; i <= 4; i++) {
+    var ind = document.getElementById('step-ind-' + i);
+    if (!ind) continue;
+    ind.className = 'pk-step' + (i < n ? ' done' : '') + (i === n ? ' active' : '');
+  }
+  window.scrollTo(0, 0);
+}
+
+// ── Render Summary ──
+function renderSummary() {
+  var price = parseFloat(_selectedPlan.price);
+  var discount = 0;
+  var finalAmount = price;
+
+  if (_appliedCoupon) {
+    if (_appliedCoupon.type === 'percent') discount = price * (_appliedCoupon.value / 100);
+    else if (_appliedCoupon.type === 'fixed') discount = _appliedCoupon.value;
+    else if (_appliedCoupon.type === 'free_days') discount = price; // free
+    finalAmount = Math.max(0, price - discount);
+  }
+
+  var h = '';
+  h += '<div class="pk-summary-row"><span>Building</span><span>' + esc(_selectedBuilding.name) + '</span></div>';
+  h += '<div class="pk-summary-row"><span>Unit #</span><span>' + esc(document.getElementById('unitNumber').value) + '</span></div>';
+  h += '<div class="pk-summary-row"><span>Plan</span><span>' + (_selectedPlan.label || _selectedPlan.days + ' days') + '</span></div>';
+  h += '<div class="pk-summary-row"><span>Start Date</span><span>' + document.getElementById('startDate').value + '</span></div>';
+  h += '<div class="pk-summary-row"><span>Vehicle</span><span>' + esc(document.getElementById('carMake').value) + ' ' + esc(document.getElementById('carColor').value) + '</span></div>';
+  h += '<div class="pk-summary-row"><span>License Plate</span><span><strong>' + esc(document.getElementById('licensePlate').value.toUpperCase()) + '</strong></span></div>';
+  h += '<div class="pk-summary-row"><span>Subtotal</span><span>$' + price.toFixed(2) + '</span></div>';
+  if (discount > 0) {
+    h += '<div class="pk-summary-row" style="color:var(--green)"><span>Coupon (' + esc(_appliedCoupon.code) + ')</span><span>-$' + discount.toFixed(2) + '</span></div>';
+  }
+  h += '<div class="pk-summary-row total"><span>Total</span><span>$' + finalAmount.toFixed(2) + '</span></div>';
+  document.getElementById('orderSummary').innerHTML = h;
+
+  // If free, hide Stripe
+  var stripeCard = document.getElementById('stripe-element');
+  var payBtn = document.getElementById('payBtn');
+  if (finalAmount <= 0) {
+    stripeCard.style.display = 'none';
+    payBtn.textContent = '✓ Complete Booking (Free)';
+  } else {
+    stripeCard.style.display = 'block';
+    payBtn.textContent = '🔒 Pay $' + finalAmount.toFixed(2);
+  }
+}
+
+function getTotal() {
+  var price = parseFloat(_selectedPlan.price);
+  var discount = 0;
+  if (_appliedCoupon) {
+    if (_appliedCoupon.type === 'percent') discount = price * (_appliedCoupon.value / 100);
+    else if (_appliedCoupon.type === 'fixed') discount = _appliedCoupon.value;
+    else if (_appliedCoupon.type === 'free_days') discount = price;
+  }
+  return Math.max(0, price - discount);
+}
+
+// ── Process Payment ──
+function processPayment() {
+  var total = getTotal();
+  var payBtn = document.getElementById('payBtn');
+  var loading = document.getElementById('payLoading');
+  payBtn.disabled = true;
+  loading.style.display = 'block';
+  hideError();
+
+  if (total <= 0) {
+    // Free booking — skip Stripe
+    completeBooking('', 'free');
+    return;
+  }
+
+  if (!_stripe || !_cardElement) {
+    showError('Payment system not ready. Please refresh the page.');
+    payBtn.disabled = false;
+    loading.style.display = 'none';
+    return;
+  }
+
+  // Create payment intent on server
+  fetch(API + '?action=create-payment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      amount: total,
+      building_name: _selectedBuilding.name,
+      unit: document.getElementById('unitNumber').value,
+      license_plate: document.getElementById('licensePlate').value
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.ok) { throw new Error(d.error || d.detail || 'Payment error'); }
+    return _stripe.confirmCardPayment(d.clientSecret, {
+      payment_method: { card: _cardElement }
+    }).then(function(result) {
+      if (result.error) { throw new Error(result.error.message); }
+      completeBooking(d.paymentIntentId, result.paymentIntent.id);
+    });
+  }).catch(function(err) {
+    showError(err.message || 'Payment failed. Please try again.');
+    payBtn.disabled = false;
+    loading.style.display = 'none';
+  });
+}
+
+function completeBooking(paymentIntentId, transactionId) {
+  fetch(API + '?action=book', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      building_id: _selectedBuilding.id,
+      building_name: _selectedBuilding.name,
+      unit_number: document.getElementById('unitNumber').value.trim(),
+      guest_name: document.getElementById('guestName').value.trim(),
+      car_make: document.getElementById('carMake').value.trim(),
+      car_model: document.getElementById('carModel').value.trim(),
+      car_color: document.getElementById('carColor').value.trim(),
+      license_plate: document.getElementById('licensePlate').value.trim().toUpperCase(),
+      plan_days: _selectedPlan.days,
+      plan_label: _selectedPlan.label || (_selectedPlan.days + ' days'),
+      amount: getTotal(),
+      original_amount: parseFloat(_selectedPlan.price),
+      coupon_code: _appliedCoupon ? _appliedCoupon.code : '',
+      start_date: document.getElementById('startDate').value,
+      phone: document.getElementById('phone').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      sms_consent: document.getElementById('smsConsent').checked,
+      payment_intent_id: paymentIntentId || '',
+      transaction_id: transactionId || '',
+    })
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (!d.ok) { throw new Error(d.error || 'Booking failed'); }
+    // Show success
+    var phone = document.getElementById('phone').value.trim();
+    var email = document.getElementById('email').value.trim();
+    var msg = 'Your parking has been booked.';
+    if (phone) msg += ' A confirmation SMS was sent to ' + phone + '.';
+    if (email) msg += ' Check your email for the receipt.';
+    document.getElementById('successMsg').textContent = msg;
+    document.getElementById('receiptLink').href = d.receipt_url;
+    goStep(5);
+  }).catch(function(err) {
+    showError(err.message || 'Failed to save booking.');
+    document.getElementById('payBtn').disabled = false;
+    document.getElementById('payLoading').style.display = 'none';
+  });
+}
+
+// ── Helpers ──
+function showError(msg) {
+  var el = document.getElementById('pk-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+  window.scrollTo(0, 0);
+}
+function hideError() { document.getElementById('pk-error').style.display = 'none'; }
+function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+</script>
+</body>
+</html>

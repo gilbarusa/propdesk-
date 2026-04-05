@@ -1,0 +1,50 @@
+[
+  {
+    "id": "bld_1",
+    "name": "46 Township Line RD - Chelbourne Plaza",
+    "address": "46 Township Line RD",
+    "code": "Guest - Security Code 1234",
+    "active": true,
+    "created": "2025-01-01",
+    "plans": [
+      {"id": "plan_1a", "name": "10days", "days": 10, "price": 24},
+      {"id": "plan_1b", "name": "20days", "days": 20, "price": 46},
+      {"id": "plan_1c", "name": "30days", "days": 30, "price": 64},
+      {"id": "plan_1d", "name": "60days", "days": 60, "price": 125}
+    ]
+  },
+  {
+    "id": "bld_2",
+    "name": "431 Valley RD",
+    "address": "431 Valley RD",
+    "code": "Guest - Password 1234",
+    "active": true,
+    "created": "2025-01-01",
+    "plans": [
+      {"id": "plan_2a", "name": "per_day_plan", "days": 1, "price": 2.5},
+      {"id": "plan_2b", "name": "30days", "days": 30, "price": 70}
+    ]
+  },
+  {
+    "id": "bld_3",
+    "name": "278 N. Keswick",
+    "address": "278 N. Keswick",
+    "code": "Guest - Security Code 1234",
+    "active": true,
+    "created": "2025-01-01",
+    "plans": [
+      {"id": "plan_3a", "name": "per_day_plan", "days": 1, "price": 0.5}
+    ]
+  },
+  {
+    "id": "bld_4",
+    "name": "7845 Montgomery",
+    "address": "7845 Montgomery",
+    "code": "Guest - Security Code 1234",
+    "active": true,
+    "created": "2025-01-01",
+    "plans": [
+      {"id": "plan_4a", "name": "30days", "days": 30, "price": 60}
+    ]
+  }
+]
