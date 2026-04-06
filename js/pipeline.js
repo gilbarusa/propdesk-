@@ -1507,9 +1507,11 @@ function renderGuestFormDetail(f) {
     </div>`;
 
   if (f.id_file_path) {
+    // ID images are stored on GoDaddy, not GitHub — prefix with tenant app base URL
+    const idUrl = f.id_file_path.startsWith('http') ? f.id_file_path : 'https://app.willowpa.com/portal/api/' + f.id_file_path;
     html += `<div style="font-size:12px; color:var(--text2); line-height:2;">
       <div><strong>File:</strong> ${_escHtml(f.id_file_name || 'Uploaded')}</div>
-      <div><a href="${_escHtml(f.id_file_path)}" target="_blank" style="color:var(--accent);">View ID Image</a></div>
+      <div><a href="${_escHtml(idUrl)}" target="_blank" style="color:var(--accent);">View ID Image</a></div>
     </div>`;
     if (f.id_status === 'submitted') {
       html += `<div style="display:flex; gap:6px; margin-top:10px;">
