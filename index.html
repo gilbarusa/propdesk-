@@ -1559,6 +1559,7 @@
             <div class="tnt-profile-contact">
               <div class="tnt-contact-row"><span class="tnt-contact-icon">&#x260E;</span> <span id="tntPhone">—</span></div>
               <div class="tnt-contact-row"><span class="tnt-contact-icon">&#x2709;</span> <a href="#" id="tntEmail" class="tnt-email-link">—</a></div>
+              <div class="tnt-contact-row" style="margin-top:6px"><button id="tntMsgBtn" onclick="msgTenantFromDetail()" style="padding:4px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">&#x1F4AC; Message</button></div>
             </div>
           </div>
           <div class="tnt-profile-meta">
@@ -2288,6 +2289,18 @@
       <div id="incoming-list"><div class="empty-FT_state"><span class="emoji">...</span>Loading...</div></div>
     </div>
 
+    <!-- COMPLETED JOBS -->
+    <div class="ft-page" id="ft-page-completed">
+      <div class="page-header">
+        <div class="page-title">Completed Jobs <small>History of done &amp; paid work orders</small></div>
+      </div>
+      <div class="search-bar" style="margin-bottom:12px;max-width:300px">
+        <span class="ico">&#x1F50D;</span>
+        <input type="text" id="completed-search" placeholder="Search completed jobs..." oninput="renderCompletedJobs()">
+      </div>
+      <div id="completed-jobs-list"><div class="empty-FT_state"><span class="emoji">...</span>Loading...</div></div>
+    </div>
+
     <!-- TASKS PAGE -->
     <div class="ft-page" id="ft-page-tasks">
       <div style="padding:0 0 24px"></div>
@@ -2965,6 +2978,29 @@
   <button id="ft-lightbox-close" onclick="FT_closeLightbox()">✕ Close</button>
   <img id="ft-lightbox-img" src="" alt="">
   <div id="ft-lightbox-label"></div>
+</div>
+
+<!-- ═══ UNIFIED MESSAGING MODAL (Pipeline / Booking) ═══ -->
+<div class="msg-overlay" id="msgOverlay" style="display:none" onclick="if(event.target===this)closeMsgModal()">
+  <div class="msg-box">
+    <div class="msg-box-header">
+      <h3 id="msgModalTitle">Send Message</h3>
+      <button onclick="closeMsgModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);">&times;</button>
+    </div>
+    <div class="msg-box-body">
+      <input type="hidden" id="msgRecipientId">
+      <input type="hidden" id="msgRecipientType">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:10px;">
+        To: <strong id="msgRecipientName"></strong>
+        <span id="msgRecipientContact" style="margin-left:8px;color:var(--text3)"></span>
+      </div>
+      <div class="msg-channel-btns" id="msgChannelBtns"></div>
+      <textarea class="msg-textarea" id="msgBody" placeholder="Type your message..."></textarea>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="msg-send-btn" onclick="sendMsgFromModal()">Send Message</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast-wrap" id="toastWrap"></div>
