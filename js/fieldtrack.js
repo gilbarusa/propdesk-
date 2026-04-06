@@ -264,6 +264,7 @@ function FT_showPage(page){
     if(page==='settings'&&typeof renderSettingsPage==='function')    renderSettingsPage();
     if(page==='requests'&&typeof renderRequestsPage==='function')    renderRequestsPage();
     if(page==='incoming'&&typeof loadIncomingRequests==='function')  loadIncomingRequests();
+    if(page==='completed'&&typeof renderCompletedJobs==='function') renderCompletedJobs();
     if(page==='availability'&&typeof renderAvailabilityPage==='function') renderAvailabilityPage();
     if(page==='shares'&&typeof renderSharesPage==='function')      renderSharesPage();
     if(page==='technicians'&&typeof renderTechs==='function') renderTechs();
@@ -1412,7 +1413,7 @@ function FT_renderDashboard(){
     +'<div class="stat-card"><div class="stat-label">Week Hours</div><div class="stat-value" style="color:var(--accent)">'+wH.toFixed(1)+'</div><div class="stat-sub">'+wJobs.length+' jobs</div></div>'
     +'<div class="stat-card"><div class="stat-label">Week Labor</div><div class="stat-value" style="color:var(--success)">'+fmt$(wL)+'</div></div>'
     +'<div class="stat-card"><div class="stat-label">Week Expenses</div><div class="stat-value" style="color:var(--accent3)">'+fmt$(wE)+'</div></div>';
-  var recent=FT_state.jobs.slice().sort(function(a,b){ return b.date.localeCompare(a.date); }).slice(0,6);
+  var recent=FT_state.jobs.filter(function(j){ return !isCompletedPaidJob(j); }).sort(function(a,b){ return b.date.localeCompare(a.date); }).slice(0,6);
   document.getElementById('dash-recent').innerHTML=recent.length?recent.map(function(j){
     var prop=getProp(j.propId),tech=getTech(j.techId);
     var isActive=j.status!=='complete'&&j.status!=='closed';
@@ -2995,7 +2996,7 @@ function FT_init(startPage){
           var incoming = res.data.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
           // Incoming sub-tab badge
           var incBadge = document.getElementById('ft-sub-badge-incoming');
-          if (incBadge) { incBadge.textContent = incoming; incBadge.style.display = incoming > 0 ? 'inline' : 'none'; }
+          if (incBadge) { incBadge.textContent = incoming; incBadge.style.display = incoming > 0 ? 'inline' : 'none'; incBadge.classList.add('badge-red'); }
           // Combined module badge
           var total = openWOs + incoming;
           var badge = document.getElementById('techtrackBadge');
@@ -3041,7 +3042,7 @@ function loadIncomingRequests() {
       // Update badges
       var incoming = FT_incomingRequests.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
       var incBadge = document.getElementById('ft-sub-badge-incoming');
-      if (incBadge) { incBadge.textContent = incoming; incBadge.style.display = incoming > 0 ? 'inline' : 'none'; }
+      if (incBadge) { incBadge.textContent = incoming; incBadge.style.display = incoming > 0 ? 'inline' : 'none'; incBadge.classList.add('badge-red'); }
       var openWOs = FT_state.jobs ? FT_state.jobs.filter(function(j) { return j.status === 'open' || j.status === 'in_progress'; }).length : 0;
       var total = openWOs + incoming;
       var badge = document.getElementById('techtrackBadge');
@@ -3215,3 +3216,52 @@ function saveIncomingLink() {
   var msg = techId ? job.woNum + ' assigned to ' + getTech(techId).name + '!' : job.woNum + ' created (unassigned).';
   alert('[OK] ' + msg);
 }
+
+// ═══════════════════════════════════════════════════
+//  HELPER: Is a job completed and paid (or $0 balance)?
+// ═══════════════════════════════════════════════════
+function isCompletedPaidJob(j) {
+  if (!j) return false;
+  if (j.status !== 'complete' && j.status !== 'closed') return false;
+  // Check if balance is zero or paid
+  var totalCost = jobTotalLabor(j) + jobTotalExp(j);
+  var paid = +j.amountPaid || 0;
+  return (totalCost <= 0 || paid >= totalCost || j.status === 'closed');
+}
+
+// ═══════════════════════════════════════════════════
+//  COMPLETED JOBS — history tab
+// ═══════════════════════════════════════════════════
+function renderCompletedJobs() {
+  var el = document.getElementById('completed-jobs-list');
+  if (!el) return;
+  var searchTerm = (document.getElementById('completed-search') || {}).value || '';
+  var completed = FT_state.jobs.filter(function(j) {
+    return j.status === 'complete' || j.status === 'closed';
+  }).sort(function(a, b) { return b.date.localeCompare(a.date); });
+  if (searchTerm) {
+    completed = completed.filter(function(j) { return jobMatchesSearch(j, searchTerm); });
+  }
+  if (!completed.length) {
+    el.innerHTML = '<div class="empty-FT_state" style="padding:40px 20px"><span class="emoji">&#x2705;</span>No completed jobs yet.</div>';
+    return;
+  }
+  el.innerHTML = completed.map(function(j) {
+    var prop = getProp(j.propId);
+    var tech = getTech(j.techId);
+    var total = jobTotalLabor(j) + jobTotalExp(j);
+    var paid = +j.amountPaid || 0;
+    var balClass = paid >= total ? 'tag-complete' : 'tag-open';
+    var balLabel = paid >= total ? 'Paid' : 'Balance: ' + fmt$(total - paid);
+    return '<div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap;cursor:pointer" onclick="FT_goToJob(' + j.id + ')">'
+      + '<span style="font-family:var(--fm);font-size:11px;color:var(--accent2);width:70px;flex-shrink:0;font-weight:700">' + (j.woNum || '') + '</span>'
+      + '<span style="font-family:var(--fm);font-size:11px;color:var(--muted);width:80px;flex-shrink:0">' + j.date + '</span>'
+      + (j.title ? '<span style="flex:1;font-size:13px;font-weight:600;color:var(--accent)">' + FT_esc(j.title) + '</span>' : '<span style="flex:1;font-size:13px">' + (prop ? FT_esc(prop.name) : '') + '</span>')
+      + '<span style="font-size:12px;color:var(--muted)">' + (tech ? FT_esc(tech.name) : '') + '</span>'
+      + '<span style="font-size:11px;font-weight:600;color:var(--text2)">' + fmt$(total) + '</span>'
+      + '<span class="tag ' + balClass + '" style="font-size:10px">' + balLabel + '</span>'
+      + '<span class="tag ' + (j.status === 'closed' ? 'tag-closed' : 'tag-complete') + '" style="font-size:10px">' + (j.status === 'closed' ? 'Closed' : 'Done') + '</span>'
+      + '</div>';
+  }).join('');
+}
+

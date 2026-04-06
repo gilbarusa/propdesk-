@@ -1019,8 +1019,11 @@ function renderBookingCard(booking) {
             ${badges ? `<span class="person-badges">${badges}</span>` : ''}
           </div>
 
-          <!-- Third row: contact links -->
-          ${contactBits.length ? `<div style="display:flex;gap:10px;margin-top:3px;">${contactBits.join('')}</div>` : ''}
+          <!-- Third row: contact links + message button -->
+          <div style="display:flex;gap:10px;margin-top:3px;align-items:center;">
+            ${contactBits.join('')}
+            <a href="#" onclick="event.stopPropagation();openMsgModal('${_escHtml(booking.guest_name).replace(/'/g,"\\'")}','${_escHtml(email)}','${_escHtml(phone)}','${booking.id}','short-term')" style="color:var(--accent);text-decoration:none;font-size:11px;font-weight:600;" title="Send message">💬 Message</a>
+          </div>
         </div>
 
         <!-- Right side: time label + amount + status change -->
@@ -1194,9 +1197,10 @@ function renderBookingDetail(booking) {
             height: 30px;
           ">×</button>
         </div>
-        <div style="font-size:12px; color:var(--text2); line-height:1.6; margin-bottom:10px;">
+        <div style="font-size:12px; color:var(--text2); line-height:1.6; margin-bottom:10px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
           <span>📧 <a href="mailto:${_escHtml(booking.guest_email)}" style="color:var(--accent);text-decoration:none;">${_escHtml(booking.guest_email)}</a></span>
-          <span style="margin-left:12px;">📱 ${_escHtml(booking.guest_phone)}</span>
+          <span>📱 ${_escHtml(booking.guest_phone)}</span>
+          <button onclick="openMsgModal('${_escHtml(booking.guest_name).replace(/'/g,"\\\\'")}','${_escHtml(booking.guest_email)}','${_escHtml(booking.guest_phone)}','${booking.id}','short-term')" style="padding:4px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">💬 Message</button>
         </div>
         <div style="display:flex; gap:0;">
           <button class="bd-tab active" data-bd-tab="details">Details</button>

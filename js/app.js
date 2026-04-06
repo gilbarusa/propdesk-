@@ -2114,7 +2114,7 @@ const MODULE_SUB_TABS = {
   'short-term':  [{label:'Dashboard',   page:'st-dashboard'},  {label:'Pipeline', page:'pipeline'}, {label:'Calendar', page:'calendar'}, {label:'Units', page:'units'}, {label:'Messages', page:'messages'}, {label:'Archive', page:'history'}],
   'mtm-lt':      [{label:'Dashboard',   page:'mtm-lt'},     {label:'Tenants', page:'mtm-lt-tenants'}, {label:'Leases', page:'mtm-lt-leases'}, {label:'Rent', page:'mtm-lt-rent'}, {label:'Applications', page:'mtm-lt-applications'}, {label:'Messages', page:'mtm-lt-messages'}],
   'expenses':    [{label:'All',         page:'expenses'},   {label:'By Property', page:'expenses', expView:'property'}, {label:'By Category', page:'expenses', expView:'category'}],
-  'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
+  'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Completed', page:'techtrack', ftPage:'completed'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'API Keys', page:'settings', settingsSec:'api-keys'}, {label:'Messaging', page:'settings', settingsSec:'messaging'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
@@ -6058,7 +6058,7 @@ async function renderSTDashboard(){
   const ciEl=document.getElementById('stDashCheckIns');
   if(ciEl){
     if(stCI.length===0){ciEl.innerHTML='<div class="dash-empty-state">✓ No ST check-ins in the next 3 days</div>';}
-    else{ciEl.innerHTML=stCI.map(ci=>{const u=data.find(x=>x.apt===ci.apt);return`<div class="dash-move-item"><span class="dash-move-apt">${ci.apt}</span><span class="dash-move-name">${clickablePersonName(ci.name,u,'')}</span><span class="dash-move-when ci">${ci.daysAway===0?'Today':ci.daysAway===1?'Tomorrow':'In '+ci.daysAway+'d'}</span></div>`;}).join('');}
+    else{ciEl.innerHTML=stCI.map(ci=>{const u=data.find(x=>x.apt===ci.apt);return`<div class="dash-move-item" style="cursor:pointer" onclick="drillDownToTenant('${ci.apt}','${(ci.name||'').replace(/'/g,"\\'")}')"><span class="dash-move-apt">${ci.apt}</span><span class="dash-move-name">${clickablePersonName(ci.name,u,'')}</span><span class="dash-move-when ci">${ci.daysAway===0?'Today':ci.daysAway===1?'Tomorrow':'In '+ci.daysAway+'d'}</span></div>`;}).join('');}
   }
 
   // ── ST Check-outs only ──
@@ -6066,7 +6066,7 @@ async function renderSTDashboard(){
   const coEl=document.getElementById('stDashCheckOuts');
   if(coEl){
     if(stCO.length===0){coEl.innerHTML='<div class="dash-empty-state">✓ No ST check-outs in the next 3 days</div>';}
-    else{coEl.innerHTML=stCO.map(co=>{const u=data.find(x=>x.apt===co.apt);return`<div class="dash-move-item"><span class="dash-move-apt">${co.apt}</span><span class="dash-move-name">${clickablePersonName(co.name,u,'')}</span><span class="dash-move-when co">${co.daysAway===0?'Today':co.daysAway===1?'Tomorrow':'In '+co.daysAway+'d'}</span></div>`;}).join('');}
+    else{coEl.innerHTML=stCO.map(co=>{const u=data.find(x=>x.apt===co.apt);return`<div class="dash-move-item" style="cursor:pointer" onclick="drillDownToTenant('${co.apt}','${(co.name||'').replace(/'/g,"\\'")}')"><span class="dash-move-apt">${co.apt}</span><span class="dash-move-name">${clickablePersonName(co.name,u,'')}</span><span class="dash-move-when co">${co.daysAway===0?'Today':co.daysAway===1?'Tomorrow':'In '+co.daysAway+'d'}</span></div>`;}).join('');}
   }
 
   // ── ST Badge: same-day check-ins + check-outs ──
@@ -9175,4 +9175,129 @@ function DL_fmtTime(ts) {
 }
 
 function initDeliveryModule() { WPA_dlLoadStats(); }
+
+function msgTenantFromDetail() {
+  if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
+  var t = INNAGO_TENANTS[currentTenantIdx];
+  openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
+}
+
+// ═══════════════════════════════════════════════════
+//  MESSAGING MODAL — Send SMS/Email/WhatsApp/Channel
+// ═══════════════════════════════════════════════════
+function openMsgModal(name, email, phone, bookingId, type) {
+  // type = 'short-term' | 'mtm' | 'long-term'
+  document.getElementById('msgModalTitle').textContent = 'Message ' + (name || 'Guest');
+  document.getElementById('msgRecipientName').textContent = name || '';
+  document.getElementById('msgRecipientContact').textContent = [email, phone].filter(Boolean).join(' · ');
+  document.getElementById('msgRecipientId').value = bookingId || '';
+  document.getElementById('msgRecipientType').value = type || '';
+  document.getElementById('msgBody').value = '';
+
+  // Build channel buttons based on type
+  var channels = [];
+  if (type === 'short-term') {
+    channels = [
+      {id:'channel', label:'Channel', icon:'📢'},
+      {id:'sms', label:'SMS', icon:'💬'},
+      {id:'email', label:'Email', icon:'📧'},
+      {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
+    ];
+  } else {
+    // MTM / Long-term — no channel
+    channels = [
+      {id:'sms', label:'SMS', icon:'💬'},
+      {id:'email', label:'Email', icon:'📧'},
+      {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
+    ];
+  }
+  var btnsHtml = channels.map(function(ch, i) {
+    return '<button class="msg-ch-btn' + (i === 0 ? ' active' : '') + '" data-channel="' + ch.id + '" onclick="selectMsgChannel(this)">' + ch.icon + ' ' + ch.label + '</button>';
+  }).join('');
+  document.getElementById('msgChannelBtns').innerHTML = btnsHtml;
+  document.getElementById('msgOverlay').style.display = 'flex';
+}
+
+function closeMsgModal() {
+  document.getElementById('msgOverlay').style.display = 'none';
+}
+
+function selectMsgChannel(btn) {
+  btn.parentElement.querySelectorAll('.msg-ch-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+function sendMsgFromModal() {
+  var channel = (document.querySelector('.msg-ch-btn.active') || {}).dataset;
+  var ch = channel ? channel.channel : 'sms';
+  var body = document.getElementById('msgBody').value.trim();
+  if (!body) { alert('Please type a message.'); return; }
+
+  var name = document.getElementById('msgRecipientName').textContent;
+  var contact = document.getElementById('msgRecipientContact').textContent;
+
+  // Extract email/phone from contact string
+  var parts = contact.split(' · ');
+  var email = '', phone = '';
+  parts.forEach(function(p) {
+    p = p.trim();
+    if (p.indexOf('@') > -1) email = p;
+    else if (p.match(/\d/)) phone = p;
+  });
+
+  if (ch === 'sms') {
+    if (!phone) { alert('No phone number available for SMS.'); return; }
+    if (typeof sendSMS === 'function') sendSMS(phone, body);
+    else window.open('sms:' + phone + '?body=' + encodeURIComponent(body));
+  } else if (ch === 'email') {
+    if (!email) { alert('No email available.'); return; }
+    window.open('mailto:' + email + '?subject=Message from Willow PA&body=' + encodeURIComponent(body));
+  } else if (ch === 'whatsapp') {
+    if (!phone) { alert('No phone number available for WhatsApp.'); return; }
+    var waPhone = phone.replace(/\D/g, '');
+    window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(body), '_blank');
+  } else if (ch === 'channel') {
+    // Channel messaging — use Hostfully channel API or internal messaging
+    alert('Channel message queued for: ' + name + '\n\n' + body);
+  }
+
+  closeMsgModal();
+}
+
+// ═══════════════════════════════════════════════════
+//  ST DASHBOARD DRILL-DOWN — click tenant to go to detail
+// ═══════════════════════════════════════════════════
+function drillDownToTenant(apt, name) {
+  // Try to find in pipeline bookings first
+  if (typeof window.pipelineState !== 'undefined' && window.pipelineState.bookings) {
+    var booking = window.pipelineState.bookings.find(function(b) {
+      return (b.unit_apt === apt || b.unit_name === apt) && b.guest_name === name;
+    });
+    if (booking) {
+      // Switch to pipeline and open detail
+      switchModule('short-term');
+      setTimeout(function() {
+        var subTabs = document.querySelectorAll('#subNav .sub-tab');
+        subTabs.forEach(function(t) {
+          t.classList.remove('active');
+          if (t.textContent.trim().indexOf('Pipeline') === 0) t.classList.add('active');
+        });
+        showSubPage('pipeline', null);
+        setTimeout(function() {
+          // Set selected booking in pipeline state and re-render
+          if (typeof window.pipelineState !== 'undefined') {
+            window.pipelineState.selectedBooking = booking;
+            if (typeof window.renderPipeline === 'function') window.renderPipeline();
+          }
+        }, 300);
+      }, 200);
+      return;
+    }
+  }
+  // Fallback: try unit drill-down
+  var unit = data.find(function(u) { return u.apt === apt; });
+  if (unit) {
+    openDrillDown(unit, name);
+  }
+}
 
