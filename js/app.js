@@ -2229,7 +2229,7 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) 
   if(pageId === 'mtm-lt-applications') renderMTMApps();
   if(pageId === 'mtm-lt-expenses') renderExpensesPage();
   if(pageId === 'expenses') renderExpensesPage();
-  if(pageId === 'mtm-lt-maintenance') renderMTMMaint();
+  if(pageId === 'mtm-lt-maintenance') loadMaintenanceFromSupabase();
 }
 
 // ── Property Selector ──
@@ -3433,27 +3433,68 @@ function renderMTMExpenses() { renderExpensesPage(); }
 function addMTMExpense() { toggleExpenseForm(); }
 
 // ── Maintenance Data & Render ──
-const INNAGO_MAINTENANCE = [
-  {id:"MT-001",property:"46 Township Line Road",unit:"317",tenant:"Carol Tyndale",issue:"Kitchen faucet leaking",priority:"high",status:"open",created:"Apr 03, 2026"},
-  {id:"MT-002",property:"7845 Montgomery Avenue",unit:"Unit 8",tenant:"Justin Krebs",issue:"Kitchen faucet dripping",priority:"medium",status:"open",created:"Apr 01, 2026"},
-  {id:"MT-003",property:"1614 Valley Glen Rd",unit:"1",tenant:"Tarsha R. Scovens",issue:"Water heater lukewarm",priority:"high",status:"scheduled",created:"Mar 18, 2026"},
-  {id:"MT-004",property:"46 Township Line Road",unit:"232",tenant:"Anna Chubatiuk",issue:"Bathroom exhaust fan not working",priority:"low",status:"in-progress",created:"Mar 15, 2026"},
-  {id:"MT-005",property:"7845 Montgomery Avenue",unit:"Unit 2",tenant:"Gina Krier",issue:"Noise complaint - Unit 4 late-night music",priority:"medium",status:"open",created:"Mar 28, 2026"},
-  {id:"MT-006",property:"46 Township Line Road",unit:"325",tenant:"Naijeya Shykye Lyons",issue:"Closet door off track",priority:"low",status:"scheduled",created:"Mar 20, 2026"},
-  {id:"MT-007",property:"431 Valley Rd",unit:"Unit A2",tenant:"Renat Sakiev",issue:"Window screen torn",priority:"low",status:"resolved",created:"Mar 10, 2026"},
-  {id:"MT-008",property:"46 Township Line Road",unit:"219",tenant:"Sining Wang",issue:"Dishwasher not draining",priority:"medium",status:"resolved",created:"Mar 05, 2026"},
-  {id:"MT-009",property:"7845 Montgomery Avenue",unit:"Unit 6",tenant:"Victoria Deans",issue:"Thermostat not responding",priority:"high",status:"resolved",created:"Feb 28, 2026"},
-  {id:"MT-010",property:"46 Township Line Road",unit:"111",tenant:"David Brooker",issue:"Front door lock sticking",priority:"medium",status:"resolved",created:"Feb 25, 2026"},
-];
+let MAINTENANCE_REQUESTS = [];
+
+async function loadMaintenanceFromSupabase() {
+  try {
+    const { data, error } = await sb.from('maintenance_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) { console.error('Maint load error:', error); return; }
+    MAINTENANCE_REQUESTS = (data || []).map(r => ({
+      id: r.id,
+      property: r.property || r.address || '',
+      unit: r.unit || '',
+      tenant: r.name || '',
+      phone: r.phone || '',
+      email: r.email || '',
+      issue: r.description || '',
+      category: r.category || 'General',
+      priority: r.priority || 'normal',
+      status: mapMaintStatus(r.status),
+      urgency: r.urgency || 'normal',
+      created: fmtMaintDate(r.created_at),
+      created_at: r.created_at,
+      user_type: r.user_type || 'guest',
+      preferred_block: r.preferred_block || '',
+      preferred_date: r.preferred_date || '',
+      preferred_slot: r.preferred_slot || '',
+      preferred_comm: r.preferred_comm || 'sms',
+      no_access_needed: r.no_access_needed || false,
+      permission_to_enter: r.permission_to_enter || false,
+      waiver_agreed: r.waiver_agreed || false,
+      sms_consent: r.sms_consent || false,
+      photo: r.photo || null,
+      admin_notes: r.admin_notes || '',
+      assigned_to: r.assigned_to || '',
+      address: r.address || '',
+      owner: r.owner || '',
+      _raw: r
+    }));
+    renderMTMMaint();
+  } catch (e) { console.error('Maint load exception:', e); }
+}
+
+function mapMaintStatus(s) {
+  const map = { submitted:'open', assigned:'scheduled', scheduled:'scheduled', 'in-progress':'in-progress', completed:'resolved', cancelled:'resolved' };
+  return map[s] || s || 'open';
+}
+
+function fmtMaintDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[d.getMonth()] + ' ' + String(d.getDate()).padStart(2,'0') + ', ' + d.getFullYear();
+}
 
 function renderMTMMaint() {
   const tbody = document.getElementById('mtmMaintBody');
   if (!tbody) return;
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('mtmMaintOpen', INNAGO_MAINTENANCE.filter(m => m.status === 'open').length);
-  el('mtmMaintProgress', INNAGO_MAINTENANCE.filter(m => m.status === 'in-progress').length);
-  el('mtmMaintScheduled', INNAGO_MAINTENANCE.filter(m => m.status === 'scheduled').length);
-  el('mtmMaintResolved', INNAGO_MAINTENANCE.filter(m => m.status === 'resolved').length);
+  el('mtmMaintOpen', MAINTENANCE_REQUESTS.filter(m => m.status === 'open').length);
+  el('mtmMaintProgress', MAINTENANCE_REQUESTS.filter(m => m.status === 'in-progress').length);
+  el('mtmMaintScheduled', MAINTENANCE_REQUESTS.filter(m => m.status === 'scheduled').length);
+  el('mtmMaintResolved', MAINTENANCE_REQUESTS.filter(m => m.status === 'resolved').length);
   filterMTMMaint();
 }
 
@@ -3463,7 +3504,7 @@ function filterMTMMaint() {
   const search = (document.getElementById('mtmMaintSearch')?.value || '').toLowerCase();
   const statusF = document.getElementById('mtmMaintStatusFilter')?.value || 'all';
 
-  const filtered = INNAGO_MAINTENANCE.filter(m => {
+  const filtered = MAINTENANCE_REQUESTS.filter(m => {
     if (statusF !== 'all' && m.status !== statusF) return false;
     if (search && !m.tenant.toLowerCase().includes(search) && !m.issue.toLowerCase().includes(search) && !m.property.toLowerCase().includes(search)) return false;
     return true;
@@ -3478,11 +3519,12 @@ function filterMTMMaint() {
   tbody.innerHTML = filtered.map(m => {
     const statusBadge = `<span class="mtm-badge ${m.status}">${m.status === 'in-progress' ? 'In Progress' : m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>`;
     const priBadge = `<span class="mtm-badge ${m.priority}">${m.priority.charAt(0).toUpperCase() + m.priority.slice(1)}</span>`;
-    return `<tr onclick="alert('Ticket ${m.id}\\n\\n${m.issue}\\n\\nTenant: ${m.tenant}\\nProperty: ${m.property} ${m.unit}\\nPriority: ${m.priority}\\nStatus: ${m.status}')">
-      <td style="font-weight:600;color:var(--accent2)">${m.id}</td>
-      <td><span class="mtm-prop-unit">${m.unit}</span><span class="mtm-prop-addr">${m.property}</span></td>
-      <td>${m.tenant}</td>
-      <td>${m.issue}</td>
+    const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
+    return `<tr onclick="openMaintTicket('${m.id}')" style="cursor:pointer">
+      <td style="font-weight:600;color:var(--accent2)">${m.id.substring(0,10)}</td>
+      <td><span class="mtm-prop-unit">${m.unit || '-'}</span><span class="mtm-prop-addr">${m.property || m.address || '-'}</span></td>
+      <td>${m.tenant}${m.user_type === 'guest' ? ' <span style="font-size:10px;color:#9ca3af">(guest)</span>' : ''}</td>
+      <td>${catIcon} ${m.issue.length > 60 ? m.issue.substring(0,60) + '...' : m.issue}</td>
       <td>${priBadge}</td>
       <td>${statusBadge}</td>
       <td>${m.created}</td>
@@ -3490,8 +3532,112 @@ function filterMTMMaint() {
   }).join('');
 }
 
+function openMaintTicket(id) {
+  const m = MAINTENANCE_REQUESTS.find(r => r.id === id);
+  if (!m) return;
+  const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
+  const statusOpts = ['submitted','assigned','scheduled','in-progress','completed','cancelled'];
+  const priorityOpts = ['low','normal','high','urgent'];
+
+  let html = `<div style="padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+      <div>
+        <h3 style="margin:0;font-size:18px">${catIcon} ${m.category}</h3>
+        <span style="font-size:12px;color:#6b7280">${m.id} &bull; ${m.created} &bull; ${m.user_type === 'guest' ? 'Guest' : 'Resident'}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Tenant</span><div style="font-weight:600">${m.tenant}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Phone</span><div>${m.phone || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Email</span><div>${m.email || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Unit</span><div>${m.unit || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Property/Address</span><div>${m.property || m.address || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Preferred Comm</span><div>${m.preferred_comm}</div></div>
+    </div>
+    <div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Description</div>
+      <div style="white-space:pre-wrap">${m.issue}</div>
+    </div>`;
+
+  if (m.preferred_block) {
+    html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:12px">
+      <strong>📅 Preferred Time:</strong> ${m.preferred_block}
+    </div>`;
+  }
+
+  let flags = [];
+  if (m.no_access_needed) flags.push('🔑 No access needed');
+  if (m.permission_to_enter) flags.push('🚪 Permission to enter');
+  if (m.waiver_agreed) flags.push('✅ Waiver signed');
+  if (m.sms_consent) flags.push('📱 SMS consent');
+  if (flags.length) {
+    html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      ${flags.map(f => `<span style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:6px;padding:4px 10px;font-size:12px">${f}</span>`).join('')}
+    </div>`;
+  }
+
+  if (m.photo) {
+    html += `<div style="margin-bottom:16px"><img src="${m.photo}" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e5e7eb" onerror="this.style.display='none'"></div>`;
+  }
+
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div>
+      <label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Status</label>
+      <select id="maintTicketStatus" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px">
+        ${statusOpts.map(s => `<option value="${s}" ${(m._raw.status || 'submitted') === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Priority</label>
+      <select id="maintTicketPriority" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px">
+        ${priorityOpts.map(p => `<option value="${p}" ${m.priority === p ? 'selected' : ''}>${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div style="margin-bottom:16px">
+    <label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Admin Notes</label>
+    <textarea id="maintTicketNotes" rows="3" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-family:inherit;resize:vertical">${m.admin_notes || ''}</textarea>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button onclick="saveMaintTicket('${m.id}')" style="flex:1;padding:10px;background:var(--accent2,#c47f00);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Save Changes</button>
+  </div>
+  </div>`;
+
+  // Use a modal/overlay approach
+  let overlay = document.getElementById('maintTicketOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'maintTicketOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e5e7eb">
+      <h3 style="margin:0;font-size:16px">Maintenance Ticket</h3>
+      <button onclick="document.getElementById('maintTicketOverlay').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280">&times;</button>
+    </div>
+    ${html}
+  </div>`;
+}
+
+async function saveMaintTicket(id) {
+  const status = document.getElementById('maintTicketStatus')?.value;
+  const priority = document.getElementById('maintTicketPriority')?.value;
+  const notes = document.getElementById('maintTicketNotes')?.value || '';
+
+  try {
+    const { error } = await sb.from('maintenance_requests')
+      .update({ status, priority, admin_notes: notes, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { alert('Error saving: ' + error.message); return; }
+    document.getElementById('maintTicketOverlay').style.display = 'none';
+    await loadMaintenanceFromSupabase();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
 function addMTMMaintTicket() {
-  alert('New Maintenance Ticket\n\nThis would open a form to create a new maintenance request with property, unit, tenant, issue description, priority, and photo upload.');
+  alert('New Maintenance Ticket\n\nTenants submit requests via the Willow Resident App.\nVisit app.willowpa.com to submit a request.');
 }
 
 // ══════════════════════════════════════════════════════
