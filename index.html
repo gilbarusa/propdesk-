@@ -511,11 +511,6 @@
     <div class="dash-section-label">Today's Activity</div>
     <div class="dash-two-col">
       <div class="dash-panel dash-panel-today" style="border-left:4px solid var(--orange);">
-        <h3>🔧 Work Orders Due Today</h3>
-        <div id="dashWOToday">
-          <div class="dash-loading">Loading...</div>
-        </div>
-        <div class="dash-tasks-divider"></div>
         <div class="dash-tasks-header">
           <h3 style="border:none;margin:0;padding:0;">📋 Tasks</h3>
           <button onclick="toggleDashTaskForm()" class="dash-task-add-btn" id="dashTaskAddBtn">+ Add</button>
@@ -534,6 +529,11 @@
           </div>
         </div>
         <div id="dashTasks">
+          <div class="dash-loading">Loading...</div>
+        </div>
+        <div class="dash-tasks-divider"></div>
+        <h3>🔧 Work Orders Due Today</h3>
+        <div id="dashWOToday">
           <div class="dash-loading">Loading...</div>
         </div>
       </div>
