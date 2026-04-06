@@ -2983,6 +2983,16 @@ function FT_init(startPage){
     FT_state.jobs.forEach(function(j){ if(!j.woNum){ j.woNum=FT_nextWO(); changed=true; } });
     if(changed) FT_save();
     FT_showPage(_pg);
+    // Load incoming request count for badge
+    if (typeof sb !== 'undefined') {
+      sb.from('maintenance_requests').select('id,status').then(function(res) {
+        if (res.data) {
+          var n = res.data.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
+          var badge = document.getElementById('techtrackBadge');
+          if (badge) { badge.textContent = n; badge.style.display = n > 0 ? 'inline' : 'none'; }
+        }
+      });
+    }
   });
   return FT_initPromise;
 }
@@ -3014,6 +3024,10 @@ function loadIncomingRequests() {
       }
       FT_incomingRequests = result.data || [];
       renderIncomingList();
+      // Update TechTrack module badge with new request count
+      var newCount = FT_incomingRequests.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
+      var badge = document.getElementById('techtrackBadge');
+      if (badge) { badge.textContent = newCount; badge.style.display = newCount > 0 ? 'inline' : 'none'; }
     });
 }
 
