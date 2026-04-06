@@ -1416,4 +1416,19 @@ textarea{resize:vertical;min-height:72px;}
 .dl-status-pending{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#fff3cd;color:#856404;}
 .dl-status-collected{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#d4edda;color:#155724;}
 .kpi-card.kv-red{border-left:4px solid var(--red);}
+
+/* ── Collapsible summary sections — collapsed by default, expand on hover ── */
+.collapsible-summary{max-height:28px;overflow:hidden;transition:max-height .35s ease, opacity .3s ease;position:relative;cursor:pointer;border-radius:14px;padding:6px 16px;background:var(--surface);border:1px solid var(--border);margin-bottom:16px;}
+.collapsible-summary::after{content:'▾ hover to expand';position:absolute;right:14px;top:6px;font-size:10px;color:var(--text3);transition:opacity .2s;pointer-events:none;}
+.collapsible-summary:hover{max-height:600px;overflow:visible;padding:20px 16px;}
+.collapsible-summary:hover::after{opacity:0;}
+.collapsible-summary .dash-kpi-hero{margin-bottom:0;}
+.collapsible-summary .summary-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;line-height:16px;}
+.collapsible-summary:hover .summary-title{margin-bottom:12px;}
+
+/* MTM collection stats collapsible */
+.collapsible-mtm{max-height:32px;overflow:hidden;transition:max-height .35s ease;position:relative;cursor:pointer;}
+.collapsible-mtm::after{content:'▾';position:absolute;right:14px;top:8px;font-size:12px;color:var(--text3);transition:opacity .2s;}
+.collapsible-mtm:hover{max-height:800px;overflow:visible;}
+.collapsible-mtm:hover::after{opacity:0;}
 </style>
