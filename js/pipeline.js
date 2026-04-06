@@ -1509,7 +1509,7 @@ function renderGuestFormDetail(f) {
   if (f.id_file_path) {
     // Serve ID images through standalone PHP file (GoDaddy WAF blocks API query strings)
     const idFilename = f.id_file_path.split('/').pop();
-    const idUrl = 'https://app.willowpa.com/portal/view-id.php?f=' + encodeURIComponent(idFilename);
+    const idUrl = 'https://app.willowpa.com/view-id.php?f=' + encodeURIComponent(idFilename);
     html += `<div style="font-size:12px; color:var(--text2); line-height:2;">
       <div><strong>File:</strong> ${_escHtml(f.id_file_name || 'Uploaded')}</div>
       <div><a href="${_escHtml(idUrl)}" target="_blank" style="color:var(--accent);">View ID Image</a></div>
