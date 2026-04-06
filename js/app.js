@@ -2142,7 +2142,9 @@ function switchModule(moduleId, tabEl) {
     else if (t.expView) args += ",null,null,'" + t.expView + "'";
     else if (t.pkSec) args += ",null,null,null,'" + t.pkSec + "'";
     else if (t.dlSec) args += ",null,null,null,null,'" + t.dlSec + "'";
-    return `<div class="sub-tab${i === 0 ? ' active' : ''}" onclick="showSubPage(${args})">${t.label}</div>`;
+    const badgeId = t.ftPage ? 'ft-sub-badge-' + t.ftPage : (t.page ? 'sub-badge-' + t.page : '');
+    const badgeHtml = badgeId ? ` <span class="mod-badge" id="${badgeId}" style="display:none">0</span>` : '';
+    return `<div class="sub-tab${i === 0 ? ' active' : ''}" onclick="showSubPage(${args})">${t.label}${badgeHtml}</div>`;
   }).join('');
   // Show default page for this module
   if (tabs.length > 0) {
@@ -6066,6 +6068,13 @@ async function renderSTDashboard(){
     if(stCO.length===0){coEl.innerHTML='<div class="dash-empty-state">✓ No ST check-outs in the next 3 days</div>';}
     else{coEl.innerHTML=stCO.map(co=>{const u=data.find(x=>x.apt===co.apt);return`<div class="dash-move-item"><span class="dash-move-apt">${co.apt}</span><span class="dash-move-name">${clickablePersonName(co.name,u,'')}</span><span class="dash-move-when co">${co.daysAway===0?'Today':co.daysAway===1?'Tomorrow':'In '+co.daysAway+'d'}</span></div>`;}).join('');}
   }
+
+  // ── ST Badge: same-day check-ins + check-outs ──
+  const todayCI = stCI.filter(ci => ci.daysAway === 0).length;
+  const todayCO = stCO.filter(co => co.daysAway === 0).length;
+  const stTotal = todayCI + todayCO;
+  const stBadge = document.getElementById('stBadge');
+  if (stBadge) { stBadge.textContent = stTotal; stBadge.style.display = stTotal > 0 ? 'inline' : 'none'; }
 
   // ── ST Revenue Summary ──
   const paidST=stOcc.filter(r=>r.balance<=0).length;

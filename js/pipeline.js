@@ -734,7 +734,7 @@ function getFilteredBookings() {
     filtered = filtered.filter(b =>
       (b.guest_name || '').toLowerCase().includes(search) ||
       (b.listing_name || '').toLowerCase().includes(search) ||
-      (b.unit_name || '').toLowerCase().includes(search)
+      (b.unit_apt || b.unit_name || '').toLowerCase().includes(search)
     );
   }
 
@@ -995,7 +995,7 @@ function renderBookingCard(booking) {
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <div class="person-name-wrap" data-booking-id="${booking.id}" onclick="showPersonSummary(this, event)" style="cursor:pointer;">
-              <span class="person-name-text" style="font-weight:700;font-size:13px;color:var(--text);">${_escHtml(booking.guest_name)}</span>${booking.unit_name ? `<span style="font-size:11px;color:var(--accent);font-weight:600;margin-left:4px;">· ${_escHtml(booking.unit_name)}</span>` : ''}
+              <span class="person-name-text" style="font-weight:700;font-size:13px;color:var(--text);">${_escHtml(booking.guest_name)}</span>${(booking.unit_apt || booking.unit_name) ? `<span style="font-size:11px;color:var(--accent);font-weight:600;margin-left:4px;">· ${_escHtml(booking.unit_apt || booking.unit_name)}</span>` : ''}
             </div>
             <!-- Status pill -->
             <span style="font-size:10px;padding:2px 10px;border-radius:10px;font-weight:600;
@@ -1015,7 +1015,7 @@ function renderBookingCard(booking) {
             <span style="font-size:11px;color:var(--text3);">
               ${formatDateDisplay(booking.check_in)} → ${formatDateDisplay(booking.check_out)} · ${booking.nights || ''}n
             </span>
-            ${booking.unit_name ? `<span style="font-size:11px;color:var(--text2);font-weight:500;">📍 ${_escHtml(booking.unit_name)}</span>` : ''}
+            ${(booking.unit_apt || booking.unit_name) ? `<span style="font-size:11px;color:var(--text2);font-weight:500;">📍 ${_escHtml(booking.unit_apt || booking.unit_name)}</span>` : ''}
             ${badges ? `<span class="person-badges">${badges}</span>` : ''}
           </div>
 
@@ -1182,7 +1182,7 @@ function renderBookingDetail(booking) {
         border-bottom: 1px solid #e0ddd5;
       ">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h2 style="margin: 0; font-size: 18px; color: var(--text);">${_escHtml(booking.guest_name)}${booking.unit_name ? ` <span style="font-size:13px;color:var(--text2);font-weight:400;">— ${_escHtml(booking.unit_name)}</span>` : ''}</h2>
+          <h2 style="margin: 0; font-size: 18px; color: var(--text);">${_escHtml(booking.guest_name)}${(booking.unit_apt || booking.unit_name) ? ` <span style="font-size:13px;color:var(--text2);font-weight:400;">— ${_escHtml(booking.unit_apt || booking.unit_name)}</span>` : ''}</h2>
           <button id="close-booking-detail" style="
             background: none;
             border: none;
@@ -1286,7 +1286,7 @@ function renderBookingDetail(booking) {
           <div style="font-weight: 600; color: var(--text); margin-bottom: 10px; font-size: 13px;">PROPERTY</div>
           <div style="font-size: 12px; color: var(--text2); line-height: 1.8;">
             <div><strong>Listing:</strong> ${_escHtml(booking.listing_name)}</div>
-            <div><strong>Unit:</strong> ${_escHtml(booking.unit_name)}</div>
+            <div><strong>Unit:</strong> ${_escHtml(booking.unit_apt || booking.unit_name)}</div>
           </div>
         </div>
 

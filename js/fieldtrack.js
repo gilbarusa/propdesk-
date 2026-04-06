@@ -2983,15 +2983,29 @@ function FT_init(startPage){
     FT_state.jobs.forEach(function(j){ if(!j.woNum){ j.woNum=FT_nextWO(); changed=true; } });
     if(changed) FT_save();
     FT_showPage(_pg);
-    // Load incoming request count for badge
+    // Load incoming request count + combine with open WOs for badge
+    var openWOs = FT_state.jobs.filter(function(j) { return j.status === 'open' || j.status === 'in_progress'; }).length;
+    // Update Work Orders sub-tab badge
+    var woBadge = document.getElementById('ft-sub-badge-jobs');
+    if (woBadge) { woBadge.textContent = openWOs; woBadge.style.display = openWOs > 0 ? 'inline' : 'none'; }
+
     if (typeof sb !== 'undefined') {
       sb.from('maintenance_requests').select('id,status').then(function(res) {
         if (res.data) {
-          var n = res.data.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
+          var incoming = res.data.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
+          // Incoming sub-tab badge
+          var incBadge = document.getElementById('ft-sub-badge-incoming');
+          if (incBadge) { incBadge.textContent = incoming; incBadge.style.display = incoming > 0 ? 'inline' : 'none'; }
+          // Combined module badge
+          var total = openWOs + incoming;
           var badge = document.getElementById('techtrackBadge');
-          if (badge) { badge.textContent = n; badge.style.display = n > 0 ? 'inline' : 'none'; }
+          if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'inline' : 'none'; }
         }
       });
+    } else {
+      // No Supabase — just show open WOs
+      var badge = document.getElementById('techtrackBadge');
+      if (badge) { badge.textContent = openWOs; badge.style.display = openWOs > 0 ? 'inline' : 'none'; }
     }
   });
   return FT_initPromise;
@@ -3024,10 +3038,14 @@ function loadIncomingRequests() {
       }
       FT_incomingRequests = result.data || [];
       renderIncomingList();
-      // Update TechTrack module badge with new request count
-      var newCount = FT_incomingRequests.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
+      // Update badges
+      var incoming = FT_incomingRequests.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
+      var incBadge = document.getElementById('ft-sub-badge-incoming');
+      if (incBadge) { incBadge.textContent = incoming; incBadge.style.display = incoming > 0 ? 'inline' : 'none'; }
+      var openWOs = FT_state.jobs ? FT_state.jobs.filter(function(j) { return j.status === 'open' || j.status === 'in_progress'; }).length : 0;
+      var total = openWOs + incoming;
       var badge = document.getElementById('techtrackBadge');
-      if (badge) { badge.textContent = newCount; badge.style.display = newCount > 0 ? 'inline' : 'none'; }
+      if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'inline' : 'none'; }
     });
 }
 
