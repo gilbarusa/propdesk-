@@ -43,6 +43,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 .module-tab.active{color:var(--accent2);border-bottom-color:var(--accent);background:var(--accent-bg);}
 .module-tab .mod-icon{font-size:14px;}
 .module-tab .mod-badge{background:var(--red);color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 5px;margin-left:2px;}
+.mod-badge.badge-red{background:#d32f2f;color:#fff;animation:badge-pulse 2s ease-in-out infinite;}
+@keyframes badge-pulse{0%,100%{opacity:1}50%{opacity:.7}}
 /* Module color accents when active */
 .module-tab[data-module="short-term"].active{color:var(--blue);border-bottom-color:var(--blue);background:var(--blue-bg);}
 .module-tab[data-module="mtm-lt"].active{color:var(--green);border-bottom-color:var(--green);background:var(--green-bg);}
@@ -1431,4 +1433,18 @@ textarea{resize:vertical;min-height:72px;}
 .collapsible-mtm::after{content:'▾';position:absolute;right:14px;top:8px;font-size:12px;color:var(--text3);transition:opacity .2s;}
 .collapsible-mtm:hover{max-height:800px;overflow:visible;}
 .collapsible-mtm:hover::after{opacity:0;}
+
+/* Messaging modal */
+.msg-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;}
+.msg-box{background:var(--surface);border-radius:12px;width:420px;max-width:95vw;box-shadow:var(--shadow-lg);padding:0;overflow:hidden;}
+.msg-box-header{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.msg-box-header h3{font-size:15px;font-weight:700;color:var(--text);margin:0;}
+.msg-box-body{padding:20px;}
+.msg-channel-btns{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.msg-ch-btn{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .15s;font-family:inherit;}
+.msg-ch-btn:hover{background:var(--accent-bg);color:var(--accent2);border-color:var(--accent);}
+.msg-ch-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.msg-textarea{width:100%;min-height:100px;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;font-family:inherit;resize:vertical;background:var(--surface2);color:var(--text);}
+.msg-send-btn{padding:8px 20px;border:none;border-radius:8px;background:var(--accent2);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:10px;}
+.msg-send-btn:hover{background:var(--accent);}
 </style>
