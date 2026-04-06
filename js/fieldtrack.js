@@ -263,6 +263,7 @@ function FT_showPage(page){
     if(page==='data'){ if(typeof updateStorageBar==='function') updateStorageBar(); if(typeof populateDeleteSelects==='function') populateDeleteSelects(); }
     if(page==='settings'&&typeof renderSettingsPage==='function')    renderSettingsPage();
     if(page==='requests'&&typeof renderRequestsPage==='function')    renderRequestsPage();
+    if(page==='incoming'&&typeof loadIncomingRequests==='function')  loadIncomingRequests();
     if(page==='availability'&&typeof renderAvailabilityPage==='function') renderAvailabilityPage();
     if(page==='shares'&&typeof renderSharesPage==='function')      renderSharesPage();
     if(page==='technicians'&&typeof renderTechs==='function') renderTechs();
@@ -2984,4 +2985,201 @@ function FT_init(startPage){
     FT_showPage(_pg);
   });
   return FT_initPromise;
+}
+
+// ═══════════════════════════════════════════════════
+//  INCOMING REQUESTS — from Supabase maintenance_requests
+// ═══════════════════════════════════════════════════
+
+var FT_incomingRequests = [];
+var FT_incomingFilter = 'new';
+
+function loadIncomingRequests() {
+  var el = document.getElementById('incoming-list');
+  if (!el) return;
+  el.innerHTML = '<div class="empty-FT_state"><span class="emoji">...</span>Loading from Supabase...</div>';
+
+  if (typeof sb === 'undefined') {
+    el.innerHTML = '<div class="alert alert-warn">Supabase not initialized.</div>';
+    return;
+  }
+
+  sb.from('maintenance_requests')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .then(function(result) {
+      if (result.error) {
+        el.innerHTML = '<div class="alert alert-warn">Error: ' + result.error.message + '</div>';
+        return;
+      }
+      FT_incomingRequests = result.data || [];
+      renderIncomingList();
+    });
+}
+
+function filterIncoming(filter) {
+  FT_incomingFilter = filter;
+  // Update tab buttons
+  ['new', 'linked', 'all'].forEach(function(f) {
+    var btn = document.getElementById('inc-tab-' + f);
+    if (btn) {
+      btn.className = f === filter ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    }
+  });
+  renderIncomingList();
+}
+
+function renderIncomingList() {
+  var el = document.getElementById('incoming-list');
+  if (!el) return;
+
+  var filtered = FT_incomingRequests;
+  if (FT_incomingFilter === 'new') {
+    filtered = filtered.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; });
+  } else if (FT_incomingFilter === 'linked') {
+    filtered = filtered.filter(function(r) { return r.status === 'assigned' || r.status === 'scheduled' || r.status === 'in-progress' || r.status === 'completed'; });
+  }
+
+  var newCount = FT_incomingRequests.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
+  var linkedCount = FT_incomingRequests.filter(function(r) { return r.status !== 'submitted' && r.status !== 'open'; }).length;
+
+  if (!filtered.length) {
+    el.innerHTML = '<div class="empty-FT_state"><span class="emoji">📭</span>No ' + FT_incomingFilter + ' requests.</div>';
+    return;
+  }
+
+  el.innerHTML = filtered.map(function(req) {
+    var isNew = req.status === 'submitted' || req.status === 'open';
+    var catIcon = { Plumbing: '🚰', Electrical: '⚡', 'HVAC / Heating': '🌡', Appliance: '🏠', 'Lock / Key': '🔑', 'Pest Control': '🐛', 'Water Damage': '💧', General: '🔧' }[req.category] || '🔧';
+    var sc = isNew ? 'tag-pink' : 'tag-blue';
+    var dateStr = req.created_at ? req.created_at.slice(0, 10) : '';
+    var urgBadge = req.urgency === 'urgent' ? '<span class="tag tag-red" style="margin-left:6px">URGENT</span>' : '';
+
+    return '<div class="card" style="margin-bottom:12px">'
+      + '<div class="flex flex-wrap" style="justify-content:space-between;margin-bottom:10px">'
+      + '<div><div style="font-size:15px;font-weight:600">' + catIcon + ' ' + FT_esc(req.name || '?') + urgBadge + '</div>'
+      + '<div style="font-size:12px;color:var(--muted);font-family:var(--fm)">'
+      + FT_esc(req.phone || '') + ' &bull; ' + FT_esc(req.email || '') + ' &bull; ' + dateStr
+      + '</div></div>'
+      + '<span class="tag ' + sc + '">' + FT_esc(req.status || 'submitted') + '</span></div>'
+      + (req.unit ? '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">🏢 Unit: ' + FT_esc(req.unit) + (req.property ? ' &bull; ' + FT_esc(req.property) : '') + '</div>' : '')
+      + (req.address ? '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">📍 ' + FT_esc(req.address) + '</div>' : '')
+      + (req.preferred_block ? '<div style="background:rgba(196,127,0,.1);border:1px solid rgba(196,127,0,.25);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--accent);margin-bottom:8px">📅 ' + FT_esc(req.preferred_block) + '</div>' : '')
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'
+      + (req.no_access_needed ? '<span style="background:rgba(26,122,74,.08);border:1px solid rgba(26,122,74,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#166534">🔑 No access needed</span>' : '')
+      + (req.permission_to_enter ? '<span style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#1e40af">🚪 Permission to enter</span>' : '')
+      + (req.waiver_agreed ? '<span style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#166534">✅ Waiver signed</span>' : '')
+      + (req.sms_consent ? '<span style="background:rgba(196,127,0,.08);border:1px solid rgba(196,127,0,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--accent)">📱 SMS consent</span>' : '')
+      + (req.user_type === 'resident' ? '<span style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#1d4ed8">👤 Resident</span>' : '<span style="background:rgba(156,163,175,.1);border:1px solid rgba(156,163,175,.3);border-radius:6px;padding:3px 8px;font-size:11px;color:#6b7280">👥 Guest</span>')
+      + '</div>'
+      + '<div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">' + FT_esc(req.description || '') + '</div>'
+      + (req.photo ? '<img src="' + req.photo + '" style="max-width:140px;border-radius:8px;margin-bottom:10px;display:block" alt="Photo" onerror="this.style.display=\'none\'">' : '')
+      + '<div style="display:flex;flex-wrap:wrap;gap:8px">'
+      + (isNew ? '<button class="btn btn-primary btn-sm" onclick="openIncomingLink(\'' + FT_esc(req.id) + '\')">🔗 Create Work Order</button>' : '')
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function openIncomingLink(reqId) {
+  var req = FT_incomingRequests.find(function(r) { return r.id === reqId; });
+  if (!req) { alert('Request not found.'); return; }
+
+  document.getElementById('il-req-id').value = reqId;
+  document.getElementById('il-req-summary').innerHTML =
+    '<strong>' + FT_esc(req.name) + '</strong> &bull; ' + FT_esc(req.phone || '') + '<br>'
+    + FT_esc(req.category || 'General') + ': ' + FT_esc((req.description || '').substring(0, 100))
+    + (req.preferred_block ? '<br>📅 ' + FT_esc(req.preferred_block) : '');
+
+  // Populate units dropdown from PropDesk data
+  var unitSel = document.getElementById('il-unit');
+  unitSel.innerHTML = '<option value="">Select unit...</option>';
+  if (typeof allUnits !== 'undefined' && Array.isArray(allUnits)) {
+    allUnits.forEach(function(u) {
+      var opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = (u.apt || u.name || 'Unit ' + u.id) + (u.owner ? ' — ' + u.owner : '');
+      unitSel.appendChild(opt);
+    });
+  }
+
+  // Pre-fill title with category + short description
+  document.getElementById('il-title').value = (req.category || 'General') + ': ' + (req.description || '').substring(0, 60);
+  document.getElementById('il-notes').value = req.description || '';
+
+  // Populate property search
+  document.getElementById('il-prop-search').value = '';
+  document.getElementById('il-prop-id').value = '';
+  var sel = document.getElementById('il-prop-selected'); if (sel) sel.style.display = 'none';
+
+  // Populate techs
+  populateSelect(document.getElementById('il-tech'),
+    FT_state.technicians.filter(function(t) { return t.status === 'active'; }),
+    'id', function(t) { return t.name; }, 'Unassigned');
+
+  FT_openModal('ft-modal-incoming-link');
+}
+
+function ilPropSearch() { buildPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected'); }
+
+function saveIncomingLink() {
+  var reqId = document.getElementById('il-req-id').value;
+  var req = FT_incomingRequests.find(function(r) { return r.id === reqId; });
+  if (!req) { alert('Request not found.'); return; }
+
+  var propId = +document.getElementById('il-prop-id').value;
+  var techId = +document.getElementById('il-tech').value || null;
+  var title = (document.getElementById('il-title').value || '').trim();
+  var notes = document.getElementById('il-notes').value || '';
+
+  if (!propId) { alert('Select a property.'); return; }
+  if (!title) { alert('Enter a job title.'); return; }
+
+  // Create work order
+  var job = {
+    id: FT_uid(),
+    woNum: FT_nextWO(),
+    propId: propId,
+    techId: techId,
+    date: req.preferred_date || FT_today(),
+    title: title,
+    block: req.preferred_block || '',
+    notes: notes,
+    status: 'open',
+    assignedByAdmin: true,
+    clientName: req.name,
+    clientPhone: req.phone || '',
+    clientEmail: req.email || '',
+    clientPreferredComm: req.preferred_comm || 'sms',
+    hours: [], expenses: [], photos: [],
+    sourceRequestId: reqId
+  };
+
+  FT_state.jobs.push(job);
+  FT_save();
+
+  // Update Supabase status
+  if (typeof sb !== 'undefined') {
+    sb.from('maintenance_requests')
+      .update({ status: 'assigned', assigned_to: techId ? getTech(techId).name : 'Unassigned', updated_at: new Date().toISOString() })
+      .eq('id', reqId)
+      .then(function() { loadIncomingRequests(); });
+  }
+
+  // Notify tech
+  if (techId) {
+    var tech = getTech(techId);
+    var prop = getProp(propId);
+    if (tech && tech.phone) sendSMS(tech.phone, 'WillowPA: New job ' + job.woNum + ' at ' + (prop ? prop.name : '') + (job.block ? ' | ' + job.block : '') + '. Login: tech.willowpa.com');
+  }
+
+  // Notify client
+  if (req.phone || req.email) {
+    var _tmpJob = { clientPhone: req.phone, clientEmail: req.email, clientPreferredComm: req.preferred_comm || 'sms' };
+    FT_notify(_tmpJob, 'WillowPA Maintenance: Your service request has been received and a work order (' + job.woNum + ') has been created.' + (job.block ? ' Scheduled: ' + job.block : ' We will contact you to confirm.'), { subject: 'Work Order Created — WillowPA' });
+  }
+
+  FT_closeModal('ft-modal-incoming-link');
+  var msg = techId ? job.woNum + ' assigned to ' + getTech(techId).name + '!' : job.woNum + ' created (unassigned).';
+  alert('[OK] ' + msg);
 }
