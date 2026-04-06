@@ -190,8 +190,11 @@
       </div>
     </div>
 
-    <!-- ST KPI Hero Row -->
-    <div class="dash-kpi-hero" id="stDashKpis"></div>
+    <!-- ST KPI Hero Row (collapsible) -->
+    <div class="collapsible-summary">
+      <div class="summary-title">Short-Term Stats</div>
+      <div class="dash-kpi-hero" id="stDashKpis"></div>
+    </div>
 
     <!-- ST Today's Activity -->
     <div class="dash-section-label">Today's Activity</div>
@@ -1435,7 +1438,7 @@
 <div class="page" id="page-mtm-lt">
   <div class="mtm-dash-wrap">
     <!-- ── Row 1: Top Stats ── -->
-    <div class="mtm-dash-top">
+    <div class="mtm-dash-top collapsible-mtm">
       <div class="mtm-dash-collection">
         <h3 class="mtm-dash-section-title">Collection Stats <span class="mtm-dash-period" id="mtmDashPeriod">Apr 2026</span></h3>
         <div class="mtm-dash-donut-wrap">
@@ -1913,12 +1916,15 @@
       </div>
     </div>
 
-    <!-- Summary cards -->
-    <div class="mtm-rent-summary" id="expSummary">
+    <!-- Summary cards (collapsible) -->
+    <div class="collapsible-summary">
+      <div class="summary-title">Expense Summary</div>
+    <div class="mtm-rent-summary" id="expSummary" style="margin-bottom:0">
       <div class="mtm-rs"><div class="mtm-rs-num" style="color:var(--red)" id="expTotal">$0</div><div class="mtm-rs-label">Total Expenses</div></div>
       <div class="mtm-rs"><div class="mtm-rs-num" style="color:var(--orange)" id="expMaint">$0</div><div class="mtm-rs-label">Maintenance</div></div>
       <div class="mtm-rs"><div class="mtm-rs-num" style="color:var(--blue)" id="expUtil">$0</div><div class="mtm-rs-label">Utilities</div></div>
       <div class="mtm-rs"><div class="mtm-rs-num" style="color:var(--green)" id="expNet">$0</div><div class="mtm-rs-label">Net Income</div></div>
+    </div>
     </div>
 
     <!-- Inline add form (hidden by default) -->
@@ -2306,12 +2312,15 @@
       </div>
     </div>
 
-    <!-- KPI Row -->
-    <div class="dash-kpi-hero" id="pkKpis">
-      <div class="kpi-card kv-purple"><div class="kpi-label">Active</div><div class="kpi-value" id="pk-stat-active">0</div><div class="kpi-sub">current bookings</div></div>
-      <div class="kpi-card kv-green"><div class="kpi-label">Revenue</div><div class="kpi-value" id="pk-stat-revenue">$0</div><div class="kpi-sub">this month</div></div>
-      <div class="kpi-card kv-blue"><div class="kpi-label">Total</div><div class="kpi-value" id="pk-stat-total">0</div><div class="kpi-sub">all-time bookings</div></div>
-      <div class="kpi-card kv-orange"><div class="kpi-label">Expiring</div><div class="kpi-value" id="pk-stat-expiring">0</div><div class="kpi-sub">next 3 days</div></div>
+    <!-- KPI Row (collapsible) -->
+    <div class="collapsible-summary">
+      <div class="summary-title">Parking Stats</div>
+      <div class="dash-kpi-hero" id="pkKpis">
+        <div class="kpi-card kv-purple"><div class="kpi-label">Active</div><div class="kpi-value" id="pk-stat-active">0</div><div class="kpi-sub">current bookings</div></div>
+        <div class="kpi-card kv-green"><div class="kpi-label">Revenue</div><div class="kpi-value" id="pk-stat-revenue">$0</div><div class="kpi-sub">this month</div></div>
+        <div class="kpi-card kv-blue"><div class="kpi-label">Total</div><div class="kpi-value" id="pk-stat-total">0</div><div class="kpi-sub">all-time bookings</div></div>
+        <div class="kpi-card kv-orange"><div class="kpi-label">Expiring</div><div class="kpi-value" id="pk-stat-expiring">0</div><div class="kpi-sub">next 3 days</div></div>
+      </div>
     </div>
 
     <!-- Active Bookings Table -->
@@ -2424,12 +2433,15 @@
       </div>
     </div>
 
-    <!-- KPI Row -->
-    <div class="dash-kpi-hero" id="dlKpis">
-      <div class="kpi-card kv-red"><div class="kpi-label">Pending</div><div class="kpi-value" id="dl-stat-pending">0</div><div class="kpi-sub">packages waiting</div></div>
-      <div class="kpi-card kv-green"><div class="kpi-label">Collected</div><div class="kpi-value" id="dl-stat-collected">0</div><div class="kpi-sub">today</div></div>
-      <div class="kpi-card kv-blue"><div class="kpi-label">This Month</div><div class="kpi-value" id="dl-stat-month">0</div><div class="kpi-sub">total logged</div></div>
-      <div class="kpi-card kv-purple"><div class="kpi-label">Units</div><div class="kpi-value" id="dl-stat-units">0</div><div class="kpi-sub">waiting</div></div>
+    <!-- KPI Row (collapsible) -->
+    <div class="collapsible-summary">
+      <div class="summary-title">Mailroom Stats</div>
+      <div class="dash-kpi-hero" id="dlKpis">
+        <div class="kpi-card kv-red"><div class="kpi-label">Pending</div><div class="kpi-value" id="dl-stat-pending">0</div><div class="kpi-sub">packages waiting</div></div>
+        <div class="kpi-card kv-green"><div class="kpi-label">Collected</div><div class="kpi-value" id="dl-stat-collected">0</div><div class="kpi-sub">today</div></div>
+        <div class="kpi-card kv-blue"><div class="kpi-label">This Month</div><div class="kpi-value" id="dl-stat-month">0</div><div class="kpi-sub">total logged</div></div>
+        <div class="kpi-card kv-purple"><div class="kpi-label">Units</div><div class="kpi-value" id="dl-stat-units">0</div><div class="kpi-sub">waiting</div></div>
+      </div>
     </div>
 
     <!-- ══ Packages Section ══ -->
