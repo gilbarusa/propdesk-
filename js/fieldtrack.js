@@ -2988,7 +2988,7 @@ function FT_init(startPage){
     var openWOs = FT_state.jobs.filter(function(j) { return j.status === 'open' || j.status === 'in_progress'; }).length;
     // Update Work Orders sub-tab badge
     var woBadge = document.getElementById('ft-sub-badge-jobs');
-    if (woBadge) { woBadge.textContent = openWOs; woBadge.style.display = openWOs > 0 ? 'inline' : 'none'; }
+    if (woBadge) { woBadge.textContent = openWOs; woBadge.style.display = openWOs > 0 ? 'inline' : 'none'; woBadge.classList.add('badge-red'); }
 
     if (typeof sb !== 'undefined') {
       sb.from('maintenance_requests').select('id,status').then(function(res) {

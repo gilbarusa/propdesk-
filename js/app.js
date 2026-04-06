@@ -1824,7 +1824,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       }
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
   // Delete button — available for any booking (not permanent long-term leases)
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
@@ -2514,9 +2514,11 @@ function renderMTMDashboard() {
   if (expiringList) {
     const expLeases = INNAGO_LEASES.filter(l => l.type === 'fixed').sort((a,b) => new Date(a.end) - new Date(b.end)).slice(0, 6);
     expiringList.innerHTML = expLeases.map(l => {
-      const origIdx = INNAGO_LEASES.indexOf(l);
-      return `<div class="mtm-dash-list-item" onclick="openLeaseDetail(${origIdx})" title="Click to view lease">
-      <div><span class="mtm-li-name">${l.tenants.split(',')[0]}</span><br><span class="mtm-li-detail">${l.property} | ${l.unit}</span></div>
+      const tName = l.tenants.split(',')[0].trim();
+      const tIdx = INNAGO_TENANTS.findIndex(t => t.name.includes(tName.split(' ')[0]));
+      const clickAction = tIdx >= 0 ? `openTenantCardFromLease(${tIdx})` : `openLeaseDetail(${INNAGO_LEASES.indexOf(l)})`;
+      return `<div class="mtm-dash-list-item" onclick="${clickAction}" title="Click to view tenant details">
+      <div><span class="mtm-li-name">${tName}</span><br><span class="mtm-li-detail">${l.property} | ${l.unit}</span></div>
       <div style="text-align:right"><span class="mtm-li-val" style="color:var(--orange)">${l.end}</span></div>
     </div>`;
     }).join('');
@@ -9175,6 +9177,28 @@ function DL_fmtTime(ts) {
 }
 
 function initDeliveryModule() { WPA_dlLoadStats(); }
+
+function openTenantCardFromLease(tenantIdx) {
+  // Switch to MTM Tenants sub-tab and open tenant detail
+  switchModule('mtm-lt');
+  setTimeout(function() {
+    var subTabs = document.querySelectorAll('#subNav .sub-tab');
+    subTabs.forEach(function(t) {
+      t.classList.remove('active');
+      if (t.textContent.trim() === 'Tenants') t.classList.add('active');
+    });
+    showSubPage('mtm-lt-tenants', null);
+    setTimeout(function() {
+      openTenantDetail(tenantIdx);
+    }, 200);
+  }, 150);
+}
+
+function parseNoteField(note, field) {
+  if (!note) return '';
+  var m = note.match(new RegExp(field + ':\\s*([^|\\n]+)', 'i'));
+  return m ? m[1].trim() : '';
+}
 
 function msgTenantFromDetail() {
   if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
