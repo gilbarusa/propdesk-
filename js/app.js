@@ -3844,13 +3844,19 @@ function renderMTMDashboardInteractive() {
     overdueCard.title = 'Click to view overdue units';
   }
 
-  // Make expiring leases list items clickable
+  // Make expiring leases list items clickable — open tenant card
   document.querySelectorAll('#mtmDashExpiring .mtm-dash-list-item').forEach((item, idx) => {
     const expLeases = INNAGO_LEASES.filter(l => l.type === 'fixed').sort((a,b) => new Date(a.end) - new Date(b.end)).slice(0, 6);
     if (expLeases[idx]) {
-      const origIdx = INNAGO_LEASES.indexOf(expLeases[idx]);
-      item.onclick = () => openLeaseDetail(origIdx);
-      item.title = 'Click to view lease details';
+      const tName = expLeases[idx].tenants.split(',')[0].trim();
+      const tIdx = INNAGO_TENANTS.findIndex(t => t.name.includes(tName.split(' ')[0]));
+      if (tIdx >= 0) {
+        item.onclick = () => openTenantCardFromLease(tIdx);
+      } else {
+        const origIdx = INNAGO_LEASES.indexOf(expLeases[idx]);
+        item.onclick = () => openLeaseDetail(origIdx);
+      }
+      item.title = 'Click to view tenant details';
     }
   });
 
