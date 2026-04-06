@@ -2256,13 +2256,27 @@
     </div>
 
 
-    <!-- ADMIN: REQUESTS -->
+    <!-- ADMIN: REQUESTS (legacy tech.willowpa.com) -->
     <div class="ft-page" id="ft-page-requests">
       <div class="page-header">
         <div class="page-title">Service Requests <small>Incoming bookings from clients</small></div>
         <a href="book.html" target="_blank" class="btn btn-secondary btn-sm">🔗 Booking Page</a>
       </div>
       <div id="req-list"></div>
+    </div>
+
+    <!-- INCOMING: Supabase maintenance requests from tenant app -->
+    <div class="ft-page" id="ft-page-incoming">
+      <div class="page-header">
+        <div class="page-title">Incoming Requests <small>From Willow Resident App &amp; Guests</small></div>
+        <button class="btn btn-secondary btn-sm" onclick="loadIncomingRequests()">↻ Refresh</button>
+      </div>
+      <div id="incoming-tabs" style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-primary btn-sm" id="inc-tab-new" onclick="filterIncoming('new')">New</button>
+        <button class="btn btn-secondary btn-sm" id="inc-tab-linked" onclick="filterIncoming('linked')">Linked</button>
+        <button class="btn btn-secondary btn-sm" id="inc-tab-all" onclick="filterIncoming('all')">All</button>
+      </div>
+      <div id="incoming-list"><div class="empty-FT_state"><span class="emoji">...</span>Loading...</div></div>
     </div>
 
     <!-- TASKS PAGE -->
@@ -2812,6 +2826,37 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="FT_closeModal('ft-modal-link-request')">Cancel</button>
       <button class="btn btn-primary" onclick="saveLinkRequest()">Create Job &amp; Assign</button>
+    </div>
+  </div>
+</div>
+
+<!-- Incoming Request → WO Modal -->
+<div class="modal-overlay" id="ft-modal-incoming-link">
+  <div class="modal">
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-incoming-link')">✕</button>
+    <div class="modal-title">🔗 Create Work Order from Request</div>
+    <input type="hidden" id="il-req-id">
+    <div id="il-req-summary" style="background:rgba(196,127,0,.08);border:1px solid rgba(196,127,0,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--accent);margin-bottom:14px"></div>
+    <div class="form-group">
+      <label>Link to Unit (PropDesk) *</label>
+      <select id="il-unit"><option value="">Select unit...</option></select>
+    </div>
+    <div class="form-group">
+      <label>Property (TechTrack) *</label>
+      <div class="autocomplete-wrap">
+        <input type="text" id="il-prop-search" placeholder="Type address or property name..." oninput="ilPropSearch()" autocomplete="off">
+        <div class="ac-list" id="il-ac-list"></div>
+      </div>
+      <input type="hidden" id="il-prop-id">
+      <div id="il-prop-selected" style="margin-top:6px;font-size:12px;color:var(--accent);display:none"></div>
+    </div>
+    <div class="form-group"><label>Assign to Technician</label><select id="il-tech"><option value="">Unassigned</option></select></div>
+    <div class="form-group"><label>Job Title</label><input type="text" id="il-title" placeholder="Brief description..."></div>
+    <div class="form-group"><label>Job Notes</label><textarea id="il-notes" rows="3" placeholder="Notes for the technician..."></textarea></div>
+    <div class="alert alert-info" style="font-size:12px">Creates a Work Order. If technician is selected, SMS will be sent. Otherwise WO stays unassigned.</div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="FT_closeModal('ft-modal-incoming-link')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveIncomingLink()">Create Work Order</button>
     </div>
   </div>
 </div>
