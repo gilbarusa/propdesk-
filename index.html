@@ -568,6 +568,7 @@
           <button class="dash-msg-filter" data-filter="long-term" onclick="filterDashMessages('long-term',this)">LT</button>
           <button class="dash-msg-filter" data-filter="month-to-month" onclick="filterDashMessages('month-to-month',this)">MTM</button>
           <button class="dash-msg-filter" data-filter="fieldtrack" onclick="filterDashMessages('fieldtrack',this)">Tech</button>
+          <button class="dash-msg-filter" data-filter="tenant-portal" onclick="filterDashMessages('tenant-portal',this)">Portal</button>
         </div>
       </div>
       <div id="dashMsgList" class="dash-msg-list"><div class="dash-loading">Loading messages...</div></div>
@@ -3114,18 +3115,7 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(function(r){console.log('SW registered, scope:',r.scope);}).catch(function(e){console.log('SW failed:',e);});
   });
 }
-/* Auto-init mobile after data loads */
-var _origInit = window.initDashboard;
-if(typeof _origInit === 'function'){
-  window.initDashboard = function(){
-    _origInit.apply(this, arguments);
-    if(typeof WILLOW_MOBILE !== 'undefined') setTimeout(function(){ WILLOW_MOBILE.init(); }, 500);
-  };
-} else {
-  document.addEventListener('DOMContentLoaded', function(){
-    if(typeof WILLOW_MOBILE !== 'undefined') setTimeout(function(){ WILLOW_MOBILE.init(); }, 1500);
-  });
-}
+/* Mobile init is triggered from boot() and bootOffline() in app.js after data loads */
 </script>
 </body>
 </html>
