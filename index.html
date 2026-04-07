@@ -3062,10 +3062,51 @@
   <div class="inv-body" id="invBody"></div>
 </div>
 
+<!-- ═══ MOBILE APP SHELL ═══ -->
+<div id="mobApp" style="display:none;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);">
+  <div class="mob-top-bar">
+    <div class="mob-logo">Willow</div>
+    <div id="mob-top-title">Home</div>
+    <div class="mob-top-right"><span id="mobLiveStatus" class="mob-live-dot">●</span></div>
+  </div>
+  <div id="mob-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <div class="mob-page" id="mob-home"><div id="mob-home-content"></div></div>
+    <div class="mob-page" id="mob-messages"><div id="mob-messages-content"></div></div>
+    <div class="mob-page" id="mob-calendar"><div id="mob-calendar-content"></div></div>
+    <div class="mob-page" id="mob-menu"><div id="mob-menu-content"></div></div>
+    <div class="mob-page" id="mob-pipeline"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">← Menu</button><span>Pipeline</span></div><div id="mob-pipeline-content"></div></div>
+    <div class="mob-page" id="mob-units"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">← Menu</button><span>Units</span></div><div id="mob-units-content"></div></div>
+    <div class="mob-page" id="mob-tasks"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">← Menu</button><span>Work Orders</span></div><div id="mob-tasks-content"></div></div>
+    <div class="mob-page" id="mob-thread"></div>
+  </div>
+  <!-- Bottom sheet overlay -->
+  <div id="mob-sheet" style="display:none;" onclick="if(event.target===this)WILLOW_MOBILE.closeSheet()"></div>
+  <!-- Bottom nav -->
+  <nav class="mob-nav">
+    <button class="mob-nav-btn active" data-page="home" onclick="WILLOW_MOBILE.navigate('home')"><span class="mob-nav-icon">🏠</span><span class="mob-nav-lbl">Home</span></button>
+    <button class="mob-nav-btn" data-page="messages" onclick="WILLOW_MOBILE.navigate('messages')"><span class="mob-nav-icon">💬</span><span class="mob-nav-lbl">Messages</span></button>
+    <button class="mob-nav-btn" data-page="calendar" onclick="WILLOW_MOBILE.navigate('calendar')"><span class="mob-nav-icon">📅</span><span class="mob-nav-lbl">Calendar</span></button>
+    <button class="mob-nav-btn" data-page="menu" onclick="WILLOW_MOBILE.navigate('menu')"><span class="mob-nav-icon">☰</span><span class="mob-nav-lbl">Menu</span></button>
+  </nav>
+</div>
+
+<script src="js/mobile.js"></script>
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
     navigator.serviceWorker.register('sw.js').then(function(r){console.log('SW registered, scope:',r.scope);}).catch(function(e){console.log('SW failed:',e);});
+  });
+}
+/* Auto-init mobile after data loads */
+var _origInit = window.initDashboard;
+if(typeof _origInit === 'function'){
+  window.initDashboard = function(){
+    _origInit.apply(this, arguments);
+    if(typeof WILLOW_MOBILE !== 'undefined') setTimeout(function(){ WILLOW_MOBILE.init(); }, 500);
+  };
+} else {
+  document.addEventListener('DOMContentLoaded', function(){
+    if(typeof WILLOW_MOBILE !== 'undefined') setTimeout(function(){ WILLOW_MOBILE.init(); }, 1500);
   });
 }
 </script>
