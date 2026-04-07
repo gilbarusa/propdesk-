@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Property Platform | v2026-04-04 15:00</title>
+<title>Willow â Property Platform | v2026-04-04 15:00</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http%3A//www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%238a5f32'/%3E%3Crect x='10' y='22' width='44' height='36' fill='%23f4ede2'/%3E%3Crect x='8' y='18' width='48' height='6' rx='1' fill='%23c49a6c'/%3E%3Crect x='18' y='10' width='28' height='10' fill='%23e8dcc8'/%3E%3Crect x='16' y='8' width='32' height='4' rx='1' fill='%23c49a6c'/%3E%3Cline x1='10' y1='34' x2='54' y2='34' stroke='%23c49a6c' stroke-width='1'/%3E%3Cline x1='10' y1='44' x2='54' y2='44' stroke='%23c49a6c' stroke-width='1'/%3E%3Crect x='14' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='25' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='25' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='47' y='25' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='14' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='25' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='36' width='7' height='6' rx='1' fill='%235b8fc9'/%3E%3Crect x='47' y='36' width='7' height='6' rx='1' fill='%23f0d080'/%3E%3Crect x='22' y='12' width='6' height='4' rx='1' fill='%235b8fc9'/%3E%3Crect x='36' y='12' width='6' height='4' rx='1' fill='%23f0d080'/%3E%3Crect x='27' y='46' width='10' height='12' rx='1' fill='%238a5f32'/%3E%3Ccircle cx='35' cy='52' r='1' fill='%23f4ede2'/%3E%3Crect x='0' y='57' width='64' height='7' fill='%236b4e2a'/%3E%3Crect x='24' y='55' width='16' height='3' fill='%23a07840'/%3E%3C/svg%3E">
 <!-- PWA -->
 <link rel="manifest" href="manifest.json">
@@ -20,7 +20,7 @@
 </head>
 <body>
 
-<!-- ═══ LOGIN ═══ -->
+<!-- âââ LOGIN âââ -->
 <div id="authScreen">
   <div id="authCard">
     <div id="authLogo"><h1>Willow</h1><p>Property Manager</p></div>
@@ -38,16 +38,16 @@
       <input type="checkbox" id="authRemember" style="width:15px;height:15px;cursor:pointer;accent-color:#7d5228;" onclick="event.stopPropagation()">
       <span style="font-size:11px;color:#635c4e;font-family:'DM Mono',monospace;">Keep me signed in on this device</span>
     </div>
-    <button id="authBtn" onclick="authLogin()">Sign In →</button>
+    <button id="authBtn" onclick="authLogin()">Sign In â</button>
     <div id="authChangeLink"><span onclick="openChpw()">Change Password</span></div>
   </div>
 </div>
 <div id="chpwOverlay">
   <div id="chpwBox">
-    <h3>🔑 Change Password</h3>
+    <h3>ð Change Password</h3>
     <div id="chpwErr"></div><div id="chpwOk"></div>
     <label class="chpw-lbl">Account</label>
-    <select class="chpw-inp" id="chpwAccount"><option value="admin">Admin (master password)</option><option value="user">User — Willow</option></select>
+    <select class="chpw-inp" id="chpwAccount"><option value="admin">Admin (master password)</option><option value="user">User â Willow</option></select>
     <label class="chpw-lbl">Current Master Password</label>
     <input class="chpw-inp" type="password" id="chpwMaster" placeholder="Required for any change">
     <label class="chpw-lbl">New Password</label>
@@ -60,32 +60,32 @@
     </div>
   </div>
 </div>
-<div id="inactivityBanner">⚠ Signing out in <strong id="inactivityCountdown">60</strong>s due to inactivity. <span onclick="resetInactivityTimer()" style="margin-left:12px;cursor:pointer;text-decoration:underline;">Stay signed in</span></div>
+<div id="inactivityBanner">â  Signing out in <strong id="inactivityCountdown">60</strong>s due to inactivity. <span onclick="resetInactivityTimer()" style="margin-left:12px;cursor:pointer;text-decoration:underline;">Stay signed in</span></div>
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
   <h2>Willow</h2>
-  <p>Connecting to database…</p>
+  <p>Connecting to databaseâ¦</p>
 </div>
 <header class="header">
   <div class="brand"><h1>Willow</h1><span class="brand-sub">Property Platform</span></div>
   <div class="header-right">
-    <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
+    <span id="syncStatus" style="font-size:11px;color:var(--text3)">â live<span class="sync-dot"></span></span>
     <span id="headerClock" style="font-size:13px;color:var(--accent2);font-family:'DM Mono',monospace;font-weight:700;min-width:220px;display:inline-block;"></span>
     <span style="color:var(--border2);font-size:11px;">|</span>
     <span id="headerBackupTimestamp" style="font-size:10px;color:#9e9485;font-family:'DM Mono',monospace;"></span>
-    <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
-    <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
-    <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
+    <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">ð</button>
+    <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">ð¾ Backup Now</button>
+    <button class="btn btn-secondary btn-sm" onclick="exportCSV()">â¬ Export</button>
     <span style="color:var(--border2);font-size:11px;">|</span>
     <div class="property-selector" id="propertySelector" onclick="togglePropertyDropdown(event)">
-      <span style="font-size:14px;">🏘</span>
+      <span style="font-size:14px;">ð</span>
       <span class="prop-name" id="propSelectorName">All Properties</span>
-      <span class="prop-arrow">▾</span>
+      <span class="prop-arrow">â¾</span>
       <div class="property-dropdown" id="propDropdown">
         <div class="prop-dd-item prop-dd-all active" data-owner="all" onclick="selectProperty(event,'all','All Properties')">
-          <span>🌐</span>
-          <div><div class="prop-dd-name">All Properties</div><div class="prop-dd-units" id="propCountAll">— units</div></div>
+          <span>ð</span>
+          <div><div class="prop-dd-name">All Properties</div><div class="prop-dd-units" id="propCountAll">â units</div></div>
         </div>
       </div>
     </div>
@@ -93,38 +93,38 @@
   </div>
 </header>
 
-<!-- ═══ MODULE BAR (Primary Navigation) ═══ -->
+<!-- âââ MODULE BAR (Primary Navigation) âââ -->
 <nav class="module-bar" id="moduleBar">
-  <div class="module-tab active" data-module="dashboard" onclick="switchModule('dashboard',this)"><span class="mod-icon">📊</span> Dashboard</div>
-  <div class="module-tab" data-module="short-term" onclick="switchModule('short-term',this)"><span class="mod-icon">✈️</span> Short-Term <span class="mod-badge" id="stBadge" style="display:none">0</span></div>
-  <div class="module-tab" data-module="mtm-lt" onclick="switchModule('mtm-lt',this)"><span class="mod-icon">🏠</span> MTM / Long-Term</div>
-  <div class="module-tab" data-module="techtrack" onclick="switchModule('techtrack',this)"><span class="mod-icon">🔧</span> TechTrack <span class="mod-badge" id="techtrackBadge" style="display:none">0</span></div>
-  <div class="module-tab" data-module="expenses" onclick="switchModule('expenses',this)"><span class="mod-icon">💰</span> Expenses</div>
-  <div class="module-tab" data-module="parking" onclick="switchModule('parking',this)"><span class="mod-icon">🚗</span> Parking</div>
-  <div class="module-tab" data-module="mailroom" onclick="switchModule('mailroom',this)"><span class="mod-icon">📦</span> Mailroom <span class="mod-badge" id="mailroomBadge" style="display:none">0</span></div>
-  <div class="module-tab" data-module="messages" onclick="switchModule('messages',this)"><span class="mod-icon">💬</span> Messages <span class="mod-badge" id="msgCenterBadge" style="display:none">0</span></div>
+  <div class="module-tab active" data-module="dashboard" onclick="switchModule('dashboard',this)"><span class="mod-icon">ð</span> Dashboard</div>
+  <div class="module-tab" data-module="short-term" onclick="switchModule('short-term',this)"><span class="mod-icon">âï¸</span> Short-Term <span class="mod-badge" id="stBadge" style="display:none">0</span></div>
+  <div class="module-tab" data-module="mtm-lt" onclick="switchModule('mtm-lt',this)"><span class="mod-icon">ð </span> MTM / Long-Term</div>
+  <div class="module-tab" data-module="techtrack" onclick="switchModule('techtrack',this)"><span class="mod-icon">ð§</span> TechTrack <span class="mod-badge" id="techtrackBadge" style="display:none">0</span></div>
+  <div class="module-tab" data-module="expenses" onclick="switchModule('expenses',this)"><span class="mod-icon">ð°</span> Expenses</div>
+  <div class="module-tab" data-module="parking" onclick="switchModule('parking',this)"><span class="mod-icon">ð</span> Parking</div>
+  <div class="module-tab" data-module="mailroom" onclick="switchModule('mailroom',this)"><span class="mod-icon">ð¦</span> Mailroom <span class="mod-badge" id="mailroomBadge" style="display:none">0</span></div>
+  <div class="module-tab" data-module="messages" onclick="switchModule('messages',this)"><span class="mod-icon">ð¬</span> Messages <span class="mod-badge" id="msgCenterBadge" style="display:none">0</span></div>
   <div style="flex:1"></div>
-  <div class="module-tab" data-module="settings" onclick="switchModule('settings',this)"><span class="mod-icon">⚙</span></div>
+  <div class="module-tab" data-module="settings" onclick="switchModule('settings',this)"><span class="mod-icon">â</span></div>
 </nav>
 
-<!-- ═══ SUB-NAV (changes per module) ═══ -->
+<!-- âââ SUB-NAV (changes per module) âââ -->
 <div class="sub-nav" id="subNav"></div>
 
 <!-- Legacy nav (hidden, kept for backward compat) -->
 <nav class="nav-tabs" style="display:none;">
-  <div class="nav-tab active" onclick="showPage('dashboard',this)">📊 Dashboard</div>
-  <div class="nav-tab" onclick="showPage('units',this)">🏠 Units</div>
-  <div class="nav-tab" onclick="showPage('properties',this)">🏘 Properties</div>
-  <div class="nav-tab" onclick="showPage('pipeline',this)">🔀 Pipeline</div>
-  <div class="nav-tab" onclick="showPage('calendar',this)">📅 Calendar</div>
-  <div class="nav-tab" onclick="showPage('reports',this)">📈 Reports</div>
-  <div class="nav-tab" onclick="showPage('history',this)">🗄 Archive</div>
-  <div class="nav-tab" onclick="showPage('messages',this)">📬 Messages<span class="nav-badge" id="msgBadge" style="display:none"></span></div>
+  <div class="nav-tab active" onclick="showPage('dashboard',this)">ð Dashboard</div>
+  <div class="nav-tab" onclick="showPage('units',this)">ð  Units</div>
+  <div class="nav-tab" onclick="showPage('properties',this)">ð Properties</div>
+  <div class="nav-tab" onclick="showPage('pipeline',this)">ð Pipeline</div>
+  <div class="nav-tab" onclick="showPage('calendar',this)">ð Calendar</div>
+  <div class="nav-tab" onclick="showPage('reports',this)">ð Reports</div>
+  <div class="nav-tab" onclick="showPage('history',this)">ð Archive</div>
+  <div class="nav-tab" onclick="showPage('messages',this)">ð¬ Messages<span class="nav-badge" id="msgBadge" style="display:none"></span></div>
   <div style="flex:1"></div>
-  <div class="nav-tab" onclick="showPage('settings',this)">⚙ Settings</div>
+  <div class="nav-tab" onclick="showPage('settings',this)">â Settings</div>
 </nav>
 
-<!-- ═══ UNITS PAGE ═══ -->
+<!-- âââ UNITS PAGE âââ -->
 <div class="page" id="page-units">
   <div class="stats-bar">
     <div class="stat-card s-overdue active" onclick="filterStat(this,'overdue')"><div class="stat-num" id="st-overdue">0</div><div class="stat-label">Overdue</div></div>
@@ -136,7 +136,7 @@
   <div class="toolbar">
     <div class="search-wrap">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="searchInput" placeholder="Search tenant, apt, owner…" oninput="renderTable()">
+      <input type="text" id="searchInput" placeholder="Search tenant, apt, ownerâ¦" oninput="renderTable()">
     </div>
     <div class="filter-pills">
       <button class="pill active" data-type="all" onclick="filterType(this)">All</button>
@@ -146,39 +146,39 @@
       <button class="pill" data-type="available" onclick="filterType(this)">Available</button>
     </div>
     <div class="spacer"></div>
-    <button class="btn btn-secondary btn-sm" onclick="openUnitsGraph()" style="white-space:nowrap;">📊 Graphs</button>
-    <button id="undoBtn" onclick="performUndo()" style="display:none;background:var(--orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px;">↩ Undo</button>
-  <button onclick="showAuditLog()" style="background:transparent;color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;" title="View audit log">🕐 Log</button>
+    <button class="btn btn-secondary btn-sm" onclick="openUnitsGraph()" style="white-space:nowrap;">ð Graphs</button>
+    <button id="undoBtn" onclick="performUndo()" style="display:none;background:var(--orange);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px;">â© Undo</button>
+  <button onclick="showAuditLog()" style="background:transparent;color:var(--text3);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;" title="View audit log">ð Log</button>
   <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
     <label style="color:var(--text3);font-size:11px;margin:0;white-space:nowrap">Sort:</label>
     <select class="sort-sel" id="sortSel" onchange="renderTable()">
-      <option value="due">Due Date ↑</option><option value="due-desc">Due Date ↓</option>
+      <option value="due">Due Date â</option><option value="due-desc">Due Date â</option>
       <option value="checkin">Check-in</option>
       <option value="lease_end">Lease End</option>
       <option value="apt">Apt #</option><option value="name">Name</option><option value="amount">Amount</option>
     </select>
     </div>
-    <button class="btn btn-primary" onclick="openAddModal()" style="white-space:nowrap;flex-shrink:0;">＋ Add Unit</button>
+    <button class="btn btn-primary" onclick="openAddModal()" style="white-space:nowrap;flex-shrink:0;">ï¼ Add Unit</button>
   </div>
   <div class="table-wrap">
     <table><thead><tr>
-      <th onclick="setSortSel('apt')" style="cursor:pointer" title="Sort by Apt #">Apt # ↕</th>
+      <th onclick="setSortSel('apt')" style="cursor:pointer" title="Sort by Apt #">Apt # â</th>
       <th title="Bedrooms">BR</th>
       <th title="Bathrooms">Bath</th>
       <th title="Access Code">Access</th>
-      <th onclick="setSortSel('checkin')" style="cursor:pointer" title="Sort by Check-in">Check-in ↕</th>
+      <th onclick="setSortSel('checkin')" style="cursor:pointer" title="Sort by Check-in">Check-in â</th>
       <th>Type</th>
-      <th onclick="setSortSel('name')" style="cursor:pointer" title="Sort by Tenant">Tenant ↕</th>
-      <th onclick="setSortSel('due')" style="cursor:pointer" title="Sort by Due Date">Due Date ↕</th>
-      <th onclick="setSortSel('lease_end')" style="cursor:pointer" title="Sort by Lease End">Lease End ↕</th>
-      <th onclick="setSortSel('amount')" style="cursor:pointer" title="Sort by Rent">Rent ↕</th>
+      <th onclick="setSortSel('name')" style="cursor:pointer" title="Sort by Tenant">Tenant â</th>
+      <th onclick="setSortSel('due')" style="cursor:pointer" title="Sort by Due Date">Due Date â</th>
+      <th onclick="setSortSel('lease_end')" style="cursor:pointer" title="Sort by Lease End">Lease End â</th>
+      <th onclick="setSortSel('amount')" style="cursor:pointer" title="Sort by Rent">Rent â</th>
       <th>Balance</th><th>Note</th><th>Owner</th><th style="min-width:100px">Actions</th>
     </tr></thead><tbody id="tableBody"></tbody></table>
-    <div id="emptyState" class="empty-state" style="display:none"><div class="ei">🏠</div><p>No units match your filter.</p></div>
+    <div id="emptyState" class="empty-state" style="display:none"><div class="ei">ð </div><p>No units match your filter.</p></div>
   </div>
   <div class="arch-section">
     <div class="arch-toggle" onclick="toggleArchive()">
-      <span class="arch-chevron" id="archChevron">▼</span>
+      <span class="arch-chevron" id="archChevron">â¼</span>
       Archived / Moved Out <span class="arch-count" id="archCount">0</span>
     </div>
     <div id="archiveTableWrap" style="display:none;overflow-x:auto">
@@ -188,7 +188,7 @@
   </div>
 </div>
 
-<!-- ═══ SHORT-TERM DASHBOARD ═══ -->
+<!-- âââ SHORT-TERM DASHBOARD âââ -->
 <div class="page" id="page-st-dashboard">
   <div class="dash-wrap">
     <div class="dash-header">
@@ -208,11 +208,11 @@
     <div class="dash-section-label">Today's Activity</div>
     <div class="dash-two-col">
       <div class="dash-panel dash-panel-today" style="border-left:4px solid var(--blue);">
-        <h3>📥 ST Check-ins</h3>
+        <h3>ð¥ ST Check-ins</h3>
         <div id="stDashCheckIns"><div class="dash-loading">Loading...</div></div>
       </div>
       <div class="dash-panel dash-panel-today" style="border-left:4px solid var(--orange);">
-        <h3>📤 ST Check-outs</h3>
+        <h3>ð¤ ST Check-outs</h3>
         <div id="stDashCheckOuts"><div class="dash-loading">Loading...</div></div>
       </div>
     </div>
@@ -221,11 +221,11 @@
     <div class="dash-section-label">Financial Overview</div>
     <div class="dash-two-col">
       <div class="dash-panel">
-        <h3>💰 ST Revenue This Month</h3>
+        <h3>ð° ST Revenue This Month</h3>
         <div id="stDashRevenue"></div>
       </div>
       <div class="dash-panel">
-        <h3>🚨 Needs Attention (ST)</h3>
+        <h3>ð¨ Needs Attention (ST)</h3>
         <div id="stDashUrgency"></div>
       </div>
     </div>
@@ -233,16 +233,16 @@
     <!-- ST Performance KPIs -->
     <div class="dash-section-label">Performance</div>
     <div class="dash-panel" style="margin-bottom:20px;">
-      <h3>✈️ Short Stay Performance</h3>
+      <h3>âï¸ Short Stay Performance</h3>
       <div id="stDashPerformance"></div>
     </div>
 
     <!-- ST Upcoming Checkouts -->
-    <div class="dash-full"><h3>📅 Upcoming ST Checkouts — Next 30 Days</h3><div id="stDashUpcoming"></div></div>
+    <div class="dash-full"><h3>ð Upcoming ST Checkouts â Next 30 Days</h3><div id="stDashUpcoming"></div></div>
   </div>
 </div>
 
-<!-- ═══ CALENDAR PAGE ═══ -->
+<!-- âââ CALENDAR PAGE âââ -->
 <div class="page" id="page-calendar">
   <!-- Shared view toggle bar -->
   <div style="display:flex;align-items:center;gap:10px;padding:7px 20px;background:var(--bg);border-bottom:1px solid var(--border);flex-shrink:0;">
@@ -304,7 +304,7 @@
     </div>
   </div>
 
-  <!-- PRICING LAYER — completely separate, never touches booking code -->
+  <!-- PRICING LAYER â completely separate, never touches booking code -->
   <div id="pxLayer">
     <div class="body">
       <!-- Left column: fixed header + scrollable unit list -->
@@ -342,7 +342,7 @@
     </div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:12px;padding-top:18px;padding-bottom:18px;">
       <button class="btn btn-primary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openCalBookingModal()">
-        ✏️ <span id="calActionBtnLabel">Add / Edit Booking</span>
+        âï¸ <span id="calActionBtnLabel">Add / Edit Booking</span>
         <span style="font-size:10px;opacity:.8;margin-left:6px">Open unit booking form</span>
       </button>
       <button class="btn btn-secondary" style="justify-content:center;padding:14px;font-size:13px;" onclick="closeModal('calActionModal');openBlockModal()">
@@ -417,12 +417,12 @@
         <div class="form-row">
           <label>Channel</label>
           <select id="cbChannel" onchange="toggleCbChannelOther()">
-            <option value="">— Select —</option>
+            <option value="">â Select â</option>
             <option value="Airbnb">Airbnb</option>
             <option value="Vrbo">Vrbo</option>
             <option value="Booking.com">Booking.com</option>
             <option value="Direct">Direct</option>
-            <option value="Other">Other…</option>
+            <option value="Other">Otherâ¦</option>
           </select>
         </div>
         <div class="form-row" id="cbChannelOtherRow" style="display:none">
@@ -434,7 +434,7 @@
         <div class="form-row"><label>Phone</label><input type="tel" id="cbPhone" placeholder="e.g. (215) 555-0000"></div>
         <div class="form-row"><label>Email</label><input type="email" id="cbEmail" placeholder="guest@email.com"></div>
       </div>
-      <div class="form-row"><label>Additional Note</label><textarea id="cbNote" placeholder="Any other notes…" style="min-height:50px"></textarea></div>
+      <div class="form-row"><label>Additional Note</label><textarea id="cbNote" placeholder="Any other notesâ¦" style="min-height:50px"></textarea></div>
 
       <p class="section-title" style="margin-top:16px;">Payment Details <span style="font-size:10px;color:var(--text3);font-weight:400;">(optional)</span></p>
       <div class="form-grid">
@@ -445,7 +445,7 @@
         <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:12px;font-size:12px;">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;text-transform:none;letter-spacing:0;font-size:12px;color:var(--blue);">
             <input type="checkbox" id="cbProrateCheck" onchange="updateCbPayPreview()" style="width:auto;margin:0;cursor:pointer;">
-            <strong>Full payment for entire stay</strong> — auto-split by month
+            <strong>Full payment for entire stay</strong> â auto-split by month
           </label>
           <div id="cbProrateBreakdown" style="margin-top:8px;color:var(--text2);font-size:11px;line-height:1.8;"></div>
         </div>
@@ -453,7 +453,7 @@
       <div id="cbPayPreviewRow" style="display:none;margin-bottom:8px;">
         <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--green);" id="cbPayPreview"></div>
       </div>
-      <div class="form-row"><label>Payment Note</label><input type="text" id="cbPayNote" placeholder="e.g. Cash, bank transfer…"></div>
+      <div class="form-row"><label>Payment Note</label><input type="text" id="cbPayNote" placeholder="e.g. Cash, bank transferâ¦"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('calBookingModal')">Cancel</button>
@@ -463,7 +463,7 @@
 </div>
 
 
-<!-- ═══ REPORT DRILL-DOWN MODAL ═══ -->
+<!-- âââ REPORT DRILL-DOWN MODAL âââ -->
 <div class="modal-overlay" id="rDrillModal">
   <div class="modal" style="max-width:680px;">
     <div class="modal-header">
@@ -493,7 +493,7 @@
   </div>
 </div>
 
-<!-- ═══ DASHBOARD PAGE (Command Center) ═══ -->
+<!-- âââ DASHBOARD PAGE (Command Center) âââ -->
 <div class="page active" id="page-dashboard">
   <div class="dash-wrap">
     <!-- Header -->
@@ -504,8 +504,8 @@
       </div>
       <div class="dash-header-actions">
         <div id="backupStatus" style="font-size:11px;color:var(--text3);">No backup yet</div>
-        <button onclick="openBackupHistory()" class="btn-subtle">🕐 History</button>
-        <button id="backupBtn" onclick="runBackup()" class="btn-backup">💾 Backup Now</button>
+        <button onclick="openBackupHistory()" class="btn-subtle">ð History</button>
+        <button id="backupBtn" onclick="runBackup()" class="btn-backup">ð¾ Backup Now</button>
       </div>
     </div>
 
@@ -520,7 +520,7 @@
     <div class="dash-two-col">
       <div class="dash-panel dash-panel-today" style="border-left:4px solid var(--orange);">
         <div class="dash-tasks-header">
-          <h3 style="border:none;margin:0;padding:0;">📋 Tasks</h3>
+          <h3 style="border:none;margin:0;padding:0;">ð Tasks</h3>
           <button onclick="toggleDashTaskForm()" class="dash-task-add-btn" id="dashTaskAddBtn">+ Add</button>
         </div>
         <div id="dashTaskForm" class="dash-task-form" style="display:none;">
@@ -540,18 +540,18 @@
           <div class="dash-loading">Loading...</div>
         </div>
         <div class="dash-tasks-divider"></div>
-        <h3>🔧 Work Orders Due Today</h3>
+        <h3>ð§ Work Orders Due Today</h3>
         <div id="dashWOToday">
           <div class="dash-loading">Loading...</div>
         </div>
       </div>
       <div class="dash-panel dash-panel-today">
-        <h3>✉ Reminders Due</h3>
+        <h3>â Reminders Due</h3>
         <div id="dashReminders">
           <div class="dash-loading">Loading...</div>
         </div>
         <div class="dash-tasks-divider"></div>
-        <h3>📋 Recent Reminders</h3>
+        <h3>ð Recent Reminders</h3>
         <div id="dashRecentReminders">
           <div class="dash-loading">Loading...</div>
         </div>
@@ -562,7 +562,7 @@
     <div class="dash-section-label">Messages Center</div>
     <div class="dash-panel dash-panel-messages" style="border-left:4px solid var(--accent);">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <h3 style="border:none;margin:0;padding:0;">💬 Unified Inbox</h3>
+        <h3 style="border:none;margin:0;padding:0;">ð¬ Unified Inbox</h3>
         <div class="dash-msg-filters" id="dashMsgFilters">
           <button class="dash-msg-filter active" data-filter="all" onclick="filterDashMessages('all',this)">All</button>
           <button class="dash-msg-filter" data-filter="short-stay" onclick="filterDashMessages('short-stay',this)">ST</button>
@@ -579,13 +579,13 @@
     <!-- ROW 2: Check-ins (left) | Checkouts (right) -->
     <div class="dash-two-col">
       <div class="dash-panel dash-panel-today" style="border-left:4px solid var(--blue);">
-        <h3>📥 Check-ins</h3>
+        <h3>ð¥ Check-ins</h3>
         <div id="dashCheckIns">
           <div class="dash-loading">Loading...</div>
         </div>
       </div>
       <div class="dash-panel dash-panel-today" style="border-left:4px solid var(--orange);">
-        <h3>📤 Check-outs</h3>
+        <h3>ð¤ Check-outs</h3>
         <div id="dashCheckOuts">
           <div class="dash-loading">Loading...</div>
         </div>
@@ -596,7 +596,7 @@
     <div class="dash-section-label">Module Status</div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:20px;">
       <div class="dash-panel" style="cursor:pointer;border-left:4px solid var(--orange);" onclick="switchModule('techtrack')">
-        <h3>🔧 Work Orders</h3>
+        <h3>ð§ Work Orders</h3>
         <div id="dashWorkOrders">
           <div style="display:flex;gap:16px;align-items:center;margin-top:8px;">
             <div><span style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--orange);" id="wo-open">0</span><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);">Open</div></div>
@@ -607,7 +607,7 @@
         </div>
       </div>
       <div class="dash-panel" style="cursor:pointer;border-left:4px solid var(--purple);" onclick="switchModule('parking')">
-        <h3>🚗 Parking</h3>
+        <h3>ð Parking</h3>
         <div id="dashParking">
           <div style="display:flex;gap:16px;align-items:center;margin-top:8px;">
             <div><span style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--purple);" id="dash-pk-assigned">0</span><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);">Assigned</div></div>
@@ -618,7 +618,7 @@
         </div>
       </div>
       <div class="dash-panel" style="cursor:pointer;border-left:4px solid var(--red);" onclick="switchModule('mailroom')">
-        <h3>📦 Mailroom</h3>
+        <h3>ð¦ Mailroom</h3>
         <div id="dashMailroom">
           <div style="display:flex;gap:16px;align-items:center;margin-top:8px;">
             <div><span style="font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--red);" id="dash-ml-pending">0</span><div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);">Pending</div></div>
@@ -634,67 +634,67 @@
     <div class="dash-section-label">Financial Overview</div>
     <div class="dash-two-col">
       <div class="dash-panel">
-        <h3>💰 Revenue This Month</h3>
+        <h3>ð° Revenue This Month</h3>
         <div id="dashRevenue"></div>
       </div>
       <div class="dash-panel">
-        <h3>🚨 Needs Attention</h3>
+        <h3>ð¨ Needs Attention</h3>
         <div id="dashUrgency"></div>
       </div>
     </div>
 
     <!-- Portfolio + Charts Row -->
     <div class="dash-two-col">
-      <div class="dash-panel"><h3>🏘 Portfolio by Owner</h3><div id="dashOwners"></div></div>
-      <div class="dash-panel"><h3>📋 Lease Type Mix</h3><div class="chart-wrap"><canvas id="typeChart"></canvas></div><div class="type-legend" id="typeLegend"></div></div>
+      <div class="dash-panel"><h3>ð Portfolio by Owner</h3><div id="dashOwners"></div></div>
+      <div class="dash-panel"><h3>ð Lease Type Mix</h3><div class="chart-wrap"><canvas id="typeChart"></canvas></div><div class="type-legend" id="typeLegend"></div></div>
     </div>
 
     <!-- Collection Rate -->
     <div class="dash-two-col">
-      <div class="dash-panel"><h3>📊 Collection Rate</h3><div class="chart-wrap"><canvas id="collChart"></canvas></div><div id="collChartNote" style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px"></div></div>
+      <div class="dash-panel"><h3>ð Collection Rate</h3><div class="chart-wrap"><canvas id="collChart"></canvas></div><div id="collChartNote" style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px"></div></div>
     </div>
 
     <!-- Upcoming Checkouts -->
-    <div class="dash-full"><h3>📅 Upcoming Checkouts / Renewals — Next 30 Days</h3><div id="dashUpcoming"></div></div>
+    <div class="dash-full"><h3>ð Upcoming Checkouts / Renewals â Next 30 Days</h3><div id="dashUpcoming"></div></div>
   </div>
 </div>
 
-<!-- ═══ REPORTS PAGE ═══ -->
+<!-- âââ REPORTS PAGE âââ -->
 <div class="page" id="page-reports">
   <div class="report-wrap">
     <div class="report-hdr">
       <h2>Monthly Report</h2>
       <div class="month-nav">
-        <button onclick="changeReportMonth(-1)">◀</button>
-        <span id="reportMonthLabel">—</span>
-        <button onclick="changeReportMonth(1)">▶</button>
+        <button onclick="changeReportMonth(-1)">â</button>
+        <span id="reportMonthLabel">â</span>
+        <button onclick="changeReportMonth(1)">â¶</button>
       </div>
     </div>
     <div class="r-kpi-grid" id="reportKpis"></div>
-    <div class="r-section"><h3>📅 Days Rented</h3><div id="rDaysContent"></div></div>
-    <div class="r-section" id="rShortStaySection"><h3>✈️ Short Stay Performance</h3><div id="rShortStayKpis"></div></div>
-    <div class="r-section"><h3>💵 Collection by Lease Type</h3>
+    <div class="r-section"><h3>ð Days Rented</h3><div id="rDaysContent"></div></div>
+    <div class="r-section" id="rShortStaySection"><h3>âï¸ Short Stay Performance</h3><div id="rShortStayKpis"></div></div>
+    <div class="r-section"><h3>ðµ Collection by Lease Type</h3>
       <table class="breakdown-table"><thead id="rCollHead"><tr><th>Type</th><th style="text-align:right">Units</th><th style="text-align:right">Expected</th><th style="text-align:right">Collected</th><th style="text-align:right">Outstanding</th><th style="text-align:right">Avg / Unit</th></tr></thead>
       <tbody id="rCollBody"></tbody></table>
     </div>
-    <div class="r-section"><h3>🏘 Collection by Owner</h3><div id="rOwnerContent"></div></div>
-    <div class="r-section"><h3>🔮 Next Month Prediction</h3><div id="rPrediction"></div></div>
-    <div class="r-section"><h3>📊 6-Month Collection Trend</h3><div class="trend-wrap"><canvas id="trendChart"></canvas></div></div>
+    <div class="r-section"><h3>ð Collection by Owner</h3><div id="rOwnerContent"></div></div>
+    <div class="r-section"><h3>ð® Next Month Prediction</h3><div id="rPrediction"></div></div>
+    <div class="r-section"><h3>ð 6-Month Collection Trend</h3><div class="trend-wrap"><canvas id="trendChart"></canvas></div></div>
   </div>
 </div>
 
-<!-- ═══ ARCHIVE HISTORY PAGE ═══ -->
+<!-- âââ ARCHIVE HISTORY PAGE âââ -->
 <div class="page" id="page-history">
   <div class="dash-wrap">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
       <div>
         <div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--accent2);">Archive History</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">All past tenants from Jan 2025 — read only</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">All past tenants from Jan 2025 â read only</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <div style="position:relative;">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text3)"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input type="text" id="histSearch" placeholder="Search name, apt, owner…" oninput="renderHistory()" style="padding:7px 12px 7px 30px;border:1px solid var(--border);border-radius:var(--radius);font-family:'DM Mono',monospace;font-size:12px;background:var(--surface);color:var(--text);outline:none;width:220px;">
+          <input type="text" id="histSearch" placeholder="Search name, apt, ownerâ¦" oninput="renderHistory()" style="padding:7px 12px 7px 30px;border:1px solid var(--border);border-radius:var(--radius);font-family:'DM Mono',monospace;font-size:12px;background:var(--surface);color:var(--text);outline:none;width:220px;">
         </div>
         <select id="histYear" onchange="renderHistory()" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:7px 10px;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);outline:none;">
           <option value="all">All Years</option>
@@ -725,9 +725,9 @@
           <option value="Fox Chase Properties">Fox Chase Properties</option>
           <option value="Montgomery Garages">Montgomery Garages</option>
         </select>
-        <button class="btn btn-secondary btn-sm" onclick="openHistGraphs()" style="white-space:nowrap;">📊 Graphs</button>
-        <button class="btn btn-secondary btn-sm" onclick="seedLT2025()" style="white-space:nowrap;border-color:var(--blue);color:var(--blue);" title="Generate monthly archive records for 2025">⚙ Gen 2025 LT</button>
-        <button class="btn btn-secondary btn-sm" onclick="seedLT2026()" style="white-space:nowrap;border-color:var(--green);color:var(--green);" title="Generate Jan–Mar 2026 monthly archive records">⚙ Gen 2026 LT</button>
+        <button class="btn btn-secondary btn-sm" onclick="openHistGraphs()" style="white-space:nowrap;">ð Graphs</button>
+        <button class="btn btn-secondary btn-sm" onclick="seedLT2025()" style="white-space:nowrap;border-color:var(--blue);color:var(--blue);" title="Generate monthly archive records for 2025">â Gen 2025 LT</button>
+        <button class="btn btn-secondary btn-sm" onclick="seedLT2026()" style="white-space:nowrap;border-color:var(--green);color:var(--green);" title="Generate JanâMar 2026 monthly archive records">â Gen 2026 LT</button>
       </div>
     </div>
 
@@ -740,13 +740,13 @@
         <table id="histTable" style="width:100%;border-collapse:collapse;">
           <thead>
             <tr>
-              <th onclick="histSort('apt')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-apt">Apt ↕</th>
-              <th onclick="histSort('name')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-name">Tenant ↕</th>
-              <th onclick="histSort('owner')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-owner">Owner ↕</th>
-              <th onclick="histSort('type')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-type">Type ↕</th>
-              <th onclick="histSort('rent')" style="background:var(--surface);padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-rent">Rent ↕</th>
-              <th onclick="histSort('checkin')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkin">Check In ↕</th>
-              <th onclick="histSort('checkout')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkout">Lease End ↕</th>
+              <th onclick="histSort('apt')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-apt">Apt â</th>
+              <th onclick="histSort('name')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-name">Tenant â</th>
+              <th onclick="histSort('owner')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-owner">Owner â</th>
+              <th onclick="histSort('type')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-type">Type â</th>
+              <th onclick="histSort('rent')" style="background:var(--surface);padding:9px 12px;text-align:right;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-rent">Rent â</th>
+              <th onclick="histSort('checkin')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkin">Check In â</th>
+              <th onclick="histSort('checkout')" style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;" id="hth-checkout">Lease End â</th>
               <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Note</th>
               <th style="background:var(--surface);padding:9px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3);border-bottom:2px solid var(--border);white-space:nowrap;">Edit</th>
             </tr>
@@ -764,8 +764,8 @@
 <div class="modal-overlay" id="histGraphModal">
   <div class="modal" style="max-width:800px;width:95%;">
     <div class="modal-header">
-      <h2 id="histGraphTitle">📊 Archive Charts</h2>
-      <button class="modal-close" onclick="closeModal('histGraphModal')">✕</button>
+      <h2 id="histGraphTitle">ð Archive Charts</h2>
+      <button class="modal-close" onclick="closeModal('histGraphModal')">â</button>
     </div>
     <div class="modal-body" style="padding:16px 20px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -796,8 +796,8 @@
 <div class="modal-overlay" id="unitsGraphModal">
   <div class="modal" style="max-width:800px;width:95%;">
     <div class="modal-header">
-      <h2>📊 Live Units Charts</h2>
-      <button class="modal-close" onclick="closeModal('unitsGraphModal')">✕</button>
+      <h2>ð Live Units Charts</h2>
+      <button class="modal-close" onclick="closeModal('unitsGraphModal')">â</button>
     </div>
     <div class="modal-body" style="padding:16px 20px;">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -828,19 +828,19 @@
 <div class="modal-overlay" id="backupImportModal">
   <div class="modal" style="max-width:480px;">
     <div class="modal-header">
-      <h2>⬆ Import JSON Snapshot</h2>
-      <button class="modal-close" onclick="closeModal('backupImportModal')">✕</button>
+      <h2>â¬ Import JSON Snapshot</h2>
+      <button class="modal-close" onclick="closeModal('backupImportModal')">â</button>
     </div>
     <div class="modal-body">
       <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:14px;margin-bottom:16px;">
-        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">⚠ This will overwrite all current active units</div>
+        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">â  This will overwrite all current active units</div>
         <div style="font-size:11px;color:var(--text2);">Active units will be replaced with the imported snapshot. Archived records are not affected.</div>
       </div>
       <div id="importPreview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('backupImportModal')">Cancel</button>
-      <button id="confirmImportBtn" onclick="confirmImport()" style="background:var(--blue);color:#fff;border:none;font-weight:500;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">⬆ Import & Restore</button>
+      <button id="confirmImportBtn" onclick="confirmImport()" style="background:var(--blue);color:#fff;border:none;font-weight:500;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">â¬ Import & Restore</button>
     </div>
   </div>
 </div>
@@ -850,17 +850,17 @@
   <div class="modal" style="max-width:720px;width:95%;">
     <div class="modal-header">
       <div>
-        <h2>🗄 Backup History</h2>
+        <h2>ð Backup History</h2>
         <div style="font-size:11px;color:var(--text3);margin-top:3px;">Click a backup to preview or restore it</div>
       </div>
-      <button class="modal-close" onclick="closeModal('backupHistoryModal')">✕</button>
+      <button class="modal-close" onclick="closeModal('backupHistoryModal')">â</button>
     </div>
     <div class="modal-body" style="padding:0;">
       <div id="backupHistoryLoading" style="text-align:center;padding:40px;color:var(--text3);">
-        <div class="spinner" style="margin:0 auto 12px;"></div>Loading backups…
+        <div class="spinner" style="margin:0 auto 12px;"></div>Loading backupsâ¦
       </div>
       <div id="backupHistoryEmpty" style="text-align:center;padding:40px;color:var(--text3);display:none;">
-        <div style="font-size:32px;margin-bottom:8px;">💾</div>No backups found. Run your first backup!
+        <div style="font-size:32px;margin-bottom:8px;">ð¾</div>No backups found. Run your first backup!
       </div>
       <table id="backupHistoryTable" style="width:100%;border-collapse:collapse;font-size:12px;display:none;">
         <thead>
@@ -876,8 +876,8 @@
     </div>
     <div class="modal-footer" style="justify-content:space-between;">
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-secondary btn-sm" onclick="openBackupHistory()">↺ Refresh</button>
-        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importJsonInput').click()" style="border-color:var(--blue);color:var(--blue);">⬆ Import JSON</button>
+        <button class="btn btn-secondary btn-sm" onclick="openBackupHistory()">âº Refresh</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('importJsonInput').click()" style="border-color:var(--blue);color:var(--blue);">â¬ Import JSON</button>
         <input type="file" id="importJsonInput" accept=".json" style="display:none;" onchange="handleImportJson(this)">
       </div>
       <button class="btn btn-secondary" onclick="closeModal('backupHistoryModal')">Close</button>
@@ -889,12 +889,12 @@
 <div class="modal-overlay" id="backupRestoreModal">
   <div class="modal" style="max-width:480px;">
     <div class="modal-header">
-      <h2>⚠ Confirm Restore</h2>
-      <button class="modal-close" onclick="closeModal('backupRestoreModal')">✕</button>
+      <h2>â  Confirm Restore</h2>
+      <button class="modal-close" onclick="closeModal('backupRestoreModal')">â</button>
     </div>
     <div class="modal-body">
       <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:14px;margin-bottom:16px;">
-        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">⚠ This will overwrite all current active units</div>
+        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">â  This will overwrite all current active units</div>
         <div style="font-size:11px;color:var(--text2);">All live unit data will be replaced with the snapshot below. Archived records are not affected. This cannot be undone.</div>
       </div>
       <div id="restorePreview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;"></div>
@@ -913,11 +913,11 @@
   <div class="detail-panel">
     <div class="detail-header" style="background:var(--surface2);">
       <div>
-        <div class="detail-apt" id="adApt">—</div>
+        <div class="detail-apt" id="adApt">â</div>
         <div class="detail-name" id="adName"></div>
         <div class="detail-owner" id="adOwner"></div>
       </div>
-      <button class="modal-close" onclick="closeArchiveDetail()">✕</button>
+      <button class="modal-close" onclick="closeArchiveDetail()">â</button>
     </div>
     <div class="detail-body">
       <div id="adRows"></div>
@@ -931,7 +931,7 @@
       </div>
     </div>
     <div class="detail-actions">
-      <button class="btn btn-secondary btn-sm" onclick="closeArchiveDetail();openArchiveEdit(currentArchiveDetailId)">✏️ Edit</button>
+      <button class="btn btn-secondary btn-sm" onclick="closeArchiveDetail();openArchiveEdit(currentArchiveDetailId)">âï¸ Edit</button>
     </div>
   </div>
 </div>
@@ -940,12 +940,12 @@
 <div class="modal-overlay" id="clearHistoryModal">
   <div class="modal" style="max-width:440px;">
     <div class="modal-header">
-      <h2>🗑 Clear Payment History</h2>
-      <button class="modal-close" onclick="closeModal('clearHistoryModal')">✕</button>
+      <h2>ð Clear Payment History</h2>
+      <button class="modal-close" onclick="closeModal('clearHistoryModal')">â</button>
     </div>
     <div class="modal-body">
       <div style="background:var(--red-bg);border:1px solid var(--red-border);border-radius:8px;padding:14px;margin-bottom:16px;">
-        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">⚠ This will clear all payment history entries</div>
+        <div style="font-weight:500;color:var(--red);margin-bottom:4px;">â  This will clear all payment history entries</div>
         <div style="font-size:11px;color:var(--text2);">The payment history log will be wiped. Rent, balance and all other fields stay as-is. This cannot be undone.</div>
       </div>
       <div id="clearHistoryPreview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:12px;"></div>
@@ -965,7 +965,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('clearHistoryModal')">Cancel</button>
-      <button id="confirmClearHistoryBtn" onclick="confirmClearHistory()" style="background:var(--red);color:#fff;border:none;font-weight:500;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">🗑 Clear History</button>
+      <button id="confirmClearHistoryBtn" onclick="confirmClearHistory()" style="background:var(--red);color:#fff;border:none;font-weight:500;padding:8px 18px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;">ð Clear History</button>
     </div>
   </div>
 </div>
@@ -974,8 +974,8 @@
 <div class="modal-overlay" id="auditModal">
   <div class="modal" style="max-width:700px;">
     <div class="modal-header">
-      <h2>🕐 Audit Log</h2>
-      <button class="modal-close" onclick="closeModal('auditModal')">✕</button>
+      <h2>ð Audit Log</h2>
+      <button class="modal-close" onclick="closeModal('auditModal')">â</button>
     </div>
     <div class="modal-body" style="padding:0;max-height:500px;overflow-y:auto;">
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -999,13 +999,13 @@
 <div class="modal-overlay" id="archEditModal">
   <div class="modal">
     <div class="modal-header">
-      <div><div class="apt-badge" id="archEditAptLabel">—</div><h2>Edit Archive Record</h2></div>
-      <button class="modal-close" onclick="closeModal('archEditModal')">✕</button>
+      <div><div class="apt-badge" id="archEditAptLabel">â</div><h2>Edit Archive Record</h2></div>
+      <button class="modal-close" onclick="closeModal('archEditModal')">â</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="archEditId">
       <div class="form-grid">
-        <div class="form-row"><label>Apartment #</label><input type="text" id="aeFApt" oninput="document.getElementById('archEditAptLabel').textContent=this.value||'—'"></div>
+        <div class="form-row"><label>Apartment #</label><input type="text" id="aeFApt" oninput="document.getElementById('archEditAptLabel').textContent=this.value||'â'"></div>
         <div class="form-row"><label>Owner</label><input type="text" id="aeFOwner"></div>
       </div>
       <div class="form-row"><label>Tenant Name</label><input type="text" id="aeFName"></div>
@@ -1022,7 +1022,7 @@
       <div class="form-row"><label>Note</label><textarea id="aeFNote"></textarea></div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-danger btn-sm" onclick="deleteArchiveRecord()">🗑 Delete</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteArchiveRecord()">ð Delete</button>
       <div style="flex:1"></div>
       <button class="btn btn-secondary" onclick="closeModal('archEditModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveArchiveRecord()">Save</button>
@@ -1034,13 +1034,13 @@
 <div class="modal-overlay" id="editModal">
   <div class="modal">
     <div class="modal-header">
-      <div><div class="apt-badge" id="modalAptLabel">—</div><h2 id="modalTitle">Add Unit</h2></div>
-      <button class="modal-close" onclick="closeModal('editModal')">✕</button>
+      <div><div class="apt-badge" id="modalAptLabel">â</div><h2 id="modalTitle">Add Unit</h2></div>
+      <button class="modal-close" onclick="closeModal('editModal')">â</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="editId">
       <div class="form-grid">
-        <div class="form-row"><label>Apartment #</label><input type="text" id="fApt" placeholder="e.g. 4B" oninput="document.getElementById('modalAptLabel').textContent=this.value||'—'"></div>
+        <div class="form-row"><label>Apartment #</label><input type="text" id="fApt" placeholder="e.g. 4B" oninput="document.getElementById('modalAptLabel').textContent=this.value||'â'"></div>
         <div class="form-row"><label>Owner</label><input type="text" id="fOwner" placeholder="Owner name"></div>
       </div>
       <div class="form-row"><label>Tenant Name</label><input type="text" id="fName" placeholder="Full name (blank = available)"></div>
@@ -1062,12 +1062,12 @@
         <div class="form-row">
           <label>Channel</label>
           <select id="fChannel" onchange="toggleFChannelOther()">
-            <option value="">— Select —</option>
+            <option value="">â Select â</option>
             <option value="Airbnb">Airbnb</option>
             <option value="Vrbo">Vrbo</option>
             <option value="Booking.com">Booking.com</option>
             <option value="Direct">Direct</option>
-            <option value="Other">Other…</option>
+            <option value="Other">Otherâ¦</option>
           </select>
         </div>
         <div class="form-row" id="fChannelOtherRow" style="display:none">
@@ -1079,7 +1079,7 @@
         <div class="form-row"><label>Phone</label><input type="tel" id="fPhone" placeholder="e.g. (215) 555-0000"></div>
         <div class="form-row"><label>Email</label><input type="email" id="fEmail" placeholder="guest@email.com"></div>
       </div>
-      <div class="form-row"><label>Additional Note</label><textarea id="fNote" placeholder="Any other notes…"></textarea></div>
+      <div class="form-row"><label>Additional Note</label><textarea id="fNote" placeholder="Any other notesâ¦"></textarea></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
@@ -1092,8 +1092,8 @@
 <div class="modal-overlay" id="payModal">
   <div class="modal">
     <div class="modal-header">
-      <div><div class="apt-badge" id="payAptLabel">—</div><h2>Record Payment</h2></div>
-      <button class="modal-close" onclick="closeModal('payModal')">✕</button>
+      <div><div class="apt-badge" id="payAptLabel">â</div><h2>Record Payment</h2></div>
+      <button class="modal-close" onclick="closeModal('payModal')">â</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="payId">
@@ -1114,7 +1114,7 @@
         <div style="background:var(--blue-bg);border:1px solid var(--blue-border);border-radius:var(--radius);padding:12px;font-size:12px;">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;text-transform:none;letter-spacing:0;font-size:12px;color:var(--blue);">
             <input type="checkbox" id="prorateCheck" onchange="updatePayPreview()" style="width:auto;margin:0;cursor:pointer;">
-            <strong>Full payment for entire stay</strong> — auto-split by month
+            <strong>Full payment for entire stay</strong> â auto-split by month
           </label>
           <div id="prorateBreakdown" style="margin-top:8px;color:var(--text2);font-size:11px;line-height:1.8;"></div>
         </div>
@@ -1127,11 +1127,11 @@
       <div id="payPreviewRow" style="display:none;margin-bottom:12px">
         <div style="background:var(--green-bg);border:1px solid var(--green-border);border-radius:var(--radius);padding:12px;font-size:12px;color:var(--green);" id="payPreview"></div>
       </div>
-      <div class="form-row"><label>Note</label><input type="text" id="payNote" placeholder="e.g. Cash, bank transfer…"></div>
+      <div class="form-row"><label>Note</label><input type="text" id="payNote" placeholder="e.g. Cash, bank transferâ¦"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('payModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="confirmPayment()">✓ Confirm Payment</button>
+      <button class="btn btn-primary" onclick="confirmPayment()">â Confirm Payment</button>
     </div>
   </div>
 </div>
@@ -1141,25 +1141,25 @@
   <div class="detail-backdrop" onclick="closeDetail()"></div>
   <div class="detail-panel">
     <div class="detail-header">
-      <div><div class="detail-apt" id="dApt">—</div><div class="detail-name" id="dName">—</div><div class="detail-owner" id="dOwner">—</div></div>
-      <button class="modal-close" onclick="closeDetail()">✕</button>
+      <div><div class="detail-apt" id="dApt">â</div><div class="detail-name" id="dName">â</div><div class="detail-owner" id="dOwner">â</div></div>
+      <button class="modal-close" onclick="closeDetail()">â</button>
     </div>
     <div class="detail-body">
       <div id="dRows"></div>
-      <div class="detail-note-section"><label>Tenant Note</label><textarea id="dNote" placeholder="No notes yet…" onchange="saveDetailNote()"></textarea></div>
+      <div class="detail-note-section"><label>Tenant Note</label><textarea id="dNote" placeholder="No notes yetâ¦" onchange="saveDetailNote()"></textarea></div>
       <div style="margin-top:16px"><p class="section-title">Payment History</p><div id="dHistory"></div></div>
     </div>
     <div class="detail-actions" id="dActions"></div>
   </div>
 </div>
 
-<!-- ═══ PROPERTIES PAGE ═══ -->
+<!-- âââ PROPERTIES PAGE âââ -->
 <div class="page" id="page-properties">
   <div class="prop-wrap">
     <div class="prop-sidebar">
       <div class="prop-search-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input type="text" id="propSearch" placeholder="Property name or UID…" oninput="filterProperties()">
+        <input type="text" id="propSearch" placeholder="Property name or UIDâ¦" oninput="filterProperties()">
       </div>
       <div class="prop-sidebar-section">Type</div>
       <select id="propTypeFilter" onchange="filterProperties()" class="prop-filter-sel">
@@ -1179,18 +1179,18 @@
         <option value="">All Owners</option>
       </select>
       <div class="prop-sidebar-btns">
-        <button class="btn btn-primary btn-sm" style="justify-content:center;" onclick="openAddPropertyModal()">＋ Add Property</button>
-        <button class="btn btn-secondary btn-sm" style="justify-content:center;" onclick="syncPropertiesFromHostfully()">🔄 Sync</button>
+        <button class="btn btn-primary btn-sm" style="justify-content:center;" onclick="openAddPropertyModal()">ï¼ Add Property</button>
+        <button class="btn btn-secondary btn-sm" style="justify-content:center;" onclick="syncPropertiesFromHostfully()">ð Sync</button>
       </div>
       <div style="margin-top:auto;padding-top:12px;">
         <span class="prop-count" id="propCountBadge"></span>
       </div>
     </div>
     <div class="prop-main">
-      <div class="prop-showing" id="propShowing">Loading properties…</div>
+      <div class="prop-showing" id="propShowing">Loading propertiesâ¦</div>
       <div id="propList" class="prop-list"></div>
       <div id="propEmpty" class="prop-empty" style="display:none">
-        <div style="font-size:36px;margin-bottom:12px;">🏘</div>
+        <div style="font-size:36px;margin-bottom:12px;">ð</div>
         <div style="font-size:15px;font-weight:600;color:var(--accent2);margin-bottom:6px;">No properties found</div>
         <div style="font-size:12px;color:var(--text3);">Try adjusting your search or filters</div>
       </div>
@@ -1202,8 +1202,8 @@
 <div class="modal-overlay" id="addPropertyModal">
   <div class="modal" style="max-width:560px;">
     <div class="modal-header">
-      <h2 id="addPropModalTitle">＋ Add Property</h2>
-      <button class="modal-close" onclick="closeModal('addPropertyModal')">✕</button>
+      <h2 id="addPropModalTitle">ï¼ Add Property</h2>
+      <button class="modal-close" onclick="closeModal('addPropertyModal')">â</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="propEditApt">
@@ -1223,7 +1223,7 @@
         <div class="form-group">
           <label class="form-label">Owner</label>
           <select id="propFormOwner" class="form-input">
-            <option value="">Select owner…</option>
+            <option value="">Select ownerâ¦</option>
             <option>ERA LT</option>
             <option>Elkins LT</option>
             <option>Melrose Properties</option>
@@ -1262,30 +1262,30 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addPropertyModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveProperty()">💾 Save Property</button>
+      <button class="btn btn-primary" onclick="saveProperty()">ð¾ Save Property</button>
     </div>
   </div>
 </div>
 
-<!-- ═══ SETTINGS PAGE ═══ -->
+<!-- âââ SETTINGS PAGE âââ -->
 <div class="page" id="page-settings">
   <div class="sw">
     <h2>Settings</h2>
     <p class="si">Manage accounts, API keys, messaging, and app configuration.</p>
 
-    <!-- ── ACCOUNTS SECTION ── -->
+    <!-- ââ ACCOUNTS SECTION ââ -->
     <div class="settings-sec" id="settings-sec-accounts">
       <div class="sc">
         <h3>Admin Account</h3>
         <p class="scd">Full access. Master password required to change any credentials.</p>
-        <div class="sr"><div><div class="srl">Username</div><div class="srs">Fixed — <strong>Admin</strong></div></div></div>
+        <div class="sr"><div><div class="srl">Username</div><div class="srs">Fixed â <strong>Admin</strong></div></div></div>
         <div class="sr"><div><div class="srl">Password</div><div class="srs">Stored in Supabase</div></div><button onclick="openChpwFor('admin')" class="btn btn-secondary btn-sm">Change</button></div>
         <div class="sr"><div><div class="srl">Stay signed in</div><div class="srs">"Remember me" checkbox at login</div></div></div>
       </div>
       <div class="sc">
-        <h3>User Account — Willow</h3>
+        <h3>User Account â Willow</h3>
         <p class="scd">Standard access. Signs out after 60 min of inactivity.</p>
-        <div class="sr"><div><div class="srl">Username</div><div class="srs">Fixed — <strong>Willow</strong></div></div></div>
+        <div class="sr"><div><div class="srl">Username</div><div class="srs">Fixed â <strong>Willow</strong></div></div></div>
         <div class="sr"><div><div class="srl">Password</div><div class="srs">Stored in Supabase</div></div><button onclick="openChpwFor('user')" class="btn btn-secondary btn-sm">Change</button></div>
         <div class="sr"><div><div class="srl">Inactivity timeout</div></div><span style="background:#fdf3e8;color:#b86818;border:1px solid #eecfa0;border-radius:12px;padding:2px 10px;font-size:10px;font-weight:500;font-family:'DM Mono',monospace;">60 minutes</span></div>
       </div>
@@ -1296,10 +1296,10 @@
       </div>
     </div>
 
-    <!-- ── API KEYS SECTION ── -->
+    <!-- ââ API KEYS SECTION ââ -->
     <div class="settings-sec" id="settings-sec-api-keys" style="display:none">
       <div class="sc">
-        <h3>Anthropic — AI Assistant</h3>
+        <h3>Anthropic â AI Assistant</h3>
         <p class="scd">Used by TechTrack AI Repair Assistant and any AI features across PropDesk. Key is stored server-side.</p>
         <div id="main-api-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
         <div class="form-group" style="max-width:460px">
@@ -1317,7 +1317,7 @@
         </div>
       </div>
       <div class="sc">
-        <h3>Stripe — Payments</h3>
+        <h3>Stripe â Payments</h3>
         <p class="scd">Used by TechTrack billing (payment links) and any future payment features. Use a test key (sk_test_) for testing, live key (sk_live_) for production.</p>
         <div id="main-stripe-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
         <div class="form-group" style="max-width:460px">
@@ -1329,10 +1329,10 @@
       </div>
     </div>
 
-    <!-- ── MESSAGING SECTION ── -->
+    <!-- ââ MESSAGING SECTION ââ -->
     <div class="settings-sec" id="settings-sec-messaging" style="display:none">
       <div class="sc">
-        <h3>SMS — Flowroute</h3>
+        <h3>SMS â Flowroute</h3>
         <p class="scd">Used for SMS notifications across all modules (tech dispatch, booking confirmations, rent reminders). Credentials are stored in the server config.</p>
         <div id="main-sms-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:460px">
@@ -1345,7 +1345,7 @@
         <button class="btn btn-secondary" style="margin-left:8px" onclick="WPA_testSend('sms')">Send Test SMS</button>
       </div>
       <div class="sc">
-        <h3>WhatsApp — Meta Business</h3>
+        <h3>WhatsApp â Meta Business</h3>
         <p class="scd">Used for WhatsApp notifications via Meta Graph API. Get credentials from your Meta Business dashboard.</p>
         <div id="main-wa-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
         <div class="form-group" style="max-width:460px"><label>Phone Number ID</label><input type="text" id="main-wa-phone-id" placeholder="e.g. 1234567890123456" autocomplete="off"></div>
@@ -1355,7 +1355,7 @@
         <button class="btn btn-secondary" style="margin-left:8px" onclick="var el=document.getElementById('main-wa-token');el.type=el.type==='password'?'text':'password'">Show/Hide</button>
       </div>
       <div class="sc">
-        <h3>Email — SMTP</h3>
+        <h3>Email â SMTP</h3>
         <p class="scd">Used for email notifications (booking confirmations, rent reminders, maintenance updates). Verify your FROM domain has SPF/DKIM records.</p>
         <div id="main-email-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:460px">
@@ -1373,7 +1373,7 @@
       </div>
     </div>
 
-    <!-- ── THEME SECTION ── -->
+    <!-- ââ THEME SECTION ââ -->
     <div class="settings-sec" id="settings-sec-theme" style="display:none">
       <div class="sc">
         <h3>Theme</h3>
@@ -1385,7 +1385,7 @@
   </div>
 </div>
 
-<!-- ═══ PRICING MODAL ═══ -->
+<!-- âââ PRICING MODAL âââ -->
 <div class="modal-overlay" id="pxModalEl">
   <div class="modal" style="max-width:460px;">
     <div class="modal-header">
@@ -1428,8 +1428,8 @@
         </div>
       </div>
       <div class="pxsec" style="margin-bottom:0;">
-        <div class="pxsec-h" style="cursor:pointer;" onclick="(function(){var b=document.getElementById('pxRB'),a=document.getElementById('pxRA');var o=b.style.display!=='none';b.style.display=o?'none':'block';a.textContent=o?'▼':'▲';})()">
-          <span>Check-in &amp; Checkout Restrictions</span><span id="pxRA">▼</span>
+        <div class="pxsec-h" style="cursor:pointer;" onclick="(function(){var b=document.getElementById('pxRB'),a=document.getElementById('pxRA');var o=b.style.display!=='none';b.style.display=o?'none':'block';a.textContent=o?'â¼':'â²';})()">
+          <span>Check-in &amp; Checkout Restrictions</span><span id="pxRA">â¼</span>
         </div>
         <div id="pxRB" style="display:none;padding:12px 14px;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
@@ -1455,21 +1455,21 @@
   </div>
 </div>
 
-<!-- ═══ MESSAGES PAGE ═══ -->
+<!-- âââ MESSAGES PAGE âââ -->
 <div class="page" id="page-messages"></div>
 
-<!-- ═══ MESSAGE CENTER (Unified) ═══ -->
+<!-- âââ MESSAGE CENTER (Unified) âââ -->
 <div class="page" id="page-msg-center"></div>
 
-<!-- ═══ PIPELINE PAGE ═══ -->
+<!-- âââ PIPELINE PAGE âââ -->
 <div class="page" id="page-pipeline">
   <div id="pipeline-page"></div>
 </div>
 
-<!-- ═══ MTM / LONG-TERM MODULE ═══ -->
+<!-- âââ MTM / LONG-TERM MODULE âââ -->
 <div class="page" id="page-mtm-lt">
   <div class="mtm-dash-wrap">
-    <!-- ── Row 1: Top Stats ── -->
+    <!-- ââ Row 1: Top Stats ââ -->
     <div class="mtm-dash-top collapsible-mtm">
       <div class="mtm-dash-collection">
         <h3 class="mtm-dash-section-title">Collection Stats <span class="mtm-dash-period" id="mtmDashPeriod">Apr 2026</span></h3>
@@ -1520,7 +1520,7 @@
         </div>
       </div>
     </div>
-    <!-- ── Row 2: Action Lists ── -->
+    <!-- ââ Row 2: Action Lists ââ -->
     <div class="mtm-dash-bottom">
       <div class="mtm-dash-card mtm-dash-half">
         <h3 class="mtm-dash-section-title">Expiring Leases</h3>
@@ -1535,7 +1535,7 @@
   </div>
 </div>
 
-<!-- ═══ MTM/LT TENANTS SUB-PAGE ═══ -->
+<!-- âââ MTM/LT TENANTS SUB-PAGE âââ -->
 <div class="page" id="page-mtm-lt-tenants">
   <div class="tnt-layout">
     <!-- Left Sidebar: Tenant List -->
@@ -1584,16 +1584,16 @@
         <div class="tnt-profile-card">
           <div class="tnt-avatar-large" id="tntAvatar"></div>
           <div class="tnt-profile-info">
-            <div class="tnt-profile-name" id="tntName">—</div>
+            <div class="tnt-profile-name" id="tntName">â</div>
             <div class="tnt-profile-contact">
-              <div class="tnt-contact-row"><span class="tnt-contact-icon">&#x260E;</span> <span id="tntPhone">—</span></div>
-              <div class="tnt-contact-row"><span class="tnt-contact-icon">&#x2709;</span> <a href="#" id="tntEmail" class="tnt-email-link">—</a></div>
+              <div class="tnt-contact-row"><span class="tnt-contact-icon">&#x260E;</span> <span id="tntPhone">â</span></div>
+              <div class="tnt-contact-row"><span class="tnt-contact-icon">&#x2709;</span> <a href="#" id="tntEmail" class="tnt-email-link">â</a></div>
               <div class="tnt-contact-row" style="margin-top:6px"><button id="tntMsgBtn" onclick="msgTenantFromDetail()" style="padding:4px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent-bg);color:var(--accent2);font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">&#x1F4AC; Message</button></div>
             </div>
           </div>
           <div class="tnt-profile-meta">
             <div class="tnt-account-status"><span class="tnt-status-icon">&#x1F464;</span> Innago Account Status <span class="tnt-status-check" id="tntAcctStatus">&#x2705;</span></div>
-            <div class="tnt-tenant-since">Tenant Since<br><strong id="tntSince">—</strong></div>
+            <div class="tnt-tenant-since">Tenant Since<br><strong id="tntSince">â</strong></div>
           </div>
           <div class="tnt-profile-insurance">
             <div class="tnt-insurance-label">Insurance Status</div>
@@ -1605,15 +1605,15 @@
           <div class="tnt-info-block">
             <h4 class="tnt-info-title">Current Lease</h4>
             <div class="tnt-lease-summary">
-              <div class="tnt-lease-prop"><span class="tnt-lease-icon">&#x1F3E0;</span> <span id="tntLeaseProp">—</span></div>
+              <div class="tnt-lease-prop"><span class="tnt-lease-icon">&#x1F3E0;</span> <span id="tntLeaseProp">â</span></div>
               <div class="tnt-lease-rent-row">
                 <div class="tnt-lease-rent-label">Rent</div>
                 <div class="tnt-lease-rent-amount" id="tntLeaseRent">$0</div>
                 <div class="tnt-lease-rent-of" id="tntLeaseRentOf">of $0</div>
               </div>
               <div class="tnt-lease-dates">
-                <div>Start <strong id="tntLeaseStart">—</strong></div>
-                <div>End <strong id="tntLeaseEnd">—</strong></div>
+                <div>Start <strong id="tntLeaseStart">â</strong></div>
+                <div>End <strong id="tntLeaseEnd">â</strong></div>
               </div>
               <a href="#" class="tnt-view-lease-link" id="tntViewLeaseLink" onclick="viewTenantLease();return false;">View Lease</a>
             </div>
@@ -1647,7 +1647,7 @@
   </div>
 </div>
 
-<!-- ═══ MTM/LT LEASES & FILES SUB-PAGE ═══ -->
+<!-- âââ MTM/LT LEASES & FILES SUB-PAGE âââ -->
 <div class="page" id="page-mtm-lt-leases">
   <div class="lf-page">
     <!-- Tabs: LEASES / TEMPLATES -->
@@ -1805,7 +1805,7 @@
   </div>
 </div>
 
-<!-- ═══ MTM/LT RENT SUB-PAGE ═══ -->
+<!-- âââ MTM/LT RENT SUB-PAGE âââ -->
 <div class="page" id="page-mtm-lt-rent">
   <div class="mtm-page-wrap">
     <div class="mtm-toolbar">
@@ -1845,7 +1845,7 @@
   </div>
 </div>
 
-<!-- ═══ MTM/LT MESSAGES SUB-PAGE ═══ -->
+<!-- âââ MTM/LT MESSAGES SUB-PAGE âââ -->
 <div class="page" id="page-mtm-lt-messages">
   <div class="mtm-page-wrap">
     <div class="mtm-toolbar">
@@ -1870,7 +1870,7 @@
   </div>
 </div>
 
-<!-- ═══ MTM/LT APPLICATIONS SUB-PAGE ═══ -->
+<!-- âââ MTM/LT APPLICATIONS SUB-PAGE âââ -->
 <div class="page" id="page-mtm-lt-applications">
   <div class="mtm-page-wrap">
     <div class="mtm-toolbar">
@@ -1914,8 +1914,8 @@
   </div>
 </div>
 
-<!-- ═══ MTM/LT EXPENSES SUB-PAGE ═══ -->
-<!-- ═══ EXPENSES PAGE (top-level module) ═══ -->
+<!-- âââ MTM/LT EXPENSES SUB-PAGE âââ -->
+<!-- âââ EXPENSES PAGE (top-level module) âââ -->
 <div class="page" id="page-expenses">
   <div class="mtm-page-wrap">
     <!-- Toolbar -->
@@ -2010,7 +2010,7 @@
   </div>
 </div>
 
-<!-- ═══ MTM/LT MAINTENANCE SUB-PAGE ═══ -->
+<!-- âââ MTM/LT MAINTENANCE SUB-PAGE âââ -->
 <div class="page" id="page-mtm-lt-maintenance">
   <div class="mtm-page-wrap">
     <div class="mtm-toolbar">
@@ -2053,11 +2053,11 @@
   </div>
 </div>
 
-<!-- ═══ TECHTRACK MODULE ═══ -->
+<!-- âââ TECHTRACK MODULE âââ -->
 <div class="page" id="page-techtrack">
   <div class="ft-wrap" id="ft-app">
     <!-- FieldTrack embedded content -->
-    <div id="ft-save-toast" style="display:none;margin:8px 10px 0;padding:5px 10px;background:rgba(76,175,130,.12);border:1px solid rgba(76,175,130,.3);border-radius:6px;font-size:11px;color:var(--success);text-align:center">Saved ✓</div>
+    <div id="ft-save-toast" style="display:none;margin:8px 10px 0;padding:5px 10px;background:rgba(76,175,130,.12);border:1px solid rgba(76,175,130,.3);border-radius:6px;font-size:11px;color:var(--success);text-align:center">Saved â</div>
 <!-- TECH: MY JOBS -->
     <div class="ft-page" id="ft-page-myjobs">
       <div class="page-header">
@@ -2065,7 +2065,7 @@
         <button class="btn btn-primary" onclick="openNewJob()">+ New Job</button>
       </div>
       <div class="search-bar">
-        <span class="ico">🔍</span>
+        <span class="ico">ð</span>
         <input type="text" id="myjobs-search" placeholder="Search by address, unit, description, store..." oninput="renderMyJobs()">
       </div>
       <div id="myjobs-list"></div>
@@ -2075,16 +2075,16 @@
     <div class="ft-page" id="ft-page-dashboard">
       <div class="page-header">
         <div class="page-title">Dashboard <small>This week at a glance</small></div>
-        <button class="btn btn-secondary btn-sm" onclick="FT_showPage('jobs')">All Jobs →</button>
+        <button class="btn btn-secondary btn-sm" onclick="FT_showPage('jobs')">All Jobs â</button>
       </div>
       <div class="grid-4" id="dash-stats" style="margin-bottom:16px"></div>
       <div class="grid-2">
-        <div class="card"><div class="card-title">📅 Recent Jobs</div><div id="dash-recent"></div></div>
-        <div class="card"><div class="card-title">🏢 Week by Property</div><div id="dash-props"></div></div>
+        <div class="card"><div class="card-title">ð Recent Jobs</div><div id="dash-recent"></div></div>
+        <div class="card"><div class="card-title">ð¢ Week by Property</div><div id="dash-props"></div></div>
       </div>
     </div>
 
-    <!-- ADMIN: ALL JOBS — SPLIT PANEL -->
+    <!-- ADMIN: ALL JOBS â SPLIT PANEL -->
     <div class="ft-page" id="ft-page-jobs">
       <div class="wo-split">
         <!-- LEFT: Job list -->
@@ -2095,7 +2095,7 @@
               <button class="btn btn-primary btn-sm" onclick="openAssignJob()" style="border-radius:10px">+ New</button>
             </div>
             <div class="search-bar" style="margin-bottom:8px">
-              <span class="ico">🔍</span>
+              <span class="ico">ð</span>
               <input type="text" id="jobs-search" placeholder="Search..." oninput="renderAllJobs()">
             </div>
             <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
@@ -2108,7 +2108,7 @@
         <!-- RIGHT: Job detail -->
         <div class="wo-detail-panel" id="wo-detail-panel">
           <div class="wo-detail-empty" id="wo-detail-empty">
-            <div style="font-size:40px;margin-bottom:12px">📋</div>
+            <div style="font-size:40px;margin-bottom:12px">ð</div>
             <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px">Select a Work Order</div>
             <div style="font-size:13px;color:var(--muted)">Click a job on the left to view details</div>
           </div>
@@ -2129,7 +2129,7 @@
           </div>
           <div id="custom-range" style="display:none" class="flex">
             <input type="date" id="rep-from" style="width:145px">
-            <span style="color:var(--muted)">→</span>
+            <span style="color:var(--muted)">â</span>
             <input type="date" id="rep-to" style="width:145px">
           </div>
           <div class="ml-auto flex flex-wrap" style="gap:8px">
@@ -2138,7 +2138,7 @@
             <button class="btn btn-primary btn-sm" onclick="generateReport()">Generate</button>
           </div>
         </div>
-        <div id="report-output"><div class="empty-state"><span class="emoji">📊</span>Select a period and click Generate</div></div>
+        <div id="report-output"><div class="empty-state"><span class="emoji">ð</span>Select a period and click Generate</div></div>
       </div>
     </div>
 
@@ -2148,9 +2148,9 @@
 
       <!-- Storage info -->
       <div class="data-section">
-        <h3>📦 Storage Status</h3>
-        <p>Text data (jobs, hours, expenses, etc.) → <strong>browser localStorage</strong> (~5MB limit, you'll rarely use more than 500KB).<br>
-        Photos → <strong>IndexedDB</strong> (separate, much larger limit ~50–500MB).<br>
+        <h3>ð¦ Storage Status</h3>
+        <p>Text data (jobs, hours, expenses, etc.) â <strong>browser localStorage</strong> (~5MB limit, you'll rarely use more than 500KB).<br>
+        Photos â <strong>IndexedDB</strong> (separate, much larger limit ~50â500MB).<br>
         Data is stored on <strong>this device, this browser only</strong>. Export regularly!</p>
         <div class="storage-bar-wrap" style="margin:0 0 10px">
           <div class="storage-bar-label"><span id="storage-label2">Calculating...</span><span id="storage-photo2"></span></div>
@@ -2161,13 +2161,13 @@
 
       <!-- Export / Import -->
       <div class="data-section">
-        <h3>💾 Export &amp; Import</h3>
-        <p>Export saves all records to a <strong>.json</strong> file (photos not included — they stay in IndexedDB). Import restores from that file. <strong>Import requires your admin password.</strong></p>
-        <button class="btn btn-primary" onclick="exportJSON()">💾 Export JSON Backup</button>
-        <button class="btn btn-success" onclick="exportExcel()">📊 Export Excel</button>
+        <h3>ð¾ Export &amp; Import</h3>
+        <p>Export saves all records to a <strong>.json</strong> file (photos not included â they stay in IndexedDB). Import restores from that file. <strong>Import requires your admin password.</strong></p>
+        <button class="btn btn-primary" onclick="exportJSON()">ð¾ Export JSON Backup</button>
+        <button class="btn btn-success" onclick="exportExcel()">ð Export Excel</button>
         <div style="margin-top:12px">
           <div class="form-group" style="max-width:280px"><label>Admin Password (for import)</label><input type="password" id="import-pw" placeholder="Enter admin password"></div>
-          <button class="btn btn-secondary" onclick="triggerImport()">📂 Import JSON File</button>
+          <button class="btn btn-secondary" onclick="triggerImport()">ð Import JSON File</button>
           <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
         </div>
       </div>
@@ -2182,12 +2182,12 @@
 
       <!-- Smart Delete -->
       <div class="data-section">
-        <h3>🗑 Selective Delete</h3>
-        <p>Delete job records only — <strong>technicians, properties, and owners are never deleted</strong> here. Each action requires your admin password.</p>
+        <h3>ð Selective Delete</h3>
+        <p>Delete job records only â <strong>technicians, properties, and owners are never deleted</strong> here. Each action requires your admin password.</p>
 
         <!-- By date range -->
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
-          <div style="font-weight:600;margin-bottom:8px;font-size:14px">📅 Delete by Date Range</div>
+          <div style="font-weight:600;margin-bottom:8px;font-size:14px">ð Delete by Date Range</div>
           <div class="grid-2" style="gap:10px;margin-bottom:8px;max-width:420px">
             <div class="form-group" style="margin-bottom:0"><label>From</label><input type="date" id="del-from"></div>
             <div class="form-group" style="margin-bottom:0"><label>To</label><input type="date" id="del-to"></div>
@@ -2198,7 +2198,7 @@
 
         <!-- By tech -->
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
-          <div style="font-weight:600;margin-bottom:8px;font-size:14px">👷 Delete by Technician</div>
+          <div style="font-weight:600;margin-bottom:8px;font-size:14px">ð· Delete by Technician</div>
           <div class="form-group" style="max-width:300px;margin-bottom:8px"><label>Technician</label><select id="del-tech-sel"><option value="">Select...</option></select></div>
           <div class="form-group" style="max-width:240px;margin-bottom:8px"><label>Admin Password</label><input type="password" id="del-tech-pw"></div>
           <button class="btn btn-danger btn-sm" onclick="deleteByTech()">Delete Their Jobs</button>
@@ -2206,7 +2206,7 @@
 
         <!-- By property -->
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px">
-          <div style="font-weight:600;margin-bottom:8px;font-size:14px">🏢 Delete by Property</div>
+          <div style="font-weight:600;margin-bottom:8px;font-size:14px">ð¢ Delete by Property</div>
           <div class="form-group" style="max-width:360px;margin-bottom:8px"><label>Property</label><select id="del-prop-sel"><option value="">Select...</option></select></div>
           <div class="form-group" style="max-width:240px;margin-bottom:8px"><label>Admin Password</label><input type="password" id="del-prop-pw"></div>
           <button class="btn btn-danger btn-sm" onclick="deleteByProperty()">Delete Property Jobs</button>
@@ -2214,7 +2214,7 @@
 
         <!-- By owner -->
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
-          <div style="font-weight:600;margin-bottom:8px;font-size:14px">👤 Delete by Owner</div>
+          <div style="font-weight:600;margin-bottom:8px;font-size:14px">ð¤ Delete by Owner</div>
           <div class="form-group" style="max-width:300px;margin-bottom:8px"><label>Owner</label><select id="del-owner-sel"><option value="">Select...</option></select></div>
           <div class="form-group" style="max-width:240px;margin-bottom:8px"><label>Admin Password</label><input type="password" id="del-owner-pw"></div>
           <button class="btn btn-danger btn-sm" onclick="deleteByOwner()">Delete Owner's Jobs</button>
@@ -2223,10 +2223,10 @@
 
       <!-- Nuclear option -->
       <div class="data-section danger-zone">
-        <h3>💥 Delete Everything</h3>
+        <h3>ð¥ Delete Everything</h3>
         <p>Permanently deletes <strong>all data</strong> including jobs, hours, expenses, properties, owners, users, and photos. Admin account is recreated with default password. <strong>Cannot be undone.</strong></p>
         <div class="form-group" style="max-width:280px"><label>Admin Password (required)</label><input type="password" id="clear-pw" placeholder="Enter admin password"></div>
-        <button class="btn btn-danger" onclick="clearAllData()">💥 Delete All Data</button>
+        <button class="btn btn-danger" onclick="clearAllData()">ð¥ Delete All Data</button>
       </div>
     </div>
 
@@ -2299,7 +2299,7 @@
     <div class="ft-page" id="ft-page-requests">
       <div class="page-header">
         <div class="page-title">Service Requests <small>Incoming bookings from clients</small></div>
-        <a href="book.html" target="_blank" class="btn btn-secondary btn-sm">🔗 Booking Page</a>
+        <a href="book.html" target="_blank" class="btn btn-secondary btn-sm">ð Booking Page</a>
       </div>
       <div id="req-list"></div>
     </div>
@@ -2308,7 +2308,7 @@
     <div class="ft-page" id="ft-page-incoming">
       <div class="page-header">
         <div class="page-title">Incoming Requests <small>From Willow Resident App &amp; Guests</small></div>
-        <button class="btn btn-secondary btn-sm" onclick="loadIncomingRequests()">↻ Refresh</button>
+        <button class="btn btn-secondary btn-sm" onclick="loadIncomingRequests()">â» Refresh</button>
       </div>
       <div id="incoming-tabs" style="display:flex;gap:8px;margin-bottom:16px">
         <button class="btn btn-primary btn-sm" id="inc-tab-new" onclick="filterIncoming('new')">New</button>
@@ -2343,17 +2343,17 @@
   </div>
 </div>
 
-<!-- ═══ PARKING MODULE ═══ -->
+<!-- âââ PARKING MODULE âââ -->
 <div class="page" id="page-parking">
   <div class="dash-wrap">
     <!-- Parking Admin Dashboard -->
     <div class="dash-header">
       <div>
-        <div class="dash-title">🚗 Parking Manager</div>
+        <div class="dash-title">ð Parking Manager</div>
         <div class="dash-synced">Guest portal: <a href="https://parking.willowpa.com" target="_blank" style="color:var(--accent)">parking.willowpa.com</a></div>
       </div>
       <div class="dash-header-actions">
-        <button onclick="WPA_pkRefresh()" class="btn-subtle">🔄 Refresh</button>
+        <button onclick="WPA_pkRefresh()" class="btn-subtle">ð Refresh</button>
       </div>
     </div>
 
@@ -2452,7 +2452,7 @@
     <div id="pkReceiptsSection" style="display:none">
       <div class="dash-section-label">Receipt Lookup</div>
       <div class="dash-panel">
-        <h3>🧾 Find Receipt</h3>
+        <h3>ð§¾ Find Receipt</h3>
         <div style="display:flex;gap:10px;margin-bottom:16px">
           <input type="text" id="pkReceiptSearch" class="pk-admin-input" placeholder="Search by booking ID, plate, or unit" style="flex:1">
           <button onclick="WPA_pkSearchReceipt()" class="btn-backup">Search</button>
@@ -2463,18 +2463,18 @@
   </div>
 </div>
 
-<!-- ═══ MAILROOM MODULE ═══ -->
+<!-- âââ MAILROOM MODULE âââ -->
 <div class="page" id="page-mailroom">
   <div class="dash-wrap">
     <!-- Delivery Admin Header -->
     <div class="dash-header">
       <div>
-        <div class="dash-title">📦 Delivery / Mailroom</div>
+        <div class="dash-title">ð¦ Delivery / Mailroom</div>
         <div class="dash-synced">Kiosk: <a href="delivery/kiosk.html" target="_blank" style="color:var(--accent)">delivery.willowpa.com</a></div>
       </div>
       <div class="dash-header-actions">
-        <button onclick="WPA_dlRefresh()" class="btn-subtle">🔄 Refresh</button>
-        <button onclick="WPA_dlSendReminder()" class="btn-subtle" style="color:var(--orange)">📱 Send Reminders</button>
+        <button onclick="WPA_dlRefresh()" class="btn-subtle">ð Refresh</button>
+        <button onclick="WPA_dlSendReminder()" class="btn-subtle" style="color:var(--orange)">ð± Send Reminders</button>
       </div>
     </div>
 
@@ -2489,7 +2489,7 @@
       </div>
     </div>
 
-    <!-- ══ Packages Section ══ -->
+    <!-- ââ Packages Section ââ -->
     <div id="dlPackagesSection" style="display:none">
       <div class="dash-section-label">Packages</div>
 
@@ -2529,11 +2529,11 @@
         </table>
       </div>
       <div style="margin-top:10px;display:flex;gap:10px">
-        <button onclick="WPA_dlBulkDeletePkg()" class="btn-subtle" style="color:var(--red);font-size:11px">🗑 Delete Selected</button>
+        <button onclick="WPA_dlBulkDeletePkg()" class="btn-subtle" style="color:var(--red);font-size:11px">ð Delete Selected</button>
       </div>
     </div>
 
-    <!-- ══ Tenants Section ══ -->
+    <!-- ââ Tenants Section ââ -->
     <div id="dlTenantsSection" style="display:none">
       <div class="dash-section-label">Registered Tenants</div>
 
@@ -2554,11 +2554,11 @@
         </table>
       </div>
       <div style="margin-top:10px;display:flex;gap:10px">
-        <button onclick="WPA_dlBulkDeleteTenants()" class="btn-subtle" style="color:var(--red);font-size:11px">🗑 Delete Selected</button>
+        <button onclick="WPA_dlBulkDeleteTenants()" class="btn-subtle" style="color:var(--red);font-size:11px">ð Delete Selected</button>
       </div>
     </div>
 
-    <!-- ══ Reports Section ══ -->
+    <!-- ââ Reports Section ââ -->
     <div id="dlReportsSection" style="display:none">
       <div class="dash-section-label">Reports</div>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
@@ -2577,7 +2577,7 @@
       </div>
     </div>
 
-    <!-- ══ Kiosk Settings Section ══ -->
+    <!-- ââ Kiosk Settings Section ââ -->
     <div id="dlKioskSection" style="display:none">
       <div class="dash-section-label">Kiosk Settings</div>
 
@@ -2601,13 +2601,13 @@
 </div>
 
 <!-- FieldTrack Modals -->
-<!-- ══ MODALS ══════════════════════════════════════════════════════════ -->
+<!-- ââ MODALS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ -->
 
 <!-- New Job -->
 <div class="modal-overlay" id="ft-modal-newjob">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-newjob')">✕</button>
-    <div class="modal-title">🔨 Start New Job</div>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-newjob')">â</button>
+    <div class="modal-title">ð¨ Start New Job</div>
     <div class="form-group"><label>Date</label><input type="date" id="nj-date"></div>
     <div class="form-group">
       <label>Property / Address</label>
@@ -2630,8 +2630,8 @@
 <!-- Assign Job (admin) -->
 <div class="modal-overlay" id="ft-modal-assignjob">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-assignjob')">✕</button>
-    <div class="modal-title">📌 Assign Job to Technician</div>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-assignjob')">â</button>
+    <div class="modal-title">ð Assign Job to Technician</div>
     <div class="form-group"><label>Job Title / Header *</label><input id="aj-title" placeholder="e.g. Fix kitchen faucet, HVAC inspection..."></div>
     <div class="grid-2">
       <div class="form-group"><label>Date</label><input type="date" id="aj-date"></div>
@@ -2643,7 +2643,7 @@
         </select>
       </div>
     </div>
-    <div class="form-group"><label>Technician <span style="font-size:11px;color:var(--muted)">(optional — can assign later)</span></label><select id="aj-tech"><option value="">Unassigned</option></select></div>
+    <div class="form-group"><label>Technician <span style="font-size:11px;color:var(--muted)">(optional â can assign later)</span></label><select id="aj-tech"><option value="">Unassigned</option></select></div>
     <div class="form-group">
       <label>Property / Address *</label>
       <div class="autocomplete-wrap">
@@ -2710,7 +2710,7 @@
 <!-- Reassign Job -->
 <div class="modal-overlay" id="ft-modal-reassign">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-reassign')">✕</button>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-reassign')">â</button>
     <div class="modal-title">Reassign Job</div>
     <input type="hidden" id="ra-job-id">
     <div class="form-group"><label>Assign To</label><select id="ra-tech"><option value="">Select technician...</option></select></div>
@@ -2724,7 +2724,7 @@
 <!-- Technician -->
 <div class="modal-overlay" id="ft-modal-tech">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-tech')">✕</button>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-tech')">â</button>
     <div class="modal-title" id="ft-modal-tech-title">Add Technician</div>
     <input type="hidden" id="tech-edit-id">
     <div class="grid-2">
@@ -2747,7 +2747,7 @@
 <!-- Owner -->
 <div class="modal-overlay" id="ft-modal-owner">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-owner')">✕</button>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-owner')">â</button>
     <div class="modal-title" id="ft-modal-owner-title">Add Owner</div>
     <input type="hidden" id="owner-edit-id">
     <!-- PropDesk Link Section -->
@@ -2755,7 +2755,7 @@
       <div style="margin-bottom:8px;"><strong style="font-size:13px;color:#9e9485;">PropDesk Link</strong></div>
       <div class="form-group" style="margin:0;">
         <select id="owner-pd-link" onchange="FT_onOwnerLink(this.value)" style="width:100%;">
-          <option value="">— Not linked (standalone) —</option>
+          <option value="">â Not linked (standalone) â</option>
         </select>
       </div>
       <div id="owner-link-badge" style="display:none;font-size:12px;color:#256645;margin-top:6px;"></div>
@@ -2776,7 +2776,7 @@
 <!-- Property -->
 <div class="modal-overlay" id="ft-modal-prop">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-prop')">✕</button>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-prop')">â</button>
     <div class="modal-title" id="ft-modal-prop-title">Add Property</div>
     <input type="hidden" id="prop-edit-id">
     <!-- PropDesk Link Section -->
@@ -2790,7 +2790,7 @@
       <div id="prop-link-row">
         <div class="form-group" style="margin:0;">
           <select id="prop-pd-link" onchange="FT_onPropLink(this.value)" style="width:100%;">
-            <option value="">— Not linked (standalone) —</option>
+            <option value="">â Not linked (standalone) â</option>
           </select>
         </div>
       </div>
@@ -2817,7 +2817,7 @@
 <!-- Change PW -->
 <div class="modal-overlay" id="ft-modal-pw">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-pw')">✕</button>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-pw')">â</button>
     <div class="modal-title" id="ft-modal-pw-title">Change Password</div>
     <input type="hidden" id="pw-user-id">
     <div class="form-group"><label>New Password / PIN</label><input type="text" id="pw-new"></div>
@@ -2832,8 +2832,8 @@
 <!-- Share Link Modal -->
 <div class="modal-overlay" id="ft-modal-share">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-share')">✕</button>
-    <div class="modal-title">🔗 Generate Client Share Link</div>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-share')">â</button>
+    <div class="modal-title">ð Generate Client Share Link</div>
     <input type="hidden" id="sm-job-id">
     <div style="background:var(--surface2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--muted);margin-bottom:14px" id="sm-job-info"></div>
     <div class="grid-2">
@@ -2863,8 +2863,8 @@
 <!-- Link Request to Job Modal -->
 <div class="modal-overlay" id="ft-modal-link-request">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-link-request')">✕</button>
-    <div class="modal-title">🔗 Link Request to Job</div>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-link-request')">â</button>
+    <div class="modal-title">ð Link Request to Job</div>
     <input type="hidden" id="lr-req-idx">
     <div style="background:rgba(196,127,0,.08);border:1px solid rgba(196,127,0,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--accent);margin-bottom:14px" id="lr-block-display"></div>
     <div class="form-group">
@@ -2887,11 +2887,11 @@
   </div>
 </div>
 
-<!-- Incoming Request → WO Modal -->
+<!-- Incoming Request â WO Modal -->
 <div class="modal-overlay" id="ft-modal-incoming-link">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-incoming-link')">✕</button>
-    <div class="modal-title">🔗 Create Work Order from Request</div>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-incoming-link')">â</button>
+    <div class="modal-title">ð Create Work Order from Request</div>
     <input type="hidden" id="il-req-id">
     <div id="il-req-summary" style="background:rgba(196,127,0,.08);border:1px solid rgba(196,127,0,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--accent);margin-bottom:14px"></div>
     <div class="form-group">
@@ -2951,7 +2951,7 @@
 <!-- Appliance Modal -->
 <div class="modal-overlay" id="ft-modal-appliance">
   <div class="modal">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-appliance')">✕</button>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-appliance')">â</button>
     <div class="modal-title" id="ft-modal-appliance-title">Add Appliance</div>
     <input type="hidden" id="appl-edit-idx">
     <input type="hidden" id="appl-prop-id">
@@ -2988,11 +2988,11 @@
 <!-- Close Job Modal -->
 <div class="modal-overlay" id="ft-modal-closejob">
   <div class="modal-content" style="max-width:540px">
-    <button class="modal-close" onclick="FT_closeModal('ft-modal-closejob')">✕</button>
+    <button class="modal-close" onclick="FT_closeModal('ft-modal-closejob')">â</button>
     <div class="modal-title">Close Job & Email Client</div>
     <input type="hidden" id="cj-job-id">
     <div class="form-group"><label>Client Email</label><input type="email" id="cj-email" placeholder="client@example.com"></div>
-    <div class="form-group"><label>Email Subject</label><input type="text" id="cj-subject" placeholder="Work Order — Job Complete"></div>
+    <div class="form-group"><label>Email Subject</label><input type="text" id="cj-subject" placeholder="Work Order â Job Complete"></div>
     <div class="form-group"><label>Job Summary (editable)</label><textarea id="cj-summary" rows="10" style="font-family:var(--fm);font-size:12px;line-height:1.6"></textarea></div>
     <div class="modal-footer" style="gap:8px;flex-wrap:wrap">
       <button class="btn btn-secondary" onclick="FT_closeModal('ft-modal-closejob')">Cancel</button>
@@ -3004,12 +3004,12 @@
 
 <!-- Lightbox -->
 <div id="ft-lightbox">
-  <button id="ft-lightbox-close" onclick="FT_closeLightbox()">✕ Close</button>
+  <button id="ft-lightbox-close" onclick="FT_closeLightbox()">â Close</button>
   <img id="ft-lightbox-img" src="" alt="">
   <div id="ft-lightbox-label"></div>
 </div>
 
-<!-- ═══ UNIFIED MESSAGING MODAL (Pipeline / Booking) ═══ -->
+<!-- âââ UNIFIED MESSAGING MODAL (Pipeline / Booking) âââ -->
 <div class="msg-overlay" id="msgOverlay" style="display:none" onclick="if(event.target===this)closeMsgModal()">
   <div class="msg-box">
     <div class="msg-box-header">
@@ -3043,9 +3043,10 @@
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
 <script src="js/inbox.js"></script>
+  <script src="js/client-messages.js"></script>
 <script src="js/pipeline.js"></script>
 
-<!-- ══ GLOBAL Drill-Down & Invoice Panels (outside all pages) ══ -->
+<!-- ââ GLOBAL Drill-Down & Invoice Panels (outside all pages) ââ -->
 <div class="dd-overlay" id="ddOverlay" onclick="panelBack()"></div>
 <div class="dd-panel" id="ddPanel">
   <div class="dd-header">
@@ -3085,31 +3086,31 @@
   <div class="inv-body" id="invBody"></div>
 </div>
 
-<!-- ═══ MOBILE APP SHELL ═══ -->
+<!-- âââ MOBILE APP SHELL âââ -->
 <div id="mobApp" style="display:none;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);">
   <div class="mob-top-bar">
     <div class="mob-logo">Willow</div>
     <div id="mob-top-title">Home</div>
-    <div class="mob-top-right"><span id="mobLiveStatus" class="mob-live-dot">●</span></div>
+    <div class="mob-top-right"><span id="mobLiveStatus" class="mob-live-dot">â</span></div>
   </div>
   <div id="mob-content" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;">
     <div class="mob-page" id="mob-home"><div id="mob-home-content"></div></div>
     <div class="mob-page" id="mob-messages"><div id="mob-messages-content"></div></div>
     <div class="mob-page" id="mob-calendar"><div id="mob-calendar-content"></div></div>
     <div class="mob-page" id="mob-menu"><div id="mob-menu-content"></div></div>
-    <div class="mob-page" id="mob-pipeline"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">← Menu</button><span>Pipeline</span></div><div id="mob-pipeline-content"></div></div>
-    <div class="mob-page" id="mob-units"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">← Menu</button><span>Units</span></div><div id="mob-units-content"></div></div>
-    <div class="mob-page" id="mob-tasks"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">← Menu</button><span>Work Orders</span></div><div id="mob-tasks-content"></div></div>
+    <div class="mob-page" id="mob-pipeline"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">â Menu</button><span>Pipeline</span></div><div id="mob-pipeline-content"></div></div>
+    <div class="mob-page" id="mob-units"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">â Menu</button><span>Units</span></div><div id="mob-units-content"></div></div>
+    <div class="mob-page" id="mob-tasks"><div class="mob-page-hdr"><button class="mob-back" onclick="WILLOW_MOBILE.navigate('menu')">â Menu</button><span>Work Orders</span></div><div id="mob-tasks-content"></div></div>
     <div class="mob-page" id="mob-thread"></div>
   </div>
   <!-- Bottom sheet overlay -->
   <div id="mob-sheet" style="display:none;" onclick="if(event.target===this)WILLOW_MOBILE.closeSheet()"></div>
   <!-- Bottom nav -->
   <nav class="mob-nav">
-    <button class="mob-nav-btn active" data-page="home" onclick="WILLOW_MOBILE.navigate('home')"><span class="mob-nav-icon">🏠</span><span class="mob-nav-lbl">Home</span></button>
-    <button class="mob-nav-btn" data-page="messages" onclick="WILLOW_MOBILE.navigate('messages')"><span class="mob-nav-icon">💬</span><span class="mob-nav-lbl">Messages</span></button>
-    <button class="mob-nav-btn" data-page="calendar" onclick="WILLOW_MOBILE.navigate('calendar')"><span class="mob-nav-icon">📅</span><span class="mob-nav-lbl">Calendar</span></button>
-    <button class="mob-nav-btn" data-page="menu" onclick="WILLOW_MOBILE.navigate('menu')"><span class="mob-nav-icon">☰</span><span class="mob-nav-lbl">Menu</span></button>
+    <button class="mob-nav-btn active" data-page="home" onclick="WILLOW_MOBILE.navigate('home')"><span class="mob-nav-icon">ð </span><span class="mob-nav-lbl">Home</span></button>
+    <button class="mob-nav-btn" data-page="messages" onclick="WILLOW_MOBILE.navigate('messages')"><span class="mob-nav-icon">ð¬</span><span class="mob-nav-lbl">Messages</span></button>
+    <button class="mob-nav-btn" data-page="calendar" onclick="WILLOW_MOBILE.navigate('calendar')"><span class="mob-nav-icon">ð</span><span class="mob-nav-lbl">Calendar</span></button>
+    <button class="mob-nav-btn" data-page="menu" onclick="WILLOW_MOBILE.navigate('menu')"><span class="mob-nav-icon">â°</span><span class="mob-nav-lbl">Menu</span></button>
   </nav>
 </div>
 
@@ -3121,7 +3122,8 @@ if('serviceWorker' in navigator){
       if(r.waiting){ r.waiting.postMessage({type:'SKIP_WAITING'}); }
       r.addEventListener('updatefound', function(){
         var nw = r.installing;
-        if(nw) nw.addEventListener('statechange', function(){
+        if(nw) nw.ad
+          dEventListener('statechange', function(){
           if(nw.state === 'activated'){ window.location.reload(); }
         });
       });
