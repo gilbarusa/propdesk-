@@ -31,114 +31,7 @@
         .order('created_at', { ascending: false });
       if (res.error) { console.error('Client fetch error:', res.error); return; }
       var data = res.data || [];
-
-      // Group by RESIDENT (single ongoing chat), not by thread_id
-      var resMap = {};
-      data.forEach(function(m) {
-        var key = residentKey(m);
-        if (!resMap[key]) {
-          resMap[key] = {
-            id: 'ca-' + key.replace(/[^a-z0-9]/g, '_'),
-            _residentKey: key,
-            _allThreadIds: [],
-            from: m.resident_name || 'Resident',
-            unit: m.resident_unit || '',
-            _email: m.resident_email || '',
-            _phone: m.resident_phone || '',
-            property: m.property || '',
-            date: m.created_at,
-            subject: m.subject || 'Message',
-            body: m.body,
-            unread: false,
-            _unreadCount: 0,
-            source: 'client',
-            _messages: []
-          };
-        }
-        var entry = resMap[key];
-        entry._messages.push(m);
-
-        // Track all thread_ids this resident has
-        if (m.thread_id && entry._allThreadIds.indexOf(m.thread_id) === -1) {
-          entry._allThreadIds.push(m.thread_id);
-        }
-
-        // Count unread resident messages
-        if (!m.read && m.sender_type === 'resident') {
-          entry.unread = true;
-          entry._unreadCount++;
-        }
-
-        // Use the latest message as preview
-        if (new Date(m.created_at) > new Date(entry.date)) {
-          entry.date = m.created_at;
-          entry.body = m.body;
-          entry.subject = m.subject || entry.subject;
-        }
-      });
-
-      window._liveClientMsgs = Object.values(resMap);
-    } catch(e) {
-      console.error('Client messages load failed:', e);
-    }
-  };
-
-  // -- Wrap _getAllCenterMessages to replace seed data with live Supabase data --
-  var _origGetAll = window._getAllCenterMessages;
-  window._getAllCenterMessages = function() {
-    var msgs = _origGetAll();
-    // Remove hardcoded seed client messages
-    var nonClient = msgs.filter(function(m) { return m.source !== 'client'; });
-    // Add live Supabase client messages
-    if (window._liveClientMsgs) {
-      window._liveClientMsgs.forEach(function(m) {
-        nonClient.push(Object.assign({}, m));
-      });
-    }
-    nonClient.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
-    return nonClient;
-  };
-
-  // -- Send management reply to client_messages --
-  window.sendClientReply = async function(msgId) {
-    var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
-    var body = ta ? ta.value.trim() : '';
-    if (!body) { toast('Please type a reply'); return; }
-
-    var msg = (window._liveClientMsgs || []).find(function(m) { return m.id === msgId; });
-    if (!msg) { toast('Message not found', 'error'); return; }
-
-    // Use the most recent thread_id for the reply
-    var latestThread = msg._allThreadIds.length > 0
-      ? msg._allThreadIds[msg._allThreadIds.length - 1]
-      : msg._residentKey;
-
-    try {
-      var res = await sb.from('client_messages').insert({
-        thread_id: latestThread,
-        resident_name: msg.from,
-        resident_unit: msg.unit || '',
-        resident_email: msg._email || '',
-        resident_phone: msg._phone || '',
-        subject: msg.subject,
-        body: body,
-        sender_type: 'management',
-        read: false,
-        property: msg.property || 'Chelbourne'
-      }).select();
-
-      if (res.error) {
-        console.error('Reply error:', res.error);
-        toast('Failed to send reply', 'error');
-        return;
-      }
-      toast('Reply sent!');
-      await window._refreshClientMsgs();
-      // Reopen the detail to show updated conversation
-      var refreshedMsg = (window._liveClientMsgs || []).find(function(m) { return m.id === msgId; });
-      if (refreshedMsg) {
-        renderMessageCenter();
-        setTimeout(function() { openMsgCenterDetail(msgId); }, 100);
+CenterDetail(msgId); }, 100);
       } else {
         renderMessageCenter();
       }
@@ -164,6 +57,222 @@
     }
     return '';
   }
+
+  // -- AI Proxy URL (reuse existing FieldTrack proxy with Anthropic key) --
+  var AI_PROXY = 'https://tech.willowpa.com/proxy.php';
+
+  // -- Build system prompt from WILLOW_KB for AI suggestions --
+  function buildAISystemPrompt() {
+    var kb = (typeof WILLOW_KB !== 'undefined') ? WILLOW_KB : {};
+    var prompt = 'You are a helpful property management assistant for Willow Partnership, LLC. ';
+    prompt += 'You help draft replies to resident and guest messages.\n\n';
+    prompt += '## Company Info\n';
+    if (kb.company) {
+      prompt += '- Name: ' + (kb.company.name || '') + '\n';
+      prompt += '- Phone: ' + (kb.company.phone || '') + '\n';
+      prompt += '- Email: ' + (kb.company.email || '') + '\n';
+      prompt += '- Hours: ' + (kb.company.hours || '') + '\n';
+      prompt += '- After Hours Policy: ' + (kb.company.afterHours || '') + '\n';
+    }
+    prompt += '\n## Properties\n';
+    if (kb.properties) {
+      var props = kb.properties;
+      if (props.chelbourne) {
+        prompt += '- Chelbourne Plaza: ' + props.chelbourne.address + '\n';
+        prompt += '  Entrance PIN: ' + props.chelbourne.entrancePin + '\n';
+        prompt += '  WiFi: ' + props.chelbourne.wifi.network + ' / ' + props.chelbourne.wifi.password + '\n';
+        prompt += '  Alt WiFi: ' + (props.chelbourne.altWifi ? props.chelbourne.altWifi.network + ' / ' + props.chelbourne.altWifi.password : '') + '\n';
+        prompt += '  Laundry: ' + props.chelbourne.laundry + '\n';
+        prompt += '  Parking: ' + props.chelbourne.parking + '\n';
+        prompt += '  Trash: ' + props.chelbourne.trash + '\n';
+      }
+      if (props.central) {
+        prompt += '- Central Ave: ' + props.central.address + '\n';
+        prompt += '  Entrance: ' + props.central.entranceCode + '\n';
+        prompt += '  WiFi: ' + props.central.wifi.network + ' / ' + props.central.wifi.password + '\n';
+      }
+      if (props.valleyRd) {
+        prompt += '- Valley Rd: ' + props.valleyRd.address + '\n';
+      }
+    }
+    prompt += '\n## Tone Guidelines\n';
+    prompt += '- Always use "We" not "I"\n';
+    prompt += '- Professional but warm tone\n';
+    prompt += '- Never use slang or overly casual language\n';
+    prompt += '- Never promise specific outcomes for refunds\n';
+    prompt += '- Never share other guests information\n';
+    prompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+    prompt += '\n## Key Policies\n';
+    prompt += '- Parking tags must be displayed immediately or vehicles may be towed\n';
+    prompt += '- Extra parking: https://parking.willowpa.com/ select property, password: 1234\n';
+    prompt += '- Guests are not responsible for utilities\n';
+    prompt += '- Pets require approval with breed/type description first\n';
+    prompt += '- Cancellation policy does not typically allow refunds for reserved days\n';
+    prompt += '- Check-in info sent 1 day before reservation\n';
+    prompt += '- After hours: only urgent matters addressed, others next business day\n';
+    prompt += '\nDraft a concise, helpful reply. Do NOT include subject lines or email headers. Just the message body. Keep it under 150 words unless the topic requires more detail.';
+    return prompt;
+  }
+
+  // -- Call Anthropic API for AI suggestion --
+  window._getAISuggestion = async function(msg) {
+    if (!msg || !msg._messages) return null;
+
+    // Build conversation context from the last 10 messages
+    var sorted = msg._messages.slice().sort(function(a, b) {
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+    var recent = sorted.slice(-10);
+    var convoText = recent.map(function(m) {
+      var who = m.sender_type === 'resident' ? (m.resident_name || 'Resident') : 'Management';
+      return who + ': ' + m.body;
+    }).join('\n');
+
+    var userPrompt = 'Resident: ' + msg.from;
+    if (msg.unit) userPrompt += ' (Unit ' + msg.unit + ')';
+    if (msg.property) userPrompt += ' at ' + msg.property;
+    userPrompt += '\n\nConversation:\n' + convoText;
+    userPrompt += '\n\nDraft a reply to the resident\'s latest message.';
+
+    try {
+      var resp = await fetch(AI_PROXY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 500,
+          system: buildAISystemPrompt(),
+          messages: [{ role: 'user', content: userPrompt }]
+        })
+      });
+      var data = await resp.json();
+      if (data.error) {
+        console.error('AI suggestion error:', data.error);
+        return null;
+      }
+      if (data.content && data.content[0] && data.content[0].text) {
+        return data.content[0].text;
+      }
+      return null;
+    } catch(e) {
+      console.error('AI suggestion failed:', e);
+      return null;
+    }
+  };
+
+  // -- Build AI suggestion UI panel --
+  function buildSuggestionPanel(msg) {
+    // Get quick KB suggestion first
+    var kbResult = null;
+    if (typeof WillowReplyBot !== 'undefined' && WillowReplyBot && msg._messages) {
+      var lastResident = null;
+      var sorted = msg._messages.slice().sort(function(a, b) {
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+      for (var i = sorted.length - 1; i >= 0; i--) {
+        if (sorted[i].sender_type === 'resident') {
+          lastResident = sorted[i];
+          break;
+        }
+      }
+      if (lastResident) {
+        kbResult = WillowReplyBot.suggestReply(lastResident.body, {
+          guestName: msg.from,
+          property: msg.property || 'chelbourne',
+          unit: msg.unit || ''
+        });
+      }
+    }
+
+    var html = '<div id="aiSuggestionPanel" style="margin:12px 0;padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fefce8;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;">';
+    html += '<span style="font-size:16px;">&#9889;</span>';
+    html += '<span style="font-weight:700;font-size:14px;color:#92400e;">AI Reply Assistant</span>';
+    html += '</div>';
+    html += '<button id="aiSuggestBtn" onclick="window._triggerAISuggest()" style="padding:6px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">AI Suggest Reply</button>';
+    html += '</div>';
+
+    // Quick KB suggestion
+    if (kbResult && kbResult.suggestion) {
+      html += '<div id="kbSuggestionBox" style="margin-bottom:10px;">';
+      html += '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">Quick suggestion (' + Math.round(kbResult.confidence * 100) + '% match - ' + kbResult.category + '/' + kbResult.subcategory + '):</div>';
+      html += '<div style="background:#fff;border:1px solid #d1d5db;border-radius:8px;padding:10px;font-size:13px;color:#374151;line-height:1.5;white-space:pre-wrap;">' + kbResult.suggestion.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>';
+      html += '<button onclick="window._useKBSuggestion()" style="margin-top:6px;padding:4px 12px;background:#10B981;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Use This</button>';
+      html += '</div>';
+    }
+
+    // AI suggestion area (populated after clicking button)
+    html += '<div id="aiSuggestionResult" style="display:none;margin-top:10px;">';
+    html += '<div style="font-size:11px;color:#6b7280;margin-bottom:4px;">AI-generated suggestion:</div>';
+    html += '<div id="aiSuggestionText" style="background:#fff;border:1px solid #7c3aed;border-radius:8px;padding:10px;font-size:13px;color:#374151;line-height:1.5;white-space:pre-wrap;"></div>';
+    html += '<div style="display:flex;gap:8px;margin-top:6px;">';
+    html += '<button onclick="window._useAISuggestion()" style="padding:4px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Use This</button>';
+    html += '<button onclick="window._triggerAISuggest()" style="padding:4px 12px;background:#e5e7eb;color:#374151;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Regenerate</button>';
+    html += '</div>';
+    html += '</div>';
+
+    // Loading state
+    html += '<div id="aiSuggestionLoading" style="display:none;margin-top:10px;text-align:center;padding:12px;">';
+    html += '<span style="color:#7c3aed;font-size:13px;">Thinking...</span>';
+    html += '</div>';
+
+    html += '</div>';
+    return { html: html, kbSuggestion: kbResult ? kbResult.suggestion : '' };
+  }
+
+  // -- Stash current message ID for AI handlers --
+  window._currentAIMsgId = null;
+  window._currentKBText = '';
+
+  // -- Trigger AI suggestion --
+  window._triggerAISuggest = async function() {
+    var btn = document.getElementById('aiSuggestBtn');
+    var loading = document.getElementById('aiSuggestionLoading');
+    var result = document.getElementById('aiSuggestionResult');
+    if (btn) btn.disabled = true;
+    if (btn) btn.textContent = 'Thinking...';
+    if (loading) loading.style.display = 'block';
+    if (result) result.style.display = 'none';
+
+    var msg = (window._liveClientMsgs || []).find(function(m) { return m.id === window._currentAIMsgId; });
+    if (!msg) {
+      if (btn) { btn.disabled = false; btn.textContent = 'AI Suggest Reply'; }
+      if (loading) loading.style.display = 'none';
+      return;
+    }
+
+    var suggestion = await window._getAISuggestion(msg);
+    if (loading) loading.style.display = 'none';
+    if (btn) { btn.disabled = false; btn.textContent = 'AI Suggest Reply'; }
+
+    if (suggestion) {
+      var textEl = document.getElementById('aiSuggestionText');
+      if (textEl) textEl.textContent = suggestion;
+      if (result) result.style.display = 'block';
+    } else {
+      toast('AI suggestion unavailable right now', 'error');
+    }
+  };
+
+  // -- Use KB suggestion --
+  window._useKBSuggestion = function() {
+    var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
+    if (ta && window._currentKBText) {
+      ta.value = window._currentKBText;
+      ta.focus();
+    }
+  };
+
+  // -- Use AI suggestion --
+  window._useAISuggestion = function() {
+    var textEl = document.getElementById('aiSuggestionText');
+    var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
+    if (ta && textEl) {
+      ta.value = textEl.textContent;
+      ta.focus();
+    }
+  };
 
   // -- Patch openMsgCenterDetail for client message replies & thread view --
   var _origOpen = window.openMsgCenterDetail;
@@ -247,6 +356,17 @@
             var thread = document.getElementById('clientChatThread');
             if (thread) thread.scrollTop = thread.scrollHeight;
           }, 50);
+        }
+
+        // Inject AI suggestion panel above the reply textarea
+        window._currentAIMsgId = id;
+        var panel = buildSuggestionPanel(msg);
+        window._currentKBText = panel.kbSuggestion;
+        var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
+        if (ta && ta.parentElement && !document.getElementById('aiSuggestionPanel')) {
+          var panelDiv = document.createElement('div');
+          panelDiv.innerHTML = panel.html;
+          ta.parentElement.insertBefore(panelDiv, ta);
         }
       }, 50);
     }
