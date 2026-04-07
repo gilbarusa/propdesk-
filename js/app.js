@@ -8297,18 +8297,16 @@ async function boot() {
       console.warn('loadProperties failed during boot:', propErr.message);
     }
     window.DATA = data; // expose for module nav
-    renderTable();
-    initModuleNav(); // Initialize Layout C navigation
-    initCalScroll();
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
-    // Activate mobile UI if on mobile device
-    if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
-      setTimeout(function(){ WILLOW_MOBILE.init(); }, 600);
-    }
-    // Activate mobile UI if on mobile device
-    if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
-      setTimeout(function(){ WILLOW_MOBILE.init(); }, 600);
+    // On mobile: skip heavy desktop rendering, go straight to mobile UI
+    if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'
+       && (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent))){
+      WILLOW_MOBILE.init();
+    } else {
+      renderTable();
+      initModuleNav(); // Initialize Layout C navigation
+      initCalScroll();
     }
 
   } catch(e) {
@@ -8327,16 +8325,14 @@ function bootOffline() {
   document.getElementById('syncStatus').textContent = '⚠ offline';
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   window.DATA = data;
-  renderTable();
-  initModuleNav();
-  initCalScroll();
-  // Activate mobile UI if on mobile device
-  if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
-    setTimeout(function(){ WILLOW_MOBILE.init(); }, 600);
-  }
-  // Activate mobile UI if on mobile device
-  if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
-    setTimeout(function(){ WILLOW_MOBILE.init(); }, 600);
+  // On mobile: skip heavy desktop rendering, go straight to mobile UI
+  if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'
+     && (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent))){
+    WILLOW_MOBILE.init();
+  } else {
+    renderTable();
+    initModuleNav();
+    initCalScroll();
   }
 }
 
