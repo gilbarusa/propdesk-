@@ -557,6 +557,23 @@
       </div>
     </div>
 
+    <!-- ROW 1.5: Centralized Messages -->
+    <div class="dash-section-label">Messages Center</div>
+    <div class="dash-panel dash-panel-messages" style="border-left:4px solid var(--accent);">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <h3 style="border:none;margin:0;padding:0;">💬 Unified Inbox</h3>
+        <div class="dash-msg-filters" id="dashMsgFilters">
+          <button class="dash-msg-filter active" data-filter="all" onclick="filterDashMessages('all',this)">All</button>
+          <button class="dash-msg-filter" data-filter="short-stay" onclick="filterDashMessages('short-stay',this)">ST</button>
+          <button class="dash-msg-filter" data-filter="long-term" onclick="filterDashMessages('long-term',this)">LT</button>
+          <button class="dash-msg-filter" data-filter="month-to-month" onclick="filterDashMessages('month-to-month',this)">MTM</button>
+          <button class="dash-msg-filter" data-filter="fieldtrack" onclick="filterDashMessages('fieldtrack',this)">Tech</button>
+        </div>
+      </div>
+      <div id="dashMsgList" class="dash-msg-list"><div class="dash-loading">Loading messages...</div></div>
+      <div style="text-align:center;margin-top:8px;"><button class="btn btn-secondary btn-sm" onclick="showAllDashMessages()">View All Messages</button></div>
+    </div>
+
     <!-- ROW 2: Check-ins (left) | Checkouts (right) -->
     <div class="dash-two-col">
       <div class="dash-panel dash-panel-today" style="border-left:4px solid var(--blue);">
