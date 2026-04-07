@@ -6770,6 +6770,9 @@ async function renderDashboard(){
       item.title = 'Click for revenue details';
     });
   }, 100);
+
+  // ── Render centralized messages ──
+  renderDashMessages('all');
 }
 
 // ══════════════════════════════════════════════════════
@@ -9328,6 +9331,189 @@ function drillDownToTenant(apt, name) {
   var unit = data.find(function(u) { return u.apt === apt; });
   if (unit) {
     openDrillDown(unit, name);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CENTRALIZED MESSAGES — Dashboard Unified Inbox
+// ══════════════════════════════════════════════════════
+var _dashMsgFilter = 'all';
+var _dashMsgShowAll = false;
+
+function buildDashMessages(){
+  var msgs = [];
+  var active = dedupActive();
+  var bookings = (typeof window.pipelineState !== 'undefined' && window.pipelineState && window.pipelineState.bookings) ? window.pipelineState.bookings : [];
+  var jobs = (typeof FT_state !== 'undefined' && FT_state && FT_state.jobs) ? FT_state.jobs : [];
+
+  // Short-term bookings
+  bookings.forEach(function(b){
+    if(!b.guest_name && !b.name) return;
+    var preview = '';
+    if(b.stage==='inquiry') preview='New inquiry';
+    else if(b.stage==='confirmed') preview='Booking confirmed';
+    else if(b.stage==='checked_in'||b.stage==='in_stay') preview='Currently in-stay';
+    else if(b.stage==='pre_arrival') preview='Pre-arrival prep';
+    else preview = (b.stage||'booking')+' update';
+    msgs.push({
+      id:'bk-'+b.id, name:b.guest_name||b.name||'Guest', apt:b.unit_apt||b.unit_name||'',
+      source:'short-stay', preview:preview, time:b.updated_at||b.created_at||b.check_in,
+      phone:b.phone||'', email:b.email||'', bookingId:b.id, stage:b.stage||''
+    });
+  });
+
+  // Long-term & MTM tenants
+  active.forEach(function(r){
+    if(r.type==='available'||!r.name||r.type==='short-stay') return;
+    var lastNote = '';
+    if(r.history && r.history.length) lastNote = r.history[r.history.length-1].text||'';
+    var ctx = r.balance>0 ? 'Balance: $'+Number(r.balance).toLocaleString() : 'Active tenant';
+    msgs.push({
+      id:'lt-'+r.id, name:r.name, apt:r.apt, source:r.type,
+      preview:lastNote||ctx, time:r.due||r.checkin||'',
+      phone:parseNoteField(r.note,'Tel'), email:parseNoteField(r.note,'Email'),
+      bookingId:null, stage:''
+    });
+  });
+
+  // FieldTrack work orders
+  jobs.forEach(function(j){
+    if(!j.title && !j.description) return;
+    var techName = '';
+    if(j.techId && typeof FT_state !== 'undefined' && FT_state.technicians){
+      var t = FT_state.technicians.find(function(x){ return x.id===+j.techId; });
+      if(t) techName = t.name;
+    }
+    msgs.push({
+      id:'ft-'+j.id, name:j.requestedBy||techName||'Tech Service', apt:j.unit||j.property||'',
+      source:'fieldtrack', preview:(j.title||j.description||'Work order').substring(0,60),
+      time:j.date||j.created||'', phone:'', email:'', bookingId:null,
+      stage:(j.status||'open')+(j.priority==='urgent'?' · URGENT':'')
+    });
+  });
+
+  // Sort by time descending
+  msgs.sort(function(a,b){
+    var ta = a.time ? new Date(a.time).getTime() : 0;
+    var tb = b.time ? new Date(b.time).getTime() : 0;
+    return tb - ta;
+  });
+  return msgs;
+}
+
+function dashMsgSrcBadge(source){
+  var map = {
+    'short-stay':{label:'Short Term',cls:'dmsg-src-st'},
+    'long-term':{label:'Long Term',cls:'dmsg-src-lt'},
+    'month-to-month':{label:'MTM',cls:'dmsg-src-mtm'},
+    'fieldtrack':{label:'Tech',cls:'dmsg-src-ft'},
+    'parking':{label:'Parking',cls:'dmsg-src-pk'},
+    'delivery':{label:'Mailroom',cls:'dmsg-src-dl'}
+  };
+  var m = map[source]||{label:source||'Other',cls:'dmsg-src-ot'};
+  return '<span class="dmsg-src '+m.cls+'">'+m.label+'</span>';
+}
+
+function dashMsgTimeAgo(d){
+  if(!d) return '';
+  var diff = Date.now() - new Date(d).getTime();
+  var m = Math.floor(diff/60000);
+  if(m<1) return 'now';
+  if(m<60) return m+'m';
+  var h = Math.floor(m/60);
+  if(h<24) return h+'h';
+  var days = Math.floor(h/24);
+  if(days<7) return days+'d';
+  return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function renderDashMessages(filter){
+  _dashMsgFilter = filter || 'all';
+  var el = document.getElementById('dashMsgList');
+  if(!el) return;
+  var msgs = buildDashMessages();
+  var filtered = _dashMsgFilter==='all' ? msgs : msgs.filter(function(m){ return m.source===_dashMsgFilter; });
+  var limit = _dashMsgShowAll ? filtered.length : 8;
+  var shown = filtered.slice(0, limit);
+
+  if(!shown.length){
+    el.innerHTML = '<div class="dash-empty-state">No messages from this source</div>';
+    return;
+  }
+
+  var html = '<div class="dmsg-grid">';
+  shown.forEach(function(m){
+    var initial = m.name ? m.name.charAt(0).toUpperCase() : '?';
+    html += '<div class="dmsg-row" onclick="openDashMsgAction(\''+m.id+'\',\''+m.source+'\','+( m.bookingId?'\''+m.bookingId+'\'':'null')+')">';
+    html += '<div class="dmsg-avatar">'+initial+'</div>';
+    html += '<div class="dmsg-body">';
+    html += '<div class="dmsg-top"><span class="dmsg-name">'+m.name+'</span><span class="dmsg-time">'+dashMsgTimeAgo(m.time)+'</span></div>';
+    html += '<div class="dmsg-meta">'+m.apt+(m.stage?' · '+m.stage:'')+'</div>';
+    html += '<div class="dmsg-preview">'+m.preview+'</div>';
+    html += '</div>';
+    html += '<div class="dmsg-src-wrap">'+dashMsgSrcBadge(m.source)+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  if(filtered.length > limit){
+    html += '<div style="text-align:center;font-size:11px;color:var(--text3);margin-top:6px;">Showing '+limit+' of '+filtered.length+' messages</div>';
+  }
+  el.innerHTML = html;
+}
+
+function filterDashMessages(filter, btn){
+  _dashMsgShowAll = false;
+  document.querySelectorAll('.dash-msg-filter').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  renderDashMessages(filter);
+}
+
+function showAllDashMessages(){
+  _dashMsgShowAll = true;
+  renderDashMessages(_dashMsgFilter);
+}
+
+function openDashMsgAction(msgId, source, bookingId){
+  // If it's a booking, open pipeline detail
+  if(bookingId && typeof window.pipelineState !== 'undefined'){
+    var b = window.pipelineState.bookings.find(function(x){ return x.id == bookingId; });
+    if(b){
+      switchModule('short-term');
+      setTimeout(function(){
+        var subPipe = document.querySelector('.sub-tab[data-subtab="pipeline"]');
+        if(subPipe) subPipe.click();
+        setTimeout(function(){
+          window.pipelineState.selectedBooking = b;
+          if(typeof window.renderPipeline === 'function') window.renderPipeline();
+        }, 200);
+      }, 200);
+      return;
+    }
+  }
+  // Long-term: open tenant card
+  if(msgId.indexOf('lt-')===0){
+    var rid = parseInt(msgId.replace('lt-',''));
+    var idx = (window.data||[]).findIndex(function(r){ return r.id===rid; });
+    if(idx >= 0){
+      var r = data[idx];
+      if(r.type==='long-term'||r.type==='month-to-month'){
+        switchModule('mtm-lt');
+        setTimeout(function(){
+          var tIdx = INNAGO_TENANTS.findIndex(function(t){ return t.name.includes(r.name.split(' ')[0]); });
+          if(tIdx >= 0) openTenantCardFromLease(tIdx);
+        }, 300);
+        return;
+      }
+      // Short-stay: go to calendar detail
+      openDetail(r.id);
+    }
+    return;
+  }
+  // FieldTrack: switch to techtrack
+  if(msgId.indexOf('ft-')===0){
+    switchModule('techtrack');
+    return;
   }
 }
 
