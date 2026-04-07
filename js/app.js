@@ -8300,9 +8300,17 @@ async function boot() {
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
     // On mobile: skip heavy desktop rendering, go straight to mobile UI
-    if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'
-       && (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent))){
+    var _isMob = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+    if(_isMob && typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
       WILLOW_MOBILE.init();
+    } else if(_isMob){
+      var _mobPoll = setInterval(function(){
+        if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+          clearInterval(_mobPoll);
+          WILLOW_MOBILE.init();
+        }
+      }, 100);
+      setTimeout(function(){ clearInterval(_mobPoll); }, 5000);
     } else {
       renderTable();
       initModuleNav(); // Initialize Layout C navigation
@@ -8326,9 +8334,17 @@ function bootOffline() {
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   window.DATA = data;
   // On mobile: skip heavy desktop rendering, go straight to mobile UI
-  if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'
-     && (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent))){
+  var _isMob = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+  if(_isMob && typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
     WILLOW_MOBILE.init();
+  } else if(_isMob){
+    var _mobPoll2 = setInterval(function(){
+      if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+        clearInterval(_mobPoll2);
+        WILLOW_MOBILE.init();
+      }
+    }, 100);
+    setTimeout(function(){ clearInterval(_mobPoll2); }, 5000);
   } else {
     renderTable();
     initModuleNav();
