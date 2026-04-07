@@ -1,30 +1,30 @@
-/* ── PropDesk Client App Messages Integration ─────────────────────
+/* ââ PropDesk Client App Messages Integration âââââââââââââââââââââ
    Connects the Message Center to the Supabase `client_messages` table,
    replacing hardcoded seed data with live two-way messaging.
    Loaded AFTER inbox.js.
-   v2 — single chat per resident, read receipts
-   ────────────────────────────────────────────────────────────── */
+   v2 â single chat per resident, read receipts
+   ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
 (function() {
   'use strict';
 
-  // ── Column list for client_messages (must be explicit — Supabase quirk) ──
+  // ââ Column list for client_messages (must be explicit â Supabase quirk) ââ
   var CM_COLS = 'id, thread_id, resident_name, resident_unit, resident_email, resident_phone, subject, body, sender_type, read, property, created_at, updated_at';
 
-  // ── Register platform color for client_app ──
+  // ââ Register platform color for client_app ââ
   if (window.PLATFORM_COLORS) {
     window.PLATFORM_COLORS.client_app = { bg: '#10B981', text: '#fff', label: 'Client App' };
   }
 
-  // ── Live client messages cache ──
+  // ââ Live client messages cache ââ
   window._liveClientMsgs = [];
 
-  // ── Build a unique resident key (one chat per person) ──
+  // ââ Build a unique resident key (one chat per person) ââ
   function residentKey(m) {
     if (m.resident_email) return m.resident_email.toLowerCase().trim();
     return (m.resident_name || 'Resident').toLowerCase().trim() + '|' + (m.resident_unit || '').trim();
   }
 
-  // ── Fetch live client messages from Supabase ──
+  // ââ Fetch live client messages from Supabase ââ
   window._refreshClientMsgs = async function() {
     try {
       var res = await sb.from('client_messages').select(CM_COLS)
@@ -83,7 +83,7 @@
     }
   };
 
-  // ── Wrap _getAllCenterMessages to replace seed data with live Supabase data ──
+  // ââ Wrap _getAllCenterMessages to replace seed data with live Supabase data ââ
   var _origGetAll = window._getAllCenterMessages;
   window._getAllCenterMessages = function() {
     var msgs = _origGetAll();
@@ -99,9 +99,9 @@
     return nonClient;
   };
 
-  // ── Send management reply to client_messages ──
+  // ââ Send management reply to client_messages ââ
   window.sendClientReply = async function(msgId) {
-    var ta = document.querySelector('textarea');
+    var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
     var body = ta ? ta.value.trim() : '';
     if (!body) { toast('Please type a reply'); return; }
 
@@ -148,24 +148,24 @@
     }
   };
 
-  // ── Read-receipt badge helper ──
+  // ââ Read-receipt badge helper ââ
   function readBadge(m) {
     if (m.sender_type === 'management') {
-      // Management message — show if resident has read it
+      // Management message â show if resident has read it
       if (m.read) {
-        return '<span style="margin-left:6px;color:#10B981;font-size:12px;" title="Read by resident">✓✓</span>';
+        return '<span style="margin-left:6px;color:#10B981;font-size:12px;" title="Read by resident">ââ</span>';
       } else {
-        return '<span style="margin-left:6px;color:#9ca3af;font-size:12px;" title="Delivered">✓</span>';
+        return '<span style="margin-left:6px;color:#9ca3af;font-size:12px;" title="Delivered">â</span>';
       }
     }
-    // Resident message — show if management has read it
+    // Resident message â show if management has read it
     if (m.read) {
-      return '<span style="margin-left:6px;color:#10B981;font-size:11px;" title="Read">● read</span>';
+      return '<span style="margin-left:6px;color:#10B981;font-size:11px;" title="Read">â read</span>';
     }
     return '';
   }
 
-  // ── Patch openMsgCenterDetail for client message replies & thread view ──
+  // ââ Patch openMsgCenterDetail for client message replies & thread view ââ
   var _origOpen = window.openMsgCenterDetail;
   window.openMsgCenterDetail = function(id) {
     _origOpen(id);
@@ -194,7 +194,7 @@
           }
         }
 
-        // Fix Send Reply button — replace stub onclick with real handler
+        // Fix Send Reply button â replace stub onclick with real handler
         var btns = document.querySelectorAll('button');
         for (var i = 0; i < btns.length; i++) {
           if (btns[i].textContent.trim() === 'Send Reply') {
@@ -234,7 +234,7 @@
             bodyEl.innerHTML = chatHtml;
           } else {
             // Fallback: insert before the textarea
-            var ta = document.querySelector('textarea');
+            var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
             if (ta && ta.parentElement) {
               var chatDiv = document.createElement('div');
               chatDiv.innerHTML = chatHtml;
@@ -252,7 +252,7 @@
     }
   };
 
-  // ── Mark client messages as read ──
+  // ââ Mark client messages as read ââ
   var _origMarkRead = window.markChannelRead;
   if (_origMarkRead) {
     window.markChannelRead = async function(channelId) {
@@ -272,7 +272,165 @@
     };
   }
 
-  // ── Initial load ──
+  // ââ Compose New Message (outbound) ââ
+  window.openComposeMessage = function() {
+    var page = document.getElementById('page-msg-center');
+    if (!page) return;
+
+    page.innerHTML = '<div style="padding:20px;max-width:700px;">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
+        '<button onclick="renderMessageCenter()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text);">â Back to Messages</button>' +
+        '<h2 style="margin:0;font-size:22px;">New Message</h2>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:14px;">' +
+        '<div>' +
+          '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Resident Name *</label>' +
+          '<input id="compose-name" type="text" placeholder="e.g. John Smith" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">' +
+        '</div>' +
+        '<div style="display:flex;gap:12px;">' +
+          '<div style="flex:1;">' +
+            '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Unit</label>' +
+            '<input id="compose-unit" type="text" placeholder="e.g. 4B" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">' +
+          '</div>' +
+          '<div style="flex:1;">' +
+            '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Property</label>' +
+            '<input id="compose-property" type="text" placeholder="e.g. Chelbourne" value="Chelbourne" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:12px;">' +
+          '<div style="flex:1;">' +
+            '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Email</label>' +
+            '<input id="compose-email" type="email" placeholder="email@example.com" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">' +
+          '</div>' +
+          '<div style="flex:1;">' +
+            '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Phone</label>' +
+            '<input id="compose-phone" type="tel" placeholder="+1 555-000-0000" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Channel *</label>' +
+          '<div id="compose-channel-btns" style="display:flex;gap:8px;">' +
+            '<button data-ch="app" class="compose-ch-btn" style="padding:8px 18px;border-radius:20px;border:2px solid #10B981;background:#10B981;color:#fff;font-weight:600;cursor:pointer;">APP</button>' +
+            '<button data-ch="sms" class="compose-ch-btn" style="padding:8px 18px;border-radius:20px;border:2px solid var(--border);background:#fff;color:var(--text);font-weight:600;cursor:pointer;">SMS</button>' +
+            '<button data-ch="whatsapp" class="compose-ch-btn" style="padding:8px 18px;border-radius:20px;border:2px solid var(--border);background:#fff;color:var(--text);font-weight:600;cursor:pointer;">WhatsApp</button>' +
+            '<button data-ch="email" class="compose-ch-btn" style="padding:8px 18px;border-radius:20px;border:2px solid var(--border);background:#fff;color:var(--text);font-weight:600;cursor:pointer;">Email</button>' +
+          '</div>' +
+        '</div>' +
+        '<div>' +
+          '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Subject</label>' +
+          '<input id="compose-subject" type="text" placeholder="Subject line" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">' +
+        '</div>' +
+        '<div>' +
+          '<label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Message *</label>' +
+          '<textarea id="compose-body" placeholder="Type your message..." rows="5" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;resize:vertical;"></textarea>' +
+        '</div>' +
+        '<button id="compose-send-btn" style="padding:12px 28px;background:var(--accent,#7d5228);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;align-self:flex-start;">Send Message</button>' +
+      '</div>' +
+    '</div>';
+
+    // Channel toggle logic
+    var selectedChannel = 'app';
+    var chBtns = document.querySelectorAll('.compose-ch-btn');
+    chBtns.forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        selectedChannel = btn.getAttribute('data-ch');
+        chBtns.forEach(function(b) {
+          var active = b.getAttribute('data-ch') === selectedChannel;
+          b.style.background = active ? '#10B981' : '#fff';
+          b.style.color = active ? '#fff' : 'var(--text)';
+          b.style.borderColor = active ? '#10B981' : 'var(--border)';
+        });
+      });
+    });
+
+    // Send handler
+    document.getElementById('compose-send-btn').addEventListener('click', async function() {
+      var name = document.getElementById('compose-name').value.trim();
+      var body = document.getElementById('compose-body').value.trim();
+      if (!name) { toast('Please enter a resident name'); return; }
+      if (!body) { toast('Please type a message'); return; }
+
+      var unit = document.getElementById('compose-unit').value.trim();
+      var property = document.getElementById('compose-property').value.trim() || 'Chelbourne';
+      var email = document.getElementById('compose-email').value.trim();
+      var phone = document.getElementById('compose-phone').value.trim();
+      var subject = document.getElementById('compose-subject').value.trim() || 'Message';
+
+      // For APP channel, insert into client_messages table
+      if (selectedChannel === 'app') {
+        try {
+          var newThreadId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
+          var res = await sb.from('client_messages').insert({
+            thread_id: newThreadId,
+            resident_name: name,
+            resident_unit: unit,
+            resident_email: email,
+            resident_phone: phone,
+            subject: subject,
+            body: body,
+            sender_type: 'management',
+            read: false,
+            property: property
+          }).select();
+
+          if (res.error) {
+            console.error('Compose send error:', res.error);
+            toast('Failed to send message', 'error');
+            return;
+          }
+          toast('Message sent via APP!');
+          await window._refreshClientMsgs();
+          renderMessageCenter();
+        } catch(e) {
+          console.error('Compose send failed:', e);
+          toast('Error sending message', 'error');
+        }
+      } else {
+        // SMS, WhatsApp, Email â placeholder for future integration
+        toast('Message queued via ' + selectedChannel.toUpperCase() + ' (integration pending)');
+        // Still save to client_messages for record keeping
+        try {
+          var newThreadId2 = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
+          await sb.from('client_messages').insert({
+            thread_id: newThreadId2,
+            resident_name: name,
+            resident_unit: unit,
+            resident_email: email,
+            resident_phone: phone,
+            subject: '[' + selectedChannel.toUpperCase() + '] ' + (subject || 'Message'),
+            body: body,
+            sender_type: 'management',
+            read: false,
+            property: property
+          }).select();
+          await window._refreshClientMsgs();
+          renderMessageCenter();
+        } catch(e) {
+          console.error('Compose record failed:', e);
+        }
+      }
+    });
+  };
+
+  // ââ Inject "New Message" button into Message Center header ââ
+  var _origRender = window.renderMessageCenter;
+  window.renderMessageCenter = function() {
+    _origRender();
+    // Add compose button after render
+    setTimeout(function() {
+      var header = document.querySelector('#page-msg-center h2, #page-msg-center [style*="font-size:22px"]');
+      if (header && !document.getElementById('compose-msg-btn')) {
+        var btn = document.createElement('button');
+        btn.id = 'compose-msg-btn';
+        btn.innerHTML = '+ New Message';
+        btn.style.cssText = 'margin-left:16px;padding:8px 18px;background:var(--accent,#7d5228);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;vertical-align:middle;';
+        btn.addEventListener('click', function() { openComposeMessage(); });
+        header.parentElement.insertBefore(btn, header.nextSibling);
+      }
+    }, 20);
+  };
+
+  // ââ Initial load ââ
   window._refreshClientMsgs().then(function() {
     if (typeof renderMessageCenter === 'function') {
       // Only re-render if Message Center is currently visible
@@ -281,6 +439,6 @@
         renderMessageCenter();
       }
     }
-    console.log('✅ Client App Messages v2 loaded (' + window._liveClientMsgs.length + ' residents)');
+    console.log('â Client App Messages v2 loaded (' + window._liveClientMsgs.length + ' residents)');
   });
 })();
