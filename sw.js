@@ -1,5 +1,5 @@
-/* Willow PropDesk — Service Worker v3 */
-const CACHE_NAME = 'willow-propdesk-v3';
+/* Willow PropDesk — Service Worker v4 — force reload on update */
+const CACHE_NAME = 'willow-propdesk-v4';
 const SHELL_FILES = [
   '/propdesk-/index.html',
   '/propdesk-/css/main.css',
@@ -31,16 +31,21 @@ self.addEventListener('install', function(e) {
   );
 });
 
-/* Activate — clean old caches */
+/* Activate — clean old caches and force-reload all open tabs */
 self.addEventListener('activate', function(e) {
   e.waitUntil(
     caches.keys().then(function(names) {
       return Promise.all(
         names.filter(function(n) { return n !== CACHE_NAME; })
-            .map(function(n) { return caches.delete(n); })
+             .map(function(n) { return caches.delete(n); })
       );
     }).then(function() {
       return self.clients.claim();
+    }).then(function() {
+      /* Force all open tabs to reload so they get new files */
+      return self.clients.matchAll({ type: 'window' });
+    }).then(function(clients) {
+      clients.forEach(function(c) { c.navigate(c.url); });
     })
   );
 });
@@ -58,7 +63,23 @@ self.addEventListener('fetch', function(e) {
     return;
   }
 
-  /* Stale-while-revalidate for app files */
+  /* Network-first for HTML (always get fresh markup), stale-while-revalidate for assets */
+  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    e.respondWith(
+      fetch(e.request).then(function(response) {
+        if (response && response.status === 200) {
+          var clone = response.clone();
+          caches.open(CACHE_NAME).then(function(cache) { cache.put(e.request, clone); });
+        }
+        return response;
+      }).catch(function() {
+        return caches.match(e.request);
+      })
+    );
+    return;
+  }
+
+  /* Stale-while-revalidate for JS/CSS/images */
   e.respondWith(
     caches.open(CACHE_NAME).then(function(cache) {
       return cache.match(e.request).then(function(cached) {
