@@ -50,6 +50,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font
 .module-tab[data-module="mtm-lt"].active{color:var(--green);border-bottom-color:var(--green);background:var(--green-bg);}
 .module-tab[data-module="techtrack"].active{color:var(--orange);border-bottom-color:var(--orange);background:var(--orange-bg);}
 .module-tab[data-module="parking"].active{color:var(--purple);border-bottom-color:var(--purple);background:var(--purple-bg);}
+.module-tab[data-module="messages"].active{color:#1565c0;border-bottom-color:#1565c0;background:#e3f2fd;}
 .module-tab[data-module="mailroom"].active{color:var(--red);border-bottom-color:var(--red);background:var(--red-bg);}
 .module-bar::-webkit-scrollbar{height:0;}
 
@@ -1159,6 +1160,24 @@ textarea{resize:vertical;min-height:72px;}
 .mtm-msg-reply-input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-bg);}
 .mtm-msg-reply-btn{margin-top:8px;padding:8px 20px;background:var(--green);color:white;border:none;border-radius:var(--radius);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;transition:opacity .15s;}
 .mtm-msg-reply-btn:hover{opacity:.85;}
+
+/* Message Center */
+.msg-center-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:12px 16px;background:var(--surface);cursor:pointer;transition:background .12s;}
+.msg-center-row:first-child{border-radius:8px 8px 0 0;}
+.msg-center-row:last-child{border-radius:0 0 8px 8px;}
+.msg-center-row:only-child{border-radius:8px;}
+.msg-center-row:hover{background:var(--surface2);}
+.msg-center-row.unread{background:var(--surface2);}
+.msg-center-row.unread .msg-center-from{font-weight:700;}
+.msg-center-row.unread .msg-center-preview strong{font-weight:700;}
+.msg-center-left{display:flex;align-items:center;gap:8px;flex:1;min-width:0;}
+.msg-center-right{display:flex;align-items:center;}
+.msg-center-from{font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.msg-center-unit{font-size:11px;color:var(--text3);white-space:nowrap;}
+.msg-center-time{font-size:11px;color:var(--text3);white-space:nowrap;}
+.msg-center-preview{width:100%;font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.msg-center-preview strong{font-weight:500;color:var(--text);}
+.msg-src-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;white-space:nowrap;letter-spacing:.02em;text-transform:uppercase;}
 
 /* Priority badges for maintenance */
 .mtm-badge.high{background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);}
