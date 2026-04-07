@@ -1,7 +1,7 @@
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  DATA
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 const SEED_DATA = [
   {id:1,apt:"n",owner:"ERA LT",name:"Name",type:"long-term",rent:0.0,balance:0,due:"",lease_end:"",checkin:"",note:"Notes | Via: VIa | Tel: Phone No | Email: Email",history:[],archived:false},
   {id:2,apt:"223",owner:"ERA LT",name:"Chris Kennedy",type:"long-term",rent:2600.0,balance:0,due:"2026-03-10",lease_end:"2025-10-10",checkin:"2025-10-10",note:"Via: Booking | Tel: 2134141259",history:[{"date": "2025-10-10", "text": "Move-in 2025-10-10"}],archived:false},
@@ -109,7 +109,7 @@ const ARCHIVED_SEED = [
   {id:1020,apt:"426-1",owner:"ERA LT",name:"Lynda Trinh",type:"short-stay",rent:818.0,balance:0,due:"2022-05-22",note:"Via: arbnb | Tel: 647-570-9917",history:[{"date": "2022-05-13", "text": "$818.00 \u2014 stay (2022-05-13 \u2192 2022-05-22)"}],archived:true,archived_date:"2022-05-22"},
   {id:1021,apt:"320",owner:"ERA LT",name:"Daniel Payne",type:"short-stay",rent:1484.0,balance:0,due:"2022-05-27",note:"Via: abnb | Tel: 804-944-0217",history:[{"date": "2022-05-07", "text": "$1,484.00 \u2014 stay (2022-05-07 \u2192 2022-05-27)"}],archived:true,archived_date:"2022-05-27"},
   {id:1022,apt:"426-4",owner:"ERA LT",name:"Keisha Dixon Wilson",type:"short-stay",rent:4457.0,balance:0,due:"2022-05-27",note:"Via: arbnb | Tel: 215-776-0751",history:[{"date": "2022-03-27", "text": "$4,457.00 \u2014 stay (2022-03-27 \u2192 2022-05-27)"}],archived:true,archived_date:"2022-05-27"},
-  {id:1023,apt:"230",owner:"ERA LT",name:"VÃ­ctor RodrÃ­guez",type:"short-stay",rent:1165.0,balance:0,due:"2022-05-28",note:"Via: abnb | Tel: 951-217-5673",history:[{"date": "2022-05-14", "text": "$1,165.00 \u2014 stay (2022-05-14 \u2192 2022-05-28)"}],archived:true,archived_date:"2022-05-28"},
+  {id:1023,apt:"230",owner:"ERA LT",name:"Víctor Rodríguez",type:"short-stay",rent:1165.0,balance:0,due:"2022-05-28",note:"Via: abnb | Tel: 951-217-5673",history:[{"date": "2022-05-14", "text": "$1,165.00 \u2014 stay (2022-05-14 \u2192 2022-05-28)"}],archived:true,archived_date:"2022-05-28"},
   {id:1024,apt:"426-1",owner:"ERA LT",name:"Ulukbek Shadymanov",type:"short-stay",rent:663.0,balance:0,due:"2022-05-30",note:"Via: arbnb | Tel: 484-919-9756",history:[{"date": "2022-05-22", "text": "$663.00 \u2014 stay (2022-05-22 \u2192 2022-05-30)"}],archived:true,archived_date:"2022-05-30"},
   {id:1025,apt:"223",owner:"ERA LT",name:"Marisha Mason",type:"short-stay",rent:2701.0,balance:0,due:"2022-05-31",note:"Via: abnb | Tel: 267-307-1140",history:[{"date": "2022-04-24", "text": "$2,701.00 \u2014 stay (2022-04-24 \u2192 2022-05-31)"}],archived:true,archived_date:"2022-05-31"},
   {id:1026,apt:"219",owner:"ERA LT",name:"Evgeny Kozyrev",type:"short-stay",rent:2000.0,balance:0,due:"2022-06-01",note:"Via: arbnb | Tel: 7657670829 | Email: eakozyrev09@gmail.com",history:[{"date": "2022-04-29", "text": "$2,000.00 \u2014 stay (2022-04-29 \u2192 2022-06-01)"}],archived:true,archived_date:"2022-06-01"},
@@ -512,7 +512,7 @@ const ARCHIVED_SEED = [
   {id:1423,apt:"Keswick 3B",owner:"Keswick Properties",name:"Harish Kallagunta",type:"short-stay",rent:620.12,balance:0,due:"2025-01-02",note:"Via: Airbnb | Tel: 2052535268",history:[{"date": "2024-12-26", "text": "$620.12 \u2014 stay (2024-12-26 \u2192 2025-01-02)"}],archived:true,archived_date:"2025-01-02"},
   {id:1424,apt:"Melrose B1",owner:"Melrose Properties",name:"Shaelyn Land",type:"short-stay",rent:588.84,balance:0,due:"2025-01-02",note:"Via: Airbnb | Tel: 2157208524",history:[{"date": "2024-12-27", "text": "$588.84 \u2014 stay (2024-12-27 \u2192 2025-01-02)"}],archived:true,archived_date:"2025-01-02"},
   {id:1425,apt:"Montg 1",owner:"Elkins LT",name:"Vitalii Kim Vitalii",type:"short-stay",rent:588.84,balance:0,due:"2025-01-02",note:"Via: Airbnb | Tel: 2676326518",history:[{"date": "2024-12-26", "text": "$588.84 \u2014 stay (2024-12-26 \u2192 2025-01-02)"}],archived:true,archived_date:"2025-01-02"},
-  {id:1426,apt:"Montg 9",owner:"Elkins LT",name:"åè½© å´ (till 27th)",type:"short-stay",rent:1641.09,balance:0,due:"2025-01-02",note:"Via: Airbnb | Tel: 19066507907",history:[{"date": "2024-12-19", "text": "$1,641.09 \u2014 stay (2024-12-19 \u2192 2025-01-02)"}],archived:true,archived_date:"2025-01-02"},
+  {id:1426,apt:"Montg 9",owner:"Elkins LT",name:"卓轩 吴 (till 27th)",type:"short-stay",rent:1641.09,balance:0,due:"2025-01-02",note:"Via: Airbnb | Tel: 19066507907",history:[{"date": "2024-12-19", "text": "$1,641.09 \u2014 stay (2024-12-19 \u2192 2025-01-02)"}],archived:true,archived_date:"2025-01-02"},
   {id:1427,apt:"207",owner:"ERA LT",name:"Terrell Bullock-Wallington",type:"short-stay",rent:239.01,balance:0,due:"2025-01-03",note:"Via: Airbnb | Tel: 469-740-3963",history:[{"date": "2025-01-01", "text": "$239.01 \u2014 stay (2025-01-01 \u2192 2025-01-03)"}],archived:true,archived_date:"2025-01-03"},
   {id:1428,apt:"331",owner:"ERA LT",name:"Amir",type:"short-stay",rent:390.0,balance:0,due:"2025-01-05",note:"Via: Airbnb | Tel: 626-725-29-74",history:[{"date": "2025-01-02", "text": "$390.00 \u2014 stay (2025-01-02 \u2192 2025-01-05)"}],archived:true,archived_date:"2025-01-05"},
   {id:1429,apt:"Fox Chase  2",owner:"Fox Chase Properties",name:"Michael Stern",type:"short-stay",rent:1061.28,balance:0,due:"2025-01-05",note:"Via: booking | Tel: 215 808 1423",history:[{"date": "2024-12-11", "text": "$1,061.28 \u2014 stay (2024-12-11 \u2192 2025-01-05)"}],archived:true,archived_date:"2025-01-05"},
@@ -606,7 +606,7 @@ const ARCHIVED_SEED = [
   {id:1517,apt:"318",owner:"ERA LT",name:"Holly Solomon",type:"short-stay",rent:3105.95,balance:0,due:"2025-05-17",note:"Via: Airbnb | Tel: 2673577758",history:[{"date": "2025-04-19", "text": "$3,105.95 \u2014 stay (2025-04-19 \u2192 2025-05-17)"}],archived:true,archived_date:"2025-05-17"},
   {id:1518,apt:"208",owner:"ERA LT",name:"Syidah Singleton",type:"long-term",rent:878.95,balance:0,due:"2025-05-20",note:"Via: Airbnb | Tel: 4452956640",history:[{"date": "2024-09-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2024-10-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2024-11-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2024-12-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2025-01-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2025-02-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2025-03-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2025-04-01", "text": "$879 \u2014 monthly (est.)"}, {"date": "2025-05-01", "text": "$879 \u2014 monthly (est.)"}],archived:true,archived_date:"2025-05-20"},
   {id:1519,apt:"221",owner:"ERA LT",name:"Diya Viswanathan",type:"short-stay",rent:1272.77,balance:0,due:"2025-05-25",note:"Via: Airbnb | Tel: 8136132430 | Email: diyaviswanathan@gmail.com",history:[{"date": "2025-05-11", "text": "$1,272.77 \u2014 stay (2025-05-11 \u2192 2025-05-25)"}],archived:true,archived_date:"2025-05-25"},
-  {id:1520,apt:"Montg 4",owner:"Elkins LT",name:"Gabriel LÃ³pez Alicea",type:"short-stay",rent:846.6,balance:0,due:"2025-05-22",note:"Via: Airbnb | Tel: 7872341002 | Email: cocotercel@gmail.com",history:[{"date": "2025-05-14", "text": "$846.60 \u2014 stay (2025-05-14 \u2192 2025-05-22)"}],archived:true,archived_date:"2025-05-22"},
+  {id:1520,apt:"Montg 4",owner:"Elkins LT",name:"Gabriel López Alicea",type:"short-stay",rent:846.6,balance:0,due:"2025-05-22",note:"Via: Airbnb | Tel: 7872341002 | Email: cocotercel@gmail.com",history:[{"date": "2025-05-14", "text": "$846.60 \u2014 stay (2025-05-14 \u2192 2025-05-22)"}],archived:true,archived_date:"2025-05-22"},
   {id:1521,apt:"331",owner:"ERA LT",name:"Kegnide Arouna",type:"short-stay",rent:914.54,balance:0,due:"2025-05-23",note:"Via: Airbnb | Tel: 12673537374 | Email: Arounaosseni@yahoo.fr",history:[{"date": "2025-05-15", "text": "$914.54 \u2014 stay (2025-05-15 \u2192 2025-05-23)"}],archived:true,archived_date:"2025-05-23"},
   {id:1522,apt:"Montg 6",owner:"Elkins LT",name:"Terrence Bishop",type:"short-stay",rent:695.61,balance:0,due:"2025-05-23",note:"Via: Airbnb | Tel: 2156172287",history:[{"date": "2025-05-16", "text": "$695.61 \u2014 stay (2025-05-16 \u2192 2025-05-23)"}],archived:true,archived_date:"2025-05-23"},
   {id:1523,apt:"202",owner:"ERA LT",name:"Arline Sprau",type:"short-stay",rent:1014.84,balance:0,due:"2025-05-25",note:"Via: Airbnb | Tel: 17654126116 | Email: Jaelrox@yahoo.com",history:[{"date": "2025-05-18", "text": "$1,014.84 \u2014 stay (2025-05-18 \u2192 2025-05-25)"}],archived:true,archived_date:"2025-05-25"},
@@ -721,7 +721,7 @@ const ARCHIVED_SEED = [
   {id:1632,apt:"Montg 4",owner:"Elkins LT",name:"Susquehanna Ha",type:"short-stay",rent:974.94,balance:0,due:"2025-09-25",note:"Via: Airbnb | Tel: 1087653628",history:[{"date": "2025-09-17", "text": "$974.94 \u2014 stay (2025-09-17 \u2192 2025-09-25)"}],archived:true,archived_date:"2025-09-25"},
   {id:1633,apt:"Montg 3",owner:"Elkins LT",name:"Aliza Bernfeld",type:"short-stay",rent:494.36,balance:0,due:"2025-09-25",note:"Via: Hostfully | Tel: 7329306697 | Email: alizabernfeld1@gmail.com",history:[{"date": "2025-09-22", "text": "$494.36 \u2014 stay (2025-09-22 \u2192 2025-09-25)"}],archived:true,archived_date:"2025-09-25"},
   {id:1634,apt:"Melrose B1",owner:"Melrose Properties",name:"Emma Carney",type:"short-stay",rent:2120.75,balance:0,due:"2025-09-27",note:"Via: Vrbo | Tel: 15307618466 | Email: ahcollins17@gmail.com",history:[{"date": "2025-09-02", "text": "$2,120.75 \u2014 stay (2025-09-02 \u2192 2025-09-27)"}],archived:true,archived_date:"2025-09-27"},
-  {id:1635,apt:"Montg 6",owner:"Elkins LT",name:"Elizabeth Mintz",type:"short-stay",rent:2009.8,balance:0,due:"2025-09-27",note:"Via: Airbnb | Tel: 609-477-6512â¬",history:[{"date": "2025-09-01", "text": "$2,009.80 \u2014 stay (2025-09-01 \u2192 2025-09-27)"}],archived:true,archived_date:"2025-09-27"},
+  {id:1635,apt:"Montg 6",owner:"Elkins LT",name:"Elizabeth Mintz",type:"short-stay",rent:2009.8,balance:0,due:"2025-09-27",note:"Via: Airbnb | Tel: 609-477-6512‬",history:[{"date": "2025-09-01", "text": "$2,009.80 \u2014 stay (2025-09-01 \u2192 2025-09-27)"}],archived:true,archived_date:"2025-09-27"},
   {id:1636,apt:"320",owner:"ERA LT",name:"Mandy Wilson",type:"short-stay",rent:664.21,balance:0,due:"2025-09-28",note:"Via: Vrbo | Tel: rileysmom4life@aol.com",history:[{"date": "2025-09-22", "text": "$664.21 \u2014 stay (2025-09-22 \u2192 2025-09-28)"}],archived:true,archived_date:"2025-09-28"},
   {id:1637,apt:"Melrose C1",owner:"Melrose Properties",name:"Roselande Exume",type:"short-stay",rent:598.91,balance:0,due:"2025-09-29",note:"Via: Airbnb | Tel: 2676508775 | Email: roselandeexum26@gmail.com",history:[{"date": "2025-09-22", "text": "$598.91 \u2014 stay (2025-09-22 \u2192 2025-09-29)"}],archived:true,archived_date:"2025-09-29"},
   {id:1638,apt:"111",owner:"ERA LT",name:"Rebeccalynn Bishop",type:"short-stay",rent:1898.93,balance:0,due:"2025-09-30",note:"Via: Airbnb | Tel: 18565038876 | Email: Bemonet@icloud.com",history:[{"date": "2025-09-08", "text": "$1,898.93 \u2014 stay (2025-09-08 \u2192 2025-09-30)"}],archived:true,archived_date:"2025-09-30"},
@@ -735,11 +735,11 @@ const ARCHIVED_SEED = [
   {id:1646,apt:"Melrose B2",owner:"Melrose Properties",name:"Shportun Dmytro",type:"short-stay",rent:749.96,balance:0,due:"2025-10-14",note:"Via: Booking | Tel: 7867370784 | Email: sagis0021@gmail.com",history:[{"date": "2025-10-04", "text": "$749.96 \u2014 stay (2025-10-04 \u2192 2025-10-14)"}],archived:true,archived_date:"2025-10-14"},
   {id:1647,apt:"Montg 4",owner:"Elkins LT",name:"Hannah Lowry",type:"short-stay",rent:550.02,balance:0,due:"2025-10-15",note:"Via: Airbnb | Tel: 12674532023 | Email: hannahlowry@yahoo.com",history:[{"date": "2025-10-10", "text": "$550.02 \u2014 stay (2025-10-10 \u2192 2025-10-15)"}],archived:true,archived_date:"2025-10-15"},
   {id:1648,apt:"Montg 3",owner:"Elkins LT",name:"Mary Barnes",type:"short-stay",rent:1013.76,balance:0,due:"2025-10-17",note:"Via: Airbnb | Tel: 8148764288 | Email: Dymnos@yahoo.com",history:[{"date": "2025-10-06", "text": "$1,013.76 \u2014 stay (2025-10-06 \u2192 2025-10-17)"}],archived:true,archived_date:"2025-10-17"},
-  {id:1649,apt:"221",owner:"ERA LT",name:"Christel Bullis",type:"short-stay",rent:2580.59,balance:0,due:"2025-10-20",note:"Via: Airbnb | Tel: 402-714-1131â¬",history:[{"date": "2025-09-20", "text": "$2,580.59 \u2014 stay (2025-09-20 \u2192 2025-10-20)"}],archived:true,archived_date:"2025-10-20"},
+  {id:1649,apt:"221",owner:"ERA LT",name:"Christel Bullis",type:"short-stay",rent:2580.59,balance:0,due:"2025-10-20",note:"Via: Airbnb | Tel: 402-714-1131‬",history:[{"date": "2025-09-20", "text": "$2,580.59 \u2014 stay (2025-09-20 \u2192 2025-10-20)"}],archived:true,archived_date:"2025-10-20"},
   {id:1650,apt:"215",owner:"ERA LT",name:"Yuderka Rodriguez",type:"short-stay",rent:939.35,balance:0,due:"2025-10-18",note:"Via: Airbnb | Tel: 14845380642 | Email: rodriguezdjosiah@outlook.com",history:[{"date": "2025-10-11", "text": "$939.35 \u2014 stay (2025-10-11 \u2192 2025-10-18)"}],archived:true,archived_date:"2025-10-18"},
   {id:1651,apt:"Fox Chase  2",owner:"Fox Chase Properties",name:"James Barron",type:"short-stay",rent:703.16,balance:0,due:"2025-10-18",note:"Via: Airbnb | Tel: 13046291491 | Email: snowtrooper1966@hotmail.com",history:[{"date": "2025-10-04", "text": "$703.16 \u2014 stay (2025-10-04 \u2192 2025-10-18)"}],archived:true,archived_date:"2025-10-18"},
   {id:1652,apt:"210",owner:"ERA LT",name:"Margaret Poley",type:"short-stay",rent:1004.21,balance:0,due:"2025-10-21",note:"Via: Booking | Tel: 2673700806 | Email: margaret_poley@yahoo.com",history:[{"date": "2025-10-14", "text": "$1,004.21 \u2014 stay (2025-10-14 \u2192 2025-10-21)"}],archived:true,archived_date:"2025-10-21"},
-  {id:1653,apt:"330",owner:"ERA LT",name:"Leon èµµ",type:"short-stay",rent:1404.72,balance:0,due:"2025-10-21",note:"Via: Airbnb | Tel: 8613823744061 | Email: 496345096@qq.com",history:[{"date": "2025-10-05", "text": "$1,404.72 \u2014 stay (2025-10-05 \u2192 2025-10-21)"}],archived:true,archived_date:"2025-10-21"},
+  {id:1653,apt:"330",owner:"ERA LT",name:"Leon 赵",type:"short-stay",rent:1404.72,balance:0,due:"2025-10-21",note:"Via: Airbnb | Tel: 8613823744061 | Email: 496345096@qq.com",history:[{"date": "2025-10-05", "text": "$1,404.72 \u2014 stay (2025-10-05 \u2192 2025-10-21)"}],archived:true,archived_date:"2025-10-21"},
   {id:1654,apt:"Montg 4",owner:"Elkins LT",name:"Ruth Mcgaugh",type:"short-stay",rent:735.51,balance:0,due:"2025-10-22",note:"Via: Vrbo | Tel: 15185269632 | Email: ruthmcgaugh@gmail.com",history:[{"date": "2025-10-15", "text": "$735.51 \u2014 stay (2025-10-15 \u2192 2025-10-22)"}],archived:true,archived_date:"2025-10-22"},
   {id:1655,apt:"Montg 6",owner:"Elkins LT",name:"Gloria Brown",type:"short-stay",rent:1095.73,balance:0,due:"2025-10-22",note:"Via: Airbnb | Tel: 12152370575 | Email: browngloria1014@outlook.com",history:[{"date": "2025-10-08", "text": "$1,095.73 \u2014 stay (2025-10-08 \u2192 2025-10-22)"}],archived:true,archived_date:"2025-10-22"},
   {id:1656,apt:"208",owner:"ERA LT",name:"Sharif Ali",type:"short-stay",rent:826.11,balance:0,due:"2025-10-27",note:"Via: Airbnb | Tel: 12159831210 | Email: Sharonali7622@gmail.com",history:[{"date": "2025-10-20", "text": "$826.11 \u2014 stay (2025-10-20 \u2192 2025-10-27)"}],archived:true,archived_date:"2025-10-27"},
@@ -749,7 +749,7 @@ const ARCHIVED_SEED = [
   {id:1660,apt:"Montg 3",owner:"Elkins LT",name:"Edgars Family",type:"short-stay",rent:670.81,balance:0,due:"2025-11-01",note:"Via: Airbnb | Tel: 17149866865 | Email: Mar.rmirz@gmail.com",history:[{"date": "2025-10-25", "text": "$670.81 \u2014 stay (2025-10-25 \u2192 2025-11-01)"}],archived:true,archived_date:"2025-11-01"},
   {id:1661,apt:"426-2",owner:"ERA LT",name:"Elston Whitney",type:"short-stay",rent:1713.12,balance:0,due:"2025-11-01",note:"Via: Airbnb | Tel: 2152606506 | Email: Elstonwhitney179@gmail.com",history:[{"date": "2025-10-01", "text": "$1,713.12 \u2014 stay (2025-10-01 \u2192 2025-11-01)"}],archived:true,archived_date:"2025-11-01"},
   {id:1662,apt:"112",owner:"ERA LT",name:"David Tioga Millwrights",type:"short-stay",rent:2757.78,balance:0,due:"2025-11-02",note:"Via: Hostfully | Tel: 5706735027 | Email: david@tiogamillwrights.com",history:[{"date": "2025-10-12", "text": "$2,757.78 \u2014 stay (2025-10-12 \u2192 2025-11-02)"}],archived:true,archived_date:"2025-11-02"},
-  {id:1663,apt:"202",owner:"ERA LT",name:"Jennifer Levine",type:"short-stay",rent:2855.36,balance:0,due:"2025-11-02",note:"Via: Airbnb | Tel: 850-890-7513â¬",history:[{"date": "2025-09-22", "text": "$2,855.36 \u2014 stay (2025-09-22 \u2192 2025-11-02)"}],archived:true,archived_date:"2025-11-02"},
+  {id:1663,apt:"202",owner:"ERA LT",name:"Jennifer Levine",type:"short-stay",rent:2855.36,balance:0,due:"2025-11-02",note:"Via: Airbnb | Tel: 850-890-7513‬",history:[{"date": "2025-09-22", "text": "$2,855.36 \u2014 stay (2025-09-22 \u2192 2025-11-02)"}],archived:true,archived_date:"2025-11-02"},
   {id:1664,apt:"320",owner:"ERA LT",name:"Susan Smith",type:"short-stay",rent:2328.0,balance:0,due:"2025-11-02",note:"Via: Airbnb | Tel: 2675868149 | Email: susanlsmith76@gmail.com",history:[{"date": "2025-09-30", "text": "$2,328.00 \u2014 stay (2025-09-30 \u2192 2025-11-02)"}],archived:true,archived_date:"2025-11-02"},
   {id:1665,apt:"230",owner:"ERA LT",name:"Arturo Ramsden",type:"long-term",rent:1149.92,balance:0,due:"2025-11-03",note:"Via: Hostfully",history:[{"date": "2025-07-01", "text": "$1,150 \u2014 monthly (est.)"}, {"date": "2025-08-01", "text": "$1,150 \u2014 monthly (est.)"}, {"date": "2025-09-01", "text": "$1,150 \u2014 monthly (est.)"}, {"date": "2025-10-01", "text": "$1,150 \u2014 monthly (est.)"}, {"date": "2025-11-01", "text": "$1,150 \u2014 monthly (est.)"}],archived:true,archived_date:"2025-11-03"},
   {id:1666,apt:"301",owner:"ERA LT",name:"Pavel Leyzerzon",type:"long-term",rent:2300.0,balance:0,due:"2025-10-31",note:"Via: facebook | Tel: 215-730-1006 | Email: Pleyzerzon@gmail.com",history:[{"date": "2023-10-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2023-11-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2023-12-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-01-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-02-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-03-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-04-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-05-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-06-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-07-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-08-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-09-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-10-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-11-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2024-12-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-01-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-02-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-03-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-04-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-05-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-06-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-07-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-08-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-09-01", "text": "$2,300 \u2014 monthly (est.)"}, {"date": "2025-10-01", "text": "$2,300 \u2014 monthly (est.)"}],archived:true,archived_date:"2025-10-31"},
@@ -844,7 +844,7 @@ let currentStatFilter='all', currentTypeFilter='all', detailId=null, payType='fu
 let reportMonth=new Date().getMonth(), reportYear=new Date().getFullYear();
 let typeChartInst=null, collChartInst=null, trendChartInst=null;
 
-// ââ SUPABASE âââââââââââââââââââââââââââââââââââââââ
+// ── SUPABASE ───────────────────────────────────────
 const SUPA_URL = CONFIG.SUPABASE_URL;
 const SUPA_KEY = CONFIG.SUPABASE_KEY;
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
@@ -895,7 +895,7 @@ function fromRow(r) {
   };
 }
 
-// ââ AUDIT LOG ââââââââââââââââââââââââââââââââââââââ
+// ── AUDIT LOG ──────────────────────────────────────
 let lastUndo = null; // {action, record_id, old_data, new_data}
 
 async function auditLog(action, apt, name, recordId, oldData, newData) {
@@ -909,7 +909,7 @@ async function auditLog(action, apt, name, recordId, oldData, newData) {
     // Keep last undo in memory for instant undo
     lastUndo = { action, record_id: recordId, old_data: oldData, new_data: newData, apt, name };
     document.getElementById('undoBtn').style.display = '';
-    document.getElementById('undoBtn').title = `Undo: ${action} â ${apt} ${name||''}`;
+    document.getElementById('undoBtn').title = `Undo: ${action} — ${apt} ${name||''}`;
   } catch(e) {
     console.warn('Audit log failed:', e);
   }
@@ -947,7 +947,7 @@ async function performUndo() {
     document.getElementById('undoBtn').style.display = 'none';
     await loadAll();
     renderTable();
-    toast('â© Undo successful', 'success');
+    toast('↩ Undo successful', 'success');
   } catch(e) {
     console.error('Undo failed:', e);
     toast('Undo failed: ' + e.message, 'error');
@@ -959,7 +959,7 @@ async function save(record) {
   const old = [...data, ...archived].find(x => x.id === record.id);
   const row = dbRow(record);
   const { error } = await sb.from('units').upsert(row, { onConflict: 'id' });
-  if (error) { console.error('Save error:', error); toast('Sync error â check console','error'); return; }
+  if (error) { console.error('Save error:', error); toast('Sync error — check console','error'); return; }
   // Update last sync timestamp
   localStorage.setItem('lastSync', Date.now().toString());
   updateLastSynced();
@@ -1015,7 +1015,7 @@ async function loadAll() {
   return true;
 }
 
-// Real-time subscription â refresh when any change comes in from another user
+// Real-time subscription — refresh when any change comes in from another user
 function subscribeRealtime() {
   sb.channel('units-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'units' }, async () => {
@@ -1031,20 +1031,20 @@ function subscribeRealtime() {
     .subscribe();
 }
 
-// ââ DATE âââââââââââââââââââââââââââââââââââââââââââ
+// ── DATE ───────────────────────────────────────────
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function daysUntil(s){if(!s)return null;const n=new Date();n.setHours(0,0,0,0);return Math.round((new Date(s+'T00:00:00')-n)/86400000);}
 function dueStatus(r){if(r.type==='available')return'available';if(!r.due)return'none';const d=daysUntil(r.due);if(r.type==='short-stay'&&d<0)return'available';if(d<0)return'overdue';if(d<=7)return'soon';return'ok';}
-function fmtDate(s){if(!s)return'â';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function fmtDate(s){if(!s)return'—';return new Date(s+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 function fmtMoney(n){return'$'+(Math.round(n||0)).toLocaleString();}
 function nextMonth(s){if(!s)return'';const d=new Date(s+'T00:00:00');d.setMonth(d.getMonth()+1);return d.toISOString().split('T')[0];}
 function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
 function monthName(m,y){return new Date(y,m,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});}
 
-// ââ STATS ââââââââââââââââââââââââââââââââââââââââââ
+// ── STATS ──────────────────────────────────────────
 function updateStats(){
   const a=data.filter(r=>!r.archived);
-  // Deduplicate by apt for stats â same logic as table
+  // Deduplicate by apt for stats — same logic as table
   const aptSeen={};
   const deduped=[];
   a.forEach(r=>{
@@ -1057,10 +1057,10 @@ function updateStats(){
 }
 
 function typeBadge(t){const m={'long-term':['badge-lt','Long Term'],'month-to-month':['badge-mtm','M-to-M'],'short-stay':['badge-short','Short Stay'],'available':['badge-avail','Available']};const[c,l]=m[t]||['badge-avail',t];return`<span class="badge ${c}">${l}</span>`;}
-function dueCell(r){if(r.type==='available'||!r.due)return'<span class="due-none">â</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
+function dueCell(r){if(r.type==='available'||!r.due)return'<span class="due-none">—</span>';const s=dueStatus(r),d=daysUntil(r.due);const c=s==='overdue'?'due-overdue':s==='soon'?'due-soon':'due-ok';let l=fmtDate(r.due);if(s==='overdue')l+=` <small style="opacity:.8">(${Math.abs(d)}d late)</small>`;else if(s==='soon')l+=` <small style="opacity:.8">(${d}d)</small>`;return`<div class="due-cell ${c}"><div class="due-dot"></div>${l}</div>`;}
 
-// ââ RENDER TABLE âââââââââââââââââââââââââââââââââââ
-// ââ EARLIEST BOOKING LOGIC âââââââââââââââââââââââââââââââââââââââââ
+// ── RENDER TABLE ───────────────────────────────────
+// ── EARLIEST BOOKING LOGIC ─────────────────────────────────────────
 // For each active unit, find the earliest upcoming booking across
 // the active record + any archived cal-bookings for the same apt.
 // Returns a display record with the earliest guest/dates,
@@ -1110,7 +1110,7 @@ function getEarliestBooking(activeRecord) {
 }
 
 function getFiltered(){
-  // Deduplicate by apt â keep only the most relevant booking per apt
+  // Deduplicate by apt — keep only the most relevant booking per apt
   // Priority: 1) currently active (checkin <= today <= due), 2) next upcoming (checkin > today), 3) available
   const today = new Date(); today.setHours(0,0,0,0);
   const allActive = data.filter(r=>!r.archived);
@@ -1159,24 +1159,24 @@ function renderTable(){
   document.getElementById('emptyState').style.display=rows.length?'none':'';
   document.getElementById('tableBody').innerHTML=rows.map(r=>{
     const s=dueStatus(r),rc=r.type==='available'?'row-available':s==='overdue'?'row-overdue':s==='soon'?'row-soon':'';
-    const bc=r.type==='available'?'<span class="amount-none">â</span>':r.balance>0?`<span style="color:var(--red);font-weight:500">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">â Paid</span>';
+    const bc=r.type==='available'?'<span class="amount-none">—</span>':r.balance>0?`<span style="color:var(--red);font-weight:500">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>';
     // For short-stay: if unit has a booking_id with archive records, rent is already the current period amount
-    // Don't re-prorate it â just show it directly
+    // Don't re-prorate it — just show it directly
     const hasArchiveRecords = r.booking_id && archived.some(a => a.booking_id === r.booking_id && a.archived_date);
     const proration = (!hasArchiveRecords) ? currentMonthProration(r) : null;
     const rentCell = r.type==='short-stay' && proration
-      ? `<span class="amount-cell" title="Full stay: $${r.rent.toLocaleString()} â ${proration.days} days this month" style="cursor:help">$${proration.portion.toLocaleString()}<small style="color:var(--text3);font-size:9px;margin-left:2px">/${proration.days}d</small></span>`
-      : r.rent ? `<span class="amount-cell">$${r.rent.toLocaleString()}</span>` : '<span class="amount-none">â</span>';
+      ? `<span class="amount-cell" title="Full stay: $${r.rent.toLocaleString()} — ${proration.days} days this month" style="cursor:help">$${proration.portion.toLocaleString()}<small style="color:var(--text3);font-size:9px;margin-left:2px">/${proration.days}d</small></span>`
+      : r.rent ? `<span class="amount-cell">$${r.rent.toLocaleString()}</span>` : '<span class="amount-none">—</span>';
     // Get property data for this apt
     const propRec = (propertiesData && propertiesData.length > 0)
       ? propertiesData.find(p => p.internal_apt === r.apt || p.apt === r.apt)
       : null;
-    const brCell = propRec && propRec.bedrooms != null ? propRec.bedrooms : '<span style="color:var(--text3)">â</span>';
-    const bathCell = propRec && propRec.bathrooms != null ? propRec.bathrooms : '<span style="color:var(--text3)">â</span>';
-    const accessCell = propRec && propRec.door_code ? `<span style="font-size:11px;font-family:'DM Mono',monospace;">${propRec.door_code}</span>` : '<span style="color:var(--text3)">â</span>';
-    return`<tr class="apt-row ${rc}" onclick="openDetail(${r.id})"><td class="apt-num">${r.apt}</td><td style="font-size:12px;text-align:center;">${brCell}</td><td style="font-size:12px;text-align:center;">${bathCell}</td><td style="font-size:11px;">${accessCell}</td><td style="font-size:12px;color:var(--text2);white-space:nowrap">${r.checkin?fmtDate(r.checkin):'<span style="color:var(--text3)">â</span>'}</td><td>${typeBadge(r.type)}</td><td onclick="event.stopPropagation()">${clickablePersonName(r.name, r, 'tenant-name')}</td><td>${dueCell(r)}</td><td style="font-size:12px;color:var(--blue);white-space:nowrap">${r.type!=='short-stay'&&r.lease_end?fmtDate(r.lease_end):'<span style="color:var(--text3)">â</span>'}</td><td>${rentCell}</td><td>${bc}</td><td><div class="note-preview">${r.note||''}</div></td><td class="owner-cell">${r.owner||'â'}</td><td class="actions-cell" onclick="event.stopPropagation()">${r.type!=='available'?`<button class="icon-btn ib-pay" title="Payment" onclick="openPayModal(${r.id})">ð°</button>`:''}<button class="icon-btn ib-edit" title="Edit" onclick="openEditModal(${r.id})">âï¸</button><button class="icon-btn ib-arch" title="Archive" onclick="archiveTenant(${r.id})">ð¦</button></td></tr>`;
+    const brCell = propRec && propRec.bedrooms != null ? propRec.bedrooms : '<span style="color:var(--text3)">—</span>';
+    const bathCell = propRec && propRec.bathrooms != null ? propRec.bathrooms : '<span style="color:var(--text3)">—</span>';
+    const accessCell = propRec && propRec.door_code ? `<span style="font-size:11px;font-family:'DM Mono',monospace;">${propRec.door_code}</span>` : '<span style="color:var(--text3)">—</span>';
+    return`<tr class="apt-row ${rc}" onclick="openDetail(${r.id})"><td class="apt-num">${r.apt}</td><td style="font-size:12px;text-align:center;">${brCell}</td><td style="font-size:12px;text-align:center;">${bathCell}</td><td style="font-size:11px;">${accessCell}</td><td style="font-size:12px;color:var(--text2);white-space:nowrap">${r.checkin?fmtDate(r.checkin):'<span style="color:var(--text3)">—</span>'}</td><td>${typeBadge(r.type)}</td><td onclick="event.stopPropagation()">${clickablePersonName(r.name, r, 'tenant-name')}</td><td>${dueCell(r)}</td><td style="font-size:12px;color:var(--blue);white-space:nowrap">${r.type!=='short-stay'&&r.lease_end?fmtDate(r.lease_end):'<span style="color:var(--text3)">—</span>'}</td><td>${rentCell}</td><td>${bc}</td><td><div class="note-preview">${r.note||''}</div></td><td class="owner-cell">${r.owner||'—'}</td><td class="actions-cell" onclick="event.stopPropagation()">${r.type!=='available'?`<button class="icon-btn ib-pay" title="Payment" onclick="openPayModal(${r.id})">💰</button>`:''}<button class="icon-btn ib-edit" title="Edit" onclick="openEditModal(${r.id})">✏️</button><button class="icon-btn ib-arch" title="Archive" onclick="archiveTenant(${r.id})">📦</button></td></tr>`;
   }).join('');
-  document.getElementById('archiveBody').innerHTML=archived.filter(r=>r.archived).map(r=>`<tr style="opacity:.75"><td class="apt-num" style="font-size:15px">${r.apt}</td><td class="tenant-name">${r.name||'â'}</td><td class="owner-cell">${r.owner||'â'}</td><td>${typeBadge(r.type)}</td><td style="color:var(--text3);font-size:12px">${fmtDate(r.checkin||r.checkinDate||'')}</td><td style="color:var(--blue);font-size:12px">${fmtDate(r.lease_end||r.archivedDate||r.due||'')}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell"><button class="icon-btn ib-restore" title="Restore" onclick="restoreTenant(${r.id})">â©ï¸</button><button class="icon-btn ib-del" title="Delete" onclick="deletePermanent(${r.id})">ðï¸</button></td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">No archived tenants</td></tr>';
+  document.getElementById('archiveBody').innerHTML=archived.filter(r=>r.archived).map(r=>`<tr style="opacity:.75"><td class="apt-num" style="font-size:15px">${r.apt}</td><td class="tenant-name">${r.name||'—'}</td><td class="owner-cell">${r.owner||'—'}</td><td>${typeBadge(r.type)}</td><td style="color:var(--text3);font-size:12px">${fmtDate(r.checkin||r.checkinDate||'')}</td><td style="color:var(--blue);font-size:12px">${fmtDate(r.lease_end||r.archivedDate||r.due||'')}</td><td><div class="note-preview">${r.note||''}</div></td><td class="actions-cell"><button class="icon-btn ib-restore" title="Restore" onclick="restoreTenant(${r.id})">↩️</button><button class="icon-btn ib-del" title="Delete" onclick="deletePermanent(${r.id})">🗑️</button></td></tr>`).join('')||'<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">No archived tenants</td></tr>';
 }
 
 function filterStat(el,f){document.querySelectorAll('.stat-card').forEach(c=>c.classList.remove('active'));currentStatFilter=currentStatFilter===f?'all':f;if(currentStatFilter==='all')document.querySelector('.s-total').classList.add('active');else el.classList.add('active');renderTable();}
@@ -1197,11 +1197,11 @@ function setSortSel(v){
 }
 function toggleArchive(){const w=document.getElementById('archiveTableWrap'),ch=document.getElementById('archChevron');const o=w.style.display!=='none';w.style.display=o?'none':'';ch.classList.toggle('open',!o);}
 
-// ââ ADD/EDIT âââââââââââââââââââââââââââââââââââââââ
+// ── ADD/EDIT ───────────────────────────────────────
 function openAddModal(){
   document.getElementById('editId').value='';
   document.getElementById('modalTitle').textContent='Add Unit / Tenant';
-  document.getElementById('modalAptLabel').textContent='â';
+  document.getElementById('modalAptLabel').textContent='—';
   ['fApt','fOwner','fName','fRent','fBalance','fNote','fCheckin','fPhone','fEmail','fChannelOther'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('fType').value='available';
   document.getElementById('fDue').value='';
@@ -1249,10 +1249,10 @@ async function saveTenant(){
     balance:parseFloat(document.getElementById('fBalance').value)||0,
     note:buildNoteField('fChannel','fChannelOther','fPhone','fEmail','fNote')
   };
-  if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated â`,'success');}
-  else{const newId=nextId++;const newRec={id:newId,...rec,history:[],archived:false,booking_id:'BK-'+newId};data.push(newRec);await save(newRec);toast(`Apt ${apt} added â`,'success');}
+  if(id){const i=data.findIndex(x=>x.id==id);data[i]={...data[i],...rec};await save(data[i]);toast(`Apt ${apt} updated ✓`,'success');}
+  else{const newId=nextId++;const newRec={id:newId,...rec,history:[],archived:false,booking_id:'BK-'+newId};data.push(newRec);await save(newRec);toast(`Apt ${apt} added ✓`,'success');}
 
-  // Keep properties table in sync â upsert a property record for this apt
+  // Keep properties table in sync — upsert a property record for this apt
   try{
     const existing = propertiesData.find(p => p.internal_apt === apt || p.apt === apt);
     if(!existing){
@@ -1281,7 +1281,7 @@ async function saveTenant(){
   closeModal('editModal');renderTable();
 }
 
-// ââ PAYMENT ââââââââââââââââââââââââââââââââââââââââ
+// ── PAYMENT ────────────────────────────────────────
 function openPayModal(id){
   const r=data.find(x=>x.id===id);if(!r)return;
   payType='full';
@@ -1301,10 +1301,10 @@ function openPayModal(id){
   document.getElementById('prorateRow').style.display = showProrate ? '' : 'none';
   const s=dueStatus(r);
   document.getElementById('payInfoBox').innerHTML=`
-    <div class="pay-info-item"><div class="pi-label">Tenant</div><div class="pi-value">${r.name||'â'}</div></div>
+    <div class="pay-info-item"><div class="pi-label">Tenant</div><div class="pi-value">${r.name||'—'}</div></div>
     <div class="pay-info-item"><div class="pi-label">Amount</div><div class="pi-value">$${(r.rent||0).toLocaleString()}</div></div>
-    <div class="pay-info-item"><div class="pi-label">Balance Owed</div><div class="pi-value ${r.balance>0?'overdue':'ok'}">${r.balance>0?'$'+r.balance.toLocaleString():'â Paid'}</div></div>
-    <div class="pay-info-item"><div class="pi-label">Check-in â Checkout</div><div class="pi-value" style="font-size:12px">${fmtDate(r.checkin||r.due)} â ${fmtDate(r.lease_end||r.due)}</div></div>`;
+    <div class="pay-info-item"><div class="pi-label">Balance Owed</div><div class="pi-value ${r.balance>0?'overdue':'ok'}">${r.balance>0?'$'+r.balance.toLocaleString():'✓ Paid'}</div></div>
+    <div class="pay-info-item"><div class="pi-label">Check-in → Checkout</div><div class="pi-value" style="font-size:12px">${fmtDate(r.checkin||r.due)} → ${fmtDate(r.lease_end||r.due)}</div></div>`;
   updatePayPreview();
   openModal('payModal');
 }
@@ -1360,11 +1360,11 @@ function updatePayPreview(){
     if(splits.length){
       const breakdown = splits.map(s=>`${s.month}: <strong>$${s.portion.toLocaleString()}</strong> (${s.days} days)`).join('<br>');
       document.getElementById('prorateBreakdown').innerHTML = breakdown;
-      msg = `â Total $${amt.toLocaleString()} split across ${splits.length} month${splits.length>1?'s':''} â archive lines created per month.`;
+      msg = `✓ Total $${amt.toLocaleString()} split across ${splits.length} month${splits.length>1?'s':''} — archive lines created per month.`;
     }
   } else if(payType==='full'){
     const nd=nextMonth(r.due);
-    msg=amt>=r.rent?`â Full payment. Due â <strong>${fmtDate(nd)}</strong>`:`â  $${amt} < rent $${r.rent}. Balance: <strong>$${(r.rent-amt).toFixed(2)}</strong>`;
+    msg=amt>=r.rent?`✓ Full payment. Due → <strong>${fmtDate(nd)}</strong>`:`⚠ $${amt} < rent $${r.rent}. Balance: <strong>$${(r.rent-amt).toFixed(2)}</strong>`;
   } else if(payType==='partial'){
     msg=`Partial. New balance: <strong>$${Math.max(0,(r.balance||r.rent)-amt).toFixed(2)}</strong>`;
   } else if(payType==='extend'){
@@ -1388,7 +1388,7 @@ async function confirmPayment(){
   r.history = r.history || [];
 
   if(r.type === 'short-stay' && !isProrate) {
-    // ââ SHORT STAY (non-prorated) ââââââââââââââââââââââââââââââ
+    // ── SHORT STAY (non-prorated) ──────────────────────────────
     const ci           = r.checkin || r.due || '';
     const origCheckout = r.lease_end || r.due || '';
     const newCO        = (payType === 'extend' && newCheckout) ? newCheckout : origCheckout;
@@ -1396,12 +1396,12 @@ async function confirmPayment(){
     const curMonthStr  = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
     // Add this payment to live history
-    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} â payment${note ? ' | ' + note : ''}` });
+    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — payment${note ? ' | ' + note : ''}` });
 
     if(payType === 'extend' && newCheckout) {
-      // ââ EXTENSION PAYMENT ââââââââââââââââââââââââââââââââââââââ
+      // ── EXTENSION PAYMENT ──────────────────────────────────────
       // Only prorate the NEW payment across the new portion of the stay
-      // Previous months are already archived â don't recalculate them
+      // Previous months are already archived — don't recalculate them
       const extSplits = calcProration(origCheckout, newCO, amt);
       const pastExt   = extSplits.filter(s => s.monthStr < curMonthStr);
       const currExt   = extSplits.filter(s => s.monthStr >= curMonthStr);
@@ -1410,16 +1410,16 @@ async function confirmPayment(){
       // Archive any past-month portions of the extension
       for(const s of pastExt) {
         await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
-          [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} â extension ${s.month} (${s.days}d)` }]);
+          [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — extension ${s.month} (${s.days}d)` }]);
       }
 
       // Also archive the month BEFORE the extension if it's now past
-      // (e.g. March portion of original stay â archive)
+      // (e.g. March portion of original stay → archive)
       const origSplits = calcProration(ci, origCheckout, r.rent);
       for(const s of origSplits) {
         if(s.monthStr < curMonthStr) {
           await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
-            [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} â ${s.month} (${s.days}d of original stay)` }]);
+            [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days}d of original stay)` }]);
         }
       }
 
@@ -1431,7 +1431,7 @@ async function confirmPayment(){
       await save(r);
 
     } else {
-      // ââ REGULAR PAYMENT (no extension) ââââââââââââââââââââââ
+      // ── REGULAR PAYMENT (no extension) ──────────────────────
       const totalPaid    = Math.round(r.history.reduce((s,h)=>s+(typeof h.amt==='number'?h.amt:0),0)*100)/100;
       const crossesMonth = ci.substring(0,7) < newCO.substring(0,7);
 
@@ -1446,7 +1446,7 @@ async function confirmPayment(){
         const currTotal   = Math.round(currSplits.reduce((s,x)=>s+x.portion,0)*100)/100;
         for(const s of pastSplits) {
           await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
-            [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} â ${s.month} (${s.days}d)` }]);
+            [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days}d)` }]);
         }
         r.rent    = currTotal;
         r.balance = Math.max(0, currTotal - (totalPaid - pastSplits.reduce((s,x)=>s+x.portion,0)));
@@ -1456,7 +1456,7 @@ async function confirmPayment(){
     }
 
   } else if(isProrate) {
-    // ââ PRORATED FULL STAY â works for any lease type ââââââââââ
+    // ── PRORATED FULL STAY — works for any lease type ──────────
     const ci = r.checkin || r.due;
     const co = r.lease_end || r.due;
     const splits = calcProration(ci, co, amt);
@@ -1472,18 +1472,18 @@ async function confirmPayment(){
     r.history.unshift({
       date: dateStr,
       amt: curSplit ? curSplit.portion : amt,
-      text: `$${amt.toLocaleString()} â full stay paid, this month: $${(curSplit ? curSplit.portion : amt).toLocaleString()}${note ? ' | ' + note : ''}`
+      text: `$${amt.toLocaleString()} — full stay paid, this month: $${(curSplit ? curSplit.portion : amt).toLocaleString()}${note ? ' | ' + note : ''}`
     });
     await save(r);
 
     // All months get archive records (including current month for reporting)
     for(const s of splits) {
       await upsertArchiveMonth(r, s.monthStr, s.portion, dateStr, note,
-        [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} â ${s.month} (${s.days}d)` }]);
+        [{ date: dateStr, amt: s.portion, text: `$${s.portion.toLocaleString()} — ${s.month} (${s.days}d)` }]);
     }
 
   } else {
-    // ââ LONG TERM / MONTH-TO-MONTH âââââââââââââââââââââââââââââ
+    // ── LONG TERM / MONTH-TO-MONTH ─────────────────────────────
     if(payType === 'full') {
       r.balance = amt >= r.rent ? 0 : Math.max(0, r.rent - amt);
       if(amt >= r.rent) r.due = nextMonth(r.due);
@@ -1493,23 +1493,23 @@ async function confirmPayment(){
       if(newCheckout) r.due = newCheckout;
       r.balance = Math.max(0, (r.balance || 0) - amt);
     }
-    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} â ${payType}${note ? ' | ' + note : ''}` });
+    r.history.unshift({ date: dateStr, amt, text: `$${amt.toLocaleString()} — ${payType}${note ? ' | ' + note : ''}` });
     await save(r);
     const monthStr = dateStr.substring(0, 7);
     await upsertArchiveMonth(r, monthStr, amt, dateStr, note,
-      [{ date: dateStr, amt, text: `$${amt.toLocaleString()} â payment received${note ? ' | ' + note : ''}` }]);
+      [{ date: dateStr, amt, text: `$${amt.toLocaleString()} — payment received${note ? ' | ' + note : ''}` }]);
   }
 
   await loadAll();
   closeModal('payModal');
   renderTable();
-  toast(`Payment recorded for Apt ${r.apt} â`, 'success');
+  toast(`Payment recorded for Apt ${r.apt} ✓`, 'success');
   if(detailId === r.id) openDetail(r.id);
 
 }
 
 
-// ââ Shared archive upsert ââââââââââââââââââââââââââââââââââ
+// ── Shared archive upsert ──────────────────────────────────
 async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyEntries) {
   const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const [yr, mo] = monthStr.split('-');
@@ -1532,7 +1532,7 @@ async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyE
     // Recalc total from all history
     const totalPaid = Math.round(existing.history.reduce((s, h) => s + (typeof h.amt === 'number' ? h.amt : 0), 0) * 100) / 100;
     existing.rent = totalPaid;
-    existing.note = `${r.name} â ${monthLabel} â ${existing.history.length} payment(s) â $${totalPaid.toLocaleString()}${note ? ' | ' + note : ''}`;
+    existing.note = `${r.name} — ${monthLabel} — ${existing.history.length} payment(s) — $${totalPaid.toLocaleString()}${note ? ' | ' + note : ''}`;
     await save(existing);
     const mi = archived.findIndex(a => a.id === existing.id);
     if(mi >= 0) archived[mi] = existing; else archived.unshift(existing);
@@ -1545,7 +1545,7 @@ async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyE
       due: `${monthStr}-01`,
       lease_end: new Date(parseInt(yr), mIdx + 1, 0).toISOString().split('T')[0],
       checkin: r.checkin || '',
-      note: `${r.name} â ${monthLabel} â $${monthAmt.toLocaleString()}${note ? ' | ' + note : ''}`,
+      note: `${r.name} — ${monthLabel} — $${monthAmt.toLocaleString()}${note ? ' | ' + note : ''}`,
       history: historyEntries,
       archived: true, archived_date: `${monthStr}-01`,
       booking_id: r.booking_id || ('BK-' + r.id)
@@ -1557,7 +1557,7 @@ async function upsertArchiveMonth(r, monthStr, monthAmt, dateStr, note, historyE
 
 
 
-// ââ CLEAR HISTORY ââââââââââââââââââââââââââââââââââ
+// ── CLEAR HISTORY ──────────────────────────────────
 
 let _clearHistoryId = null;
 
@@ -1569,7 +1569,7 @@ function openClearHistoryModal(id) {
   document.getElementById('clearHistoryPreview').innerHTML = `
     <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
       <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Unit</span>
-      <span style="font-weight:500;">Apt ${r.apt} â ${r.name}</span>
+      <span style="font-weight:500;">Apt ${r.apt} — ${r.name}</span>
     </div>
     <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
       <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Current Rent</span>
@@ -1577,7 +1577,7 @@ function openClearHistoryModal(id) {
     </div>
     <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
       <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">Current Balance</span>
-      <span style="color:${r.balance>0?'var(--red)':'var(--green)'};font-weight:500;">${r.balance>0?'$'+r.balance.toLocaleString():'â Paid'}</span>
+      <span style="color:${r.balance>0?'var(--red)':'var(--green)'};font-weight:500;">${r.balance>0?'$'+r.balance.toLocaleString():'✓ Paid'}</span>
     </div>
     <div style="display:flex;justify-content:space-between;">
       <span style="color:var(--text3);font-size:10px;text-transform:uppercase;letter-spacing:1px;">History Entries</span>
@@ -1594,7 +1594,7 @@ function openClearHistoryModal(id) {
 async function confirmClearHistory() {
   if(!_clearHistoryId) return;
   const btn = document.getElementById('confirmClearHistoryBtn');
-  btn.textContent = 'â³ Clearingâ¦';
+  btn.textContent = '⏳ Clearing…';
   btn.disabled = true;
 
   try {
@@ -1617,15 +1617,15 @@ async function confirmClearHistory() {
     closeModal('clearHistoryModal');
     renderTable();
     if(detailId === _clearHistoryId) openDetail(_clearHistoryId);
-    toast(`History cleared for Apt ${r.apt} â`, 'success');
+    toast(`History cleared for Apt ${r.apt} ✓`, 'success');
   } catch(e) {
     toast('Failed: ' + e.message, 'error');
-    btn.textContent = 'ð Clear History';
+    btn.textContent = '🗑 Clear History';
     btn.disabled = false;
   }
 }
 
-// ââ ARCHIVE DETAIL PANEL âââââââââââââââââââââââââââ
+// ── ARCHIVE DETAIL PANEL ───────────────────────────
 
 let currentArchiveDetailId = null;
 
@@ -1634,8 +1634,8 @@ function openArchiveDetail(id) {
   if (!r) return;
   currentArchiveDetailId = id;
 
-  document.getElementById('adApt').textContent  = r.apt || 'â';
-  document.getElementById('adName').textContent = r.name || 'â';
+  document.getElementById('adApt').textContent  = r.apt || '—';
+  document.getElementById('adName').textContent = r.name || '—';
   document.getElementById('adOwner').textContent = r.owner || '';
 
   // Info rows
@@ -1650,10 +1650,10 @@ function openArchiveDetail(id) {
   }
 
   document.getElementById('adRows').innerHTML = [
-    ['Period',     monthLabel || 'â'],
+    ['Period',     monthLabel || '—'],
     ['Type',       typeBadge(r.type)],
-    ['Check-in',   ci ? fmtDate(ci) : 'â'],
-    ['Lease End',  co ? `<span style="color:var(--blue)">${fmtDate(co)}</span>` : 'â'],
+    ['Check-in',   ci ? fmtDate(ci) : '—'],
+    ['Lease End',  co ? `<span style="color:var(--blue)">${fmtDate(co)}</span>` : '—'],
   ].map(([l,v]) => `
     <div class="detail-row">
       <span class="dr-label">${l}</span>
@@ -1675,7 +1675,7 @@ function openArchiveDetail(id) {
       return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px;">
         <div>
           <span style="color:var(--text3);font-size:11px;margin-right:10px;">${fmtDate(h.date)}</span>
-          <span style="color:var(--text2);">${h.text.replace(/^\$[0-9,.]+ â /,'')}</span>
+          <span style="color:var(--text2);">${h.text.replace(/^\$[0-9,.]+ — /,'')}</span>
         </div>
         <span style="color:var(--green);font-weight:500;flex-shrink:0;margin-left:12px;">${m ? fmtMoney(amt) : ''}</span>
       </div>`;
@@ -1691,14 +1691,14 @@ function closeArchiveDetail() {
   currentArchiveDetailId = null;
 }
 
-// ââ ARCHIVE ââââââââââââââââââââââââââââââââââââââââ
+// ── ARCHIVE ────────────────────────────────────────
 async function archiveTenant(id){
   if(!confirm('Move to archive? Apartment will be marked available.'))return;
   const idx=data.findIndex(x=>x.id===id);
   const r=data[idx];
   const todayStr=today();
 
-  // Get a safe new ID â query Supabase for actual max
+  // Get a safe new ID — query Supabase for actual max
   const {data:maxRow} = await sb.from('units').select('id').order('id',{ascending:false}).limit(1);
   const safeNewId = maxRow && maxRow.length ? maxRow[0].id + 1 : nextId;
   nextId = safeNewId + 1;
@@ -1752,14 +1752,14 @@ async function archiveTenant(id){
   const {error:e2} = await sb.from('units').update(blankRow).eq('id', r.id);
   if(e2){ console.error('Blank update error:', e2); toast('Error clearing unit: '+e2.message,'error'); return; }
 
-  // Audit log â store old state for undo
+  // Audit log — store old state for undo
   await auditLog('archive', r.apt, r.name, r.id, dbRow(r), {...archRow});
 
   await loadAll();
   renderTable();
   const histPage = document.getElementById('page-history');
   if(histPage && histPage.classList.contains('active')) renderHistory();
-  toast(`${r.name||'Tenant'} archived â â find in ð Archive tab`,'success');
+  toast(`${r.name||'Tenant'} archived ✓ — find in 🗄 Archive tab`,'success');
   if(detailId===id)closeDetail();
 }
 async function restoreTenant(id){
@@ -1777,10 +1777,10 @@ async function restoreTenant(id){
 }
 async function deletePermanent(id){if(!confirm('Permanently delete? Cannot be undone.'))return;archived=archived.filter(x=>x.id!==id);await deleteRecord(id);renderTable();toast('Record deleted.','error');}
 
-// ââ DETAIL âââââââââââââââââââââââââââââââââââââââââ
-function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id;document.getElementById('dApt').textContent=r.apt;document.getElementById('dName').textContent=r.name||'Vacant';document.getElementById('dOwner').textContent='Owner: '+(r.owner||'â');document.getElementById('dNote').value=r.note||'';const s=dueStatus(r);
-  // Rent display â for short stays, read from actual archive records
-  let rentDisplay = r.rent ? `$${r.rent.toLocaleString()}` : 'â';
+// ── DETAIL ─────────────────────────────────────────
+function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id;document.getElementById('dApt').textContent=r.apt;document.getElementById('dName').textContent=r.name||'Vacant';document.getElementById('dOwner').textContent='Owner: '+(r.owner||'—');document.getElementById('dNote').value=r.note||'';const s=dueStatus(r);
+  // Rent display — for short stays, read from actual archive records
+  let rentDisplay = r.rent ? `$${r.rent.toLocaleString()}` : '—';
   if(r.type === 'short-stay' && r.checkin && (r.lease_end || r.due)){
     // Find all archive records using booking_id (reliable) or fallback to apt+name
     let archRecords = [];
@@ -1814,7 +1814,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       const fullBreakdown = archBreakdown + ` &middot; ${curLabel}: <strong>$${liveTotal.toLocaleString()}</strong>`;
       rentDisplay = `$${grandTotal.toLocaleString()} total<br><small style="color:var(--text3);font-size:10px;line-height:1.8">${fullBreakdown}</small>`;
     } else {
-      // No archive records â fall back to proration calc
+      // No archive records — fall back to proration calc
       const totalPaidAll = Math.round((r.history||[]).reduce((s,h)=>s+(typeof h.amt==='number'?h.amt:0),0)*100)/100;
       const displayRent = totalPaidAll > r.rent ? totalPaidAll : r.rent;
       const splits = calcProration(r.checkin, r.lease_end||r.due, displayRent);
@@ -1824,11 +1824,11 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       }
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'â'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">â Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'â'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'â']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">ð° Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">âï¸ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">ð¦ Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')">ð¬ Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">ð History</button>`);
-  // Delete button â available for any booking (not permanent long-term leases)
-  btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">ð Delete</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  // Delete button — available for any booking (not permanent long-term leases)
+  btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
-  btns.push(`<button class="btn btn-secondary btn-sm" onclick="goToFTPropertyDetail('${(r.apt||'').replace(/'/g,"\\'")}')" style="width:100%;margin-top:4px;justify-content:center;font-weight:600;background:linear-gradient(135deg,rgba(79,196,207,.12),rgba(124,58,237,.08));border-color:rgba(79,196,207,.3)">ð§ Service History &amp; Appliances</button>`);
+  btns.push(`<button class="btn btn-secondary btn-sm" onclick="goToFTPropertyDetail('${(r.apt||'').replace(/'/g,"\\'")}')" style="width:100%;margin-top:4px;justify-content:center;font-weight:600;background:linear-gradient(135deg,rgba(79,196,207,.12),rgba(124,58,237,.08));border-color:rgba(79,196,207,.3)">🔧 Service History &amp; Appliances</button>`);
   document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
@@ -1837,15 +1837,15 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.addEventListener('click',e=>{['editModal','payModal','histGraphModal','unitsGraphModal','archEditModal','auditModal','calActionModal','blockModal','calBookingModal','rDrillModal'].forEach(id=>{if(e.target===document.getElementById(id))closeModal(id);});});
 function toast(msg,type=''){const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;document.getElementById('toastWrap').appendChild(t);setTimeout(()=>t.remove(),4000);}
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// WPA UNIFIED MESSAGING â SMS / WhatsApp / Email
+// ═══════════════════════════════════════════════════════════════
+// WPA UNIFIED MESSAGING — SMS / WhatsApp / Email
 // Uses tech.willowpa.com/messages.php backend
 // Available to ALL PropDesk modules (bookings, rent, tenants, etc.)
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════
 
 const WPA_MSG_URL = 'https://tech.willowpa.com/messages.php';
 
-// Core send function â returns Promise
+// Core send function — returns Promise
 function WPA_sendMessage(opts){
   const to = opts.to || '';
   const msg = opts.msg || '';
@@ -1883,65 +1883,65 @@ function WPA_sms(to,msg){ return WPA_sendMessage({to,msg,channel:'sms',silent:tr
 function WPA_whatsapp(to,msg){ return WPA_sendMessage({to,msg,channel:'whatsapp',silent:true}); }
 function WPA_email(toEmail,subject,body){ return WPA_sendMessage({to:toEmail,msg:body,channel:'email',toEmail,subject,silent:true}); }
 
-// ââ Booking Notifications ââ
+// ── Booking Notifications ──
 function WPA_notifyBookingConfirm(booking){
   if(!booking||(!booking.phone&&!booking.email)) return;
   const apt = booking.apt || booking.unit || '';
   const checkin = booking.checkin || '';
   const msg = 'WillowPA: Your booking for '+apt+' is confirmed! Check-in: '+checkin+'. We will send details closer to your arrival date.';
-  WPA_notify(booking, msg, {subject:'Booking Confirmed â WillowPA'});
+  WPA_notify(booking, msg, {subject:'Booking Confirmed — WillowPA'});
 }
 
 function WPA_notifyBookingCheckin(booking){
   if(!booking||(!booking.phone&&!booking.email)) return;
   const apt = booking.apt || booking.unit || '';
   const msg = 'WillowPA: Welcome! Your unit '+apt+' is ready for check-in. Please let us know if you need anything during your stay.';
-  WPA_notify(booking, msg, {subject:'Check-in Ready â WillowPA'});
+  WPA_notify(booking, msg, {subject:'Check-in Ready — WillowPA'});
 }
 
 function WPA_notifyBookingCheckout(booking){
   if(!booking||(!booking.phone&&!booking.email)) return;
   const apt = booking.apt || booking.unit || '';
   const msg = 'WillowPA: Checkout reminder for '+apt+'. Please ensure all keys are returned and the unit is in good condition. Thank you for staying with us!';
-  WPA_notify(booking, msg, {subject:'Checkout Reminder â WillowPA'});
+  WPA_notify(booking, msg, {subject:'Checkout Reminder — WillowPA'});
 }
 
-// ââ Rent Reminders ââ
+// ── Rent Reminders ──
 function WPA_sendRentReminder(tenant, amount, dueDate){
   if(!tenant||(!tenant.phone&&!tenant.email)) return;
   const unit = tenant.unit || '';
   const msg = 'WillowPA: Rent reminder for Unit '+unit+'. Amount due: $'+(amount||0).toFixed(2)+' by '+(dueDate||'the 1st')+'. Please contact us if you have questions.';
-  WPA_notify(tenant, msg, {subject:'Rent Reminder â WillowPA'});
+  WPA_notify(tenant, msg, {subject:'Rent Reminder — WillowPA'});
 }
 
 function WPA_sendRentOverdue(tenant, amount, daysPast){
   if(!tenant||(!tenant.phone&&!tenant.email)) return;
   const unit = tenant.unit || '';
-  const msg = 'WillowPA: OVERDUE â Rent for Unit '+unit+' is '+(daysPast||0)+' day(s) past due. Balance: $'+(amount||0).toFixed(2)+'. Late fees may apply. Please remit payment immediately or contact us.';
-  WPA_notify(tenant, msg, {subject:'Rent Overdue Notice â WillowPA'});
+  const msg = 'WillowPA: OVERDUE — Rent for Unit '+unit+' is '+(daysPast||0)+' day(s) past due. Balance: $'+(amount||0).toFixed(2)+'. Late fees may apply. Please remit payment immediately or contact us.';
+  WPA_notify(tenant, msg, {subject:'Rent Overdue Notice — WillowPA'});
 }
 
-// ââ Tenant Notifications ââ
+// ── Tenant Notifications ──
 function WPA_notifyTenant(tenant, msg, subject){
   if(!tenant||(!tenant.phone&&!tenant.email)) return;
   WPA_notify(tenant, 'WillowPA: '+msg, {subject:subject||'Notice from WillowPA'});
 }
 
-// ââ Maintenance Notifications ââ
+// ── Maintenance Notifications ──
 function WPA_notifyMaintenanceScheduled(tenant, issueDesc, scheduledDate){
   if(!tenant||(!tenant.phone&&!tenant.email)) return;
   const msg = 'WillowPA Maintenance: Your request "'+issueDesc+'" has been scheduled for '+(scheduledDate||'soon')+'. A technician will contact you before arrival.';
-  WPA_notify(tenant, msg, {subject:'Maintenance Scheduled â WillowPA'});
+  WPA_notify(tenant, msg, {subject:'Maintenance Scheduled — WillowPA'});
 }
 
 function WPA_notifyMaintenanceComplete(tenant, issueDesc){
   if(!tenant||(!tenant.phone&&!tenant.email)) return;
   const msg = 'WillowPA Maintenance: Your request "'+issueDesc+'" has been completed. Please let us know if there are any issues.';
-  WPA_notify(tenant, msg, {subject:'Maintenance Complete â WillowPA'});
+  WPA_notify(tenant, msg, {subject:'Maintenance Complete — WillowPA'});
 }
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// MAIN SETTINGS â Section Toggle, API Keys, Messaging Config
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════════════════
+// MAIN SETTINGS — Section Toggle, API Keys, Messaging Config
+// ═══════════════════════════════════════════════════════════════
 
 function showSettingsSection(secId) {
   // Hide all settings sections
@@ -1954,7 +1954,7 @@ function showSettingsSection(secId) {
   if (secId === 'messaging') WPA_renderMsgStatus();
 }
 
-// API Keys â These write to FT_state (shared server-side state)
+// API Keys — These write to FT_state (shared server-side state)
 function WPA_saveApiKey() {
   const k = (document.getElementById('main-api-key') || {}).value || '';
   if (typeof setApiKey === 'function') setApiKey(k);
@@ -1975,7 +1975,7 @@ function WPA_renderApiKeyStatus() {
   if (inp) inp.value = key;
   if (st) {
     if (key) { st.textContent = 'Configured (' + key.length + ' chars)'; st.style.color = 'var(--success)'; }
-    else { st.textContent = 'Not configured â AI features disabled'; st.style.color = 'var(--accent3)'; }
+    else { st.textContent = 'Not configured — AI features disabled'; st.style.color = 'var(--accent3)'; }
   }
   // Also update old FT settings page if it exists
   if (typeof renderSettingsPage === 'function') renderSettingsPage();
@@ -1986,11 +1986,11 @@ function WPA_renderApiKeyStatus() {
   if (sInp) sInp.value = sk;
   if (sSt) {
     if (sk) { sSt.textContent = 'Configured (' + (sk.startsWith('sk_test') ? 'TEST' : 'LIVE') + ')'; sSt.style.color = sk.startsWith('sk_test') ? 'var(--accent)' : 'var(--success)'; }
-    else { sSt.textContent = 'Not configured â manual payment links only'; sSt.style.color = 'var(--accent3)'; }
+    else { sSt.textContent = 'Not configured — manual payment links only'; sSt.style.color = 'var(--accent3)'; }
   }
 }
 
-// Messaging settings â stored in FT_state._msgConfig
+// Messaging settings — stored in FT_state._msgConfig
 function WPA_getMsgConfig() {
   if (typeof FT_state !== 'undefined' && FT_state) return FT_state._msgConfig || {};
   return {};
@@ -2034,8 +2034,8 @@ function WPA_renderMsgStatus() {
   // SMS
   const smsEl = document.getElementById('main-sms-status');
   if (smsEl) {
-    if (cfg.flowrouteAccess && cfg.flowrouteFrom) { smsEl.textContent = 'Configured â FROM: ' + cfg.flowrouteFrom; smsEl.style.color = 'var(--success)'; }
-    else { smsEl.textContent = 'Not configured â using server config.php defaults'; smsEl.style.color = 'var(--accent)'; }
+    if (cfg.flowrouteAccess && cfg.flowrouteFrom) { smsEl.textContent = 'Configured — FROM: ' + cfg.flowrouteFrom; smsEl.style.color = 'var(--success)'; }
+    else { smsEl.textContent = 'Not configured — using server config.php defaults'; smsEl.style.color = 'var(--accent)'; }
   }
   // Fill fields
   if (cfg.flowrouteAccess) { const el = document.getElementById('main-flowroute-access'); if (el) el.value = cfg.flowrouteAccess; }
@@ -2045,16 +2045,16 @@ function WPA_renderMsgStatus() {
   // WhatsApp
   const waEl = document.getElementById('main-wa-status');
   if (waEl) {
-    if (cfg.waPhoneId && cfg.waToken) { waEl.textContent = 'Configured â Phone ID: ' + cfg.waPhoneId; waEl.style.color = 'var(--success)'; }
-    else { waEl.textContent = 'Not configured â using server config.php defaults'; waEl.style.color = 'var(--accent)'; }
+    if (cfg.waPhoneId && cfg.waToken) { waEl.textContent = 'Configured — Phone ID: ' + cfg.waPhoneId; waEl.style.color = 'var(--success)'; }
+    else { waEl.textContent = 'Not configured — using server config.php defaults'; waEl.style.color = 'var(--accent)'; }
   }
   if (cfg.waPhoneId) { const el = document.getElementById('main-wa-phone-id'); if (el) el.value = cfg.waPhoneId; }
   if (cfg.waToken)   { const el = document.getElementById('main-wa-token'); if (el) el.value = cfg.waToken; }
   // Email
   const emEl = document.getElementById('main-email-status');
   if (emEl) {
-    if (cfg.smtpHost && cfg.smtpFrom) { emEl.textContent = 'Configured â FROM: ' + cfg.smtpFrom; emEl.style.color = 'var(--success)'; }
-    else { emEl.textContent = 'Not configured â using server config.php defaults'; emEl.style.color = 'var(--accent)'; }
+    if (cfg.smtpHost && cfg.smtpFrom) { emEl.textContent = 'Configured — FROM: ' + cfg.smtpFrom; emEl.style.color = 'var(--success)'; }
+    else { emEl.textContent = 'Not configured — using server config.php defaults'; emEl.style.color = 'var(--accent)'; }
   }
   if (cfg.smtpHost) { const el = document.getElementById('main-smtp-host'); if (el) el.value = cfg.smtpHost; }
   if (cfg.smtpPort) { const el = document.getElementById('main-smtp-port'); if (el) el.value = cfg.smtpPort; }
@@ -2068,11 +2068,11 @@ function WPA_testSend(channel) {
   if (channel === 'sms') {
     const to = cfg.flowrouteAdmin || prompt('Enter phone number to test (+1XXXXXXXXXX):');
     if (!to) return;
-    WPA_sms(to, 'PropDesk test SMS â if you received this, SMS is working!');
+    WPA_sms(to, 'PropDesk test SMS — if you received this, SMS is working!');
   } else if (channel === 'whatsapp') {
     const to = prompt('Enter WhatsApp number to test (+1XXXXXXXXXX):');
     if (!to) return;
-    WPA_whatsapp(to, 'PropDesk test WhatsApp â if you received this, WhatsApp is working!');
+    WPA_whatsapp(to, 'PropDesk test WhatsApp — if you received this, WhatsApp is working!');
   } else if (channel === 'email') {
     const to = prompt('Enter email address to test:');
     if (!to) return;
@@ -2086,9 +2086,9 @@ function updateAutomationBadge(){const pending=data.filter(r=>!r.archived&&r.due
 function updateLastSynced(){const ts=localStorage.getItem('lastSync');if(ts){const d=new Date(parseInt(ts));const now=new Date();const diff=Math.floor((now-d)/1000);let text='';if(diff<60){text='Just now';}else if(diff<3600){text=Math.floor(diff/60)+'m ago';}else if(diff<86400){text=Math.floor(diff/3600)+'h ago';}else{text=Math.floor(diff/86400)+'d ago';}const el=document.getElementById('lastSynced');if(el){el.textContent='Last synced '+text;}}else{const el=document.getElementById('lastSynced');if(el){el.textContent='Never synced';}}}
 // Call updateLastSynced periodically
 setInterval(updateLastSynced,30000);
-function exportCSV(){const h=['Apt','Owner','Tenant','Type','Rent','Balance','Due Date','Note'];const rows=data.filter(r=>!r.archived).map(r=>[r.apt,r.owner,r.name,r.type,r.rent,r.balance,r.due,`"${(r.note||'').replace(/"/g,'""')}"`]);const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h,...rows].map(r=>r.join(',')).join('\n'));a.download='propdesk-export.csv';a.click();toast('CSV exported â','success');}
+function exportCSV(){const h=['Apt','Owner','Tenant','Type','Rent','Balance','Due Date','Note'];const rows=data.filter(r=>!r.archived).map(r=>[r.apt,r.owner,r.name,r.type,r.rent,r.balance,r.due,`"${(r.note||'').replace(/"/g,'""')}"`]);const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent([h,...rows].map(r=>r.join(',')).join('\n'));a.download='propdesk-export.csv';a.click();toast('CSV exported ✓','success');}
 
-// ââ PAGE NAV âââââââââââââââââââââââââââââââââââââââ
+// ── PAGE NAV ───────────────────────────────────────
 // Auto-open tab from sessionStorage (e.g. coming back from property-settings)
 window.addEventListener('DOMContentLoaded', function(){
   const openTab = sessionStorage.getItem('openTab');
@@ -2104,9 +2104,9 @@ window.addEventListener('DOMContentLoaded', function(){
   }
 });
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  MODULE NAVIGATION SYSTEM (Layout C: Hybrid)
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 
 // Sub-tab configs per module
 const MODULE_SUB_TABS = {
@@ -2161,28 +2161,28 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) 
     tabEl.classList.add('active');
   }
 
-  // ââ Settings section routing ââ
+  // ── Settings section routing ──
   if (settingsSec) {
     showSettingsSection(settingsSec);
   }
 
-  // ââ Parking section routing ââ
+  // ── Parking section routing ──
   if (pkSec) {
     showParkingSection(pkSec);
   }
 
-  // ââ Delivery section routing ââ
+  // ── Delivery section routing ──
   if (dlSec) {
     showDeliverySection(dlSec);
   }
 
-  // ââ Expenses view routing ââ
+  // ── Expenses view routing ──
   if (pageId === 'expenses') {
     _currentExpView = expView || 'all';
     renderExpensesPage();
   }
 
-  // ââ FieldTrack / TechTrack routing ââ
+  // ── FieldTrack / TechTrack routing ──
   if (ftPage && typeof FT_showPage === 'function') {
     // Show the techtrack container page
     document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
@@ -2194,7 +2194,7 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) 
       _ftInitialized = true;
       return;
     }
-    // Already initialized â just navigate
+    // Already initialized — just navigate
     FT_showPage(ftPage);
     return;
   }
@@ -2234,7 +2234,7 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) 
   if(pageId === 'mtm-lt-maintenance') loadMaintenanceFromSupabase();
 }
 
-// ââ Property Selector ââ
+// ── Property Selector ──
 function togglePropertyDropdown(e) {
   const sel = document.getElementById('propertySelector');
   const dd = document.getElementById('propDropdown');
@@ -2276,17 +2276,17 @@ function populatePropertyDropdown() {
   const total = Object.values(owners).reduce((a,b)=>a+b, 0);
   // Build dropdown
   let html = `<div class="prop-dd-item prop-dd-all active" data-owner="all" onclick="selectProperty(event,'all','All Properties')">
-    <span>ð</span><div><div class="prop-dd-name">All Properties</div><div class="prop-dd-units">${total} units</div></div>
+    <span>🌐</span><div><div class="prop-dd-name">All Properties</div><div class="prop-dd-units">${total} units</div></div>
   </div>`;
   Object.entries(owners).sort((a,b)=>b[1]-a[1]).forEach(([owner, count]) => {
     html += `<div class="prop-dd-item" data-owner="${owner}" onclick="selectProperty(event,'${owner.replace(/'/g,"\\'")}','${owner.replace(/'/g,"\\'")}')">
-      <span>ð¢</span><div><div class="prop-dd-name">${owner}</div><div class="prop-dd-units">${count} units</div></div>
+      <span>🏢</span><div><div class="prop-dd-name">${owner}</div><div class="prop-dd-units">${count} units</div></div>
     </div>`;
   });
   dd.innerHTML = html;
 }
 
-// ââ Initialize module nav on load ââ
+// ── Initialize module nav on load ──
 function initModuleNav() {
   populatePropertyDropdown();
   switchModule('dashboard', document.querySelector('#moduleBar [data-module="dashboard"]'));
@@ -2310,9 +2310,9 @@ function updateMTMStats() {
   el('mtm-overdue', '$' + overdue.toLocaleString());
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-//  MTM / LONG-TERM MODULE â REAL INNAGO DATA
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
+//  MTM / LONG-TERM MODULE — REAL INNAGO DATA
+// ══════════════════════════════════════════════════════
 
 const INNAGO_TENANTS = [
   {name:"Alena Larina",unit:"46 Township Line Road | 311",property:"46 Township Line Road",unitNum:"311",status:"Active",rent:915,roommates:1,email:"alena62022@gmail.com",phone:"(267) 504-6551",since:"Aug 19, 2023"},
@@ -2435,7 +2435,7 @@ const INNAGO_RENT = [
   {property:"7845 Montgomery Avenue",unit:"Unit 9-CH",tenants:"Whitney Diane Rustin",amount:27000,paid:27000,processing:0,balance:0,status:"paid"}
 ];
 
-// ââ Render MTM Dashboard ââ
+// ── Render MTM Dashboard ──
 function renderMTMDashboard() {
   // Draw donut chart
   const canvas = document.getElementById('mtmDonutCanvas');
@@ -2538,7 +2538,7 @@ function renderMTMDashboard() {
   }
 }
 
-// ââ Render Tenants Table ââ
+// ── Render Tenants Table ──
 let tntSortField = 'name';
 let tntSortAsc = true;
 let currentTenantIdx = null;
@@ -2653,8 +2653,8 @@ function openTenantDetail(idx) {
     document.getElementById('tntLeaseProp').textContent = t.property + ' | ' + t.unitNum;
     document.getElementById('tntLeaseRent').textContent = '$' + t.rent.toLocaleString() + '.00';
     document.getElementById('tntLeaseRentOf').textContent = 'of $' + t.rent.toLocaleString() + '.00';
-    document.getElementById('tntLeaseStart').textContent = 'â';
-    document.getElementById('tntLeaseEnd').textContent = 'â';
+    document.getElementById('tntLeaseStart').textContent = '—';
+    document.getElementById('tntLeaseEnd').textContent = '—';
   }
 
   // Collection data
@@ -2738,7 +2738,7 @@ function viewTenantLease() {
   }
 }
 
-// ââ Render Leases Table ââ
+// ── Render Leases Table ──
 function renderMTMLeases() {
   const tbody = document.getElementById('mtmLeasesBody');
   if (!tbody) return;
@@ -2803,7 +2803,7 @@ function filterMTMLeases() {
   }).join('');
 }
 
-// ââ Lease Detail Panel ââ
+// ── Lease Detail Panel ──
 // Simulated documents per lease (keyed by property+unit)
 const LEASE_DOCUMENTS = {};
 function getLeaseKey(l) { return l.property + '|' + l.unit; }
@@ -2988,7 +2988,7 @@ function leaseAction(action, docIdx) {
   }
 }
 
-// ââ Render Rent Table ââ
+// ── Render Rent Table ──
 function renderMTMRent() {
   const tbody = document.getElementById('mtmRentBody');
   if (!tbody) return;
@@ -3023,7 +3023,7 @@ function renderMTMRent() {
   }).join('');
 }
 
-// ââ Messages Data & Render ââ
+// ── Messages Data & Render ──
 const INNAGO_MESSAGES = [
   {id:1,from:"Carol Tyndale",unit:"317",property:"46 Township Line Road",date:"Apr 03, 2026",time:"2:14 PM",subject:"Rent Payment",body:"Hi, I wanted to let you know my rent payment will be a few days late this month. I had an unexpected expense. I'll have it in by the 10th. Thank you for understanding.",unread:true,sent:false},
   {id:2,from:"David Brooker",unit:"111",property:"46 Township Line Road",date:"Apr 02, 2026",time:"9:30 AM",subject:"Parking Spot",body:"Can we get an additional parking spot? My wife started a new job and we now have two cars. Please let me know the availability and cost.",unread:true,sent:false},
@@ -3060,8 +3060,8 @@ function filterMTMMessages() {
 
   list.innerHTML = filtered.map(m => `
     <div class="mtm-msg-item ${m.unread ? 'unread' : ''}" onclick="showMTMMessage(${m.id})">
-      <div class="mtm-msg-from">${m.unread ? '<span class="mtm-msg-dot"></span>' : ''}${m.sent ? 'â¤ ' : ''}${m.from}<span class="mtm-msg-time">${m.date}</span></div>
-      <div class="mtm-msg-preview"><strong>${m.subject}</strong> â ${m.body.substring(0, 60)}...</div>
+      <div class="mtm-msg-from">${m.unread ? '<span class="mtm-msg-dot"></span>' : ''}${m.sent ? '➤ ' : ''}${m.from}<span class="mtm-msg-time">${m.date}</span></div>
+      <div class="mtm-msg-preview"><strong>${m.subject}</strong> — ${m.body.substring(0, 60)}...</div>
     </div>
   `).join('');
 }
@@ -3132,7 +3132,7 @@ function sendMTMCompose(){
   else toast(sent+' message(s) sent via '+channel.toUpperCase());
 }
 
-// ââ Applications Data & Render ââ
+// ── Applications Data & Render ──
 const INNAGO_APPLICATIONS = [
   {name:"Marcus Johnson",email:"marcus.j@email.com",property:"46 Township Line Road",unit:"215",applied:"Apr 02, 2026",status:"pending",screening:"not started"},
   {name:"Sarah Mitchell",email:"s.mitchell@email.com",property:"46 Township Line Road",unit:"215",applied:"Apr 01, 2026",status:"pending",screening:"in progress"},
@@ -3201,10 +3201,10 @@ function filterMTMApps() {
   }).join('');
 }
 
-// ââ Expenses Data & Render ââ
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// EXPENSES MODULE â top-level, cross-module expense tracking
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Expenses Data & Render ──
+// ═══════════════════════════════════════════════════════════════
+// EXPENSES MODULE — top-level, cross-module expense tracking
+// ═══════════════════════════════════════════════════════════════
 
 const EXP_CATEGORIES = ['plumbing','electric','decor','furnishing','maintenance','utilities','insurance','taxes','management','general'];
 const EXP_CAT_COLORS = {plumbing:'#2196F3',electric:'#FF9800',decor:'#E91E63',furnishing:'#9C27B0',maintenance:'#F44336',utilities:'#00BCD4',insurance:'#4CAF50',taxes:'#795548',management:'#607D8B',general:'#9E9E9E'};
@@ -3379,7 +3379,7 @@ function renderExpensesPage() {
     return `<tr>
       <td style="font-family:var(--fm);font-size:12px;color:var(--muted);white-space:nowrap">${e.date}</td>
       <td><span style="font-size:12px">${e.property}</span>${typeTag}</td>
-      <td style="font-family:var(--fm);font-size:12px;color:${e.unit ? 'var(--text)' : 'var(--muted)'}">${e.unit || 'â'}</td>
+      <td style="font-family:var(--fm);font-size:12px;color:${e.unit ? 'var(--text)' : 'var(--muted)'}">${e.unit || '—'}</td>
       <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${catColor};margin-right:6px"></span><span style="font-size:12px">${catLabel}</span></td>
       <td style="font-size:12px">${e.desc}</td>
       <td style="font-weight:600;color:var(--red);font-family:var(--fm);white-space:nowrap">${fmt(e.amount)}</td>
@@ -3436,7 +3436,7 @@ function renderExpGrouped(expenses, groupBy, container, fmt) {
 function renderMTMExpenses() { renderExpensesPage(); }
 function addMTMExpense() { toggleExpenseForm(); }
 
-// ââ Maintenance Data & Render ââ
+// ── Maintenance Data & Render ──
 let MAINTENANCE_REQUESTS = [];
 
 async function loadMaintenanceFromSupabase() {
@@ -3523,7 +3523,7 @@ function filterMTMMaint() {
   tbody.innerHTML = filtered.map(m => {
     const statusBadge = `<span class="mtm-badge ${m.status}">${m.status === 'in-progress' ? 'In Progress' : m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>`;
     const priBadge = `<span class="mtm-badge ${m.priority}">${m.priority.charAt(0).toUpperCase() + m.priority.slice(1)}</span>`;
-    const catIcon = {Plumbing:'ð°',Electrical:'â¡','HVAC / Heating':'ð¡',Appliance:'ð ','Lock / Key':'ð','Pest Control':'ð','Water Damage':'ð§',General:'ð§'}[m.category] || 'ð§';
+    const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
     return `<tr onclick="openMaintTicket('${m.id}')" style="cursor:pointer">
       <td style="font-weight:600;color:var(--accent2)">${m.id.substring(0,10)}</td>
       <td><span class="mtm-prop-unit">${m.unit || '-'}</span><span class="mtm-prop-addr">${m.property || m.address || '-'}</span></td>
@@ -3539,7 +3539,7 @@ function filterMTMMaint() {
 function openMaintTicket(id) {
   const m = MAINTENANCE_REQUESTS.find(r => r.id === id);
   if (!m) return;
-  const catIcon = {Plumbing:'ð°',Electrical:'â¡','HVAC / Heating':'ð¡',Appliance:'ð ','Lock / Key':'ð','Pest Control':'ð','Water Damage':'ð§',General:'ð§'}[m.category] || 'ð§';
+  const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
   const statusOpts = ['submitted','assigned','scheduled','in-progress','completed','cancelled'];
   const priorityOpts = ['low','normal','high','urgent'];
 
@@ -3565,15 +3565,15 @@ function openMaintTicket(id) {
 
   if (m.preferred_block) {
     html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:12px">
-      <strong>ð Preferred Time:</strong> ${m.preferred_block}
+      <strong>📅 Preferred Time:</strong> ${m.preferred_block}
     </div>`;
   }
 
   let flags = [];
-  if (m.no_access_needed) flags.push('ð No access needed');
-  if (m.permission_to_enter) flags.push('ðª Permission to enter');
-  if (m.waiver_agreed) flags.push('â Waiver signed');
-  if (m.sms_consent) flags.push('ð± SMS consent');
+  if (m.no_access_needed) flags.push('🔑 No access needed');
+  if (m.permission_to_enter) flags.push('🚪 Permission to enter');
+  if (m.waiver_agreed) flags.push('✅ Waiver signed');
+  if (m.sms_consent) flags.push('📱 SMS consent');
   if (flags.length) {
     html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
       ${flags.map(f => `<span style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:6px;padding:4px 10px;font-size:12px">${f}</span>`).join('')}
@@ -3644,14 +3644,14 @@ function addMTMMaintTicket() {
   alert('New Maintenance Ticket\n\nTenants submit requests via the Willow Resident App.\nVisit app.willowpa.com to submit a request.');
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  DASHBOARD DRILL-DOWN SYSTEM
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 
 // Store donut slice angles for click detection
 let donutSlices = [];
 
-// âââ PANEL NAVIGATION STACK (Breadcrumbs) âââ
+// ═══ PANEL NAVIGATION STACK (Breadcrumbs) ═══
 const panelStack = [];
 let currentDDFilter = '';
 
@@ -3737,7 +3737,7 @@ function renderBreadcrumbs() {
 
   const html = panelStack.map((entry, i) => {
     const isLast = i === panelStack.length - 1;
-    const sep = i > 0 ? '<span class="dd-crumb-sep">âº</span>' : '';
+    const sep = i > 0 ? '<span class="dd-crumb-sep">›</span>' : '';
     const icon = entry.icon || '';
     const cls = isLast ? 'dd-crumb active' : 'dd-crumb';
     const click = isLast ? '' : ` onclick="panelGoTo(${i})"`;
@@ -3844,7 +3844,7 @@ function renderMTMDashboardInteractive() {
     overdueCard.title = 'Click to view overdue units';
   }
 
-  // Make expiring leases list items clickable â open tenant card
+  // Make expiring leases list items clickable — open tenant card
   document.querySelectorAll('#mtmDashExpiring .mtm-dash-list-item').forEach((item, idx) => {
     const expLeases = INNAGO_LEASES.filter(l => l.type === 'fixed').sort((a,b) => new Date(a.end) - new Date(b.end)).slice(0, 6);
     if (expLeases[idx]) {
@@ -3928,12 +3928,12 @@ function openDrillDown(category, source) {
     dash_owner: 'By Owner', dash_urgency: 'Needs Attention'
   };
   const catIcons = {
-    collected: 'â', processing: 'â³', overdue: '!', coming_due: 'â',
-    overdue_units: 'â ', occupancy: 'ð ', lease_active: 'ð',
-    lease_future: 'ð', lease_expiring: 'â°', lease_mtm: 'â',
-    dash_occupancy: 'ð ', dash_revenue: 'ð°', dash_outstanding: 'â ',
-    dash_collected: 'ð', dash_available: 'ð', dash_lease_type: 'ð',
-    dash_owner: 'ð', dash_urgency: 'ð¨'
+    collected: '✓', processing: '⏳', overdue: '!', coming_due: '◎',
+    overdue_units: '⚠', occupancy: '🏠', lease_active: '📋',
+    lease_future: '📅', lease_expiring: '⏰', lease_mtm: '↔',
+    dash_occupancy: '🏠', dash_revenue: '💰', dash_outstanding: '⚠',
+    dash_collected: '📊', dash_available: '🔑', dash_lease_type: '📋',
+    dash_owner: '🏘', dash_urgency: '🚨'
   };
 
   const src = source || 'Dashboard';
@@ -3962,7 +3962,7 @@ function _renderDrillDownContent(category, openPanel) {
   switch(category) {
     case 'collected': {
       const items = INNAGO_RENT.filter(r => r.paid > 0 && r.status === 'paid');
-      title.textContent = 'Collected â ' + items.length + ' Units';
+      title.textContent = 'Collected — ' + items.length + ' Units';
       const totalAmt = items.reduce((s,r) => s + r.paid, 0);
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--green)">${fmt(totalAmt)}</div><div class="dd-summary-label">Total Collected</div></div>
@@ -3974,7 +3974,7 @@ function _renderDrillDownContent(category, openPanel) {
     }
     case 'processing': {
       const items = INNAGO_RENT.filter(r => r.processing > 0);
-      title.textContent = 'Processing â ' + items.length + ' Units';
+      title.textContent = 'Processing — ' + items.length + ' Units';
       const totalAmt = items.reduce((s,r) => s + r.processing, 0);
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--orange)">${fmt(totalAmt)}</div><div class="dd-summary-label">Processing</div></div>
@@ -3992,7 +3992,7 @@ function _renderDrillDownContent(category, openPanel) {
     }
     case 'overdue': {
       const items = INNAGO_RENT.filter(r => r.status === 'overdue');
-      title.textContent = 'Overdue â ' + items.length + ' Units';
+      title.textContent = 'Overdue — ' + items.length + ' Units';
       const totalAmt = items.reduce((s,r) => s + r.balance, 0);
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--red)">${fmt(totalAmt)}</div><div class="dd-summary-label">Overdue Total</div></div>
@@ -4010,7 +4010,7 @@ function _renderDrillDownContent(category, openPanel) {
     }
     case 'coming_due': {
       const items = INNAGO_RENT.filter(r => r.status === 'pending');
-      title.textContent = 'Coming Due â ' + items.length + ' Units';
+      title.textContent = 'Coming Due — ' + items.length + ' Units';
       const totalAmt = items.reduce((s,r) => s + r.balance, 0);
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--blue)">${fmt(totalAmt)}</div><div class="dd-summary-label">Coming Due</div></div>
@@ -4028,7 +4028,7 @@ function _renderDrillDownContent(category, openPanel) {
     }
     case 'overdue_units': {
       const items = INNAGO_RENT.filter(r => r.balance > 0).sort((a,b) => b.balance - a.balance);
-      title.textContent = 'Units with Balance â ' + items.length;
+      title.textContent = 'Units with Balance — ' + items.length;
       const totalBal = items.reduce((s,r) => s + r.balance, 0);
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--red)">${fmt(totalBal)}</div><div class="dd-summary-label">Total Outstanding</div></div>
@@ -4049,7 +4049,7 @@ function _renderDrillDownContent(category, openPanel) {
       const occupied = INNAGO_TENANTS.filter(t => t.status === 'Active');
       const totalUnits = 80;
       const vacant = totalUnits - occupied.length;
-      title.textContent = 'Occupancy â ' + occupied.length + '/' + totalUnits + ' Occupied';
+      title.textContent = 'Occupancy — ' + occupied.length + '/' + totalUnits + ' Occupied';
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--green)">${occupied.length}</div><div class="dd-summary-label">Occupied</div></div>
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--text3)">${vacant}</div><div class="dd-summary-label">Vacant</div></div>
@@ -4065,8 +4065,8 @@ function _renderDrillDownContent(category, openPanel) {
           const rentIdx = INNAGO_RENT.findIndex(r => r.tenants.includes(t.name.split(',')[0].trim().split(' ')[0]) && r.property === t.property);
           const clickAction = rentIdx >= 0 ? `openInvoiceEditor(${rentIdx})` : `openTenantFromDD('${t.name.replace(/'/g,"\\'")}','${t.property.replace(/'/g,"\\'")}','${t.unitNum}',${t.rent},'${t.since}')`;
           html += `<div class="dd-unit-item" onclick="${clickAction}" title="Click to view details">
-            <div class="dd-unit-left"><div class="dd-unit-tenant">${t.name}</div><div class="dd-unit-prop">${t.unitNum} â Since ${t.since}</div></div>
-            <div class="dd-unit-right"><div class="dd-unit-amount" style="color:var(--green)">${t.rent > 0 ? '$'+t.rent.toLocaleString() : 'â'}</div></div>
+            <div class="dd-unit-left"><div class="dd-unit-tenant">${t.name}</div><div class="dd-unit-prop">${t.unitNum} — Since ${t.since}</div></div>
+            <div class="dd-unit-right"><div class="dd-unit-amount" style="color:var(--green)">${t.rent > 0 ? '$'+t.rent.toLocaleString() : '—'}</div></div>
           </div>`;
         });
       });
@@ -4075,13 +4075,13 @@ function _renderDrillDownContent(category, openPanel) {
     }
     case 'lease_active': {
       const items = INNAGO_LEASES.filter(l => l.status === 'Active');
-      title.textContent = 'Active Leases â ' + items.length;
+      title.textContent = 'Active Leases — ' + items.length;
       html = renderLeaseDrillDown(items);
       break;
     }
     case 'lease_future': {
       const items = INNAGO_LEASES.filter(l => l.status === 'Future' || INNAGO_TENANTS.some(t => t.name.includes(l.tenants.split(',')[0].trim()) && t.status === 'Future'));
-      title.textContent = 'Future Leases â ' + items.length;
+      title.textContent = 'Future Leases — ' + items.length;
       html = items.length ? renderLeaseDrillDown(items) : '<div class="dd-empty">No future leases found</div>';
       break;
     }
@@ -4089,23 +4089,23 @@ function _renderDrillDownContent(category, openPanel) {
       const now = new Date();
       const d90 = new Date(now.getTime() + 90*24*60*60*1000);
       const items = INNAGO_LEASES.filter(l => l.type === 'fixed' && new Date(l.end) <= d90 && new Date(l.end) >= now);
-      title.textContent = 'Expiring in 90 Days â ' + items.length;
+      title.textContent = 'Expiring in 90 Days — ' + items.length;
       html = items.length ? renderLeaseDrillDown(items) : '<div class="dd-empty">No leases expiring within 90 days</div>';
       break;
     }
     case 'lease_mtm': {
       const items = INNAGO_LEASES.filter(l => l.type === 'mtm');
-      title.textContent = 'Month-to-Month â ' + items.length;
+      title.textContent = 'Month-to-Month — ' + items.length;
       html = renderLeaseDrillDown(items);
       break;
     }
-    // ââ Main Dashboard Drill-Downs ââ
+    // ── Main Dashboard Drill-Downs ──
     case 'dash_occupancy': {
       const active = dedupActive();
       const occ = active.filter(r => r.type !== 'available' && r.name);
       const avail = active.filter(r => r.type === 'available' || !r.name);
       const occPct = active.length ? Math.round(occ.length / active.length * 100) : 0;
-      title.textContent = 'Occupancy â ' + occPct + '%';
+      title.textContent = 'Occupancy — ' + occPct + '%';
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--green)">${occ.length}</div><div class="dd-summary-label">Occupied</div></div>
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--text3)">${avail.length}</div><div class="dd-summary-label">Available</div></div>
@@ -4119,8 +4119,8 @@ function _renderDrillDownContent(category, openPanel) {
         html += `<div class="dd-group-header">${type.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())} <span class="dd-group-count">${byType[type].length} units</span></div>`;
         byType[type].forEach(r => {
           html += `<div class="dd-unit-item" onclick="openDashUnitDetail('${r.apt.replace(/'/g,"\\'")}')">
-            <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name || 'Vacant'}</div><div class="dd-unit-prop">${r.apt}${r.owner ? ' â ' + r.owner : ''}</div></div>
-            <div class="dd-unit-right"><div class="dd-unit-amount" style="color:var(--green)">${r.rent ? fmtMoney(r.rent) : 'â'}</div><div class="dd-unit-status">${typeBadge(r.type)}</div></div>
+            <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name || 'Vacant'}</div><div class="dd-unit-prop">${r.apt}${r.owner ? ' — ' + r.owner : ''}</div></div>
+            <div class="dd-unit-right"><div class="dd-unit-amount" style="color:var(--green)">${r.rent ? fmtMoney(r.rent) : '—'}</div><div class="dd-unit-status">${typeBadge(r.type)}</div></div>
           </div>`;
         });
       });
@@ -4128,8 +4128,8 @@ function _renderDrillDownContent(category, openPanel) {
         html += `<div class="dd-group-header" style="color:var(--text3)">Available <span class="dd-group-count">${avail.length} units</span></div>`;
         avail.forEach(r => {
           html += `<div class="dd-unit-item" onclick="openDashUnitDetail('${r.apt.replace(/'/g,"\\'")}')">
-            <div class="dd-unit-left"><div class="dd-unit-tenant" style="color:var(--text3)">Vacant</div><div class="dd-unit-prop">${r.apt}${r.owner ? ' â ' + r.owner : ''}</div></div>
-            <div class="dd-unit-right"><div class="dd-unit-amount" style="color:var(--text3)">â</div></div>
+            <div class="dd-unit-left"><div class="dd-unit-tenant" style="color:var(--text3)">Vacant</div><div class="dd-unit-prop">${r.apt}${r.owner ? ' — ' + r.owner : ''}</div></div>
+            <div class="dd-unit-right"><div class="dd-unit-amount" style="color:var(--text3)">—</div></div>
           </div>`;
         });
       }
@@ -4155,7 +4155,7 @@ function _renderDrillDownContent(category, openPanel) {
         const pctPaid = expected > 0 ? Math.round(collected / expected * 100) : 0;
         const color = pctPaid >= 100 ? 'var(--green)' : pctPaid > 0 ? 'var(--orange)' : 'var(--red)';
         html += `<div class="dd-unit-item" onclick="openDashUnitDetail('${r.apt.replace(/'/g,"\\'")}')">
-          <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name}</div><div class="dd-unit-prop">${r.apt} â ${r.owner || ''}</div></div>
+          <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name}</div><div class="dd-unit-prop">${r.apt} — ${r.owner || ''}</div></div>
           <div class="dd-unit-right"><div class="dd-unit-amount" style="color:${color}">${fmtMoney(collected)} / ${fmtMoney(expected)}</div><div class="dd-unit-status" style="font-size:10px;color:${color}">${pctPaid}% paid</div></div>
         </div>`;
       });
@@ -4166,7 +4166,7 @@ function _renderDrillDownContent(category, openPanel) {
       const active = dedupActive();
       const occ = active.filter(r => r.type !== 'available' && r.name && r.balance > 0).sort((a,b) => b.balance - a.balance);
       const totalBal = occ.reduce((s, r) => s + r.balance, 0);
-      title.textContent = 'Outstanding â ' + occ.length + ' Units';
+      title.textContent = 'Outstanding — ' + occ.length + ' Units';
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--red)">${fmtMoney(totalBal)}</div><div class="dd-summary-label">Total Outstanding</div></div>
         <div class="dd-summary-item"><div class="dd-summary-val">${occ.length}</div><div class="dd-summary-label">Units</div></div>
@@ -4185,13 +4185,13 @@ function _renderDrillDownContent(category, openPanel) {
     case 'dash_available': {
       const active = dedupActive();
       const avail = active.filter(r => r.type === 'available' || !r.name);
-      title.textContent = 'Available Units â ' + avail.length;
+      title.textContent = 'Available Units — ' + avail.length;
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--blue)">${avail.length}</div><div class="dd-summary-label">Available</div></div>
       </div><div id="ddResultCount" class="dd-result-count"></div><div class="dd-unit-list">`;
       avail.forEach(r => {
         html += `<div class="dd-unit-item" onclick="openDashUnitDetail('${r.apt.replace(/'/g,"\\'")}')">
-          <div class="dd-unit-left"><div class="dd-unit-tenant" style="color:var(--text3)">Vacant</div><div class="dd-unit-prop">${r.apt}${r.owner ? ' â ' + r.owner : ''}</div></div>
+          <div class="dd-unit-left"><div class="dd-unit-tenant" style="color:var(--text3)">Vacant</div><div class="dd-unit-prop">${r.apt}${r.owner ? ' — ' + r.owner : ''}</div></div>
           <div class="dd-unit-right">${typeBadge(r.type)}</div>
         </div>`;
       });
@@ -4220,7 +4220,7 @@ function _renderDrillDownContent(category, openPanel) {
         items.forEach(r => {
           html += `<div class="dd-unit-item" onclick="openDashUnitDetail('${r.apt.replace(/'/g,"\\'")}')">
             <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name || 'Vacant'}</div><div class="dd-unit-prop">${r.apt}</div></div>
-            <div class="dd-unit-right"><div class="dd-unit-amount">${r.rent ? fmtMoney(r.rent) : 'â'}</div></div>
+            <div class="dd-unit-right"><div class="dd-unit-amount">${r.rent ? fmtMoney(r.rent) : '—'}</div></div>
           </div>`;
         });
       });
@@ -4241,7 +4241,7 @@ function _renderDrillDownContent(category, openPanel) {
       </div><div id="ddResultCount" class="dd-result-count"></div><div class="dd-unit-list">`;
       owners.forEach(([owner, units]) => {
         const totalRent = units.reduce((s,r) => s + r.rent, 0);
-        html += `<div class="dd-group-header">${owner} <span class="dd-group-count">${units.length} units â ${fmtMoney(totalRent)}</span></div>`;
+        html += `<div class="dd-group-header">${owner} <span class="dd-group-count">${units.length} units — ${fmtMoney(totalRent)}</span></div>`;
         units.forEach(r => {
           html += `<div class="dd-unit-item" onclick="openDashUnitDetail('${r.apt.replace(/'/g,"\\'")}')">
             <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name}</div><div class="dd-unit-prop">${r.apt}</div></div>
@@ -4255,7 +4255,7 @@ function _renderDrillDownContent(category, openPanel) {
     case 'dash_urgency': {
       const active = dedupActive();
       const urgent = active.filter(r => dueStatus(r) === 'overdue' || dueStatus(r) === 'soon').sort((a,b) => (daysUntil(a.due)||0) - (daysUntil(b.due)||0));
-      title.textContent = 'Needs Attention â ' + urgent.length;
+      title.textContent = 'Needs Attention — ' + urgent.length;
       html = `<div class="dd-summary">
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--red)">${urgent.filter(r=>dueStatus(r)==='overdue').length}</div><div class="dd-summary-label">Overdue</div></div>
         <div class="dd-summary-item"><div class="dd-summary-val" style="color:var(--orange)">${urgent.filter(r=>dueStatus(r)==='soon').length}</div><div class="dd-summary-label">Due Soon</div></div>
@@ -4265,7 +4265,7 @@ function _renderDrillDownContent(category, openPanel) {
         const ds = dueStatus(r);
         const color = ds === 'overdue' ? 'var(--red)' : 'var(--orange)';
         html += `<div class="dd-unit-item" onclick="openDashUnitDetail('${r.apt.replace(/'/g,"\\'")}')">
-          <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name}</div><div class="dd-unit-prop">${r.apt} â Due: ${fmtDate(r.due)}</div></div>
+          <div class="dd-unit-left"><div class="dd-unit-tenant">${r.name}</div><div class="dd-unit-prop">${r.apt} — Due: ${fmtDate(r.due)}</div></div>
           <div class="dd-unit-right"><div class="dd-unit-amount" style="color:${color}">${d < 0 ? Math.abs(d) + 'd late' : 'in ' + d + 'd'}</div><div class="dd-unit-status"><span class="mtm-badge ${ds === 'overdue' ? 'overdue' : 'pending'}" style="font-size:9px">${ds}</span></div></div>
         </div>`;
       });
@@ -4326,7 +4326,7 @@ function openDashUnitDetail(apt) {
   // Show unit detail in drill-down body
   const fmt = n => '$' + n.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0});
   const body = document.getElementById('ddBody');
-  panelPush({ type: 'drilldown', label: unit.apt, icon: 'ð ', data: { category: 'unit_detail_' + apt } });
+  panelPush({ type: 'drilldown', label: unit.apt, icon: '🏠', data: { category: 'unit_detail_' + apt } });
 
   body.innerHTML = `
     <div class="inv-header-block">
@@ -4337,18 +4337,18 @@ function openDashUnitDetail(apt) {
       </div>
       <div class="inv-header-right">
         ${typeBadge(unit.type)}
-        <div class="inv-header-dates" style="margin-top:6px">Rent: <span>${unit.rent ? fmtMoney(unit.rent) : 'â'}</span></div>
+        <div class="inv-header-dates" style="margin-top:6px">Rent: <span>${unit.rent ? fmtMoney(unit.rent) : '—'}</span></div>
       </div>
     </div>
     <div class="inv-tenant-section">
       <div class="inv-tenant-row"><span class="inv-tenant-label">Tenant</span><span class="inv-tenant-val">${unit.name || 'Vacant'}</span></div>
-      <div class="inv-tenant-row"><span class="inv-tenant-label">Type</span><span class="inv-tenant-val">${unit.type || 'â'}</span></div>
+      <div class="inv-tenant-row"><span class="inv-tenant-label">Type</span><span class="inv-tenant-val">${unit.type || '—'}</span></div>
       <div class="inv-tenant-row"><span class="inv-tenant-label">Balance</span><span class="inv-tenant-val" style="color:${unit.balance > 0 ? 'var(--red)' : 'var(--green)'}">${unit.balance > 0 ? fmtMoney(unit.balance) : '$0'}</span></div>
       ${unit.due ? `<div class="inv-tenant-row"><span class="inv-tenant-label">Due</span><span class="inv-tenant-val">${fmtDate(unit.due)}</span></div>` : ''}
       ${unit.lease_end ? `<div class="inv-tenant-row"><span class="inv-tenant-label">Lease End</span><span class="inv-tenant-val">${fmtDate(unit.lease_end)}</span></div>` : ''}
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color,#ddd8ce)">
-      <button class="action-btn" style="width:100%;justify-content:center;padding:10px;font-weight:600" onclick="goToFTPropertyDetail('${unit.apt.replace(/'/g,"\\'")}')">ð§ Service History & Appliances</button>
+      <button class="action-btn" style="width:100%;justify-content:center;padding:10px;font-weight:600" onclick="goToFTPropertyDetail('${unit.apt.replace(/'/g,"\\'")}')">🔧 Service History & Appliances</button>
     </div>
   `;
   renderBreadcrumbs();
@@ -4375,7 +4375,7 @@ function goToFTPropertyDetail(apt) {
   // Switch to techtrack module first (this triggers FT_init on first visit)
   switchModule('techtrack');
 
-  // FT_state may not be loaded yet if this is the first visit â wait for init
+  // FT_state may not be loaded yet if this is the first visit — wait for init
   if (typeof FT_initPromise !== 'undefined' && FT_initPromise) {
     FT_initPromise.then(function(){
       var ftProp = FT_state.properties.find(function(p){ return p.pdApt === apt; });
@@ -4389,7 +4389,7 @@ function goToFTPropertyDetail(apt) {
       }
     });
   } else {
-    // FT was already loaded â find and navigate
+    // FT was already loaded — find and navigate
     if (typeof FT_state !== 'undefined' && FT_state.properties) {
       var ftProp = FT_state.properties.find(function(p){ return p.pdApt === apt; });
       if (!ftProp) ftProp = FT_state.properties.find(function(p){ return p.unit === apt || p.name.indexOf(apt) !== -1; });
@@ -4407,7 +4407,7 @@ function goToFTPropertyDetail(apt) {
 // Helper for tenant detail from MTM drill-down occupancy
 function openTenantFromDD(name, property, unit, rent, since) {
   const body = document.getElementById('ddBody');
-  panelPush({ type: 'drilldown', label: name.split(',')[0], icon: 'ð¤', data: { category: 'tenant_detail' } });
+  panelPush({ type: 'drilldown', label: name.split(',')[0], icon: '👤', data: { category: 'tenant_detail' } });
   const fmt = n => '$' + n.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0});
 
   body.innerHTML = `
@@ -4442,7 +4442,7 @@ function renderLeaseDrillDown(leases) {
     const typeBadge = l.type === 'mtm' ? '<span class="mtm-badge mtm" style="font-size:9px">M-to-M</span>' : '<span class="mtm-badge fixed" style="font-size:9px">Fixed</span>';
     return `<div class="dd-lease-item" onclick="closeDrillDown();openLeaseDetail(${origIdx})" title="View lease details">
       <div class="dd-lease-left"><div class="dd-lease-tenant">${l.tenants}</div><div class="dd-lease-prop">${l.property} | ${l.unit}</div></div>
-      <div class="dd-lease-right"><div class="dd-lease-dates">${l.start} â ${l.end}</div><div class="dd-lease-type">${typeBadge}</div></div>
+      <div class="dd-lease-right"><div class="dd-lease-dates">${l.start} — ${l.end}</div><div class="dd-lease-type">${typeBadge}</div></div>
     </div>`;
   }).join('');
   html += '</div>';
@@ -4453,7 +4453,7 @@ function closeDrillDown() {
   panelCloseAll();
 }
 
-// ââ Invoice Editor (Enhanced with Full Inline Editing) ââ
+// ── Invoice Editor (Enhanced with Full Inline Editing) ──
 let currentInvoiceMode = 'view';
 let currentInvoiceIdx = null;
 // Line items stored per invoice for editing
@@ -4476,8 +4476,8 @@ function openInvoiceEditor(rentIdx) {
   // Push to breadcrumb stack
   panelPush({
     type: 'invoice',
-    label: r.unit + ' â ' + r.tenants.split(',')[0].trim().split(' ')[0],
-    icon: 'ð',
+    label: r.unit + ' — ' + r.tenants.split(',')[0].trim().split(' ')[0],
+    icon: '📄',
     data: { rentIdx }
   });
 
@@ -4615,7 +4615,7 @@ function _renderInvoiceContent(rentIdx, openPanel) {
             <td><span class="inv-field-display">${line.qty}</span><input class="inv-field-edit inv-cell-edit" type="number" min="1" value="${line.qty}" style="width:50px" oninput="updateLineItem(${rentIdx},${li},'qty',this.value)"></td>
             <td><span class="inv-field-display">${fmt(line.rate)}</span><input class="inv-field-edit inv-cell-edit" type="number" step="0.01" value="${line.rate}" style="width:80px" oninput="updateLineItem(${rentIdx},${li},'rate',this.value)"></td>
             <td style="text-align:right"><span id="lineAmt${li}">${fmt(line.qty * line.rate)}</span></td>
-            <td class="inv-field-edit"><button class="inv-remove-line" onclick="removeLine(${rentIdx},${li})">Ã</button></td>
+            <td class="inv-field-edit"><button class="inv-remove-line" onclick="removeLine(${rentIdx},${li})">×</button></td>
           </tr>`).join('')}
         </tbody>
       </table>
@@ -4663,7 +4663,7 @@ function _renderInvoiceContent(rentIdx, openPanel) {
 
     <!-- Service / Maintenance Link -->
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color,#ddd8ce)">
-      <button class="action-btn" style="width:100%;justify-content:center;padding:12px;font-weight:600;font-size:14px;border-radius:10px;background:linear-gradient(135deg,rgba(79,196,207,.1),rgba(124,58,237,.08));border:1px solid rgba(79,196,207,.25)" onclick="goToFTPropertyDetail('${(r.unit||r.apt||'').replace(/'/g,"\\'")}')">ð§ Service History & Appliances</button>
+      <button class="action-btn" style="width:100%;justify-content:center;padding:12px;font-weight:600;font-size:14px;border-radius:10px;background:linear-gradient(135deg,rgba(79,196,207,.1),rgba(124,58,237,.08));border:1px solid rgba(79,196,207,.25)" onclick="goToFTPropertyDetail('${(r.unit||r.apt||'').replace(/'/g,"\\'")}')">🔧 Service History & Appliances</button>
     </div>
   `;
 
@@ -4863,9 +4863,9 @@ function showPage(p,el){
   if(p==='properties')renderProperties();
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  PROPERTIES PAGE
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 
 let propertiesData = [];  // cached from Supabase
 
@@ -4997,8 +4997,8 @@ function renderPropertyList(props) {
     const metaParts = [guests, beds, baths].filter(Boolean);
     const publicName = p.public_name || null;
     const thumbHtml = p.photo_url
-      ? `<img src="${p.photo_url}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.parentNode.innerHTML='<span class=\"prop-thumb-icon\">ð </span>'">`
-      : `<span class="prop-thumb-icon">ð </span>`;
+      ? `<img src="${p.photo_url}" alt="${p.name}" loading="lazy" onerror="this.style.display='none';this.parentNode.innerHTML='<span class=\"prop-thumb-icon\">🏠</span>'">`
+      : `<span class="prop-thumb-icon">🏠</span>`;
     const rawAddr = typeof p.address === 'object' && p.address
       ? (p.address.street || p.address.address1 || p.address.line1 || '')
       : (p.address || '');
@@ -5008,13 +5008,13 @@ function renderPropertyList(props) {
     return `<div class="prop-row" onclick="window.location='${settingsHref}'">
       <div class="prop-thumb">${thumbHtml}</div>
       <div class="prop-info">
-        <div class="prop-name">${p.name || p.apt || 'â'}</div>
+        <div class="prop-name">${p.name || p.apt || '—'}</div>
         ${publicName ? `<div style="font-size:12px;color:var(--accent2);font-weight:500;margin-bottom:3px;">${publicName}</div>` : `${addrLine ? `<div class="prop-address">${addrLine}</div>` : ''}`}
         ${publicName && addrLine ? `<div class="prop-address">${addrLine}</div>` : ''}
-        ${metaParts.length ? `<div class="prop-meta">${metaParts.map(m=>`<span class="prop-meta-item">â¬© ${m}</span>`).join('')}</div>` : ''}
+        ${metaParts.length ? `<div class="prop-meta">${metaParts.map(m=>`<span class="prop-meta-item">⬩ ${m}</span>`).join('')}</div>` : ''}
         <div class="prop-tags">
           ${(p.tags||[]).map(t=>`<span class="prop-tag">${t}</span>`).join('')}
-          <span class="prop-tag prop-tag-add">Add tagâ¦</span>
+          <span class="prop-tag prop-tag-add">Add tag…</span>
         </div>
       </div>
       <div class="prop-mid">
@@ -5022,15 +5022,15 @@ function renderPropertyList(props) {
       </div>
       <div class="prop-actions" onclick="event.stopPropagation()">
         <span class="prop-status-badge ${statusCls}">${p.status || 'Active'}</span>
-        <a href="${settingsHref}" class="prop-gear" title="Property Settings">â</a>
-        <button class="prop-gear" title="Edit" onclick="openEditPropertyModal('${p.apt || p.name}')">â</button>
+        <a href="${settingsHref}" class="prop-gear" title="Property Settings">⚙</a>
+        <button class="prop-gear" title="Edit" onclick="openEditPropertyModal('${p.apt || p.name}')">✏</button>
       </div>
     </div>`;
   }).join('');
 }
 
 function openAddPropertyModal() {
-  document.getElementById('addPropModalTitle').textContent = 'ï¼ Add Property';
+  document.getElementById('addPropModalTitle').textContent = '＋ Add Property';
   document.getElementById('propEditApt').value = '';
   ['propFormName','propFormAddress','propFormCity','propFormHostfullyUid','propFormApt'].forEach(id => {
     document.getElementById(id).value = '';
@@ -5046,7 +5046,7 @@ function openAddPropertyModal() {
 function openEditPropertyModal(apt) {
   const p = propertiesData.find(x => (x.apt||x.name) === apt);
   if (!p) return;
-  document.getElementById('addPropModalTitle').textContent = 'â Edit Property';
+  document.getElementById('addPropModalTitle').textContent = '✏ Edit Property';
   document.getElementById('propEditApt').value = p.apt || p.name;
   document.getElementById('propFormName').value = p.name || '';
   document.getElementById('propFormAddress').value = p.address || '';
@@ -5084,7 +5084,7 @@ async function saveProperty() {
   try {
     const { error } = await sb.from('properties').upsert(row, { onConflict: 'apt' });
     if (error) throw error;
-    toast('Property saved â', 'success');
+    toast('Property saved ✓', 'success');
     closeModal('addPropertyModal');
     await loadProperties();
     filterProperties();
@@ -5094,13 +5094,13 @@ async function saveProperty() {
 }
 
 async function syncPropertiesFromHostfully() {
-  toast('To sync: enter your Hostfully API key in Settings â Integrations (coming soon)', 'info');
+  toast('To sync: enter your Hostfully API key in Settings → Integrations (coming soon)', 'info');
   // Future: GET https://platform.hostfully.com/api/v3/properties with X-HOSTFULLY-APIKEY header
   // then upsert each property into Supabase `properties` table
 }
 
 
-// ââ BACKUP âââââââââââââââââââââââââââââââââââââââââ
+// ── BACKUP ─────────────────────────────────────────
 const BACKUP_KEY = 'propdesk_last_backup';
 
 async function checkBackupStatus() {
@@ -5116,7 +5116,7 @@ async function checkBackupStatus() {
       // Sync to localStorage so offline mode still works
       localStorage.setItem(BACKUP_KEY, lastDt.getTime().toString());
     }
-  } catch(e) { /* offline or table missing â fall back to localStorage */ }
+  } catch(e) { /* offline or table missing — fall back to localStorage */ }
 
   // Fall back to localStorage if Supabase didn't return anything
   if (!lastDt) {
@@ -5126,7 +5126,7 @@ async function checkBackupStatus() {
 
   const headerTs = document.getElementById('headerBackupTimestamp');
   if (!lastDt) {
-    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='â  Backup Now'; b.title='Never backed up!'; } });
+    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title='Never backed up!'; } });
     if(status){ status.textContent='Never backed up!'; status.style.color='var(--red)'; }
     if(headerTs){ headerTs.textContent='No backup yet'; headerTs.style.color='var(--red)'; }
     return;
@@ -5135,11 +5135,11 @@ async function checkBackupStatus() {
   const timeStr = lastDt.toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + lastDt.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
   const agoStr = hoursAgo >= 24 ? Math.floor(hoursAgo/24)+'d ago' : Math.floor(hoursAgo)+'h ago';
   if (hoursAgo >= 6) {
-    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='â  Backup Now'; b.title=`Last backup: ${timeStr}`; } });
+    btns.forEach(b => { if(b){ b.style.background='var(--red)'; b.innerHTML='⚠ Backup Now'; b.title=`Last backup: ${timeStr}`; } });
     if(status){ status.textContent=`Last backup: ${timeStr} (${agoStr})`; status.style.color='var(--red)'; }
     if(headerTs){ headerTs.textContent=`Last backup: ${timeStr}`; headerTs.style.color='var(--red)'; }
   } else {
-    btns.forEach(b => { if(b){ b.style.background='var(--green)'; b.innerHTML='ð¾ Backup Now'; b.title=`Last backup: ${timeStr}`; } });
+    btns.forEach(b => { if(b){ b.style.background='var(--green)'; b.innerHTML='💾 Backup Now'; b.title=`Last backup: ${timeStr}`; } });
     if(status){ status.textContent=`Last backup: ${timeStr}`; status.style.color='var(--green)'; }
     if(headerTs){ headerTs.textContent=`Last backup: ${timeStr}`; headerTs.style.color='#9e9485'; }
   }
@@ -5147,10 +5147,10 @@ async function checkBackupStatus() {
 
 async function runBackup() {
   const btns = [document.getElementById('backupBtn'), document.getElementById('headerBackupBtn')];
-  btns.forEach(b => { if(b){ b.innerHTML='â³ Backing upâ¦'; b.disabled=true; b.style.opacity='0.7'; } });
+  btns.forEach(b => { if(b){ b.innerHTML='⏳ Backing up…'; b.disabled=true; b.style.opacity='0.7'; } });
 
   try {
-    // ââ Fetch ALL tables ââ
+    // ── Fetch ALL tables ──
     // 1. units (paginated)
     let unitsRows = [];
     const pageSize = 500;
@@ -5187,14 +5187,14 @@ async function runBackup() {
 
     const totalRecords = unitsRows.length + (propertiesRows||[]).length + (settingsRows||[]).length;
 
-    // ââ Save snapshot to Supabase backups table ââ
+    // ── Save snapshot to Supabase backups table ──
     const { error: bErr } = await sb.from('backups').insert({
       record_count: totalRecords,
       snapshot: snapshot
     });
     if (bErr) throw new Error('Supabase save failed: ' + bErr.message);
 
-    // ââ Enforce 10-backup cap ââ
+    // ── Enforce 10-backup cap ──
     const { data: allBackups, error: listErr } = await sb
       .from('backups').select('id').order('created_at', { ascending: true });
     if (!listErr && allBackups && allBackups.length > 10) {
@@ -5204,15 +5204,15 @@ async function runBackup() {
 
     localStorage.setItem(BACKUP_KEY, Date.now().toString());
     await checkBackupStatus();
-    toast(`â Backup complete â ${unitsRows.length} units, ${(propertiesRows||[]).length} properties, ${(settingsRows||[]).length} settings`, 'success');
+    toast(`✓ Backup complete — ${unitsRows.length} units, ${(propertiesRows||[]).length} properties, ${(settingsRows||[]).length} settings`, 'success');
 
   } catch(e) {
     console.error('Backup failed:', e);
     const msg = e.message || '';
     const hint = msg.includes('row-level security') || msg.includes('policy')
-      ? ' â run: ALTER TABLE backups DISABLE ROW LEVEL SECURITY; in Supabase SQL editor'
+      ? ' — run: ALTER TABLE backups DISABLE ROW LEVEL SECURITY; in Supabase SQL editor'
       : '';
-    toast('â  Backup failed: ' + msg + hint, 'error');
+    toast('⚠ Backup failed: ' + msg + hint, 'error');
   } finally {
     btns.forEach(b => { if(b){ b.disabled=false; b.style.opacity='1'; } });
     await checkBackupStatus();
@@ -5221,7 +5221,7 @@ async function runBackup() {
 
 
 
-// ââ IMPORT JSON âââââââââââââââââââââââââââââââââââââ
+// ── IMPORT JSON ─────────────────────────────────────
 
 let _importSnapshot = null;
 
@@ -5243,7 +5243,7 @@ function handleImportJson(input) {
       const owners = [...new Set(parsed.map(r => r.owner).filter(Boolean))];
 
       document.getElementById('importPreview').innerHTML = `
-        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">File Preview â ${file.name}</div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">File Preview — ${file.name}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:10px;">
             <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Total Records</div>
@@ -5258,7 +5258,7 @@ function handleImportJson(input) {
             <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text2);">${arch}</div>
           </div>
         </div>
-        <div style="font-size:11px;color:var(--text2);"><strong>Owners:</strong> ${owners.join(', ') || 'â'}</div>`;
+        <div style="font-size:11px;color:var(--text2);"><strong>Owners:</strong> ${owners.join(', ') || '—'}</div>`;
 
       document.getElementById('backupImportModal').classList.add('open');
     } catch(err) {
@@ -5271,7 +5271,7 @@ function handleImportJson(input) {
 async function confirmImport() {
   if (!_importSnapshot) return;
   const btn = document.getElementById('confirmImportBtn');
-  btn.textContent = 'â³ Importingâ¦';
+  btn.textContent = '⏳ Importing…';
   btn.disabled = true;
 
   try {
@@ -5296,7 +5296,7 @@ async function confirmImport() {
     closeModal('backupHistoryModal');
     await loadAll();
     renderTable();
-    toast(`â Imported ${activeSnap.length} active units from JSON`, 'success');
+    toast(`✓ Imported ${activeSnap.length} active units from JSON`, 'success');
   } catch(e) {
     toast('Import failed: ' + e.message, 'error');
     btn.textContent = 'Import & Restore';
@@ -5304,7 +5304,7 @@ async function confirmImport() {
   }
 }
 
-// ââ BACKUP HISTORY âââââââââââââââââââââââââââââââââ
+// ── BACKUP HISTORY ─────────────────────────────────
 
 let _restoreSnapshot = null;
 let _restoreBackupId = null;
@@ -5350,17 +5350,17 @@ async function openBackupHistory() {
           <span style="font-weight:500;">${dateStr}</span>
           <span style="color:var(--text3);margin-left:6px;">${timeStr}</span>
         </td>
-        <td style="padding:11px 14px;color:var(--text2);">${b.record_count ?? 'â'} records</td>
+        <td style="padding:11px 14px;color:var(--text2);">${b.record_count ?? '—'} records</td>
         <td style="padding:11px 14px;color:${ageColor};font-weight:500;">${age}</td>
         <td style="padding:11px 14px;text-align:right;">
           <div style="display:flex;gap:6px;justify-content:flex-end;">
             <button onclick="previewRestore(${b.id})" data-id="${b.id}"
               style="padding:5px 12px;font-size:11px;background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-border);border-radius:6px;cursor:pointer;font-family:inherit;font-weight:500;">
-              â© Restore
+              ↩ Restore
             </button>
             <button onclick="deleteBackup(${b.id}, this)"
               style="padding:5px 10px;font-size:11px;background:var(--red-bg);color:var(--red);border:1px solid var(--red-border);border-radius:6px;cursor:pointer;font-family:inherit;">
-              ð
+              🗑
             </button>
           </div>
         </td>
@@ -5380,7 +5380,7 @@ async function previewRestore(backupId) {
   _restoreBackupId = backupId;
   _restoreSnapshot = null;
 
-  document.getElementById('restorePreview').innerHTML = '<div style="color:var(--text3);text-align:center;padding:16px;">Loading snapshotâ¦</div>';
+  document.getElementById('restorePreview').innerHTML = '<div style="color:var(--text3);text-align:center;padding:16px;">Loading snapshot…</div>';
   document.getElementById('backupRestoreModal').classList.add('open');
 
   try {
@@ -5410,7 +5410,7 @@ async function previewRestore(backupId) {
           <div style="font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:var(--text2);">${arch}</div>
         </div>
       </div>
-      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;"><strong>Owners:</strong> ${owners.join(', ') || 'â'}</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;"><strong>Owners:</strong> ${owners.join(', ') || '—'}</div>
       <div style="font-size:11px;color:var(--text3);">Backup from: ${label}</div>`;
   } catch(e) {
     document.getElementById('restorePreview').innerHTML = `<div style="color:var(--red);padding:12px;">Failed to load snapshot: ${e.message}</div>`;
@@ -5421,11 +5421,11 @@ async function confirmRestore() {
   if (!_restoreSnapshot || !_restoreBackupId) return;
 
   const btn = document.getElementById('confirmRestoreBtn');
-  btn.textContent = 'â³ Restoringâ¦';
+  btn.textContent = '⏳ Restoring…';
   btn.disabled = true;
 
   try {
-    // Only restore active (non-archived) units â leave archive untouched
+    // Only restore active (non-archived) units — leave archive untouched
     const activeSnap = _restoreSnapshot.filter(r => !r.archived);
 
     // Delete all current active units
@@ -5436,7 +5436,7 @@ async function confirmRestore() {
     const batchSize = 100;
     for (let i = 0; i < activeSnap.length; i += batchSize) {
       const chunk = activeSnap.slice(i, i + batchSize).map(r => {
-        const { id, ...rest } = r; // drop old id â let Supabase assign new ones
+        const { id, ...rest } = r; // drop old id — let Supabase assign new ones
         return rest;
       });
       const { error: insErr } = await sb.from('units').insert(chunk);
@@ -5449,7 +5449,7 @@ async function confirmRestore() {
     // Reload live data
     await loadAll();
     renderTable();
-    toast(`â Restored ${activeSnap.length} active units from backup`, 'success');
+    toast(`✓ Restored ${activeSnap.length} active units from backup`, 'success');
   } catch(e) {
     toast('Restore failed: ' + e.message, 'error');
     btn.textContent = 'Restore This Backup';
@@ -5459,7 +5459,7 @@ async function confirmRestore() {
 
 async function deleteBackup(backupId, btnEl) {
   if (!confirm('Delete this backup? This cannot be undone.')) return;
-  btnEl.textContent = 'â¦';
+  btnEl.textContent = '…';
   btnEl.disabled = true;
   try {
     const { error } = await sb.from('backups').delete().eq('id', backupId);
@@ -5469,7 +5469,7 @@ async function deleteBackup(backupId, btnEl) {
     await checkBackupStatus();
   } catch(e) {
     toast('Delete failed: ' + e.message, 'error');
-    btnEl.textContent = 'ð';
+    btnEl.textContent = '🗑';
     btnEl.disabled = false;
   }
 }
@@ -5477,10 +5477,10 @@ async function deleteBackup(backupId, btnEl) {
 // Check backup status every 30 minutes
 setInterval(checkBackupStatus, 30 * 60 * 1000);
 
-// ââ AUDIT LOG UI âââââââââââââââââââââââââââââââââââ
+// ── AUDIT LOG UI ───────────────────────────────────
 async function showAuditLog() {
   openModal('auditModal');
-  document.getElementById('auditBody').innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);">Loadingâ¦</td></tr>';
+  document.getElementById('auditBody').innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text3);">Loading…</td></tr>';
   const {data:rows, error} = await sb.from('audit_log')
     .select('*').order('created_at', {ascending:false}).limit(50);
   if(error || !rows){ document.getElementById('auditBody').innerHTML=''; document.getElementById('auditEmpty').style.display=''; return; }
@@ -5493,9 +5493,9 @@ async function showAuditLog() {
     return `<tr style="border-bottom:1px solid var(--border);" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 12px;color:var(--text3);white-space:nowrap;">${timeStr}</td>
       <td style="padding:10px 12px;font-weight:500;color:${actionColor(r.action)}">${r.action}</td>
-      <td style="padding:10px 12px;font-family:'Playfair Display',serif;color:var(--accent2)">${r.apt||'â'}</td>
-      <td style="padding:10px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name||'â'}</td>
-      <td style="padding:10px 12px;">${canUndo?`<button onclick="undoFromLog(${r.id})" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;color:var(--text2);">â© Undo</button>`:'â'}</td>
+      <td style="padding:10px 12px;font-family:'Playfair Display',serif;color:var(--accent2)">${r.apt||'—'}</td>
+      <td style="padding:10px 12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name||'—'}</td>
+      <td style="padding:10px 12px;">${canUndo?`<button onclick="undoFromLog(${r.id})" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);cursor:pointer;color:var(--text2);">↩ Undo</button>`:'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -5515,7 +5515,7 @@ async function undoFromLog(logId) {
   await performUndo();
 }
 
-// ââ ARCHIVE HISTORY ââââââââââââââââââââââââââââââââ
+// ── ARCHIVE HISTORY ────────────────────────────────
 let histSortCol = 'checkout';
 let histSortDir = -1;
 
@@ -5526,7 +5526,7 @@ function histSort(col) {
   document.querySelectorAll('[id^="hth-"]').forEach(th => {
     const c = th.id.replace('hth-','');
     th.style.color = c === histSortCol ? 'var(--accent2)' : 'var(--text3)';
-    th.textContent = th.textContent.replace(/ [âââ]$/,'') + (c === histSortCol ? (histSortDir === 1 ? ' â' : ' â') : ' â');
+    th.textContent = th.textContent.replace(/ [↑↓↕]$/,'') + (c === histSortCol ? (histSortDir === 1 ? ' ↑' : ' ↓') : ' ↕');
   });
   renderHistory();
 }
@@ -5596,19 +5596,19 @@ function renderHistory(){
     return `<tr style="border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer;" onclick="openArchiveDetail(${r.id})" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
       <td style="padding:10px 12px;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2)">${r.apt}</td>
       <td style="padding:10px 12px;font-size:12px;font-weight:500;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}${multiPmt}</td>
-      <td style="padding:10px 12px;font-size:11px;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.owner||'â'}</td>
+      <td style="padding:10px 12px;font-size:11px;color:var(--text2);max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.owner||'—'}</td>
       <td style="padding:10px 12px">${typeBadge(r.type)}</td>
-      <td style="padding:10px 12px;text-align:right;color:var(--green);font-weight:500;font-size:12px">${r.rent?fmtMoney(r.rent):'â'}</td>
+      <td style="padding:10px 12px;text-align:right;color:var(--green);font-weight:500;font-size:12px">${r.rent?fmtMoney(r.rent):'—'}</td>
       <td style="padding:10px 12px;font-size:12px;color:var(--text3)">${fmtDate(ci)}</td>
       <td style="padding:10px 12px;font-size:12px;color:${r.lease_end?'var(--blue)':'var(--text3)'}">${fmtDate(r.lease_end||co)}</td>
       <td style="padding:10px 12px;font-size:11px;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic">${r.note||''}</td>
       <td style="padding:10px 12px" onclick="event.stopPropagation()">
-        <button class="icon-btn ib-edit" title="Edit" onclick="openArchiveEdit(${r.id})" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;">âï¸</button>
+        <button class="icon-btn ib-edit" title="Edit" onclick="openArchiveEdit(${r.id})" style="width:26px;height:26px;border-radius:5px;border:1px solid var(--border);background:var(--surface);color:var(--text3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:12px;">✏️</button>
       </td>
     </tr>`;
   }).join('');
 
-  document.getElementById('histFooter').textContent = `Showing ${rows.length} records Â· Total: ${fmtMoney(totalRev)}`;
+  document.getElementById('histFooter').textContent = `Showing ${rows.length} records · Total: ${fmtMoney(totalRev)}`;
 }
 
 function openArchiveEdit(id) {
@@ -5648,12 +5648,12 @@ async function saveArchiveRecord() {
     archived_date: checkout,
     lease_end:    checkout,
     due:          checkout,
-    history:      checkin ? [{date:checkin, text:`$${rent.toLocaleString()} â stay`}] : r.history,
+    history:      checkin ? [{date:checkin, text:`$${rent.toLocaleString()} — stay`}] : r.history,
   };
   await save(archived[idx]);
   closeModal('archEditModal');
   renderHistory();
-  toast('Archive record updated â','success');
+  toast('Archive record updated ✓','success');
 }
 
 async function deleteArchiveRecord() {
@@ -5666,9 +5666,9 @@ async function deleteArchiveRecord() {
   toast('Record deleted.','error');
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  GRAPHS
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 let gCharts = {};
 
 function destroyChart(id) { if(gCharts[id]){gCharts[id].destroy();delete gCharts[id];} }
@@ -5715,7 +5715,7 @@ function openHistGraphs() {
   if(ow!=='all') rows = rows.filter(r=>r.owner===ow);
 
   const title = yr==='all' ? 'All Years' : (mo==='all' ? yr : `${mo}/${yr}`);
-  document.getElementById('histGraphTitle').textContent = `ð Archive Charts â ${title} (${rows.length} records)`;
+  document.getElementById('histGraphTitle').textContent = `📊 Archive Charts — ${title} (${rows.length} records)`;
 
   openModal('histGraphModal');
   setTimeout(() => {
@@ -5805,9 +5805,9 @@ function openUnitsGraph() {
   }, 100);
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  LT MONTHLY ARCHIVE RECORDS (2025)
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 async function seedLTYear(year) {
   const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const now = new Date();
@@ -5821,9 +5821,9 @@ async function seedLTYear(year) {
     r.rent > 0
   );
 
-  if(!confirm(`This creates one archive line per month for every active LT/MTM tenant for ${year}.\n\n${active.length} active tenants Ã up to ${maxMonth+1} months.\n\nFor example:\n  Apt 232 â Oleh Chubatiuk â Jan ${year} â $2,300\n  Apt 232 â Oleh Chubatiuk â Feb ${year} â $2,300\n  ...\n\nExisting records are skipped. Continue?`)) return;
+  if(!confirm(`This creates one archive line per month for every active LT/MTM tenant for ${year}.\n\n${active.length} active tenants × up to ${maxMonth+1} months.\n\nFor example:\n  Apt 232 — Oleh Chubatiuk — Jan ${year} — $2,300\n  Apt 232 — Oleh Chubatiuk — Feb ${year} — $2,300\n  ...\n\nExisting records are skipped. Continue?`)) return;
 
-  toast(`Generating ${year} monthly recordsâ¦`);
+  toast(`Generating ${year} monthly records…`);
 
   // Move-in lookup from SEED_DATA history
   const moveInLookup = {};
@@ -5869,8 +5869,8 @@ async function seedLTYear(year) {
           type: r.type, rent: r.rent, balance: 0,
           due: dateStr,
           lease_end: new Date(year, m+1, 0).toISOString().split('T')[0],
-          note: `${r.name} â ${mName} ${year} â $${r.rent.toLocaleString()}`,
-          history: [{date:dateStr, text:`$${r.rent.toLocaleString()} â ${mName} ${year} monthly`}],
+          note: `${r.name} — ${mName} ${year} — $${r.rent.toLocaleString()}`,
+          history: [{date:dateStr, text:`$${r.rent.toLocaleString()} — ${mName} ${year} monthly`}],
           archived: true,
           archived_date: dateStr,
         });
@@ -5890,20 +5890,20 @@ async function seedLTYear(year) {
   const batchSize = 50;
   for (let i = 0; i < toInsert.length; i += batchSize) {
     await saveAll(toInsert.slice(i, i+batchSize));
-    toast(`Insertingâ¦ ${Math.min(i+batchSize, toInsert.length)} / ${toInsert.length}`);
+    toast(`Inserting… ${Math.min(i+batchSize, toInsert.length)} / ${toInsert.length}`);
   }
 
   await loadAll();
   renderHistory();
-  toast(`â Created ${toInsert.length} monthly LT records for ${year}${skipped?' ('+skipped+' already existed)':''}`, 'success');
+  toast(`✓ Created ${toInsert.length} monthly LT records for ${year}${skipped?' ('+skipped+' already existed)':''}`, 'success');
 }
 
 async function seedLT2025(){ await seedLTYear(2025); }
 async function seedLT2026(){ await seedLTYear(2026); }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  ANALYTICS HELPERS
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 function rentedDaysInMonth(r,y,m){
   if(!r.name||r.type==='available')return 0;
   const dim=daysInMonth(y,m);
@@ -6005,10 +6005,10 @@ function collectedInMonth(r,y,m){
   return tenantArchive.reduce((s,a)=>s+sumHistoryForMonth(a.history,mStr),0);
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  DASHBOARD
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// ââ Deduplicated active units (one row per apt, best booking) ââ
+// ══════════════════════════════════════════════════════
+// ── Deduplicated active units (one row per apt, best booking) ──
 function dedupActive(){
   const all = data.filter(r=>!r.archived);
   const today = new Date(); today.setHours(0,0,0,0);
@@ -6030,9 +6030,9 @@ function dedupActive(){
   return Object.values(aptMap);
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  SHORT-TERM DASHBOARD (ST-only data)
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 async function renderSTDashboard(){
   const active=dedupActive();
   const stAll=active.filter(r=>r.type==='short-stay');
@@ -6049,7 +6049,7 @@ async function renderSTDashboard(){
   const collPct=exp>0?Math.round(coll/exp*100):0;
   const dim=daysInMonth(ty,tm);
 
-  // ââ Hero KPI Cards ââ
+  // ── Hero KPI Cards ──
   document.getElementById('stDashKpis').innerHTML=`
     <div class="kpi-card kpi-hero kv-accent"><div class="kpi-label">ST Occupancy</div><div class="kpi-value">${occ_pct}%</div><div class="kpi-sub">${stOcc.length} of ${stPool.length} units</div></div>
     <div class="kpi-card kpi-hero kv-green"><div class="kpi-label">ST Revenue</div><div class="kpi-value">${fmtMoney(totalRent)}</div><div class="kpi-sub">expected this month</div></div>
@@ -6057,34 +6057,34 @@ async function renderSTDashboard(){
     <div class="kpi-card kpi-hero kv-blue"><div class="kpi-label">Collected</div><div class="kpi-value">${collPct}%</div><div class="kpi-sub">${fmtMoney(coll)} of ${fmtMoney(exp)}</div></div>
     <div class="kpi-card kpi-hero kv-orange"><div class="kpi-label">Available</div><div class="kpi-value">${stAvail.length}</div><div class="kpi-sub">ST units ready to rent</div></div>`;
 
-  // ââ Fetch automation data ââ
+  // ── Fetch automation data ──
   let bookingAlerts={checkIns:[],checkOuts:[]};
   try { bookingAlerts = await checkBookingAlerts(); } catch(e){ console.error('ST alerts error:',e); }
 
-  // ââ ST Check-ins only ââ
+  // ── ST Check-ins only ──
   const stCI=bookingAlerts.checkIns.filter(ci=>{const u=data.find(x=>x.apt===ci.apt);return u&&u.type==='short-stay';});
   const ciEl=document.getElementById('stDashCheckIns');
   if(ciEl){
-    if(stCI.length===0){ciEl.innerHTML='<div class="dash-empty-state">â No ST check-ins in the next 3 days</div>';}
+    if(stCI.length===0){ciEl.innerHTML='<div class="dash-empty-state">✓ No ST check-ins in the next 3 days</div>';}
     else{ciEl.innerHTML=stCI.map(ci=>{const u=data.find(x=>x.apt===ci.apt);return`<div class="dash-move-item" style="cursor:pointer" onclick="drillDownToTenant('${ci.apt}','${(ci.name||'').replace(/'/g,"\\'")}')"><span class="dash-move-apt">${ci.apt}</span><span class="dash-move-name">${clickablePersonName(ci.name,u,'')}</span><span class="dash-move-when ci">${ci.daysAway===0?'Today':ci.daysAway===1?'Tomorrow':'In '+ci.daysAway+'d'}</span></div>`;}).join('');}
   }
 
-  // ââ ST Check-outs only ââ
+  // ── ST Check-outs only ──
   const stCO=bookingAlerts.checkOuts.filter(co=>{const u=data.find(x=>x.apt===co.apt);return u&&u.type==='short-stay';});
   const coEl=document.getElementById('stDashCheckOuts');
   if(coEl){
-    if(stCO.length===0){coEl.innerHTML='<div class="dash-empty-state">â No ST check-outs in the next 3 days</div>';}
+    if(stCO.length===0){coEl.innerHTML='<div class="dash-empty-state">✓ No ST check-outs in the next 3 days</div>';}
     else{coEl.innerHTML=stCO.map(co=>{const u=data.find(x=>x.apt===co.apt);return`<div class="dash-move-item" style="cursor:pointer" onclick="drillDownToTenant('${co.apt}','${(co.name||'').replace(/'/g,"\\'")}')"><span class="dash-move-apt">${co.apt}</span><span class="dash-move-name">${clickablePersonName(co.name,u,'')}</span><span class="dash-move-when co">${co.daysAway===0?'Today':co.daysAway===1?'Tomorrow':'In '+co.daysAway+'d'}</span></div>`;}).join('');}
   }
 
-  // ââ ST Badge: same-day check-ins + check-outs ââ
+  // ── ST Badge: same-day check-ins + check-outs ──
   const todayCI = stCI.filter(ci => ci.daysAway === 0).length;
   const todayCO = stCO.filter(co => co.daysAway === 0).length;
   const stTotal = todayCI + todayCO;
   const stBadge = document.getElementById('stBadge');
   if (stBadge) { stBadge.textContent = stTotal; stBadge.style.display = stTotal > 0 ? 'inline' : 'none'; }
 
-  // ââ ST Revenue Summary ââ
+  // ── ST Revenue Summary ──
   const paidST=stOcc.filter(r=>r.balance<=0).length;
   const avgRent=stOcc.length?Math.round(totalRent/stOcc.length):0;
   document.getElementById('stDashRevenue').innerHTML=`
@@ -6095,13 +6095,13 @@ async function renderSTDashboard(){
       <div class="dash-rev-item"><div class="dash-rev-label">Avg Rent</div><div class="dash-rev-value">${fmtMoney(avgRent)}</div></div>
     </div>`;
 
-  // ââ ST Needs Attention ââ
+  // ── ST Needs Attention ──
   const urgent=stOcc.filter(r=>dueStatus(r)==='overdue'||dueStatus(r)==='soon').sort((a,b)=>(daysUntil(a.due)||0)-(daysUntil(b.due)||0)).slice(0,7);
   document.getElementById('stDashUrgency').innerHTML=urgent.length
     ?urgent.map(r=>{const d=daysUntil(r.due);const c=d<0?'overdue':'soon';return`<div class="urgency-item"><span class="urgency-apt">${r.apt}</span><span class="urgency-name">${r.name}</span><span class="urgency-days ${c}">${d<0?Math.abs(d)+'d late':'in '+d+'d'}</span></div>`;}).join('')
-    :'<div class="dash-empty-state">â No urgent ST items</div>';
+    :'<div class="dash-empty-state">✓ No urgent ST items</div>';
 
-  // ââ ST Performance ââ
+  // ── ST Performance ──
   const ssNights=stOcc.reduce((s,r)=>s+rentedDaysInMonth(r,ty,tm),0);
   const ssMaxNights=dim*stPool.length;
   const ssOccRate=ssMaxNights>0?(ssNights/ssMaxNights*100):0;
@@ -6111,22 +6111,22 @@ async function renderSTDashboard(){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;">
       <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">Rental Revenue</div><div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(coll)}</div><div class="r-kpi-sub">${stOcc.length} occupied units</div></div>
       <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">Nights Booked</div><div class="r-kpi-value" style="color:#c0711a;">${ssNights}</div><div class="r-kpi-sub">of ${ssMaxNights} possible</div></div>
-      <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">Occupancy Rate</div><div class="r-kpi-value" style="color:#c0711a;">${ssOccRate.toFixed(1)}%</div><div class="r-kpi-sub">${stPool.length} units Ã ${dim} days</div></div>
-      <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">Avg Daily Rate</div><div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssADR)}</div><div class="r-kpi-sub">revenue Ã· occupied nights</div></div>
-      <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">RevPAR</div><div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssRevPAR)}</div><div class="r-kpi-sub">revenue Ã· all possible nights</div></div>
+      <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">Occupancy Rate</div><div class="r-kpi-value" style="color:#c0711a;">${ssOccRate.toFixed(1)}%</div><div class="r-kpi-sub">${stPool.length} units × ${dim} days</div></div>
+      <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">Avg Daily Rate</div><div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssADR)}</div><div class="r-kpi-sub">revenue ÷ occupied nights</div></div>
+      <div class="r-kpi" style="border-top:3px solid #c0711a;"><div class="r-kpi-label">RevPAR</div><div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssRevPAR)}</div><div class="r-kpi-sub">revenue ÷ all possible nights</div></div>
     </div>
-    <div style="font-size:10px;color:var(--text3);margin-top:8px;">Based on ${stPool.length} units (${stOcc.length} short-stay + ${stPool.length-stOcc.length} available) Â· ${dim}-day month</div>`;
+    <div style="font-size:10px;color:var(--text3);margin-top:8px;">Based on ${stPool.length} units (${stOcc.length} short-stay + ${stPool.length-stOcc.length} available) · ${dim}-day month</div>`;
 
-  // ââ ST Upcoming Checkouts â 30 days (short-stay only) ââ
+  // ── ST Upcoming Checkouts — 30 days (short-stay only) ──
   const upcoming=active.filter(r=>r.type==='short-stay'&&r.name&&(r.lease_end||r.due)).map(r=>{const endDate=r.lease_end||r.due;return{...r,_endDate:endDate,d:daysUntil(endDate)};}).filter(r=>r.d>=0&&r.d<=30).sort((a,b)=>a.d-b.d);
   document.getElementById('stDashUpcoming').innerHTML=upcoming.length
-    ?`<table style="width:100%;border-collapse:collapse">${upcoming.map(r=>`<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 0;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);width:48px">${r.apt}</td><td style="padding:8px;font-size:12px;color:var(--text2)">${r.name||'â'}</td><td>${typeBadge(r.type)}</td><td style="padding:8px;font-size:12px;color:var(--text3)">${fmtDate(r._endDate)}</td><td style="padding:8px;font-size:11px;color:var(--orange);font-weight:500;text-align:right">in ${r.d}d</td></tr>`).join('')}</table>`
+    ?`<table style="width:100%;border-collapse:collapse">${upcoming.map(r=>`<tr style="border-bottom:1px solid var(--border);"><td style="padding:8px 0;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);width:48px">${r.apt}</td><td style="padding:8px;font-size:12px;color:var(--text2)">${r.name||'—'}</td><td>${typeBadge(r.type)}</td><td style="padding:8px;font-size:12px;color:var(--text3)">${fmtDate(r._endDate)}</td><td style="padding:8px;font-size:11px;color:var(--orange);font-weight:500;text-align:right">in ${r.d}d</td></tr>`).join('')}</table>`
     :'<div style="color:var(--text3);font-size:12px;padding:8px 0">No ST checkouts in the next 30 days.</div>';
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  PARKING ADMIN MODULE
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 var PK_API = 'https://parking.willowpa.com/api.php';
 var PK_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
 var _pkBookings = [];
@@ -6164,7 +6164,7 @@ function WPA_pkRefresh() {
   if (document.getElementById('pkCouponsSection').style.display !== 'none') WPA_pkLoadCoupons();
 }
 
-// ââ Stats ââ
+// ── Stats ──
 function WPA_pkLoadStats() {
   pkFetch('admin-stats').then(function(d) {
     if (!d.ok) return;
@@ -6180,7 +6180,7 @@ function WPA_pkLoadStats() {
   }).catch(function() {});
 }
 
-// ââ Bookings ââ
+// ── Bookings ──
 function WPA_pkLoadBookings() {
   pkFetch('admin-bookings').then(function(d) {
     if (!d.ok) return;
@@ -6220,18 +6220,18 @@ function WPA_pkFilterBookings() {
     return '<tr' + (isExpired ? ' style="opacity:.6"' : '') + '>' +
       '<td>' + esc(b.building_name) + '</td>' +
       '<td><strong>' + esc(b.unit_number) + '</strong></td>' +
-      '<td>' + esc(b.guest_name || 'â') + '</td>' +
+      '<td>' + esc(b.guest_name || '—') + '</td>' +
       '<td>' + esc(b.car_make) + ' ' + esc(b.car_color) + '</td>' +
       '<td><strong>' + esc(b.license_plate) + '</strong></td>' +
       '<td>' + esc(b.plan_label) + '</td>' +
       '<td style="font-size:11px">' + b.start_date + '<br>to ' + b.end_date + '</td>' +
-      '<td>$' + parseFloat(b.amount).toFixed(2) + (b.coupon_code ? '<br><span style="font-size:10px;color:var(--green)">ð· ' + esc(b.coupon_code) + '</span>' : '') + '</td>' +
-      '<td><a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" style="color:var(--accent);font-size:11px">ð§¾ Receipt</a></td>' +
+      '<td>$' + parseFloat(b.amount).toFixed(2) + (b.coupon_code ? '<br><span style="font-size:10px;color:var(--green)">🏷 ' + esc(b.coupon_code) + '</span>' : '') + '</td>' +
+      '<td><a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" style="color:var(--accent);font-size:11px">🧾 Receipt</a></td>' +
       '</tr>';
   }).join('');
 }
 
-// ââ Buildings ââ
+// ── Buildings ──
 function WPA_pkLoadBuildings() {
   pkFetch('admin-buildings').then(function(d) {
     if (!d.ok) return;
@@ -6248,17 +6248,17 @@ function WPA_pkRenderBuildings() {
   }
   el.innerHTML = _pkBuildings.map(function(b) {
     var plans = (b.plans || []).map(function(p) {
-      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd â $' + parseFloat(p.price).toFixed(2) + (p.label ? ' (' + esc(p.label) + ')' : '') + '</span>';
+      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label ? ' (' + esc(p.label) + ')' : '') + '</span>';
     }).join(' ');
     return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:start">' +
-        '<div><h3 style="border:none;padding:0;margin:0 0 4px">ð¢ ' + esc(b.name) + '</h3>' +
+        '<div><h3 style="border:none;padding:0;margin:0 0 4px">🏢 ' + esc(b.name) + '</h3>' +
           (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">' + esc(b.address) + '</div>' : '') +
           '<div>' + (plans || '<span style="font-size:11px;color:var(--text3)">No plans</span>') + '</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px">' +
-          '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">â Edit</button>' +
-          '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">â</button>' +
+          '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">✏ Edit</button>' +
+          '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">✕</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -6299,7 +6299,7 @@ function WPA_pkAddPlanRow(days, price, label) {
     '<input type="number" placeholder="Days" value="' + (days || '') + '" class="pk-admin-input" style="width:70px" data-field="days">' +
     '<input type="number" step="0.01" placeholder="Price $" value="' + (price || '') + '" class="pk-admin-input" style="width:90px" data-field="price">' +
     '<input type="text" placeholder="Label (e.g. 1 Month)" value="' + (label || '') + '" class="pk-admin-input" style="flex:1" data-field="label">' +
-    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">â</button>';
+    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">✕</button>';
   el.appendChild(row);
 }
 
@@ -6331,7 +6331,7 @@ function WPA_pkDeleteBuilding(id) {
   pkFetch('admin-buildings&id=' + id, 'DELETE').then(function() { WPA_pkLoadBuildings(); });
 }
 
-// ââ Coupons ââ
+// ── Coupons ──
 function WPA_pkLoadCoupons() {
   pkFetch('admin-coupons').then(function(d) {
     if (!d.ok) return;
@@ -6355,16 +6355,16 @@ function WPA_pkRenderCoupons() {
         '<div>' +
           '<span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--accent2)">' + esc(c.code) + '</span>' +
           '<span style="margin-left:10px;font-size:12px;color:var(--text2)">' + typeLabel + '</span>' +
-          (c.description ? '<span style="margin-left:10px;font-size:11px;color:var(--text3)">â ' + esc(c.description) + '</span>' : '') +
+          (c.description ? '<span style="margin-left:10px;font-size:11px;color:var(--text3)">— ' + esc(c.description) + '</span>' : '') +
           '<div style="font-size:11px;color:var(--text3);margin-top:4px">' +
             'Used: ' + (c.used || 0) + (c.max_uses ? '/' + c.max_uses : ' (unlimited)') +
-            (c.expires ? ' Â· Expires: ' + c.expires : '') +
+            (c.expires ? ' · Expires: ' + c.expires : '') +
           '</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px;align-items:center">' +
           '<span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;background:' + statusBg + ';color:' + statusColor + '">' + (c.active ? 'Active' : 'Disabled') + '</span>' +
           '<button onclick="WPA_pkToggleCoupon(\'' + c.id + '\',' + !c.active + ')" class="btn-subtle" style="padding:4px 8px;font-size:10px">' + (c.active ? 'Disable' : 'Enable') + '</button>' +
-          '<button onclick="WPA_pkDeleteCoupon(\'' + c.id + '\')" class="btn-subtle" style="padding:4px 8px;font-size:10px;color:var(--red)">â</button>' +
+          '<button onclick="WPA_pkDeleteCoupon(\'' + c.id + '\')" class="btn-subtle" style="padding:4px 8px;font-size:10px;color:var(--red)">✕</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -6410,7 +6410,7 @@ function WPA_pkDeleteCoupon(id) {
   pkFetch('admin-coupons&id=' + id, 'DELETE').then(function() { WPA_pkLoadCoupons(); });
 }
 
-// ââ Receipt Lookup ââ
+// ── Receipt Lookup ──
 function WPA_pkSearchReceipt() {
   var q = (document.getElementById('pkReceiptSearch').value || '').trim().toLowerCase();
   if (!q) return;
@@ -6434,14 +6434,14 @@ function WPA_pkSearchReceipt() {
       return '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface2)">' +
         '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
           '<div><strong>' + esc(b.building_name) + ' #' + esc(b.unit_number) + '</strong>' +
-            (b.guest_name ? ' â ' + esc(b.guest_name) : '') +
+            (b.guest_name ? ' — ' + esc(b.guest_name) : '') +
           '</div>' +
-          '<a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" class="btn-backup" style="padding:6px 12px;font-size:11px;text-decoration:none">ð§¾ View & Print Receipt</a>' +
+          '<a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" class="btn-backup" style="padding:6px 12px;font-size:11px;text-decoration:none">🧾 View & Print Receipt</a>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--text2)">' +
-          '<span style="margin-right:12px">ð ' + esc(b.car_make) + ' ' + esc(b.car_color) + ' <strong>' + esc(b.license_plate) + '</strong></span>' +
-          '<span style="margin-right:12px">ð ' + b.start_date + ' â ' + b.end_date + '</span>' +
-          '<span>ð° $' + parseFloat(b.amount).toFixed(2) + '</span>' +
+          '<span style="margin-right:12px">🚗 ' + esc(b.car_make) + ' ' + esc(b.car_color) + ' <strong>' + esc(b.license_plate) + '</strong></span>' +
+          '<span style="margin-right:12px">📅 ' + b.start_date + ' → ' + b.end_date + '</span>' +
+          '<span>💰 $' + parseFloat(b.amount).toFixed(2) + '</span>' +
         '</div>' +
         '<div style="font-size:10px;color:var(--text3);margin-top:4px">ID: ' + b.id + '</div>' +
       '</div>';
@@ -6454,9 +6454,9 @@ function initParkingModule() {
   WPA_pkLoadStats();
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  DASHBOARD TASKS SYSTEM
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 var WPA_TASKS = JSON.parse(localStorage.getItem('wpa_tasks')||'[]');
 var _taskNextId = WPA_TASKS.length ? Math.max(...WPA_TASKS.map(t=>t.id))+1 : 1;
 
@@ -6507,7 +6507,7 @@ function renderDashTasks(){
   const done=WPA_TASKS.filter(t=>t.done).sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
   const td=today();
   if(pending.length===0 && done.length===0){
-    el.innerHTML='<div class="dash-empty-state">No tasks yet â click + Add to create one</div>';
+    el.innerHTML='<div class="dash-empty-state">No tasks yet — click + Add to create one</div>';
     return;
   }
   let h='';
@@ -6517,13 +6517,13 @@ function renderDashTasks(){
     const dueCls=isOverdue?'overdue':isToday?'today':'';
     const dueLabel=t.date?(isToday?'Today':isOverdue?fmtDateShort(t.date)+' !':fmtDateShort(t.date)):'';
     return `<div class="dash-task-item">
-      <div class="dash-task-check ${t.done?'done':''}" onclick="toggleTaskDone(${t.id})">${t.done?'â':''}</div>
+      <div class="dash-task-check ${t.done?'done':''}" onclick="toggleTaskDone(${t.id})">${t.done?'✓':''}</div>
       <span class="dash-task-text ${t.done?'done':''}">${t.title}</span>
       <div class="dash-task-meta">
         ${dueLabel?`<span class="dash-task-due ${dueCls}">${dueLabel}</span>`:''}
         ${!t.done?`<span class="dash-task-pri ${t.priority}">${t.priority}</span>`:''}
       </div>
-      <span class="dash-task-del" onclick="deleteDashTask(${t.id})" title="Delete">â</span>
+      <span class="dash-task-del" onclick="deleteDashTask(${t.id})" title="Delete">✕</span>
     </div>`;
   };
   pending.forEach(t=>{ h+=renderTask(t); });
@@ -6556,7 +6556,7 @@ async function renderDashboard(){
   let coll=0,exp=0;occ.forEach(r=>{coll+=collectedInMonth(r,ty,tm);exp+=expectedInMonth(r,ty,tm);});
   const collPct=exp>0?Math.round(coll/exp*100):0;
 
-  // ââ Hero KPI Cards (large, bold numbers) ââ
+  // ── Hero KPI Cards (large, bold numbers) ──
   document.getElementById('dashKpis').innerHTML=`
     <div class="kpi-card kpi-hero kv-accent"><div class="kpi-label">Occupancy</div><div class="kpi-value">${occ_pct}%</div><div class="kpi-sub">${occ.length} of ${active.length} units</div></div>
     <div class="kpi-card kpi-hero kv-green"><div class="kpi-label">Revenue</div><div class="kpi-value">${fmtMoney(totalRent)}</div><div class="kpi-sub">expected this month</div></div>
@@ -6564,7 +6564,7 @@ async function renderDashboard(){
     <div class="kpi-card kpi-hero kv-blue"><div class="kpi-label">Collected</div><div class="kpi-value">${collPct}%</div><div class="kpi-sub">${fmtMoney(coll)} of ${fmtMoney(exp)}</div></div>
     <div class="kpi-card kpi-hero kv-orange"><div class="kpi-label">Available</div><div class="kpi-value">${avail.length}</div><div class="kpi-sub">units ready to rent</div></div>`;
 
-  // ââ Fetch automation data in parallel ââ
+  // ── Fetch automation data in parallel ──
   let bookingAlerts={checkIns:[],checkOuts:[]}, remindersNeeded=[], monthlyReport={}, recentReminders=[];
   try {
     [bookingAlerts, remindersNeeded, monthlyReport, recentReminders] = await Promise.all([
@@ -6575,7 +6575,7 @@ async function renderDashboard(){
     ]);
   } catch(e){ console.error('Dashboard automation data error:',e); }
 
-  // ââ Work Orders Due Today + Past Due + Waiting Parts ââ
+  // ── Work Orders Due Today + Past Due + Waiting Parts ──
   const woTodayEl=document.getElementById('dashWOToday');
   if(woTodayEl){
     const todayStr=today();
@@ -6586,7 +6586,7 @@ async function renderDashboard(){
     const woWaiting=activeJobs.filter(j=>j.status==='waiting_parts'&&j.date!==todayStr&&!(j.date&&j.date<todayStr));
     const allWO=[...woPastDue,...woToday,...woWaiting];
     if(allWO.length===0){
-      woTodayEl.innerHTML='<div class="dash-empty-state">â No work orders need attention</div>';
+      woTodayEl.innerHTML='<div class="dash-empty-state">✓ No work orders need attention</div>';
     } else {
       let woH='';
       const renderWoGroup=(label,color,list)=>{
@@ -6604,21 +6604,21 @@ async function renderDashboard(){
         }).join('');
         return g;
       };
-      woH+=renderWoGroup('â  Past Due','var(--red)',woPastDue);
-      woH+=renderWoGroup('ð Today','var(--orange)',woToday);
-      woH+=renderWoGroup('â³ Waiting for Parts','var(--purple)',woWaiting);
+      woH+=renderWoGroup('⚠ Past Due','var(--red)',woPastDue);
+      woH+=renderWoGroup('📅 Today','var(--orange)',woToday);
+      woH+=renderWoGroup('⏳ Waiting for Parts','var(--purple)',woWaiting);
       woTodayEl.innerHTML=woH;
     }
   }
 
-  // ââ Tasks ââ
+  // ── Tasks ──
   renderDashTasks();
 
-  // ââ Check-ins ââ
+  // ── Check-ins ──
   const ciEl=document.getElementById('dashCheckIns');
   if(ciEl){
     if(bookingAlerts.checkIns.length === 0){
-      ciEl.innerHTML='<div class="dash-empty-state">â No check-ins in the next 3 days</div>';
+      ciEl.innerHTML='<div class="dash-empty-state">✓ No check-ins in the next 3 days</div>';
     } else {
       ciEl.innerHTML=bookingAlerts.checkIns.map(ci=>{
         const unitRec = data.find(u=>u.apt===ci.apt);
@@ -6631,11 +6631,11 @@ async function renderDashboard(){
     }
   }
 
-  // ââ Check-outs ââ
+  // ── Check-outs ──
   const coEl=document.getElementById('dashCheckOuts');
   if(coEl){
     if(bookingAlerts.checkOuts.length === 0){
-      coEl.innerHTML='<div class="dash-empty-state">â No check-outs in the next 3 days</div>';
+      coEl.innerHTML='<div class="dash-empty-state">✓ No check-outs in the next 3 days</div>';
     } else {
       coEl.innerHTML=bookingAlerts.checkOuts.map(co=>{
         const unitRec = data.find(u=>u.apt===co.apt);
@@ -6648,12 +6648,12 @@ async function renderDashboard(){
     }
   }
 
-  // ââ Reminders Due ââ
+  // ── Reminders Due ──
   let remHtml = '';
   if(remindersNeeded.length === 0){
-    remHtml = '<div class="dash-empty-state">â All caught up â no reminders needed</div>';
+    remHtml = '<div class="dash-empty-state">✓ All caught up — no reminders needed</div>';
   } else {
-    remHtml = `<button onclick="runRemindersClick()" class="dash-action-btn">â Send All (${remindersNeeded.length})</button>`;
+    remHtml = `<button onclick="runRemindersClick()" class="dash-action-btn">✉ Send All (${remindersNeeded.length})</button>`;
     remHtml += '<div class="dash-reminder-list">';
     remHtml += remindersNeeded.slice(0,8).map(r=>{
       const typeColor = r.reminderType.startsWith('overdue')?'var(--red)':r.reminderType==='due'?'var(--orange)':'var(--accent)';
@@ -6675,7 +6675,7 @@ async function renderDashboard(){
   }
   document.getElementById('dashReminders').innerHTML=remHtml;
 
-  // ââ Revenue Summary (replacing the old monthly report panel) ââ
+  // ── Revenue Summary (replacing the old monthly report panel) ──
   document.getElementById('dashRevenue').innerHTML=`
     <div class="dash-revenue-grid">
       <div class="dash-rev-item"><div class="dash-rev-label">Collected</div><div class="dash-rev-value green">${fmtMoney(monthlyReport.totalCollected||coll)}</div></div>
@@ -6683,31 +6683,31 @@ async function renderDashboard(){
       <div class="dash-rev-item"><div class="dash-rev-label">Paid Units</div><div class="dash-rev-value">${monthlyReport.paidCount||0} of ${monthlyReport.totalUnits||active.length}</div></div>
       <div class="dash-rev-item"><div class="dash-rev-label">Avg Rent</div><div class="dash-rev-value">${fmtMoney(occ.length?Math.round(totalRent/occ.length):0)}</div></div>
     </div>
-    <button onclick="emailMonthlyReport()" class="dash-email-btn">ð§ Email Monthly Report</button>`;
+    <button onclick="emailMonthlyReport()" class="dash-email-btn">📧 Email Monthly Report</button>`;
 
-  // ââ Needs Attention ââ
+  // ── Needs Attention ──
   const urgent=active.filter(r=>dueStatus(r)==='overdue'||dueStatus(r)==='soon').sort((a,b)=>(daysUntil(a.due)||0)-(daysUntil(b.due)||0)).slice(0,7);
   document.getElementById('dashUrgency').innerHTML=urgent.length
     ?urgent.map(r=>{const d=daysUntil(r.due);const c=d<0?'overdue':'soon';return`<div class="urgency-item"><span class="urgency-apt">${r.apt}</span><span class="urgency-name">${r.name}</span><span class="urgency-days ${c}">${d<0?Math.abs(d)+'d late':'in '+d+'d'}</span></div>`;}).join('')
-    :'<div class="dash-empty-state">â No urgent items</div>';
+    :'<div class="dash-empty-state">✓ No urgent items</div>';
 
-  // ââ Portfolio by Owner ââ
+  // ── Portfolio by Owner ──
   const ownerMap={};occ.forEach(r=>{if(!ownerMap[r.owner])ownerMap[r.owner]={rent:0,n:0};ownerMap[r.owner].rent+=r.rent;ownerMap[r.owner].n++;});
   const maxR=Math.max(...Object.values(ownerMap).map(o=>o.rent),1);
   document.getElementById('dashOwners').innerHTML=Object.entries(ownerMap).sort((a,b)=>b[1].rent-a[1].rent).map(([n,o])=>`<div class="obar-row"><div class="obar-label" title="${n}">${n}</div><div class="obar-track"><div class="obar-fill" style="width:${Math.round(o.rent/maxR*100)}%"></div></div><div class="obar-val">${fmtMoney(o.rent)} (${o.n})</div></div>`).join('');
 
-  // ââ Lease Type Chart ââ
+  // ── Lease Type Chart ──
   const tc={lt:0,mtm:0,sh:0,av:0};active.forEach(r=>{if(r.type==='long-term')tc.lt++;else if(r.type==='month-to-month')tc.mtm++;else if(r.type==='short-stay')tc.sh++;else tc.av++;});
   if(typeChartInst)typeChartInst.destroy();
   typeChartInst=new Chart(document.getElementById('typeChart'),{type:'doughnut',data:{labels:['Long Term','M-to-M','Short Stay','Available'],datasets:[{data:[tc.lt,tc.mtm,tc.sh,tc.av],backgroundColor:['#2563a8','#6b4ca8','#c0711a','#2e7d52'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
   document.getElementById('typeLegend').innerHTML=[['#2563a8','Long Term'],['#6b4ca8','M-to-M'],['#c0711a','Short Stay'],['#2e7d52','Available']].map(([c,l])=>`<div class="legend-item"><div class="legend-dot" style="background:${c}"></div>${l}</div>`).join('');
 
-  // ââ Collection Rate Chart ââ
+  // ── Collection Rate Chart ──
   if(collChartInst)collChartInst.destroy();
   collChartInst=new Chart(document.getElementById('collChart'),{type:'doughnut',data:{labels:['Collected','Remaining'],datasets:[{data:[coll,Math.max(0,exp-coll)],backgroundColor:['#2e7d52','#f0ede8'],borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.label}: $${c.raw.toLocaleString()}`}}}}});
-  document.getElementById('collChartNote').textContent=`${collPct}% collected â ${fmtMoney(coll)} of ${fmtMoney(exp)}`;
+  document.getElementById('collChartNote').textContent=`${collPct}% collected — ${fmtMoney(coll)} of ${fmtMoney(exp)}`;
 
-  // ââ Recent Reminders ââ
+  // ── Recent Reminders ──
   if(recentReminders.length === 0){
     document.getElementById('dashRecentReminders').innerHTML='<div class="dash-empty-state">No reminders sent yet</div>';
   } else {
@@ -6717,19 +6717,19 @@ async function renderDashboard(){
           <div class="dash-recent-item">
             <span class="dash-recent-apt">${r.apt}</span>
             <span class="dash-recent-type">${r.reminder_type}</span>
-            <span class="dash-recent-status ${r.status}">${r.status==='sent'?'â Sent':r.status==='skipped'?'â Skip':'Pending'}</span>
+            <span class="dash-recent-status ${r.status}">${r.status==='sent'?'✓ Sent':r.status==='skipped'?'⊘ Skip':'Pending'}</span>
             <span class="dash-recent-date">${new Date(r.sent_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
           </div>`).join('')}
       </div>`;
   }
 
-  // ââ Upcoming 30-day ââ
+  // ── Upcoming 30-day ──
   const upcoming=active.filter(r=>r.type!=='available'&&(r.lease_end||r.due)).map(r=>{const endDate=r.lease_end||r.due;return{...r,_endDate:endDate,d:daysUntil(endDate)};}).filter(r=>r.d>=0&&r.d<=30).sort((a,b)=>a.d-b.d);
   document.getElementById('dashUpcoming').innerHTML=upcoming.length
-    ?`<table style="width:100%;border-collapse:collapse">${upcoming.map(r=>`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="openDrillDown('dash_urgency','Overview')"><td style="padding:8px 0;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);width:48px">${r.apt}</td><td style="padding:8px;font-size:12px;color:var(--text2)">${r.name||'â'}</td><td>${typeBadge(r.type)}</td><td style="padding:8px;font-size:12px;color:var(--text3)">${fmtDate(r._endDate)}</td><td style="padding:8px;font-size:11px;color:var(--orange);font-weight:500;text-align:right">in ${r.d}d</td></tr>`).join('')}</table>`
+    ?`<table style="width:100%;border-collapse:collapse">${upcoming.map(r=>`<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="openDrillDown('dash_urgency','Overview')"><td style="padding:8px 0;font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--accent2);width:48px">${r.apt}</td><td style="padding:8px;font-size:12px;color:var(--text2)">${r.name||'—'}</td><td>${typeBadge(r.type)}</td><td style="padding:8px;font-size:12px;color:var(--text3)">${fmtDate(r._endDate)}</td><td style="padding:8px;font-size:11px;color:var(--orange);font-weight:500;text-align:right">in ${r.d}d</td></tr>`).join('')}</table>`
     :'<div style="color:var(--text3);font-size:12px;padding:8px 0">No checkouts or renewals in the next 30 days.</div>';
 
-  // ââ Make KPI Hero cards clickable ââ
+  // ── Make KPI Hero cards clickable ──
   setTimeout(()=>{
     const kpiCards = document.querySelectorAll('#dashKpis .kpi-card.kpi-hero');
     const kpiActions = ['dash_occupancy','dash_revenue','dash_outstanding','dash_collected','dash_available'];
@@ -6771,29 +6771,29 @@ async function renderDashboard(){
     });
   }, 100);
 
-  // ââ Render centralized messages (load Supabase channels first, then render) ââ
+  // ── Render centralized messages (load Supabase channels first, then render) ──
   loadSbChannelMessages().then(function(){ renderDashMessages('all'); }).catch(function(){ renderDashMessages('all'); });
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  REPORTS
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 function changeReportMonth(dir){reportMonth+=dir;if(reportMonth>11){reportMonth=0;reportYear++;}if(reportMonth<0){reportMonth=11;reportYear--;}renderReports();}
 
 
-// ââ Report drill-down ââ
+// ── Report drill-down ──
 function openArchiveDrill() {
   const d = window._archDrillData;
   if(!d) return;
-  document.getElementById('rDrillTitle').textContent = 'ð¦ Archive â Detail';
-  document.getElementById('rDrillSub').textContent = `${monthName(d.m, d.y)} Â· ${d.items.length} stays from archived units`;
+  document.getElementById('rDrillTitle').textContent = '📦 Archive — Detail';
+  document.getElementById('rDrillSub').textContent = `${monthName(d.m, d.y)} · ${d.items.length} stays from archived units`;
 
   const rows = d.items.sort((a,b) => (b.portion - a.portion)).map(r => `
     <tr>
       <td style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--accent2);">${r.apt}</td>
       <td style="font-size:12px;">${r.name}</td>
       <td style="font-size:11px;color:var(--text3);">${r.owner}</td>
-      <td style="text-align:right;font-size:11px;color:var(--text3);">${fmtDate(r.checkin)} â ${fmtDate(r.checkout)}</td>
+      <td style="text-align:right;font-size:11px;color:var(--text3);">${fmtDate(r.checkin)} → ${fmtDate(r.checkout)}</td>
       <td style="text-align:right;">${fmtMoney(r.totalRent)}</td>
       <td style="text-align:right;color:var(--green);">${fmtMoney(r.portion)}</td>
       <td style="text-align:right;color:var(--text3);">${r.days}d</td>
@@ -6805,9 +6805,9 @@ function openArchiveDrill() {
   document.getElementById('rDrillBody').innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No archived stays found</td></tr>';
   document.getElementById('rDrillFoot').innerHTML = `<tr>
     <td colspan="4" style="padding:10px 14px;">Total (${d.items.length} stays)</td>
-    <td style="text-align:right;padding:10px 14px;">â</td>
+    <td style="text-align:right;padding:10px 14px;">—</td>
     <td style="text-align:right;padding:10px 14px;color:var(--green);">${fmtMoney(total)}</td>
-    <td style="text-align:right;padding:10px 14px;color:var(--text3);">â</td>
+    <td style="text-align:right;padding:10px 14px;color:var(--text3);">—</td>
   </tr>`;
 
   // Update drill modal headers for archive columns
@@ -6843,8 +6843,8 @@ function openRDrill(typeKey, typeLabel, y, m) {
     ? data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available')).length
     : occ.length;
 
-  document.getElementById('rDrillTitle').textContent = `${typeLabel} â Detail`;
-  document.getElementById('rDrillSub').textContent = `${monthName(m,y)} Â· ${rows.length} units`;
+  document.getElementById('rDrillTitle').textContent = `${typeLabel} — Detail`;
+  document.getElementById('rDrillSub').textContent = `${monthName(m,y)} · ${rows.length} units`;
 
   let totalE=0, totalC=0;
   const bodyRows = rows.map(r=>{
@@ -6861,7 +6861,7 @@ function openRDrill(typeKey, typeLabel, y, m) {
     return `<tr style="cursor:pointer;" onclick="closeModal('rDrillModal');openDetail(${r.id})">
       <td style="font-family:'Playfair Display',serif;font-size:14px;font-weight:700;color:var(--accent2);">${r.apt}</td>
       <td style="font-size:12px;">${tenantName}</td>
-      <td style="font-size:11px;color:var(--text3);">${r.owner||'â'}</td>
+      <td style="font-size:11px;color:var(--text3);">${r.owner||'—'}</td>
       <td style="text-align:right;">${fmtMoney(e)}</td>
       <td style="text-align:right;color:var(--green);">${fmtMoney(c)}</td>
       <td style="text-align:right;color:${out>0?'var(--red)':'var(--text3)'};">${fmtMoney(out)}</td>
@@ -6890,25 +6890,25 @@ function renderReports(){
   const occ=active.filter(r=>r.type!=='available'&&r.name);
   const dim=daysInMonth(y,m);
 
-  // Days rented â max based on deduplicated units
+  // Days rented — max based on deduplicated units
   const totalActiveUnits = active.length; // deduplicated unit count
   let ltD=0,mtmD=0,shD=0;
   occ.forEach(r=>{const d=rentedDaysInMonth(r,y,m);if(r.type==='long-term')ltD+=d;else if(r.type==='month-to-month')mtmD+=d;else if(r.type==='short-stay')shD+=d;});
   const totD=ltD+mtmD+shD,maxD=Math.max(ltD,mtmD,shD,1);
   document.getElementById('rDaysContent').innerHTML=`
     ${[['Long Term',ltD,'#2563a8'],['Month-to-Month',mtmD,'#6b4ca8'],['Short Stay',shD,'#c0711a']].map(([l,d,c])=>`<div class="dbar-row"><div class="dbar-label">${l}</div><div class="dbar-track"><div class="dbar-fill" style="width:${Math.round(d/maxD*100)}%;background:${c}"></div></div><div class="dbar-val">${d} days</div></div>`).join('')}
-    <div style="border-top:2px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;font-weight:500"><span style="color:var(--text2)">Total rented unit-days</span><span style="color:var(--accent2)">${totD} days <span style="color:var(--text3);font-weight:400">(${dim}-day month Ã ${totalActiveUnits} units = ${dim*totalActiveUnits} max)</span></span></div>`;
+    <div style="border-top:2px solid var(--border);margin-top:10px;padding-top:10px;display:flex;justify-content:space-between;font-size:12px;font-weight:500"><span style="color:var(--text2)">Total rented unit-days</span><span style="color:var(--accent2)">${totD} days <span style="color:var(--text3);font-weight:400">(${dim}-day month × ${totalActiveUnits} units = ${dim*totalActiveUnits} max)</span></span></div>`;
 
-  // ââ Short Stay Performance KPIs ââ
+  // ── Short Stay Performance KPIs ──
   // Pool = all short-stay + all available units (33 total)
   const ssPool = active.filter(r=>r.type==='short-stay' || r.type==='available');
   const ssOcc  = occ.filter(r=>r.type==='short-stay'); // currently occupied short-stays
   const ssRevenue = ssOcc.reduce((s,r)=>s+collectedInMonth(r,y,m),0);
   const ssNights  = shD; // nights booked from above
-  const ssMaxNights = dim * ssPool.length; // dim Ã 33
+  const ssMaxNights = dim * ssPool.length; // dim × 33
   const ssOccRate = ssMaxNights > 0 ? (ssNights / ssMaxNights * 100) : 0;
-  const ssADR    = ssNights > 0 ? ssRevenue / ssNights : 0;           // revenue Ã· occupied nights only
-  const ssRevPAR = ssMaxNights > 0 ? ssRevenue / ssMaxNights : 0;     // revenue Ã· ALL possible nights (pool Ã days)
+  const ssADR    = ssNights > 0 ? ssRevenue / ssNights : 0;           // revenue ÷ occupied nights only
+  const ssRevPAR = ssMaxNights > 0 ? ssRevenue / ssMaxNights : 0;     // revenue ÷ ALL possible nights (pool × days)
   document.getElementById('rShortStayKpis').innerHTML=`
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:8px;">
       <div class="r-kpi" style="border-top:3px solid #c0711a;">
@@ -6924,22 +6924,22 @@ function renderReports(){
       <div class="r-kpi" style="border-top:3px solid #c0711a;">
         <div class="r-kpi-label">Occupancy Rate</div>
         <div class="r-kpi-value" style="color:#c0711a;">${ssOccRate.toFixed(1)}%</div>
-        <div class="r-kpi-sub">${ssPool.length} units Ã ${dim} days</div>
+        <div class="r-kpi-sub">${ssPool.length} units × ${dim} days</div>
       </div>
       <div class="r-kpi" style="border-top:3px solid #c0711a;">
         <div class="r-kpi-label">Avg Daily Rate (ADR)</div>
         <div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssADR)}</div>
-        <div class="r-kpi-sub">revenue Ã· occupied nights</div>
+        <div class="r-kpi-sub">revenue ÷ occupied nights</div>
       </div>
       <div class="r-kpi" style="border-top:3px solid #c0711a;">
         <div class="r-kpi-label">RevPAR</div>
         <div class="r-kpi-value" style="color:#c0711a;">${fmtMoney(ssRevPAR)}</div>
-        <div class="r-kpi-sub">revenue Ã· all ${ssMaxNights} possible nights</div>
+        <div class="r-kpi-sub">revenue ÷ all ${ssMaxNights} possible nights</div>
       </div>
     </div>
-    <div style="font-size:10px;color:var(--text3);">Based on ${ssPool.length} units (${ssOcc.length} short-stay occupied + ${ssPool.length-ssOcc.length} available) Â· ${dim}-day month</div>`;
+    <div style="font-size:10px;color:var(--text3);">Based on ${ssPool.length} units (${ssOcc.length} short-stay occupied + ${ssPool.length-ssOcc.length} available) · ${dim}-day month</div>`;
 
-  // Collection â short stay counts available units that had archive activity this month
+  // Collection — short stay counts available units that had archive activity this month
   // For short stay avg: count all active short-stay + all available units (19 + 14 = 33)
   const shortStayUnitCount = data.filter(r=>!r.archived && (r.type==='short-stay' || r.type==='available')).length;
 
@@ -6958,7 +6958,7 @@ function renderReports(){
     gE+=e; gC+=c; gUnits+=us.length;
     const linkStyle='cursor:pointer;text-decoration:underline;text-underline-offset:2px;color:var(--accent2);';
     return`<tr style="cursor:pointer;" onclick="openRDrill('${k}','${l}',${y},${m})">
-      <td style="${linkStyle}">${l} â</td>
+      <td style="${linkStyle}">${l} ↗</td>
       <td style="text-align:right">${totalUnitsForAvg}</td>
       <td style="text-align:right">${fmtMoney(e)}</td>
       <td style="text-align:right;color:var(--green)">${fmtMoney(c)}</td>
@@ -6971,7 +6971,7 @@ function renderReports(){
   if(unclassified.length>0){
     document.getElementById('rCollBody').innerHTML+=`<tr style="opacity:.7"><td style="color:var(--text3);font-style:italic">Other/Unclassified</td><td style="text-align:right;color:var(--text3)">${unclassified.length}</td><td colspan="4" style="text-align:right;font-size:11px;color:var(--text3)">${unclassified.map(r=>r.apt).join(', ')}</td></tr>`;
   }
-  // ââ Archive row: short-stay records that overlapped this month ââ
+  // ── Archive row: short-stay records that overlapped this month ──
   // EXCLUDE any apt already counted in live rows (occ) to avoid double-counting
   const liveApts = new Set(occ.map(r => r.apt));
   const mStart = new Date(y, m, 1);
@@ -7026,7 +7026,7 @@ function renderReports(){
       const thisMonth = splits.find(s => s.monthStr === mStr3);
       if(thisMonth && thisMonth.portion > 0) {
         window._archDrillData.items.push({
-          apt: a.apt, name: a.name||'â', owner: a.owner||'â',
+          apt: a.apt, name: a.name||'—', owner: a.owner||'—',
           checkin: ci, checkout: co, totalRent: a.rent||0,
           portion: thisMonth.portion, days: thisMonth.days
         });
@@ -7034,12 +7034,12 @@ function renderReports(){
     });
 
     document.getElementById('rCollBody').innerHTML += `<tr style="background:var(--surface2);cursor:pointer;" onclick="openArchiveDrill()">
-      <td style="color:var(--accent2);text-decoration:underline;text-underline-offset:2px;">ð¦ Archive (stayed in month) â</td>
+      <td style="color:var(--accent2);text-decoration:underline;text-underline-offset:2px;">📦 Archive (stayed in month) ↗</td>
       <td style="text-align:right;color:var(--text3);">${archUnits.size}</td>
       <td style="text-align:right;color:var(--text3);">${fmtMoney(archTotal)}</td>
       <td style="text-align:right;color:var(--green);">${fmtMoney(archTotal)}</td>
       <td style="text-align:right;color:var(--text3);">$0</td>
-      <td style="text-align:right;color:var(--text3);">â</td>
+      <td style="text-align:right;color:var(--text3);">—</td>
     </tr>`;
     gE += archTotal; gC += archTotal;
   }
@@ -7081,7 +7081,7 @@ function renderReports(){
     <div class="pred-box">
       <div class="pred-title">Predicted for ${monthName(nm,ny)}</div>
       <div class="pred-amount">${fmtMoney(pTotal)}</div>
-      <div class="pred-note">Based on ${willRent.length} units expected active${availPot?` Â· ${availPot} available units could add more`:''}</div>
+      <div class="pred-note">Based on ${willRent.length} units expected active${availPot?` · ${availPot} available units could add more`:''}</div>
     </div>
     <div class="pred-type-grid">
       <div class="pred-type-card" style="background:var(--blue-bg);border:1px solid var(--blue-border)"><div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Long Term</div><div style="font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--blue)">${fmtMoney(pLT)}</div></div>
@@ -7096,13 +7096,13 @@ function renderReports(){
   trendChartInst=new Chart(document.getElementById('trendChart'),{type:'bar',data:{labels,datasets:[{label:'Expected',data:expArr,backgroundColor:'#e0dbd2',borderRadius:4},{label:'Collected',data:collArr,backgroundColor:'#2e7d52',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'DM Mono',size:11},boxWidth:12}}},scales:{y:{ticks:{callback:v=>'$'+v.toLocaleString(),font:{family:'DM Mono',size:10}},grid:{color:'#f4f2ee'}},x:{ticks:{font:{family:'DM Mono',size:10}},grid:{display:false}}}}});
 }
 
-// ââ DEBUG ââââââââââââââââââââââââââââââââââââââââââ
-// ââ INIT âââââââââââââââââââââââââââââââââââââââââââ
+// ── DEBUG ──────────────────────────────────────────
+// ── INIT ───────────────────────────────────────────
 document.getElementById('sortSel').value='due';
 
-// âââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════
 // CALENDAR
-// âââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════
 
 let calYear       = new Date().getFullYear();
 let calMonth      = new Date().getMonth();
@@ -7112,14 +7112,14 @@ let _calApt       = null;   // active apt string
 let _calDate      = null;   // clicked date
 let _editingBlock = null;   // existing block being edited {from,to,reason}
 
-// ââ localStorage blocks store ââ
+// ── localStorage blocks store ──
 function getBlocks() {
   try { return JSON.parse(localStorage.getItem('propdesk_blocks') || '{}'); }
   catch(e) { return {}; }
 }
 function setBlocks(b) { localStorage.setItem('propdesk_blocks', JSON.stringify(b)); }
 
-// ââ Filter pills ââ
+// ── Filter pills ──
 function calFilterType(el) {
   document.querySelectorAll('[data-caltype]').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
@@ -7127,7 +7127,7 @@ function calFilterType(el) {
   renderCalendar();
 }
 
-// ââ Navigation ââ
+// ── Navigation ──
 function calPrevMonth() { calMonth--; if(calMonth<0){calMonth=11;calYear--;} renderCalendar(); }
 function calNextMonth() { calMonth++; if(calMonth>11){calMonth=0;calYear++;} renderCalendar(); }
 function calGoToday() {
@@ -7140,15 +7140,15 @@ function calGoToday() {
   },80);
 }
 
-// ââ Main render ââ
+// ── Main render ──
 function renderCalendar() {
   const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const DAY_ABBR=['SU','MO','TU','WE','TH','FR','SA'];
   const _tn=new Date();
   const todayStr=_tn.getFullYear()+'-'+String(_tn.getMonth()+1).padStart(2,'0')+'-'+String(_tn.getDate()).padStart(2,'0');
-  // curMonthStr not needed â 270-day window has no dim logic
+  // curMonthStr not needed — 270-day window has no dim logic
 
-  // Build date range: 150 days back from today â 60 days forward
+  // Build date range: 150 days back from today → 60 days forward
   const dates=[];
   const _today=new Date();
   const winFrom=new Date(_today); winFrom.setDate(_today.getDate()-90);
@@ -7160,7 +7160,7 @@ function renderCalendar() {
   const COL_W=36;
   const winStart=dates[0], winEnd=dates[dates.length-1];
 
-  // ââ Filter units ââ
+  // ── Filter units ──
   const q=(document.getElementById('calSearch')?.value||'').toLowerCase();
   let units=data.filter(r=>!r.archived);
 
@@ -7209,7 +7209,7 @@ function renderCalendar() {
   const mlEl=document.getElementById('calMonthLabel');
   if(mlEl) mlEl.textContent=MONTH_NAMES[calMonth]+' '+calYear;
 
-  // ââ Future bookings: additional active records with future checkin ââ
+  // ── Future bookings: additional active records with future checkin ──
   // Build a map of which id was chosen as display unit per apt
   const displayUnitId={};
   units.forEach(u=>{ displayUnitId[u.apt]=u.id; });
@@ -7219,7 +7219,7 @@ function renderCalendar() {
   const _addFutureBooking=(r,ci,co)=>{
     if(!co||co<todayStr||co<winStart) return; // must have future checkout
     if(ci && ci>winEnd) return;
-    if(ci && ci<todayStr) return; // checkin already past â not a future booking
+    if(ci && ci<todayStr) return; // checkin already past — not a future booking
     const from = (ci && ci>=todayStr) ? ci : todayStr;
     if(!futureBookings[r.apt]) futureBookings[r.apt]=[];
     futureBookings[r.apt].push({id:r.id,name:r.name,from:from,to:co,type:r.type,note:r.note||'',rent:r.rent||0,owner:r.owner||''});
@@ -7240,7 +7240,7 @@ function renderCalendar() {
     if(from>=todayStr) _addFutureBooking(r, from, co);
   });
 
-  // ââ Past stays â normal bars, fully clickable with all details ââ
+  // ── Past stays — normal bars, fully clickable with all details ──
   const pastStays={};
   archived.filter(r=>r.archived&&r.name&&(r.archivedDate||r.due)).forEach(r=>{
     const ci=r.checkin||r.checkinDate||'';
@@ -7253,7 +7253,7 @@ function renderCalendar() {
 
   const blocks=getBlocks();
 
-  // ââ Units list ââ
+  // ── Units list ──
   const calMeta = getCalUnitMeta();
   document.getElementById('calUnitsList').innerHTML=units.map(r=>{
     const meta = calMeta[r.apt] || {};
@@ -7283,14 +7283,14 @@ function renderCalendar() {
       <div class="cal-unit-cell">
         <div class="cal-unit-name">${r.apt}</div>
         ${availText
-          ? `<div class="cal-unit-sub" style="color:var(--green);font-weight:500;">â avail ${availText}</div>`
+          ? `<div class="cal-unit-sub" style="color:var(--green);font-weight:500;">✓ avail ${availText}</div>`
           : sub ? `<div class="cal-unit-sub">${sub}</div>` : ''}
       </div>
     </div>`;
   }).join('');
 
-  // ââ Day headers ââ
-  // Day headers â one cell per date, perfectly aligned with grid rows
+  // ── Day headers ──
+  // Day headers — one cell per date, perfectly aligned with grid rows
   // Month labels as a separate row above, using colspan-equivalent flex spans
   const MONTH_SHORT2=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   let lastMo=-1, monthGroups=[];
@@ -7314,7 +7314,7 @@ function renderCalendar() {
   }).join('');
   document.getElementById('calDaysHeader').innerHTML = dayHdrHtml;
 
-  // ââ Rows ââ
+  // ── Rows ──
   const rowsEl=document.getElementById('calRows');
   rowsEl.innerHTML='';
 
@@ -7353,10 +7353,10 @@ function renderCalendar() {
     });
     rowDiv.innerHTML=cellsHtml;
 
-    // ââ Bars ââ
+    // ── Bars ──
     const bars=[];
 
-    // 1. Active tenant bar â uses live unit data only, no archive
+    // 1. Active tenant bar — uses live unit data only, no archive
     if(r.type!=='available'&&r.name){
       const stripDate = s => s ? String(s).substring(0,10) : '';
       const bf = stripDate(r.checkin && r.checkin >= winStart ? r.checkin : winStart);
@@ -7369,9 +7369,9 @@ function renderCalendar() {
       });
     }
 
-    // 2. Past stays â full normal bars
+    // 2. Past stays — full normal bars
     (pastStays[r.apt]||[]).forEach(s=>bars.push({...s}));
-    // 3. Future bookings â calendar-added upcoming stays
+    // 3. Future bookings — calendar-added upcoming stays
     (futureBookings[r.apt]||[]).forEach(s=>bars.push({...s}));
 
     // 3. Blocks
@@ -7418,9 +7418,9 @@ function renderCalendar() {
       const span=e-s+1; if(span<1) return;
 
       // Same-day turnover adjustments
-      // If this bar's END date is a turnover date â shrink right half of last cell
+      // If this bar's END date is a turnover date → shrink right half of last cell
       const endIsTurnover = turnoverDates.has(bar.to) && bar.to >= winStart && bar.to <= winEnd;
-      // If this bar's START date is a turnover date â push into right half of first cell
+      // If this bar's START date is a turnover date → push into right half of first cell
       const startIsTurnover = turnoverDates.has(bar.from) && bar.from >= winStart && bar.from <= winEnd;
 
       const HALF = COL_W / 2;
@@ -7439,20 +7439,20 @@ function renderCalendar() {
       if(widthPx < 4) widthPx = 4;
 
       let barCls='cal-bar ';
-      let icon='ð ';
-      if(bar.type==='long-term')        {barCls+='bar-lt';    icon='ð ';}
-      else if(bar.type==='month-to-month'){barCls+='bar-mtm'; icon='ð';}
-      else if(bar.type==='short-stay')    {barCls+='bar-ss';  icon='âï¸';}
-      else if(bar.type==='__block__')     {barCls+='bar-block';icon='ð«';}
-      else if(bar.type==='available-gap') {barCls+='bar-avail';icon='â';}
+      let icon='🏠';
+      if(bar.type==='long-term')        {barCls+='bar-lt';    icon='🏠';}
+      else if(bar.type==='month-to-month'){barCls+='bar-mtm'; icon='📋';}
+      else if(bar.type==='short-stay')    {barCls+='bar-ss';  icon='✈️';}
+      else if(bar.type==='__block__')     {barCls+='bar-block';icon='🚫';}
+      else if(bar.type==='available-gap') {barCls+='bar-avail';icon='✓';}
 
       const note=bar.note||'';
-      const badge = bar.type==='__block__' ? 'ð«' : getChannelBadge(note);
+      const badge = bar.type==='__block__' ? '🚫' : getChannelBadge(note);
 
       const barEl=document.createElement('div');
       barEl.className=barCls;
       barEl.style.cssText='left:'+leftPx+'px;width:'+widthPx+'px;overflow:hidden;z-index:5;';
-      barEl.title=`${bar.name} Â· ${bar.from} â ${bar.to}`;
+      barEl.title=`${bar.name} · ${bar.from} → ${bar.to}`;
 
       // Sticky label: floats within the visible portion of the bar
       // Delete X button for blocks only
@@ -7482,15 +7482,15 @@ function renderCalendar() {
           _calUnitId=r.id; _calApt=r.apt; _editingBlock=bar.blockData;
           openBlockModal();
         } else if(bar.active){
-          // Main active tenant bar â full detail panel
+          // Main active tenant bar → full detail panel
           openDetail(r.id);
         } else if(bar.id){
           const activeRec = data.find(x=>x.id===bar.id);
           if(activeRec){
-            // Future booking in data â full detail panel
+            // Future booking in data → full detail panel
             openDetail(activeRec.id);
           } else {
-            // Archived record â calendar detail panel with delete
+            // Archived record → calendar detail panel with delete
             openCalBookingDetail(bar, r, false);
           }
         }
@@ -7524,25 +7524,25 @@ function renderCalendar() {
   }
 }
 
-// ââ Cell click: show action picker ââ
+// ── Cell click: show action picker ──
 function onCalCellClick(unitId, apt, dateStr, isOccupied) {
   _calUnitId=unitId; _calApt=apt; _calDate=dateStr; _editingBlock=null;
 
-  // Blank date â go straight to Add Booking
+  // Blank date — go straight to Add Booking
   if (!isOccupied) {
     openCalBookingModal();
     return;
   }
 
-  // Occupied date â show action menu
+  // Occupied date — show action menu
   const r=data.find(x=>x.id===unitId);
   document.getElementById('calActionApt').textContent=apt;
   document.getElementById('calActionDate').textContent=
-    (r&&r.name?r.name+' Â· ':'')+fmtDate(dateStr);
+    (r&&r.name?r.name+' · ':'')+fmtDate(dateStr);
   openModal('calActionModal');
 }
 
-// ââ Block modal ââ
+// ── Block modal ──
 function openBlockModal() {
   const r=data.find(x=>x.id===_calUnitId);
   document.getElementById('blockModalApt').textContent=_calApt||'';
@@ -7551,7 +7551,7 @@ function openBlockModal() {
   document.getElementById('blockTo').value=eb?eb.to:(_calDate||today());
   document.getElementById('blockReason').value=eb?(eb.reason||''):'';
   document.getElementById('blockModalInfo').innerHTML=
-    `Unit <strong>${_calApt}</strong>${r&&r.name?' â '+r.name:''}<br>
+    `Unit <strong>${_calApt}</strong>${r&&r.name?' — '+r.name:''}<br>
      <span style="font-size:11px;color:var(--text3)">${eb?'Edit or delete this block:':'Set the date range to block:'}</span>`;
   // Show delete button only when editing existing block
   document.getElementById('deleteBlockRow').style.display=eb?'':'none';
@@ -7576,7 +7576,7 @@ function saveBlock() {
   blocks[_calApt].push({from,to,reason});
   setBlocks(blocks);
   closeModal('blockModal');
-  toast(`Dates blocked for ${_calApt} â`,'success');
+  toast(`Dates blocked for ${_calApt} ✓`,'success');
   renderCalendar();
 }
 
@@ -7587,7 +7587,7 @@ function deleteCurrentBlock() {
 }
 
 function deleteBlock(apt,from,to) {
-  if(!confirm(`Remove block (${from} â ${to}) for ${apt}?`))return;
+  if(!confirm(`Remove block (${from} → ${to}) for ${apt}?`))return;
   const blocks=getBlocks();
   if(!blocks[apt])return;
   blocks[apt]=blocks[apt].filter(b=>!(b.from===from&&b.to===to));
@@ -7596,7 +7596,7 @@ function deleteBlock(apt,from,to) {
   renderCalendar();
 }
 
-// ââ Calendar Add Booking modal ââ
+// ── Calendar Add Booking modal ──
 function openCalBookingModal() {
   // Clear all fields for a fresh booking
   ['cbName','cbPhone','cbEmail','cbNote','cbRent','cbBalance','cbOwner','cbPayAmount','cbPayNote'].forEach(id => {
@@ -7645,15 +7645,15 @@ function updateCbPayPreview() {
     const splits = calcProration(checkin, checkout, amt);
     if (splits.length) {
       breakdown.innerHTML = splits.map(s => `${s.month}: <strong>$${s.portion.toLocaleString()}</strong> (${s.days}d)`).join('<br>');
-      msg = `â $${amt.toLocaleString()} split across ${splits.length} month${splits.length>1?'s':''}.`;
+      msg = `✓ $${amt.toLocaleString()} split across ${splits.length} month${splits.length>1?'s':''}.`;
     }
   } else {
     if (rent && amt >= rent) {
-      msg = `â Full payment of $${amt.toLocaleString()} recorded.`;
+      msg = `✓ Full payment of $${amt.toLocaleString()} recorded.`;
     } else if (rent && amt < rent) {
-      msg = `â  Partial â $${amt.toLocaleString()} of $${rent.toLocaleString()}. Balance: $${(rent - amt).toFixed(2)}`;
+      msg = `⚠ Partial — $${amt.toLocaleString()} of $${rent.toLocaleString()}. Balance: $${(rent - amt).toFixed(2)}`;
     } else {
-      msg = `â $${amt.toLocaleString()} will be recorded as payment.`;
+      msg = `✓ $${amt.toLocaleString()} will be recorded as payment.`;
     }
     breakdown.innerHTML = '';
   }
@@ -7682,16 +7682,16 @@ async function saveCalBooking() {
   if(!_calApt){ toast('No unit selected','error'); return; }
 
   const btn = document.querySelector('#calBookingModal .btn-primary');
-  btn.textContent = 'Savingâ¦'; btn.disabled = true;
+  btn.textContent = 'Saving…'; btn.disabled = true;
 
   try {
     const bookingNote = note ? note + ' | cal-booking' : 'cal-booking';
     const calBookingId = 'BK-cal-' + Date.now();
 
-    // Build history â include payment entry if amount entered
+    // Build history — include payment entry if amount entered
     const history = [];
     if (payAmt > 0) {
-      const histLabel = payNote ? `$${payAmt.toLocaleString()} â payment | ${payNote}` : `$${payAmt.toLocaleString()} â payment`;
+      const histLabel = payNote ? `$${payAmt.toLocaleString()} — payment | ${payNote}` : `$${payAmt.toLocaleString()} — payment`;
       history.push({ date: payDate, amt: payAmt, text: histLabel });
     }
     const finalBalance = payAmt > 0 ? Math.max(0, rent - payAmt) : (balance || rent);
@@ -7730,8 +7730,8 @@ async function saveCalBooking() {
     closeModal('calBookingModal');
     renderCalendar();
     renderTable();
-    const payMsg = payAmt > 0 ? ` Â· $${payAmt.toLocaleString()} recorded` : '';
-    toast(`Booking added: ${name} @ ${_calApt}${payMsg} â`, 'success');
+    const payMsg = payAmt > 0 ? ` · $${payAmt.toLocaleString()} recorded` : '';
+    toast(`Booking added: ${name} @ ${_calApt}${payMsg} ✓`, 'success');
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   } finally {
@@ -7740,14 +7740,14 @@ async function saveCalBooking() {
 }
 
 
-// ââ One-time calendar scroll setup (called once after boot) ââ
+// ── One-time calendar scroll setup (called once after boot) ──
 function initCalScroll() {
   const outer = document.getElementById('calGridOuter');
   const uCol  = document.getElementById('calUnitsCol');
   if (!outer || outer._bound) return;
   outer._bound = true;
 
-  // Sync vertical scroll: grid â units sidebar
+  // Sync vertical scroll: grid ↔ units sidebar
   let _syncing = false;
   outer.addEventListener('scroll', () => {
     if (_syncing) return;
@@ -7806,22 +7806,22 @@ function _updateCalFloatingLabels() {
 }
 
 
-// ââ CAL BOOKING DETAIL PANEL âââââââââââââââââââââââââââ
+// ── CAL BOOKING DETAIL PANEL ───────────────────────────
 
 function openCalBookingDetail(bar, unit, isActive) {
   const apt = unit.apt;
   document.getElementById('cbpApt').textContent   = apt;
-  document.getElementById('cbpName').textContent  = bar.name || 'â';
-  document.getElementById('cbpDates').textContent = `${fmtDate(bar.from)} â ${fmtDate(bar.to)}`;
-  document.getElementById('cbpOwner').textContent = bar.owner || unit.owner || 'â';
-  document.getElementById('cbpRent').textContent  = bar.rent ? fmtMoney(bar.rent) : 'â';
+  document.getElementById('cbpName').textContent  = bar.name || '—';
+  document.getElementById('cbpDates').textContent = `${fmtDate(bar.from)} → ${fmtDate(bar.to)}`;
+  document.getElementById('cbpOwner').textContent = bar.owner || unit.owner || '—';
+  document.getElementById('cbpRent').textContent  = bar.rent ? fmtMoney(bar.rent) : '—';
 
   const parsed = parseNoteFields(bar.note || '');
   document.getElementById('cbpChannel').textContent = getChannelName(bar.note||'');
-  document.getElementById('cbpPhone').textContent   = parsed.phone || 'â';
-  document.getElementById('cbpEmail').textContent   = parsed.email || 'â';
-  document.getElementById('cbpNote').textContent    = parsed.extra || 'â';
-  document.getElementById('cbpType').textContent    = bar.type || 'â';
+  document.getElementById('cbpPhone').textContent   = parsed.phone || '—';
+  document.getElementById('cbpEmail').textContent   = parsed.email || '—';
+  document.getElementById('cbpNote').textContent    = parsed.extra || '—';
+  document.getElementById('cbpType').textContent    = bar.type || '—';
 
   // Only show delete for archived bookings, not the active unit bar
   // Show delete for any bar that has an id (active tenant bar has isActive=true)
@@ -7846,14 +7846,14 @@ async function deleteCalBooking() {
     await loadAll();
     renderCalendar();
     renderTable();
-    toast('Booking deleted â', 'success');
+    toast('Booking deleted ✓', 'success');
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   }
 }
 
 
-// ââ CAL UNIT META (localStorage: BR/Bath + internal note per apt) ââ
+// ── CAL UNIT META (localStorage: BR/Bath + internal note per apt) ──
 function getCalUnitMeta() {
   try { return JSON.parse(localStorage.getItem('propdesk_unit_meta') || '{}'); }
   catch(e) { return {}; }
@@ -7902,14 +7902,14 @@ async function deleteCalUnit() {
     await loadAll();
     renderCalendar();
     renderTable();
-    toast(`Unit ${r.apt} deleted. Archive records kept. â`, 'success');
+    toast(`Unit ${r.apt} deleted. Archive records kept. ✓`, 'success');
   } catch(e) {
     toast('Error: ' + e.message, 'error');
   }
 }
 
 
-// ââ CHANNEL / NOTE HELPERS ââââââââââââââââââââââââââââââ
+// ── CHANNEL / NOTE HELPERS ──────────────────────────────
 
 // Known channels and their icons (SVG emoji fallback letters)
 const CHANNELS = {
@@ -8010,9 +8010,9 @@ function toggleCbChannelOther() {
 }
 
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  PERSON BADGES & CLICKABLE NAME POPUP
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 
 /**
  * Get booking badges (Pre-Arrival, Agreement/ID) for a unit or booking.
@@ -8056,18 +8056,18 @@ function getPersonBadges(unitOrBooking) {
   }
   if (isUpcoming || isHosting) {
     if (preArrivalDone) {
-      badges += '<span class="person-badge badge-done" title="Pre-arrival form completed">â Pre-Arrival</span>';
+      badges += '<span class="person-badge badge-done" title="Pre-arrival form completed">✓ Pre-Arrival</span>';
     } else {
-      badges += '<span class="person-badge badge-pending" title="Pre-arrival form not yet submitted">â³ Pre-Arrival</span>';
+      badges += '<span class="person-badge badge-pending" title="Pre-arrival form not yet submitted">⏳ Pre-Arrival</span>';
     }
   }
 
   // Agreement / ID badge: check if guest has agreement signed
   // For now, mark as done for currently_hosting (they must have agreed), pending for upcoming
   if (isHosting) {
-    badges += '<span class="person-badge badge-done" title="Agreement signed, ID verified">â Agreement/ID</span>';
+    badges += '<span class="person-badge badge-done" title="Agreement signed, ID verified">✓ Agreement/ID</span>';
   } else if (isUpcoming) {
-    badges += '<span class="person-badge badge-pending" title="Agreement/ID pending">â³ Agreement/ID</span>';
+    badges += '<span class="person-badge badge-pending" title="Agreement/ID pending">⏳ Agreement/ID</span>';
   }
 
   return badges;
@@ -8187,7 +8187,7 @@ function showPersonSummary(el, evt) {
 
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Contact</div>
       <div style="margin-bottom:10px;">
-        ${emailLink}${phoneLink ? ' Â· '+phoneLink : ''}
+        ${emailLink}${phoneLink ? ' · '+phoneLink : ''}
       </div>
 
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Stay Details</div>
@@ -8201,14 +8201,14 @@ function showPersonSummary(el, evt) {
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Payment</div>
       <div style="font-size:12px;color:var(--text);margin-bottom:10px;">
         <div><strong>Total:</strong> $${(info.totalPayout||0).toLocaleString()}</div>
-        ${info.balance !== undefined ? `<div><strong>Balance:</strong> <span style="color:${info.balance > 0 ? 'var(--red)' : 'var(--green)'}">${info.balance > 0 ? '$'+info.balance.toLocaleString()+' due' : 'â Paid'}</span></div>` : ''}
+        ${info.balance !== undefined ? `<div><strong>Balance:</strong> <span style="color:${info.balance > 0 ? 'var(--red)' : 'var(--green)'}">${info.balance > 0 ? '$'+info.balance.toLocaleString()+' due' : '✓ Paid'}</span></div>` : ''}
         ${info.due ? `<div><strong>Due date:</strong> ${info.due}</div>` : ''}
       </div>
 
       ${info.email ? `<button onclick="window.open('mailto:${info.email}','_blank');document.getElementById('personSummaryPopup').remove();" style="
         width:100%;padding:8px;background:var(--accent);color:#fff;border:none;border-radius:6px;
         cursor:pointer;font-family:inherit;font-size:12px;font-weight:600;
-      ">â Message ${info.name.split(' ')[0]}</button>` : ''}
+      ">✉ Message ${info.name.split(' ')[0]}</button>` : ''}
     </div>
   `;
 
@@ -8237,7 +8237,7 @@ async function deleteUnitRecord(id) {
     await loadAll();
     renderTable();
     renderCalendar();
-    toast(`Booking deleted â`, 'success');
+    toast(`Booking deleted ✓`, 'success');
   } catch(e) {
     toast('Error: '+e.message, 'error');
   }
@@ -8250,18 +8250,18 @@ async function boot() {
 
   // Check Supabase library loaded
   if (window._supaFailed || typeof supabase === 'undefined') {
-    msg.innerHTML = 'â Supabase library failed to load.<br><small>Check your internet connection.</small><br><br><button onclick="bootOffline()" style="margin-top:8px;padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">Use Offline Mode</button>';
+    msg.innerHTML = '❌ Supabase library failed to load.<br><small>Check your internet connection.</small><br><br><button onclick="bootOffline()" style="margin-top:8px;padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit">Use Offline Mode</button>';
     return;
   }
 
   try {
-    msg.textContent = 'Connecting to databaseâ¦';
+    msg.textContent = 'Connecting to database…';
 
     // Test connection with a simple count first
     const { count, error: testErr } = await sb.from('units').select('*', { count: 'exact', head: true });
     if (testErr) throw new Error('DB connection failed: ' + testErr.message);
 
-    msg.textContent = `Connected! Loading data (${count} records)â¦`;
+    msg.textContent = `Connected! Loading data (${count} records)…`;
     const ok = await loadAll();
     if (!ok) throw new Error('Failed to load records');
 
@@ -8274,14 +8274,14 @@ async function boot() {
       await loadAll();
     }
 
-    // Seeding disabled â Supabase is source of truth
+    // Seeding disabled — Supabase is source of truth
     // if (data.length < 10) {
-    //   msg.textContent = 'Seeding 79 active unitsâ¦';
+    //   msg.textContent = 'Seeding 79 active units…';
     //   await saveAll(SEED_DATA);
     //   await loadAll();
     // }
 
-    // Archive seeding disabled â Supabase is source of truth
+    // Archive seeding disabled — Supabase is source of truth
     // if (archived.length === 0 && ARCHIVED_SEED.length > 0) { ... }
 
     overlay.style.display = 'none';
@@ -8313,7 +8313,7 @@ async function boot() {
 
   } catch(e) {
     console.error('Boot error:', e);
-    msg.innerHTML = `â ${e.message}<br><small>URL: ${SUPA_URL}</small><br><br>
+    msg.innerHTML = `❌ ${e.message}<br><small>URL: ${SUPA_URL}</small><br><br>
       <button onclick="boot()" style="margin-top:8px;padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;margin-right:8px">Retry</button>
       <button onclick="bootOffline()" style="margin-top:8px;padding:8px 20px;background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;cursor:pointer;font-family:inherit">Offline Mode</button>`;
   }
@@ -8324,7 +8324,7 @@ function bootOffline() {
   data = [...SEED_DATA];
   archived = [...ARCHIVED_SEED].map(r => ({...r, archivedDate: r.archived_date || ''}));
   document.getElementById('loadingOverlay').style.display = 'none';
-  document.getElementById('syncStatus').textContent = 'â  offline';
+  document.getElementById('syncStatus').textContent = '⚠ offline';
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   window.DATA = data;
   renderTable();
@@ -8343,11 +8343,11 @@ function bootOffline() {
 // boot() is now called by authGate() after session check
 
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  AUTH + CLOCK
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-const REMEMBER_KEY   = 'chelbourne_admin_token';   // localStorage â permanent "remember me" for admin
-const SESSION_KEY    = 'chelbourne_session';          // sessionStorage â survives refresh, gone on tab close
+// ══════════════════════════════════════════════════════
+const REMEMBER_KEY   = 'chelbourne_admin_token';   // localStorage — permanent "remember me" for admin
+const SESSION_KEY    = 'chelbourne_session';          // sessionStorage — survives refresh, gone on tab close
 const INACTIVITY_MS  = 30 * 60 * 1000;               // 30 min inactivity timeout for everyone
 let _authRole = null, _authLoginRole = 'admin';
 let _inactivityTimer = null, _countdownTimer = null;
@@ -8466,10 +8466,10 @@ async function saveChpw() {
   if (newPw !== confirm) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
   await savePasswordToSupabase(account, newPw);
   _passwords[account] = newPw;
-  okEl.textContent = `â Password for ${account === 'admin' ? 'Admin' : 'Willow'} updated.`;
+  okEl.textContent = `✓ Password for ${account === 'admin' ? 'Admin' : 'Willow'} updated.`;
   okEl.style.display = 'block';
   setTimeout(closeChpw, 2000);
-  if (typeof toast === 'function') toast('Password changed â', 'success');
+  if (typeof toast === 'function') toast('Password changed ✓', 'success');
 }
 
 async function authInit() {
@@ -8494,7 +8494,7 @@ async function authInit() {
     boot();
     return;
   }
-  // No session â show login
+  // No session — show login
   document.getElementById('authScreen').style.display = 'flex';
 }
 
@@ -8502,22 +8502,22 @@ function updateHeaderClock() {
   const el = document.getElementById('headerClock');
   if (!el) return;
   const now = new Date();
-  el.textContent = 'ð ' +
+  el.textContent = '📅 ' +
     now.toLocaleDateString('en-US', {weekday:'short',month:'short',day:'numeric',year:'numeric'}) +
-    '  ð ' + now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+    '  🕒 ' + now.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
 }
 updateHeaderClock();
 setInterval(updateHeaderClock, 1000);
 
-// Run auth gate immediately â session check then boot
+// Run auth gate immediately — session check then boot
 (async () => {
   await authInit();
   try { await checkBackupStatus(); setInterval(checkBackupStatus, 60000); } catch(e) {}
 })();
 
-// âââââââââââââââââââââââââââââââââââââââ
-// PRICING VIEW â standalone, additive
-// âââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════
+// PRICING VIEW — standalone, additive
+// ═══════════════════════════════════════
 const PXW = 68;
 let _pxPer = [], _pxUnits = [], _pxDts = [];
 let _pxDrag = false, _pxDragD = null;
@@ -8609,14 +8609,14 @@ function pxRender() {
     rowDiv.className='prow';
     rowDiv.style.width=(_pxDts.length*PXW)+'px';
 
-    // Collect all bookings for this apt â active AND archived â for bar rendering
+    // Collect all bookings for this apt — active AND archived — for bar rendering
     const bars=[];
-    // Active records â same logic as booking calendar: type != available AND has name
+    // Active records — same logic as booking calendar: type != available AND has name
     data.filter(x=>!x.archived&&x.apt===r.apt&&x.type!=='available'&&x.name).forEach(x=>{
       const from=x.checkin||wS, to=x.due||x.lease_end||'';
       if(from&&to&&from<=wE) bars.push({name:x.name,from,to,type:x.type,note:x.note||''});
     });
-    // Archive past stays â only show if within visible window AND not ended before today
+    // Archive past stays — only show if within visible window AND not ended before today
     archived.filter(x=>x.apt===r.apt&&x.name).forEach(x=>{
       const from=x.checkin||x.archivedDate||x.due||'';
       const to=x.archivedDate||x.due||'';
@@ -8626,7 +8626,7 @@ function pxRender() {
     const blks=typeof getBlocks==='function'?(getBlocks()[r.apt]||[]):[];
     blks.forEach(b=>bars.push({name:b.reason||'Blocked',from:b.from,to:b.to,type:'__block__'}));
 
-    // Build occupied date set â only from bars with valid date ranges
+    // Build occupied date set — only from bars with valid date ranges
     const occ=new Set();
     bars.forEach(b=>{
       if(!b.from||!b.to) return;
@@ -8649,7 +8649,7 @@ function pxRender() {
         const rate=per?.nightly_rate!=null?per.nightly_rate:(prop?.base_price!=null?prop.base_price:null);
         const mins=per?.min_stay!=null?per.min_stay:(prop?.min_stay!=null?prop.min_stay:null);
         const ov=!!per;
-        const rh=rate!=null?`<span class="prate${ov?' ov':''}">$${Math.round(rate)}</span>`:'<span class="prate" style="color:var(--border2);">â</span>';
+        const rh=rate!=null?`<span class="prate${ov?' ov':''}">$${Math.round(rate)}</span>`:'<span class="prate" style="color:var(--border2);">—</span>';
         const mh=mins!=null?`<span class="pmin" style="display:flex;align-items:center;gap:1px;"><svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>${mins}nt</span>`:'';
         html+=`<div class="${cls}" data-a="${r.apt}" data-d="${d}"
           onmousedown="pxDn(event,'${r.apt}','${d}')"
@@ -8661,7 +8661,7 @@ function pxRender() {
     });
     rowDiv.innerHTML=html;
 
-    // Overlay booking bars â same colors as booking view, slightly faded
+    // Overlay booking bars — same colors as booking view, slightly faded
     bars.forEach(b=>{
       const cf=b.from<wS?wS:b.from, ct=b.to>wE?wE:b.to;
       if(cf>wE||ct<wS) return;
@@ -8765,7 +8765,7 @@ function pxOpenM(){
   const DAYS=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   ['pxCI','pxCO'].forEach(id=>{document.getElementById(id).innerHTML=DAYS.map(d=>`<label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);padding:2px 0;cursor:pointer;"><input type="checkbox" checked style="accent-color:var(--accent);"> ${d}</label>`).join('');});
   document.getElementById('pxRB').style.display='none';
-  document.getElementById('pxRA').textContent='â¼';
+  document.getElementById('pxRA').textContent='▼';
   openModal('pxModalEl');
 }
 function pxResetSel(){_pxSelA=new Set();_pxSelS=null;_pxSelE=null;document.querySelectorAll('#pxRowsEl .sl').forEach(c=>c.classList.remove('sl'));closeModal('pxModalEl');}
@@ -8798,7 +8798,7 @@ async function pxSave(){
 }
 pxLoad().catch(()=>{});
 
-// âââ FIELDTRACK / TECHTRACK â Dashboard Work Orders Card âââ
+// ═══ FIELDTRACK / TECHTRACK — Dashboard Work Orders Card ═══
 function updateDashWorkOrders() {
   if (typeof FT_state === 'undefined' || !FT_state.jobs) return;
   const jobs = FT_state.jobs;
@@ -8849,9 +8849,9 @@ function updateDashWorkOrders() {
     });
 })();
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 //  DELIVERY / MAILROOM ADMIN MODULE
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 var DL_API = 'https://delivery.willowpa.com/api.php';
 var DL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
 var _dlPackages = [];
@@ -8896,7 +8896,7 @@ function DL_selectCourier(btn, courier) {
   _dlSelectedCourier = courier;
 }
 
-// ââ Stats ââ
+// ── Stats ──
 function WPA_dlLoadStats() {
   dlFetch('admin-stats').then(function(d) {
     if (!d.ok) return;
@@ -8906,11 +8906,11 @@ function WPA_dlLoadStats() {
     if (el('dl-stat-collected')) el('dl-stat-collected').textContent = s.collected_today || 0;
     if (el('dl-stat-month')) el('dl-stat-month').textContent = s.total_month || 0;
     if (el('dl-stat-units')) el('dl-stat-units').textContent = s.units_waiting || 0;
-    if (el('dashMailroom')) el('dashMailroom').innerHTML = '<div style="font-size:20px;font-weight:700;color:var(--red)">' + (s.pending || 0) + '</div><div style="font-size:11px;color:var(--text-dim)">packages waiting Â· ' + (s.units_waiting || 0) + ' units</div>';
+    if (el('dashMailroom')) el('dashMailroom').innerHTML = '<div style="font-size:20px;font-weight:700;color:var(--red)">' + (s.pending || 0) + '</div><div style="font-size:11px;color:var(--text-dim)">packages waiting · ' + (s.units_waiting || 0) + ' units</div>';
   }).catch(function(e) { console.warn('DL stats error:', e); });
 }
 
-// ââ Packages ââ
+// ── Packages ──
 function WPA_dlLoadPackages() {
   var status = document.getElementById('dlFilterStatus').value;
   var qs = status !== 'all' ? '&status=' + status : '';
@@ -8945,12 +8945,12 @@ function WPA_dlRenderPackages(list) {
       '<td><input type="checkbox" class="dl-pkg-check" value="' + p.unit + '"></td>' +
       '<td><strong>' + p.unit + '</strong></td>' +
       '<td>' + p.count + '</td>' +
-      '<td>' + (p.courier || 'â') + '</td>' +
+      '<td>' + (p.courier || '—') + '</td>' +
       '<td>' + (p.has_phone ? '<span style="color:var(--green)">Y</span>' : '<span style="color:var(--text-dim)">N</span>') + '</td>' +
       '<td><span class="' + statusClass + '">' + p.status + '</span></td>' +
       '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(p.created) + '</td>' +
-      '<td style="font-size:11px;color:var(--text-dim)">' + (p.collected ? DL_fmtTime(p.collected) : 'â') + '</td>' +
-      '<td>' + (p.status === 'Pending' ? '<a href="javascript:;" onclick="WPA_dlConfirmPickup(\'' + p.unit + '\')" style="color:var(--green);font-size:11px">â Collect</a>' : '') + '</td>' +
+      '<td style="font-size:11px;color:var(--text-dim)">' + (p.collected ? DL_fmtTime(p.collected) : '—') + '</td>' +
+      '<td>' + (p.status === 'Pending' ? '<a href="javascript:;" onclick="WPA_dlConfirmPickup(\'' + p.unit + '\')" style="color:var(--green);font-size:11px">✓ Collect</a>' : '') + '</td>' +
     '</tr>';
   }).join('');
 }
@@ -8990,7 +8990,7 @@ function WPA_dlBulkDeletePkg() {
   });
 }
 
-// ââ Tenants ââ
+// ── Tenants ──
 function WPA_dlLoadTenants() {
   dlFetch('admin-tenants').then(function(d) {
     if (!d.ok) return;
@@ -9065,7 +9065,7 @@ function WPA_dlBulkDeleteTenants() {
   });
 }
 
-// ââ Reports ââ
+// ── Reports ──
 function WPA_dlInitReports() {
   var today = new Date().toISOString().split('T')[0];
   document.getElementById('dlReportFrom').value = today;
@@ -9103,7 +9103,7 @@ function WPA_dlLoadReports() {
   });
 }
 
-// ââ Community Updates ââ
+// ── Community Updates ──
 function WPA_dlLoadUpdates() {
   dlFetch('admin-community-updates').then(function(d) {
     if (!d.ok) return;
@@ -9144,7 +9144,7 @@ function WPA_dlDeleteUpdate(id) {
   dlFetch('admin-community-updates', 'DELETE', { id: id }).then(function(d) { if (d.ok) WPA_dlLoadUpdates(); });
 }
 
-// ââ Kiosk Images ââ
+// ── Kiosk Images ──
 function WPA_dlLoadImages() {
   dlFetch('kiosk-images').then(function(d) {
     if (!d.ok) return;
@@ -9183,7 +9183,7 @@ function WPA_dlDeleteImage(filename) {
   dlFetch('admin-delete-image', 'POST', { filename: filename }).then(function(d) { if (d.ok) WPA_dlLoadImages(); });
 }
 
-// ââ Send Reminders ââ
+// ── Send Reminders ──
 function WPA_dlSendReminder() {
   if (!confirm('Send SMS reminder to ALL pending packages?')) return;
   dlFetch('admin-send-reminder', 'POST', {}).then(function(d) {
@@ -9191,9 +9191,9 @@ function WPA_dlSendReminder() {
   });
 }
 
-// ââ Helpers ââ
+// ── Helpers ──
 function DL_fmtTime(ts) {
-  if (!ts) return 'â';
+  if (!ts) return '—';
   var d = new Date(ts);
   var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   var h = d.getHours(); var ampm = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
@@ -9231,14 +9231,14 @@ function msgTenantFromDetail() {
   openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââ
-//  MESSAGING MODAL â Send SMS/Email/WhatsApp/Channel
-// âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════
+//  MESSAGING MODAL — Send SMS/Email/WhatsApp/Channel
+// ═══════════════════════════════════════════════════
 function openMsgModal(name, email, phone, bookingId, type) {
   // type = 'short-term' | 'mtm' | 'long-term'
   document.getElementById('msgModalTitle').textContent = 'Message ' + (name || 'Guest');
   document.getElementById('msgRecipientName').textContent = name || '';
-  document.getElementById('msgRecipientContact').textContent = [email, phone].filter(Boolean).join(' Â· ');
+  document.getElementById('msgRecipientContact').textContent = [email, phone].filter(Boolean).join(' · ');
   document.getElementById('msgRecipientId').value = bookingId || '';
   document.getElementById('msgRecipientType').value = type || '';
   document.getElementById('msgBody').value = '';
@@ -9247,17 +9247,17 @@ function openMsgModal(name, email, phone, bookingId, type) {
   var channels = [];
   if (type === 'short-term') {
     channels = [
-      {id:'channel', label:'Channel', icon:'ð¢'},
-      {id:'sms', label:'SMS', icon:'ð¬'},
-      {id:'email', label:'Email', icon:'ð§'},
-      {id:'whatsapp', label:'WhatsApp', icon:'ð¢'}
+      {id:'channel', label:'Channel', icon:'📢'},
+      {id:'sms', label:'SMS', icon:'💬'},
+      {id:'email', label:'Email', icon:'📧'},
+      {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
     ];
   } else {
-    // MTM / Long-term â no channel
+    // MTM / Long-term — no channel
     channels = [
-      {id:'sms', label:'SMS', icon:'ð¬'},
-      {id:'email', label:'Email', icon:'ð§'},
-      {id:'whatsapp', label:'WhatsApp', icon:'ð¢'}
+      {id:'sms', label:'SMS', icon:'💬'},
+      {id:'email', label:'Email', icon:'📧'},
+      {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
     ];
   }
   var btnsHtml = channels.map(function(ch, i) {
@@ -9286,7 +9286,7 @@ function sendMsgFromModal() {
   var contact = document.getElementById('msgRecipientContact').textContent;
 
   // Extract email/phone from contact string
-  var parts = contact.split(' Â· ');
+  var parts = contact.split(' · ');
   var email = '', phone = '';
   parts.forEach(function(p) {
     p = p.trim();
@@ -9306,16 +9306,16 @@ function sendMsgFromModal() {
     var waPhone = phone.replace(/\D/g, '');
     window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(body), '_blank');
   } else if (ch === 'channel') {
-    // Channel messaging â use Hostfully channel API or internal messaging
+    // Channel messaging — use Hostfully channel API or internal messaging
     alert('Channel message queued for: ' + name + '\n\n' + body);
   }
 
   closeMsgModal();
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââ
-//  ST DASHBOARD DRILL-DOWN â click tenant to go to detail
-// âââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ═══════════════════════════════════════════════════
+//  ST DASHBOARD DRILL-DOWN — click tenant to go to detail
+// ═══════════════════════════════════════════════════
 function drillDownToTenant(apt, name) {
   // Try to find in pipeline bookings first
   if (typeof window.pipelineState !== 'undefined' && window.pipelineState.bookings) {
@@ -9350,11 +9350,11 @@ function drillDownToTenant(apt, name) {
   }
 }
 
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-//  CENTRALIZED MESSAGES â Dashboard Unified Inbox
+// ══════════════════════════════════════════════════════
+//  CENTRALIZED MESSAGES — Dashboard Unified Inbox
 //  Reads from: local data, pipelineState, FT_state,
 //  AND Supabase channels/messages tables (shared with tenant portal)
-// ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ══════════════════════════════════════════════════════
 var _dashMsgFilter = 'all';
 var _dashMsgShowAll = false;
 var _sbChannelMessages = []; // cached Supabase channel messages
@@ -9416,8 +9416,8 @@ function openSbThread(channelId){
 
     var html = '<div class="dash-panel" style="max-width:520px;margin:0 auto;border-left:4px solid var(--accent)">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
-    html += '<h3 style="margin:0;padding:0;border:none">ð¬ '+name+' â Unit '+unit+'</h3>';
-    html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'sbThreadPanel\').style.display=\'none\'">â Close</button>';
+    html += '<h3 style="margin:0;padding:0;border:none">💬 '+name+' — Unit '+unit+'</h3>';
+    html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'sbThreadPanel\').style.display=\'none\'">✕ Close</button>';
     html += '</div>';
     html += '<div style="max-height:400px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;" id="sbThreadMsgs">';
     msgs.forEach(function(m){
@@ -9496,7 +9496,7 @@ function buildDashMessages(){
       id:'ft-'+j.id, name:j.requestedBy||techName||'Tech Service', apt:j.unit||j.property||'',
       source:'fieldtrack', preview:(j.title||j.description||'Work order').substring(0,60),
       time:j.date||j.created||'', phone:'', email:'', bookingId:null,
-      stage:(j.status||'open')+(j.priority==='urgent'?' Â· URGENT':'')
+      stage:(j.status||'open')+(j.priority==='urgent'?' · URGENT':'')
     });
   });
 
@@ -9567,7 +9567,7 @@ function renderDashMessages(filter){
     html += '<div class="dmsg-avatar">'+initial+'</div>';
     html += '<div class="dmsg-body">';
     html += '<div class="dmsg-top"><span class="dmsg-name">'+m.name+'</span><span class="dmsg-time">'+dashMsgTimeAgo(m.time)+'</span></div>';
-    html += '<div class="dmsg-meta">'+m.apt+(m.stage?' Â· '+m.stage:'')+'</div>';
+    html += '<div class="dmsg-meta">'+m.apt+(m.stage?' · '+m.stage:'')+'</div>';
     html += '<div class="dmsg-preview">'+m.preview+'</div>';
     html += '</div>';
     html += '<div class="dmsg-src-wrap">'+dashMsgSrcBadge(m.source)+'</div>';
@@ -9594,7 +9594,7 @@ function showAllDashMessages(){
 }
 
 function openDashMsgAction(msgId, source, bookingId){
-  // Supabase channel thread â open admin reply panel
+  // Supabase channel thread — open admin reply panel
   if(msgId.indexOf('sb-')===0){
     var chId = msgId.replace('sb-','');
     openSbThread(chId);
