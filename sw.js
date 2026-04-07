@@ -1,11 +1,12 @@
-/* Willow PropDesk — Service Worker v1 */
-const CACHE_NAME = 'willow-propdesk-v1';
+/* Willow PropDesk — Service Worker v2 */
+const CACHE_NAME = 'willow-propdesk-v2';
 const SHELL_FILES = [
   '/propdesk-/index.html',
   '/propdesk-/css/main.css',
   '/propdesk-/css/fieldtrack.css',
   '/propdesk-/css/property-settings.css',
   '/propdesk-/js/app.js',
+  '/propdesk-/js/mobile.js',
   '/propdesk-/js/pipeline.js',
   '/propdesk-/js/fieldtrack.js',
   '/propdesk-/js/inbox.js',
@@ -36,7 +37,7 @@ self.addEventListener('activate', function(e) {
     caches.keys().then(function(names) {
       return Promise.all(
         names.filter(function(n) { return n !== CACHE_NAME; })
-             .map(function(n) { return caches.delete(n); })
+            .map(function(n) { return caches.delete(n); })
       );
     }).then(function() {
       return self.clients.claim();
