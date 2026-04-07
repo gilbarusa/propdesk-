@@ -2116,6 +2116,7 @@ const MODULE_SUB_TABS = {
   'expenses':    [{label:'All',         page:'expenses'},   {label:'By Property', page:'expenses', expView:'property'}, {label:'By Category', page:'expenses', expView:'category'}],
   'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Completed', page:'techtrack', ftPage:'completed'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
+  'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'API Keys', page:'settings', settingsSec:'api-keys'}, {label:'Messaging', page:'settings', settingsSec:'messaging'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
@@ -2142,6 +2143,7 @@ function switchModule(moduleId, tabEl) {
     else if (t.expView) args += ",null,null,'" + t.expView + "'";
     else if (t.pkSec) args += ",null,null,null,'" + t.pkSec + "'";
     else if (t.dlSec) args += ",null,null,null,null,'" + t.dlSec + "'";
+    else if (t.msgFilter) args += ",null,null,null,null,null,'" + t.msgFilter + "'";
     const badgeId = t.ftPage ? 'ft-sub-badge-' + t.ftPage : (t.page ? 'sub-badge-' + t.page : '');
     const badgeHtml = badgeId ? ` <span class="mod-badge" id="${badgeId}" style="display:none">0</span>` : '';
     return `<div class="sub-tab${i === 0 ? ' active' : ''}" onclick="showSubPage(${args})">${t.label}${badgeHtml}</div>`;
@@ -2149,12 +2151,12 @@ function switchModule(moduleId, tabEl) {
   // Show default page for this module
   if (tabs.length > 0) {
     const t0 = tabs[0];
-    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec);
+    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec, t0.msgFilter);
   }
 }
 
 let _ftInitialized = false;
-function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) {
+function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter) {
   // Update sub-tab active state
   if (tabEl) {
     tabEl.parentElement.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
@@ -2174,6 +2176,12 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) 
   // ── Delivery section routing ──
   if (dlSec) {
     showDeliverySection(dlSec);
+  }
+
+  // ── Message Center routing ──
+  if (pageId === 'msg-center') {
+    _currentMsgCenterFilter = msgFilter || 'all';
+    renderMessageCenter();
   }
 
   // ── Expenses view routing ──
@@ -3130,6 +3138,99 @@ function sendMTMCompose(){
   });
   if(sent===0) alert('No contact info found for selected tenant(s) on channel: '+channel);
   else toast(sent+' message(s) sent via '+channel.toUpperCase());
+}
+
+// ══════════════════════════════════════════════════════════════
+//  UNIFIED MESSAGE CENTER
+// ══════════════════════════════════════════════════════════════
+
+let _currentMsgCenterFilter = 'all';
+let _msgCenterSearch = '';
+
+const CLIENT_APP_MESSAGES = [
+  {id:'ca-1',from:'Maria Gonzalez',unit:'46-210',property:'46 Township Line',date:'2026-04-06T09:15:00',subject:'Lockout Request',body:'Hi, I accidentally locked myself out. Can someone let me in?',unread:true,source:'client'},
+  {id:'ca-2',from:'James Whitfield',unit:'46-331',property:'46 Township Line',date:'2026-04-05T17:30:00',subject:'AC Not Working',body:'The air conditioning in my unit stopped blowing cold air yesterday evening.',unread:true,source:'client'},
+  {id:'ca-3',from:'Emily Chen',unit:'Unit 4',property:'7845 Montgomery Ave',date:'2026-04-04T11:00:00',subject:'Package Pickup',body:'I got a notification about a package. Where can I pick it up?',unread:false,source:'client'},
+  {id:'ca-4',from:'Devon Williams',unit:'A1',property:'431 Valley Rd',date:'2026-04-03T14:20:00',subject:'Lease Question',body:'When does my renewal option become available? I want to plan ahead.',unread:false,source:'client'},
+  {id:'ca-5',from:'Priya Patel',unit:'46-128',property:'46 Township Line',date:'2026-04-02T08:45:00',subject:'Guest Parking',body:'I have family visiting this weekend. Is guest parking available?',unread:false,source:'client'}
+];
+
+const MSG_SOURCE_STYLES = {
+  'short-term': { bg: '#e3f2fd', text: '#1565c0', label: 'Short-Term' },
+  'long-term':  { bg: '#e8f5e9', text: '#2e7d32', label: 'Long-Term' },
+  'client':     { bg: '#f3e5f5', text: '#7b1fa2', label: 'Client App' }
+};
+
+function _getAllCenterMessages() {
+  const msgs = [];
+  if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+    AIRBNB_BOOKINGS_SEED.forEach(function(b) {
+      if (!b.lastMsg && !b.lastMsgAt) return;
+      msgs.push({ id:'st-'+b.threadId, from:b.guest, unit:b.unit, property:b.listing?(b.listing.substring(0,40)):'', date:b.lastMsgAt||b.bookedAt, subject:b.status==='inquiry'?'Inquiry':(b.status==='change_requested'?'Change Request':'Booking Message'), body:b.lastMsg||'No messages yet', unread:b.unread>0, source:'short-term', platform:'airbnb', threadId:b.threadId });
+    });
+  }
+  if (typeof INNAGO_MESSAGES !== 'undefined') {
+    INNAGO_MESSAGES.forEach(function(m) {
+      msgs.push({ id:'lt-'+m.id, from:m.from, unit:m.unit, property:m.property, date:m.date+' '+m.time, subject:m.subject, body:m.body, unread:m.unread, source:'long-term', sent:m.sent });
+    });
+  }
+  CLIENT_APP_MESSAGES.forEach(function(m){ msgs.push(Object.assign({},m)); });
+  msgs.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  return msgs;
+}
+
+function _countUnreadMessages(){ return _getAllCenterMessages().filter(function(m){return m.unread;}).length; }
+
+function updateMsgCenterBadge() {
+  var count = _countUnreadMessages();
+  var badge = document.getElementById('msgCenterBadge');
+  if(badge){ badge.textContent=count; badge.style.display=count>0?'inline-block':'none'; }
+}
+
+function renderMessageCenter() {
+  var el = document.getElementById('page-msg-center');
+  if(!el) return;
+  var filter = _currentMsgCenterFilter;
+  var search = _msgCenterSearch.toLowerCase();
+  var msgs = _getAllCenterMessages();
+  if(filter!=='all') msgs = msgs.filter(function(m){return m.source===filter;});
+  if(search) msgs = msgs.filter(function(m){ return (m.from||'').toLowerCase().indexOf(search)!==-1||(m.subject||'').toLowerCase().indexOf(search)!==-1||(m.body||'').toLowerCase().indexOf(search)!==-1||(m.unit||'').toLowerCase().indexOf(search)!==-1; });
+  var totalUnread = msgs.filter(function(m){return m.unread;}).length;
+  var rows = msgs.length===0 ? '<div style="padding:40px;text-align:center;color:var(--text3);background:var(--surface);border-radius:8px;">No messages found</div>' : msgs.map(function(m){
+    var src = MSG_SOURCE_STYLES[m.source]||MSG_SOURCE_STYLES['short-term'];
+    var dateStr = _msgCenterTimeAgo(m.date);
+    var unitStr = m.unit||'';
+    return '<div class="msg-center-row '+(m.unread?'unread':'')+'" onclick="openMsgCenterDetail(\''+m.id+'\')"><div class="msg-center-left"><span class="msg-src-badge" style="background:'+src.bg+';color:'+src.text+';">'+src.label+'</span><span class="msg-center-from">'+(m.sent?'<span style="color:var(--text3);font-weight:400;">\u27A4 Sent</span> ':'')+m.from+'</span>'+(unitStr?'<span class="msg-center-unit">'+unitStr+'</span>':'')+'</div><div class="msg-center-right"><span class="msg-center-time">'+dateStr+'</span></div><div class="msg-center-preview"><strong>'+m.subject+'</strong> \u2014 '+(m.body||'').substring(0,90)+((m.body||'').length>90?'...':'')+'</div></div>';
+  }).join('');
+  el.innerHTML = '<div style="padding:16px 20px 0;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;"><h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text);">Message Center</h2>'+(totalUnread>0?'<span style="background:#d32f2f;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">'+totalUnread+' unread</span>':'')+'<div style="flex:1"></div><input type="text" id="msgCenterSearch" placeholder="Search messages..." value="'+_msgCenterSearch+'" oninput="_msgCenterSearch=this.value;renderMessageCenter()" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:220px;background:var(--surface);color:var(--text);"></div></div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:8px;margin:0 20px;">'+rows+'</div>';
+  updateMsgCenterBadge();
+}
+
+function _msgCenterTimeAgo(d) {
+  if(!d) return '';
+  var now=Date.now(), then=new Date(d).getTime();
+  if(isNaN(then)) return d;
+  var diff=now-then, mins=Math.floor(diff/60000);
+  if(mins<1) return 'now';
+  if(mins<60) return mins+'m ago';
+  var hrs=Math.floor(mins/60);
+  if(hrs<24) return hrs+'h ago';
+  var days=Math.floor(hrs/24);
+  if(days<7) return days+'d ago';
+  return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+function openMsgCenterDetail(id) {
+  var msgs=_getAllCenterMessages(), m=msgs.find(function(x){return x.id===id;});
+  if(!m) return;
+  if(m.source==='long-term'&&typeof INNAGO_MESSAGES!=='undefined'){var oid=parseInt(id.replace('lt-',''));var orig=INNAGO_MESSAGES.find(function(x){return x.id===oid;});if(orig)orig.unread=false;}
+  else if(m.source==='short-term'&&typeof AIRBNB_BOOKINGS_SEED!=='undefined'){var tid=id.replace('st-','');var orig2=AIRBNB_BOOKINGS_SEED.find(function(x){return x.threadId===tid;});if(orig2)orig2.unread=0;}
+  else if(m.source==='client'){var orig3=CLIENT_APP_MESSAGES.find(function(x){return x.id===id;});if(orig3)orig3.unread=false;}
+  var src=MSG_SOURCE_STYLES[m.source]||{};
+  var el=document.getElementById('page-msg-center');
+  var unitStr=m.unit?(m.property?m.unit+' at '+m.property:m.unit):(m.property||'');
+  el.innerHTML='<div style="padding:16px 20px 0;"><button onclick="renderMessageCenter()" style="background:none;border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--text2);margin-bottom:12px;">\u2190 Back to Messages</button></div><div style="margin:0 20px 20px;background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;"><div style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2);"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span class="msg-src-badge" style="background:'+src.bg+';color:'+src.text+';">'+src.label+'</span><span style="font-size:11px;color:var(--text3);">'+_msgCenterTimeAgo(m.date)+'</span></div><div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">'+m.subject+'</div><div style="font-size:12px;color:var(--text2);">'+(m.sent?'Sent by':'From')+' <strong>'+m.from+'</strong>'+(unitStr?' \u2014 '+unitStr:'')+'</div></div><div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">'+m.body+'</div>'+(!m.sent?'<div style="padding:12px 20px 16px;border-top:1px solid var(--border);"><textarea id="msgCenterReply" placeholder="Type your reply..." style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button onclick="toast(\'Reply sent!\');renderMessageCenter();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button></div></div>':'')+'</div>';
+  updateMsgCenterBadge();
 }
 
 // ── Applications Data & Render ──
@@ -6083,6 +6184,9 @@ async function renderSTDashboard(){
   const stTotal = todayCI + todayCO;
   const stBadge = document.getElementById('stBadge');
   if (stBadge) { stBadge.textContent = stTotal; stBadge.style.display = stTotal > 0 ? 'inline' : 'none'; }
+
+  // ── Message Center Badge ──
+  if (typeof updateMsgCenterBadge === 'function') updateMsgCenterBadge();
 
   // ── ST Revenue Summary ──
   const paidST=stOcc.filter(r=>r.balance<=0).length;
