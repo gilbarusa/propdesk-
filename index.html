@@ -3112,10 +3112,32 @@
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load',function(){
-    navigator.serviceWorker.register('sw.js').then(function(r){console.log('SW registered, scope:',r.scope);}).catch(function(e){console.log('SW failed:',e);});
+    navigator.serviceWorker.register('sw.js').then(function(r){
+      console.log('SW registered, scope:',r.scope);
+      if(r.waiting){ r.waiting.postMessage({type:'SKIP_WAITING'}); }
+      r.addEventListener('updatefound', function(){
+        var nw = r.installing;
+        if(nw) nw.addEventListener('statechange', function(){
+          if(nw.state === 'activated'){ window.location.reload(); }
+        });
+      });
+    }).catch(function(e){console.log('SW failed:',e);});
   });
 }
-/* Mobile init is triggered from boot() and bootOffline() in app.js after data loads */
+/* Last-resort mobile fallback: if on phone and desktop UI is showing, switch to mobile */
+(function(){
+  var mob = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+  if(!mob) return;
+  function tryMobileInit(){
+    if(document.body.classList.contains('mob-active')) return;
+    if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+      WILLOW_MOBILE.init();
+    }
+  }
+  tryMobileInit();
+  setTimeout(tryMobileInit, 1000);
+  setTimeout(tryMobileInit, 3000);
+})();
 </script>
 </body>
 </html>

@@ -1,5 +1,5 @@
-/* Willow PropDesk — Service Worker v2 */
-const CACHE_NAME = 'willow-propdesk-v2';
+/* Willow PropDesk — Service Worker v3 */
+const CACHE_NAME = 'willow-propdesk-v3';
 const SHELL_FILES = [
   '/propdesk-/index.html',
   '/propdesk-/css/main.css',
