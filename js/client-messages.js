@@ -31,7 +31,114 @@
         .order('created_at', { ascending: false });
       if (res.error) { console.error('Client fetch error:', res.error); return; }
       var data = res.data || [];
-CenterDetail(msgId); }, 100);
+
+      // Group by RESIDENT (single ongoing chat), not by thread_id
+      var resMap = {};
+      data.forEach(function(m) {
+        var key = residentKey(m);
+        if (!resMap[key]) {
+          resMap[key] = {
+            id: 'ca-' + key.replace(/[^a-z0-9]/g, '_'),
+            _residentKey: key,
+            _allThreadIds: [],
+            from: m.resident_name || 'Resident',
+            unit: m.resident_unit || '',
+            _email: m.resident_email || '',
+            _phone: m.resident_phone || '',
+            property: m.property || '',
+            date: m.created_at,
+            subject: m.subject || 'Message',
+            body: m.body,
+            unread: false,
+            _unreadCount: 0,
+            source: 'client',
+            _messages: []
+          };
+        }
+        var entry = resMap[key];
+        entry._messages.push(m);
+
+        // Track all thread_ids this resident has
+        if (m.thread_id && entry._allThreadIds.indexOf(m.thread_id) === -1) {
+          entry._allThreadIds.push(m.thread_id);
+        }
+
+        // Count unread resident messages
+        if (!m.read && m.sender_type === 'resident') {
+          entry.unread = true;
+          entry._unreadCount++;
+        }
+
+        // Use the latest message as preview
+        if (new Date(m.created_at) > new Date(entry.date)) {
+          entry.date = m.created_at;
+          entry.body = m.body;
+          entry.subject = m.subject || entry.subject;
+        }
+      });
+
+      window._liveClientMsgs = Object.values(resMap);
+    } catch(e) {
+      console.error('Client messages load failed:', e);
+    }
+  };
+
+  // -- Wrap _getAllCenterMessages to replace seed data with live Supabase data --
+  var _origGetAll = window._getAllCenterMessages;
+  window._getAllCenterMessages = function() {
+    var msgs = _origGetAll();
+    // Remove hardcoded seed client messages
+    var nonClient = msgs.filter(function(m) { return m.source !== 'client'; });
+    // Add live Supabase client messages
+    if (window._liveClientMsgs) {
+      window._liveClientMsgs.forEach(function(m) {
+        nonClient.push(Object.assign({}, m));
+      });
+    }
+    nonClient.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+    return nonClient;
+  };
+
+  // -- Send management reply to client_messages --
+  window.sendClientReply = async function(msgId) {
+    var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
+    var body = ta ? ta.value.trim() : '';
+    if (!body) { toast('Please type a reply'); return; }
+
+    var msg = (window._liveClientMsgs || []).find(function(m) { return m.id === msgId; });
+    if (!msg) { toast('Message not found', 'error'); return; }
+
+    // Use the most recent thread_id for the reply
+    var latestThread = msg._allThreadIds.length > 0
+      ? msg._allThreadIds[msg._allThreadIds.length - 1]
+      : msg._residentKey;
+
+    try {
+      var res = await sb.from('client_messages').insert({
+        thread_id: latestThread,
+        resident_name: msg.from,
+        resident_unit: msg.unit || '',
+        resident_email: msg._email || '',
+        resident_phone: msg._phone || '',
+        subject: msg.subject,
+        body: body,
+        sender_type: 'management',
+        read: false,
+        property: msg.property || 'Chelbourne'
+      }).select();
+
+      if (res.error) {
+        console.error('Reply error:', res.error);
+        toast('Failed to send reply', 'error');
+        return;
+      }
+      toast('Reply sent!');
+      await window._refreshClientMsgs();
+      // Reopen the detail to show updated conversation
+      var refreshedMsg = (window._liveClientMsgs || []).find(function(m) { return m.id === msgId; });
+      if (refreshedMsg) {
+        renderMessageCenter();
+        setTimeout(function() { openMsgCenterDetail(msgId); }, 100);
       } else {
         renderMessageCenter();
       }
