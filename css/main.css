@@ -1488,6 +1488,7 @@ textarea{resize:vertical;min-height:72px;}
 .dmsg-src-ft{background:var(--purple-bg);color:var(--purple);border:1px solid var(--purple-border);}
 .dmsg-src-pk{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
 .dmsg-src-dl{background:var(--accent-bg);color:var(--accent2);border:1px solid var(--accent);}
+.dmsg-src-tp{background:#e8f5e9;color:#2e7d32;border:1px solid #a8d8be;}
 .dmsg-src-ot{background:var(--surface2);color:var(--text2);border:1px solid var(--border);}
 
 /* ═══════════════════════════════════════════════════════════ */
