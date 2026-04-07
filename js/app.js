@@ -6771,8 +6771,8 @@ async function renderDashboard(){
     });
   }, 100);
 
-  // ── Render centralized messages ──
-  renderDashMessages('all');
+  // ── Render centralized messages (load Supabase channels first, then render) ──
+  loadSbChannelMessages().then(function(){ renderDashMessages('all'); }).catch(function(){ renderDashMessages('all'); });
 }
 
 // ══════════════════════════════════════════════════════
@@ -9336,9 +9336,101 @@ function drillDownToTenant(apt, name) {
 
 // ══════════════════════════════════════════════════════
 //  CENTRALIZED MESSAGES — Dashboard Unified Inbox
+//  Reads from: local data, pipelineState, FT_state,
+//  AND Supabase channels/messages tables (shared with tenant portal)
 // ══════════════════════════════════════════════════════
 var _dashMsgFilter = 'all';
 var _dashMsgShowAll = false;
+var _sbChannelMessages = []; // cached Supabase channel messages
+
+// Load Supabase channels for the unified inbox
+function loadSbChannelMessages(){
+  if(!SUPA_URL || !SUPA_KEY) return Promise.resolve([]);
+  var url = SUPA_URL + '/rest/v1/channels?select=*&order=last_message_at.desc&limit=50';
+  return fetch(url, {
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(channels){
+    if(!Array.isArray(channels)) return [];
+    _sbChannelMessages = channels.map(function(ch){
+      return {
+        id: 'sb-'+ch.id, name: ch.guest_name||'Tenant', apt: ch.unit_apt||'',
+        source: (ch.platform==='willowpa'?'tenant-portal':ch.platform)||'tenant-portal',
+        preview: ch.last_message_preview||'', time: ch.last_message_at||ch.created_at,
+        phone: ch.guest_phone||'', email: ch.guest_email||'',
+        bookingId: ch.booking_id||null, stage: '',
+        channelId: ch.id, unread: ch.unread_count||0
+      };
+    });
+    return _sbChannelMessages;
+  }).catch(function(e){ console.warn('SB channels load failed:', e); return []; });
+}
+
+// Send admin reply to a Supabase channel
+function sendAdminReply(channelId, text){
+  if(!channelId || !text) return;
+  var msgBody = { channel_id: channelId, sender: 'admin', sender_name: 'Willow Management', body: text, platform: 'willowpa', sent_at: new Date().toISOString() };
+  fetch(SUPA_URL + '/rest/v1/messages', {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(msgBody)
+  }).then(function(){
+    // Update channel preview
+    return fetch(SUPA_URL + '/rest/v1/channels?id=eq.' + channelId, {
+      method: 'PATCH',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({ last_message_preview: text.substring(0,100), last_message_at: new Date().toISOString(), unread_count: 0 })
+    });
+  }).then(function(){
+    showToast('Reply sent');
+    renderDashMessages(_dashMsgFilter);
+  }).catch(function(e){ showToast('Send failed: '+e.message); });
+}
+
+// Open a Supabase channel thread in a detail panel
+function openSbThread(channelId){
+  if(!channelId) return;
+  var url = SUPA_URL + '/rest/v1/messages?select=*&channel_id=eq.' + channelId + '&order=sent_at.asc';
+  fetch(url, {
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(msgs){
+    if(!Array.isArray(msgs)) msgs = [];
+    var channel = _sbChannelMessages.find(function(m){ return m.channelId === channelId; });
+    var name = channel ? channel.name : 'Tenant';
+    var unit = channel ? channel.apt : '';
+
+    var html = '<div class="dash-panel" style="max-width:520px;margin:0 auto;border-left:4px solid var(--accent)">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+    html += '<h3 style="margin:0;padding:0;border:none">💬 '+name+' — Unit '+unit+'</h3>';
+    html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'sbThreadPanel\').style.display=\'none\'">✕ Close</button>';
+    html += '</div>';
+    html += '<div style="max-height:400px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;" id="sbThreadMsgs">';
+    msgs.forEach(function(m){
+      var isAdmin = m.sender==='admin';
+      html += '<div style="max-width:80%;padding:8px 12px;border-radius:10px;font-size:12px;align-self:'+(isAdmin?'flex-end':'flex-start')+';background:'+(isAdmin?'var(--accent2);color:#fff':'var(--surface2);color:var(--text)')+'">';
+      html += '<div style="font-size:10px;font-weight:600;margin-bottom:2px;opacity:.8">'+(m.sender_name||m.sender)+'</div>';
+      html += m.body;
+      html += '<div style="font-size:9px;opacity:.6;margin-top:3px">'+new Date(m.sent_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<input id="sbReplyInput" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit" placeholder="Reply as admin..." onkeydown="if(event.key===\'Enter\')sendAdminReply(\''+channelId+'\',this.value)">';
+    html += '<button class="btn btn-sm" style="background:var(--accent2);color:#fff;border:none" onclick="sendAdminReply(\''+channelId+'\',document.getElementById(\'sbReplyInput\').value)">Send</button>';
+    html += '</div></div>';
+
+    var panel = document.getElementById('sbThreadPanel');
+    if(!panel){
+      panel = document.createElement('div');
+      panel.id = 'sbThreadPanel';
+      panel.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:500px;max-width:95vw;background:var(--bg);border-left:2px solid var(--border);z-index:600;padding:20px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.1)';
+      document.body.appendChild(panel);
+    }
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+    var msgsDiv = document.getElementById('sbThreadMsgs');
+    if(msgsDiv) msgsDiv.scrollTop = msgsDiv.scrollHeight;
+  });
+}
 
 function buildDashMessages(){
   var msgs = [];
@@ -9392,6 +9484,16 @@ function buildDashMessages(){
     });
   });
 
+  // Add Supabase channel messages (from tenant portal)
+  _sbChannelMessages.forEach(function(m){
+    msgs.push({
+      id: m.id, name: m.name, apt: m.apt,
+      source: 'tenant-portal', preview: m.preview, time: m.time,
+      phone: m.phone, email: m.email, bookingId: m.bookingId, stage: '',
+      channelId: m.channelId, unread: m.unread
+    });
+  });
+
   // Sort by time descending
   msgs.sort(function(a,b){
     var ta = a.time ? new Date(a.time).getTime() : 0;
@@ -9408,7 +9510,8 @@ function dashMsgSrcBadge(source){
     'month-to-month':{label:'MTM',cls:'dmsg-src-mtm'},
     'fieldtrack':{label:'Tech',cls:'dmsg-src-ft'},
     'parking':{label:'Parking',cls:'dmsg-src-pk'},
-    'delivery':{label:'Mailroom',cls:'dmsg-src-dl'}
+    'delivery':{label:'Mailroom',cls:'dmsg-src-dl'},
+    'tenant-portal':{label:'Portal',cls:'dmsg-src-tp'}
   };
   var m = map[source]||{label:source||'Other',cls:'dmsg-src-ot'};
   return '<span class="dmsg-src '+m.cls+'">'+m.label+'</span>';
@@ -9475,6 +9578,12 @@ function showAllDashMessages(){
 }
 
 function openDashMsgAction(msgId, source, bookingId){
+  // Supabase channel thread — open admin reply panel
+  if(msgId.indexOf('sb-')===0){
+    var chId = msgId.replace('sb-','');
+    openSbThread(chId);
+    return;
+  }
   // If it's a booking, open pipeline detail
   if(bookingId && typeof window.pipelineState !== 'undefined'){
     var b = window.pipelineState.bookings.find(function(x){ return x.id == bookingId; });
