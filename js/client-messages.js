@@ -1,30 +1,30 @@
-/* ââ PropDesk Client App Messages Integration âââââââââââââââââââââ
+/* == PropDesk Client App Messages Integration =======================
    Connects the Message Center to the Supabase `client_messages` table,
    replacing hardcoded seed data with live two-way messaging.
    Loaded AFTER inbox.js.
-   v2 â single chat per resident, read receipts
-   ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+   v2 -- single chat per resident, read receipts
+   ================================================================= */
 (function() {
   'use strict';
 
-  // ââ Column list for client_messages (must be explicit â Supabase quirk) ââ
+  // -- Column list for client_messages (must be explicit -- Supabase quirk) --
   var CM_COLS = 'id, thread_id, resident_name, resident_unit, resident_email, resident_phone, subject, body, sender_type, read, property, created_at, updated_at';
 
-  // ââ Register platform color for client_app ââ
+  // -- Register platform color for client_app --
   if (window.PLATFORM_COLORS) {
     window.PLATFORM_COLORS.client_app = { bg: '#10B981', text: '#fff', label: 'Client App' };
   }
 
-  // ââ Live client messages cache ââ
+  // -- Live client messages cache --
   window._liveClientMsgs = [];
 
-  // ââ Build a unique resident key (one chat per person) ââ
+  // -- Build a unique resident key (one chat per person) --
   function residentKey(m) {
     if (m.resident_email) return m.resident_email.toLowerCase().trim();
     return (m.resident_name || 'Resident').toLowerCase().trim() + '|' + (m.resident_unit || '').trim();
   }
 
-  // ââ Fetch live client messages from Supabase ââ
+  // -- Fetch live client messages from Supabase --
   window._refreshClientMsgs = async function() {
     try {
       var res = await sb.from('client_messages').select(CM_COLS)
@@ -83,7 +83,7 @@
     }
   };
 
-  // ââ Wrap _getAllCenterMessages to replace seed data with live Supabase data ââ
+  // -- Wrap _getAllCenterMessages to replace seed data with live Supabase data --
   var _origGetAll = window._getAllCenterMessages;
   window._getAllCenterMessages = function() {
     var msgs = _origGetAll();
@@ -99,7 +99,7 @@
     return nonClient;
   };
 
-  // ââ Send management reply to client_messages ââ
+  // -- Send management reply to client_messages --
   window.sendClientReply = async function(msgId) {
     var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
     var body = ta ? ta.value.trim() : '';
@@ -148,24 +148,24 @@
     }
   };
 
-  // ââ Read-receipt badge helper ââ
+  // -- Read-receipt badge helper --
   function readBadge(m) {
     if (m.sender_type === 'management') {
-      // Management message â show if resident has read it
+      // Management message -- show if resident has read it
       if (m.read) {
-        return '<span style="margin-left:6px;color:#10B981;font-size:12px;" title="Read by resident">ââ</span>';
+        return '<span style="margin-left:6px;color:#10B981;font-size:12px;" title="Read by resident">&#10003;&#10003;</span>';
       } else {
-        return '<span style="margin-left:6px;color:#9ca3af;font-size:12px;" title="Delivered">â</span>';
+        return '<span style="margin-left:6px;color:#9ca3af;font-size:12px;" title="Delivered">&#10003;</span>';
       }
     }
-    // Resident message â show if management has read it
+    // Resident message -- show if management has read it
     if (m.read) {
-      return '<span style="margin-left:6px;color:#10B981;font-size:11px;" title="Read">â read</span>';
+      return '<span style="margin-left:6px;color:#10B981;font-size:11px;" title="Read">&#9679; read</span>';
     }
     return '';
   }
 
-  // ââ Patch openMsgCenterDetail for client message replies & thread view ââ
+  // -- Patch openMsgCenterDetail for client message replies & thread view --
   var _origOpen = window.openMsgCenterDetail;
   window.openMsgCenterDetail = function(id) {
     _origOpen(id);
@@ -194,7 +194,7 @@
           }
         }
 
-        // Fix Send Reply button â replace stub onclick with real handler
+        // Fix Send Reply button -- replace stub onclick with real handler
         var btns = document.querySelectorAll('button');
         for (var i = 0; i < btns.length; i++) {
           if (btns[i].textContent.trim() === 'Send Reply') {
@@ -252,7 +252,7 @@
     }
   };
 
-  // ââ Mark client messages as read ââ
+  // -- Mark client messages as read --
   var _origMarkRead = window.markChannelRead;
   if (_origMarkRead) {
     window.markChannelRead = async function(channelId) {
@@ -272,14 +272,14 @@
     };
   }
 
-  // ââ Compose New Message (outbound) ââ
+  // -- Compose New Message (outbound) --
   window.openComposeMessage = function() {
     var page = document.getElementById('page-msg-center');
     if (!page) return;
 
     page.innerHTML = '<div style="padding:20px;max-width:700px;">' +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">' +
-        '<button onclick="renderMessageCenter()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text);">â Back to Messages</button>' +
+        '<button onclick="renderMessageCenter()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text);">&#8592; Back to Messages</button>' +
         '<h2 style="margin:0;font-size:22px;">New Message</h2>' +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:14px;">' +
@@ -386,7 +386,7 @@
           toast('Error sending message', 'error');
         }
       } else {
-        // SMS, WhatsApp, Email â placeholder for future integration
+        // SMS, WhatsApp, Email -- placeholder for future integration
         toast('Message queued via ' + selectedChannel.toUpperCase() + ' (integration pending)');
         // Still save to client_messages for record keeping
         try {
@@ -412,7 +412,7 @@
     });
   };
 
-  // ââ Inject "New Message" button into Message Center header ââ
+  // -- Inject "New Message" button into Message Center header --
   var _origRender = window.renderMessageCenter;
   window.renderMessageCenter = function() {
     _origRender();
@@ -430,7 +430,7 @@
     }, 20);
   };
 
-  // ââ Initial load ââ
+  // -- Initial load --
   window._refreshClientMsgs().then(function() {
     if (typeof renderMessageCenter === 'function') {
       // Only re-render if Message Center is currently visible
@@ -439,6 +439,6 @@
         renderMessageCenter();
       }
     }
-    console.log('â Client App Messages v2 loaded (' + window._liveClientMsgs.length + ' residents)');
+    console.log('[OK] Client App Messages v2 loaded (' + window._liveClientMsgs.length + ' residents)');
   });
 })();
