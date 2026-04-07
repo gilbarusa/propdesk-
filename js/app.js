@@ -8302,6 +8302,10 @@ async function boot() {
     initCalScroll();
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
+    // Activate mobile UI if on mobile device
+    if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+      setTimeout(function(){ WILLOW_MOBILE.init(); }, 600);
+    }
 
   } catch(e) {
     console.error('Boot error:', e);
@@ -8322,6 +8326,10 @@ function bootOffline() {
   renderTable();
   initModuleNav();
   initCalScroll();
+  // Activate mobile UI if on mobile device
+  if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+    setTimeout(function(){ WILLOW_MOBILE.init(); }, 600);
+  }
 }
 
 // boot() is now called by authGate() after session check
