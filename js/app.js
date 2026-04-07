@@ -8419,6 +8419,7 @@ async function boot() {
       renderTable();
       initModuleNav(); // Initialize Layout C navigation
       initCalScroll();
+      if (typeof updateMsgCenterBadge === 'function') updateMsgCenterBadge();
     }
 
   } catch(e) {
