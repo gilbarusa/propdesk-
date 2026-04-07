@@ -430,6 +430,76 @@
     }, 20);
   };
 
+  // -- Override openMsgModal: redirect Message buttons to Message Center --
+  // When user clicks "Message" from any booking detail, navigate to Message Center
+  // and open a compose form pre-filled with the resident's info
+  var _origMsgModal = window.openMsgModal;
+  window.openMsgModal = function(name, email, phone, bookingId, type) {
+    // Navigate to Message Center
+    if (typeof showPage === 'function') showPage('msg-center');
+    // Pre-fill compose with resident info
+    setTimeout(function() {
+      window.openComposeMessage();
+      setTimeout(function() {
+        var nameInput = document.getElementById('compose-name');
+        var emailInput = document.getElementById('compose-email');
+        var phoneInput = document.getElementById('compose-phone');
+        if (nameInput) nameInput.value = name || '';
+        if (emailInput) emailInput.value = email || '';
+        if (phoneInput) phoneInput.value = phone || '';
+      }, 50);
+    }, 100);
+  };
+
+  // -- Patch openMsgModal channel list: add APP as first option --
+  // Also patch sendMsgFromModal to handle APP channel via client_messages
+  var _origSendMsg = window.sendMsgFromModal;
+  window.sendMsgFromModal = function() {
+    var channelEl = document.querySelector('.msg-ch-btn.active');
+    var ch = channelEl ? channelEl.dataset.channel : 'sms';
+    if (ch === 'app') {
+      // Handle APP channel -- insert into client_messages
+      var body = document.getElementById('msgBody').value.trim();
+      if (!body) { alert('Please type a message.'); return; }
+      var name = document.getElementById('msgRecipientName').textContent;
+      var contact = document.getElementById('msgRecipientContact').textContent;
+      var parts = contact.split(' . ');
+      var email = '', phone = '';
+      parts.forEach(function(p) {
+        p = p.trim();
+        if (p.indexOf('@') > -1) email = p;
+        else if (p.match(/\d/)) phone = p;
+      });
+      var newThreadId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
+      sb.from('client_messages').insert({
+        thread_id: newThreadId,
+        resident_name: name,
+        resident_unit: '',
+        resident_email: email,
+        resident_phone: phone,
+        subject: 'Message',
+        body: body,
+        sender_type: 'management',
+        read: false,
+        property: 'Chelbourne'
+      }).select().then(function(res) {
+        if (res.error) {
+          console.error('APP msg error:', res.error);
+          toast('Failed to send via APP', 'error');
+        } else {
+          toast('Message sent via APP!');
+          window._refreshClientMsgs().then(function() {
+            if (typeof renderMessageCenter === 'function') renderMessageCenter();
+          });
+        }
+      });
+      if (typeof closeMsgModal === 'function') closeMsgModal();
+    } else {
+      // Fall through to original handler for SMS/Email/WhatsApp
+      if (_origSendMsg) _origSendMsg();
+    }
+  };
+
   // -- Initial load --
   window._refreshClientMsgs().then(function() {
     if (typeof renderMessageCenter === 'function') {
