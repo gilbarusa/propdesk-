@@ -3852,7 +3852,10 @@ async function openMsgCenterDetail(contactKey) {
   html += '<button onclick="_mcAISuggest()" title="AI-suggested reply" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">⚡ AI Suggest</button>';
   html += '<button onclick="_mcAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">🔄 Rephrase</button>';
   html += '</div></div>';
-  html += '<div style="display:flex;gap:6px;">';
+  html += '<div id="mcAttachPreview" style="display:none;padding:4px 10px;background:#fef3c7;border-radius:6px;margin-bottom:4px;font-size:10px;align-items:center;gap:6px;"><span id="mcAttachName"></span><button onclick="_mcClearAttach()" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:12px;padding:0 2px;">&times;</button></div>';
+  html += '<div style="display:flex;gap:6px;align-items:center;">';
+  html += '<input type="file" id="mcFileInput" style="display:none" accept="image/*,.pdf,.doc,.docx,.txt" onchange="_mcHandleFile(this)">';
+  html += '<button onclick="document.getElementById(\'mcFileInput\').click()" title="Attach file" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;cursor:pointer;flex-shrink:0;">📎</button>';
   html += '<input id="mcReplyInput" placeholder="Type your reply... nothing is sent until you approve." style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--text);" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\');}">';
   html += '<button onclick="_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\')" style="padding:6px 14px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
   html += '</div></div>';
@@ -3864,15 +3867,53 @@ async function openMsgCenterDetail(contactKey) {
   updateMsgCenterBadge();
 }
 
-function _mcSendReply(from, email, phone, subject, threadId) {
+var _mcPendingFile = null;
+
+function _mcHandleFile(input) {
+  if (input.files && input.files[0]) {
+    _mcPendingFile = input.files[0];
+    var preview = document.getElementById('mcAttachPreview');
+    var nameEl = document.getElementById('mcAttachName');
+    if (preview) preview.style.display = 'flex';
+    if (nameEl) nameEl.textContent = '📎 ' + _mcPendingFile.name;
+  }
+}
+
+function _mcClearAttach() {
+  _mcPendingFile = null;
+  var preview = document.getElementById('mcAttachPreview');
+  if (preview) preview.style.display = 'none';
+  var fi = document.getElementById('mcFileInput');
+  if (fi) fi.value = '';
+}
+
+async function _mcSendReply(from, email, phone, subject, threadId) {
   var input = document.getElementById('mcReplyInput');
   var body = input ? input.value.trim() : '';
-  if (!body) return;
+  if (!body && !_mcPendingFile) return;
   input.value = '';
   var ch = getSelectedChannel(document.getElementById('mcReplyArea')) || 'app';
-  sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
+
+  if (_mcPendingFile && ch === 'app') {
+    // Upload file to Supabase storage, then send with attachment
+    var file = _mcPendingFile;
+    var ext = file.name.split('.').pop() || 'bin';
+    var path = 'mc/' + (threadId || Date.now()) + '/' + Date.now() + '.' + ext;
+    toast('Uploading file...');
+    try {
+      var upRes = await sb.storage.from('message-attachments').upload(path, file, { cacheControl: '3600', upsert: false });
+      if (upRes.error) { toast('Upload failed: ' + upRes.error.message, 'error'); return; }
+      var attachmentUrl = sb.supabaseUrl + '/storage/v1/object/public/message-attachments/' + path;
+      var messageType = file.type && file.type.startsWith('image/') ? 'image' : 'file';
+      if (!body) body = '📎 ' + file.name;
+      _mcClearAttach();
+      sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId, attachmentUrl: attachmentUrl, messageType: messageType });
+    } catch(e) { toast('Upload error: ' + e.message, 'error'); return; }
+  } else {
+    _mcClearAttach();
+    sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
+  }
   toast('Reply sent!');
-  // Refresh thread after delay
   setTimeout(function() { if (_msgCenterSelectedContact) openMsgCenterDetail(_msgCenterSelectedContact); }, 1000);
 }
 
@@ -10167,7 +10208,9 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
         }
 
         // 2) Insert message into the messages table under that channel
-        var msgRes = await sb.from('messages').insert([{ channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: 'text' }]);
+        var msgObj = { channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: opts.messageType || 'text' };
+        if (opts.attachmentUrl) msgObj.attachment_url = opts.attachmentUrl;
+        var msgRes = await sb.from('messages').insert([msgObj]);
         console.log('[App Channel] Message insert:', msgRes.error ? 'ERROR: ' + msgRes.error.message : 'OK');
 
         // 3) Update channel preview + bump unread

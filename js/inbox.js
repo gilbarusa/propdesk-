@@ -242,7 +242,8 @@ function getBlockingBookings(unitApt, startDate, endDate, bookings) {
   });
 }
 
-async function sendMessage(channelId, body, viaChannel) {
+async function sendMessage(channelId, body, viaChannel, opts) {
+  opts = opts || {};
   try {
     var now = new Date().toISOString();
     var insertObj = {
@@ -252,8 +253,9 @@ async function sendMessage(channelId, body, viaChannel) {
         body: body,
         platform: viaChannel || 'willowpa',
         sent_at: now,
-        message_type: 'text'
+        message_type: opts.messageType || 'text'
     };
+    if (opts.attachmentUrl) insertObj.attachment_url = opts.attachmentUrl;
     const { data, error } = await sb
       .from('messages')
       .insert([insertObj])
@@ -804,7 +806,10 @@ async function renderInbox() {
               <button onclick="viewSendQueue()" title="View pending messages" style="background:#fff;color:#7d5228;border:1px solid #ddd8ce;border-radius:4px;padding:5px 8px;font-family:inherit;font-size:9px;cursor:pointer;position:relative;">📤 Queue<span id="queueBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:#c62828;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:12px;text-align:center;"></span></button>
             </div>
             ${typeof buildChannelSelector === 'function' ? buildChannelSelector('channel') : ''}
+            <div id="inboxAttachPreview" style="display:none;padding:4px 10px;background:#fef3c7;border-radius:6px;margin-bottom:4px;font-size:10px;align-items:center;gap:6px;"><span id="inboxAttachName"></span><button onclick="inboxClearAttach()" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:12px;padding:0 2px;">&times;</button></div>
             <div style="display:flex;gap:6px;align-items:flex-end;">
+              <input type="file" id="inboxFileInput" style="display:none" accept="image/*,.pdf,.doc,.docx,.txt" onchange="inboxHandleFile(this)">
+              <button onclick="document.getElementById('inboxFileInput').click()" title="Attach file" style="background:#faf8f5;border:1px solid #ddd8ce;border-radius:6px;padding:8px 10px;font-size:14px;cursor:pointer;flex-shrink:0;height:48px;">📎</button>
               <textarea
                 id="replyInput"
                 placeholder="Type a reply… nothing is sent until you approve."
@@ -1191,7 +1196,7 @@ function loadTemplate(templateKey) {
 
 async function queueReply() {
   const input = document.getElementById('replyInput');
-  if (!input || !input.value.trim() || !currentChannelId) return;
+  if (!input || (!input.value.trim() && !_inboxPendingFile) || !currentChannelId) return;
 
   const channel = allChannels.find(c => c.id === currentChannelId);
   if (!channel) return;
@@ -1210,13 +1215,30 @@ async function queueReply() {
     if (seedMatch) unitVal = seedMatch.unit || '';
   }
 
+  // Handle file upload if pending
+  var sendOpts = {};
+  if (_inboxPendingFile) {
+    var file = _inboxPendingFile;
+    var ext = file.name.split('.').pop() || 'bin';
+    var path = 'inbox/' + currentChannelId + '/' + Date.now() + '.' + ext;
+    showToast('Uploading file...', 'info');
+    try {
+      var upRes = await sb.storage.from('message-attachments').upload(path, file, { cacheControl: '3600', upsert: false });
+      if (upRes.error) { showToast('Upload failed: ' + upRes.error.message, 'error'); return; }
+      sendOpts.attachmentUrl = sb.supabaseUrl + '/storage/v1/object/public/message-attachments/' + path;
+      sendOpts.messageType = file.type && file.type.startsWith('image/') ? 'image' : 'file';
+      if (!message) message = '📎 ' + file.name;
+    } catch(e) { showToast('Upload error: ' + e.message, 'error'); return; }
+    inboxClearAttach();
+  }
+
   // ALWAYS save the message in the SAME thread (messages table) regardless of channel
-  await sendMessage(currentChannelId, message, viaChannel);
+  await sendMessage(currentChannelId, message, viaChannel, sendOpts);
 
   // Then handle external delivery based on channel
   if (selectedCh && selectedCh !== 'channel') {
     // Non-default channel selected — do external delivery (SMS/Email/WhatsApp/App)
-    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message', unit: unitVal, property: channel.listing_name || ''});
+    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message', unit: unitVal, property: channel.listing_name || '', attachmentUrl: sendOpts.attachmentUrl, messageType: sendOpts.messageType});
     showToast(`✅ Sent via ${viaChannel.toUpperCase()} to ${channel.guest_name}.`, 'success');
   } else if (['airbnb', 'vrbo', 'booking'].includes(channel.platform) && channel.external_id) {
     // Default channel on booking platforms — queue for platform send
@@ -1445,6 +1467,27 @@ async function triggerInboxAISuggest() {
       '</div>'
     );
   }
+}
+
+// ── File Attach for Short-Term Inbox ──
+var _inboxPendingFile = null;
+
+function inboxHandleFile(input) {
+  if (input.files && input.files[0]) {
+    _inboxPendingFile = input.files[0];
+    var preview = document.getElementById('inboxAttachPreview');
+    var nameEl = document.getElementById('inboxAttachName');
+    if (preview) preview.style.display = 'flex';
+    if (nameEl) nameEl.textContent = '📎 ' + _inboxPendingFile.name;
+  }
+}
+
+function inboxClearAttach() {
+  _inboxPendingFile = null;
+  var preview = document.getElementById('inboxAttachPreview');
+  if (preview) preview.style.display = 'none';
+  var fi = document.getElementById('inboxFileInput');
+  if (fi) fi.value = '';
 }
 
 // ── AI Rephrase for Short-Term Inbox ──
