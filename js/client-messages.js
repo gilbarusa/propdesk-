@@ -8,7 +8,7 @@
   'use strict';
 
   // -- Column list for client_messages (must be explicit -- Supabase quirk) --
-  var CM_COLS = 'id, thread_id, resident_name, resident_unit, resident_email, resident_phone, subject, body, sender_type, read, property, created_at, updated_at';
+  var CM_COLS = 'id, thread_id, xresident_name, resident_unit, resident_email, resident_phone, subject, body, sender_type, read, property, created_at, updated_at';
 
   // -- Register platform color for client_app --
   if (window.PLATFORM_COLORS) {
