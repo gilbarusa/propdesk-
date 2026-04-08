@@ -60,6 +60,9 @@ function startInboxPolling() {
   stopInboxPolling();
   _inboxPollInterval = setInterval(function() {
     if (!currentChannelId) return;
+    // Skip refresh if user is actively typing in the reply input
+    var replyEl = document.getElementById('replyInput');
+    if (replyEl && (document.activeElement === replyEl || replyEl.value.trim())) return;
     // Force refresh the current thread's messages cache then re-render
     delete _msgCache[currentChannelId];
     _channelsCacheTime = 0; // force channel list refresh too
