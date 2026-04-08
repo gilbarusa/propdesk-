@@ -3705,7 +3705,7 @@ async function openMsgCenterDetail(contactKey) {
         // Mark as read
         sb.from('client_messages').update({ read: true }).eq('thread_id', tid).eq('sender_type', 'resident').eq('read', false).then(function(){});
         res.data.forEach(function(msg) {
-          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject });
+          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject, read: msg.read, read_at: msg.read_at });
         });
       }
     } catch(e) { console.warn('Thread load error:', tid, e); }
@@ -3717,7 +3717,7 @@ async function openMsgCenterDetail(contactKey) {
       var nameRes = await sb.from('client_messages').select('*').ilike('resident_name', m.from).order('created_at', { ascending: true }).limit(100);
       if (nameRes.data) {
         nameRes.data.forEach(function(msg) {
-          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject });
+          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject, read: msg.read, read_at: msg.read_at });
         });
         // Mark as read
         if (nameRes.data.length > 0) {
@@ -3747,7 +3747,20 @@ async function openMsgCenterDetail(contactKey) {
     bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+(isAdmin?'Management':_esc(msg.name))+'</div>';
     if (msg.subject) bubblesHtml += '<div style="font-size:9px;font-weight:500;opacity:.6;margin-bottom:2px;">'+_esc(msg.subject)+'</div>';
     bubblesHtml += '<div style="white-space:pre-wrap;">'+_esc(msg.body)+'</div>';
-    bubblesHtml += '<div style="font-size:8px;opacity:.5;margin-top:2px;">'+time+'</div>';
+    // Time + read receipt for management messages
+    var receiptHtml = '';
+    if (isAdmin) {
+      if (msg.read && msg.read_at) {
+        var readTime = new Date(msg.read_at).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+        var readDate = new Date(msg.read_at).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+        receiptHtml = ' <span title="Seen '+readDate+' '+readTime+'" style="color:#a5d6a7;font-size:9px;">✓✓</span>';
+      } else if (msg.read) {
+        receiptHtml = ' <span title="Delivered" style="opacity:.6;font-size:9px;">✓✓</span>';
+      } else {
+        receiptHtml = ' <span title="Sent" style="opacity:.4;font-size:9px;">✓</span>';
+      }
+    }
+    bubblesHtml += '<div style="font-size:8px;opacity:.5;margin-top:2px;">'+time+receiptHtml+'</div>';
     bubblesHtml += '</div></div>';
   });
 
