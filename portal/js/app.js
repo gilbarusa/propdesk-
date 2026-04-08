@@ -54,6 +54,8 @@ var PL = (function() {
       'test1234':  { user_type:'short-term', name:'Test User',      unit:'225', phone:'2159178700', email:'test@test.com', rent:1200, balance:150, due:'2026-05-01', lease_end:'2026-12-31', checkin:'2026-04-01' },
       'long1234':  { user_type:'long-term',  name:'Long Term User', unit:'103', phone:'2671231234', email:'long@test.com', rent:950,  balance:0,   due:'2026-05-01', lease_end:'2027-06-30', checkin:'' },
       'guest1234': { user_type:'short-term', name:'Guest User',     unit:'311', phone:'2670001234', email:'guest@test.com',rent:800,  balance:75,  due:'',           lease_end:'',           checkin:'2026-04-05' }
+      'richard':   { user_type:'short-term', name:'Richard ODonnell', unit:'926-1', phone:'4046260337', email:'richard@test.com', rent:0, balance:0, due:'', lease_end:'', checkin:'2026-01-13' },
+      'maureen':   { user_type:'short-term', name:'Maureen Kacillas', unit:'1BR 46-206', phone:'5705924712', email:'maureen@test.com', rent:0, balance:0, due:'', lease_end:'', checkin:'2026-02-24' }
     },
     parking_buildings: [
       { id:'bld_1', name:'46 Township Line RD - Chelbourne Plaza', address:'46 Township Line RD', plans:[{id:'plan_1a',name:'10days',days:10,price:24},{id:'plan_1b',name:'20days',days:20,price:46},{id:'plan_1c',name:'30days',days:30,price:64},{id:'plan_1d',name:'60days',days:60,price:125}] },
@@ -70,7 +72,17 @@ var PL = (function() {
       { id:'pkg_003', unit:'103', count:1, total:1, courier:'FedEx', status:'Pending', created:'2026-03-25 10:58:00' },
       { id:'pkg_014', unit:'311', count:1, total:1, courier:'USPS', status:'Pending', created:'2026-03-20 12:46:00' }
     ],
-    maintenance: [],
+    maintenance: [],,
+    message_threads: [
+      { id:'thr_001', unit:'225', subject:'Welcome to Chelbourne Plaza!', source:'management', last_message:'Feel free to reach out if you need anything.', last_time:'2026-04-05 10:00:00', unread:1, messages:[
+        {from:'admin',name:'Willow Management',text:'Welcome! Your unit is all set up and ready.', time:'2026-04-05 09:30:00'},
+        {from:'admin',name:'Willow Management',text:'Feel free to reach out if you need anything.', time:'2026-04-05 10:00:00'}
+      ]},
+      { id:'thr_002', unit:'225', subject:'Parking Question', source:'tenant', last_message:'Visitor spots are in the rear lot.', last_time:'2026-04-03 14:20:00', unread:0, messages:[
+        {from:'tenant',name:'Test User',text:'Where can my guests park?', time:'2026-04-03 14:00:00'},
+        {from:'admin',name:'Willow Management',text:'Visitor spots are in the rear lot.', time:'2026-04-03 14:20:00'}
+      ]}
+    ]
     notifications: [
       { id:'ntf_001', unit:'225', type:'package', title:'Package Arrived', body:'You have 1 package waiting in the mailroom.', read:false, time:'2026-04-04 15:00:00' },
       { id:'ntf_002', unit:'225', type:'parking', title:'Parking Active', body:'Your parking at 431 Valley RD is active until Apr 9.', read:true, time:'2026-04-04 10:00:00' },
@@ -107,7 +119,7 @@ var PL = (function() {
     switch(action.split('&')[0]) {
       case 'login':
         var usr = DEMO.users[(body||{}).username];
-        if (!usr) return Promise.resolve({error:'Invalid credentials. Try: test1234, long1234, or guest1234'});
+        if (!usr) return Promise.resolve({error:'Invalid credentials. Try: test1234, long1234, guest1234, or richard'});
         return Promise.resolve({ok:true, token:'demo_'+Date.now(), user_type:usr.user_type, name:usr.name, unit:usr.unit, phone:usr.phone, email:usr.email});
 
       case 'guest-access':
@@ -204,6 +216,45 @@ var PL = (function() {
         var cr = DEMO.maintenance.find(function(r){return r.id===cid;});
         if(cr){cr.chat=cr.chat||[];cr.chat.push({from:'tenant',text:(body||{}).message||'',time:new Date().toISOString().replace('T',' ').slice(0,19)});}
         return Promise.resolve({ok:true});
+
+      case 'messages-list':
+        return sbLoadMessages(unit, u).then(function(threads){
+          return threads;
+        }).catch(function(){
+          return DEMO.message_threads.filter(function(t){ return t.unit===unit; });
+        });
+
+      case 'messages-thread':
+        var threadId = (body||{}).thread_id || '';
+        return sbLoadThread(threadId).catch(function(){
+          var t = DEMO.message_threads.find(function(x){ return x.id===threadId; });
+          return t || {id:threadId, messages:[]};
+        });
+
+      case 'messages-send':
+        var tid = (body||{}).thread_id || '';
+        var msgText = (body||{}).message || '';
+        return sbSendMessage(tid, msgText, unit, u).then(function(r){ return r; }).catch(function(){
+          var thread = DEMO.message_threads.find(function(x){ return x.id===tid; });
+          if(!thread){
+            thread = {id:'thr_'+Date.now(), unit:unit, subject:'New conversation', source:'tenant', messages:[], created:new Date().toISOString()};
+            DEMO.message_threads.push(thread);
+            tid = thread.id;
+          }
+          thread.messages.push({from:'tenant', name:u.name||'You', text:msgText, time:new Date().toISOString().replace('T',' ').slice(0,19)});
+          thread.last_message = msgText;
+          thread.last_time = new Date().toISOString();
+          return {ok:true, thread_id:tid};
+        });
+
+      case 'messages-new':
+        var subject = (body||{}).subject || 'New message';
+        var newMsg = (body||{}).message || '';
+        return sbCreateThread(unit, u, subject, newMsg).catch(function(){
+          var nt = {id:'thr_'+Date.now(), unit:unit, subject:subject, source:'tenant', last_message:newMsg, last_time:new Date().toISOString(), unread:0, messages:[{from:'tenant', name:u.name||'You', text:newMsg, time:new Date().toISOString().replace('T',' ').slice(0,19)}], created:new Date().toISOString()};
+          DEMO.message_threads.push(nt);
+          return {ok:true, thread_id:nt.id};
+        });
 
       case 'forms':
         var ut = u.user_type || 'short-term';
@@ -442,6 +493,7 @@ var PL = (function() {
     else if (name === 'maintenance') loadMaintenance();
     else if (name === 'packages') loadPackages();
     else if (name === 'payments') loadPayments();
+    else if (name === 'messages') loadMessages();
     else if (name === 'info') loadInfo();
     else if (name === 'ai') initAI();
     else if (name === 'notifications') loadNotifications();
@@ -1145,6 +1197,154 @@ var PL = (function() {
   }
 
   // ═══════════════════════════════════════════════════
+
+
+  // ═══════════════════════════════════════════════════
+  //  MESSAGES — Full inbox + thread + send/receive
+  // ═══════════════════════════════════════════════════
+
+  var _currentThreadId = null;
+
+  function loadMessages() {
+    api('messages-list').then(function(threads) {
+      var el = document.getElementById('msgInbox');
+      if (!threads || !threads.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div>' +
+          '<p>No messages yet.</p>' +
+          '<button class="btn-primary" onclick="PL.newMessage()" style="margin-top:12px">Start a Conversation</button></div>';
+        return;
+      }
+      var html = '<button class="btn-primary" onclick="PL.newMessage()" style="width:100%;margin-bottom:12px">✏ New Message</button>';
+      threads.forEach(function(t) {
+        var unreadCls = t.unread > 0 ? ' msg-unread' : '';
+        var initial = (t.source === 'management' ? 'W' : (t.messages && t.messages.length ? t.messages[0].name||'?' : '?'));
+        if (typeof initial === 'string' && initial.length > 1) initial = initial.charAt(0).toUpperCase();
+        html += '<div class="msg-inbox-row' + unreadCls + '" onclick="PL.openThread(\'' + t.id + '\')">'
+          + '<div class="msg-avatar">' + initial + '</div>'
+          + '<div class="msg-inbox-body">'
+          + '<div class="msg-inbox-top"><span class="msg-inbox-name">' + esc(t.subject || 'Conversation') + '</span>'
+          + '<span class="msg-inbox-time">' + fmtTime(t.last_time) + '</span></div>'
+          + '<div class="msg-inbox-preview">' + esc(t.last_message || '') + '</div>'
+          + '</div>';
+        if (t.unread > 0) html += '<span class="msg-unread-dot"></span>';
+        html += '</div>';
+      });
+      el.innerHTML = html;
+    });
+  }
+
+  function openThread(threadId) {
+    _currentThreadId = threadId;
+    api('messages-thread', 'POST', { thread_id: threadId }).then(function(t) {
+      if (!t || t.error) { toast('Could not load thread'); return; }
+      document.getElementById('msgThreadName').textContent = t.subject || 'Conversation';
+      var info = document.getElementById('msgThreadInfo');
+      info.innerHTML = '<span style="color:var(--text2)">Unit: ' + esc(t.unit || '') + '</span>';
+      var chat = document.getElementById('msgThreadChat');
+      var html = '';
+      (t.messages || []).forEach(function(m) {
+        var isMe = m.from === 'tenant';
+        html += '<div class="msg-bubble ' + (isMe ? 'msg-me' : 'msg-them') + '">'
+          + '<div class="msg-bubble-name">' + esc(m.name || m.from) + '</div>'
+          + '<div>' + esc(m.text) + '</div>'
+          + '<div class="msg-bubble-time">' + fmtTime(m.time) + '</div>'
+          + '</div>';
+      });
+      chat.innerHTML = html;
+      chat.scrollTop = chat.scrollHeight;
+      showScreen('messages-thread');
+    });
+  }
+
+  function sendMessage() {
+    var input = document.getElementById('msgReplyInput');
+    var text = (input.value || '').trim();
+    if (!text || !_currentThreadId) return;
+    input.value = '';
+    api('messages-send', 'POST', { thread_id: _currentThreadId, message: text }).then(function() {
+      openThread(_currentThreadId);
+    });
+  }
+
+  function newMessage() {
+    var subject = prompt('Message subject:');
+    if (!subject) return;
+    var text = prompt('Your message:');
+    if (!text) return;
+    api('messages-new', 'POST', { subject: subject, message: text }).then(function(r) {
+      if (r && r.thread_id) {
+        openThread(r.thread_id);
+      } else {
+        loadMessages();
+      }
+    });
+  }
+
+  // ═══════════════════════════════════════════════════
+  //  SUPABASE MESSAGING FUNCTIONS
+  // ═══════════════════════════════════════════════════
+
+  function sbHeaders() {
+    return { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+  }
+
+  function sbLoadMessages(unit, user) {
+    var url = SB_URL + '/rest/v1/channels?select=*&unit_apt=eq.' + encodeURIComponent(unit) + '&order=last_message_at.desc';
+    return fetch(url, { headers: sbHeaders() }).then(function(r) { return r.json(); }).then(function(channels) {
+      return channels.map(function(ch) {
+        return {
+          id: ch.id, unit: ch.unit_apt, subject: ch.guest_name || 'Conversation',
+          source: ch.platform || 'management', last_message: ch.last_message_preview || '',
+          last_time: ch.last_message_at || ch.created_at, unread: ch.unread_count || 0,
+          messages: []
+        };
+      });
+    });
+  }
+
+  function sbLoadThread(threadId) {
+    var chUrl = SB_URL + '/rest/v1/channels?select=*&id=eq.' + threadId;
+    var msgUrl = SB_URL + '/rest/v1/messages?select=*&channel_id=eq.' + threadId + '&order=sent_at.asc';
+    return Promise.all([
+      fetch(chUrl, { headers: sbHeaders() }).then(function(r) { return r.json(); }),
+      fetch(msgUrl, { headers: sbHeaders() }).then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var ch = results[0][0] || {};
+      var msgs = results[1] || [];
+      return {
+        id: ch.id, unit: ch.unit_apt, subject: ch.guest_name || 'Conversation',
+        source: ch.platform || '', messages: msgs.map(function(m) {
+          return { from: m.sender, name: m.sender_name || m.sender, text: m.body, time: m.sent_at };
+        })
+      };
+    });
+  }
+
+  function sbSendMessage(threadId, text, unit, user) {
+    var msgBody = { channel_id: threadId, sender: 'tenant', sender_name: user.name || 'Tenant', body: text, platform: 'willowpa', sent_at: new Date().toISOString() };
+    return fetch(SB_URL + '/rest/v1/messages', {
+      method: 'POST', headers: sbHeaders(), body: JSON.stringify(msgBody)
+    }).then(function(r) { return r.json(); }).then(function() {
+      return fetch(SB_URL + '/rest/v1/channels?id=eq.' + threadId, {
+        method: 'PATCH', headers: sbHeaders(),
+        body: JSON.stringify({ last_message_preview: text.substring(0, 100), last_message_at: new Date().toISOString() })
+      });
+    }).then(function() { return { ok: true, thread_id: threadId }; });
+  }
+
+  function sbCreateThread(unit, user, subject, text) {
+    var channel = { guest_name: user.name || 'Tenant', guest_email: user.email || '', unit_apt: unit, platform: 'willowpa', status: 'active', last_message_preview: text.substring(0, 100), last_message_at: new Date().toISOString() };
+    return fetch(SB_URL + '/rest/v1/channels', {
+      method: 'POST', headers: sbHeaders(), body: JSON.stringify(channel)
+    }).then(function(r) { return r.json(); }).then(function(rows) {
+      var ch = rows[0] || {};
+      var msgBody = { channel_id: ch.id, sender: 'tenant', sender_name: user.name || 'Tenant', body: text, platform: 'willowpa', sent_at: new Date().toISOString() };
+      return fetch(SB_URL + '/rest/v1/messages', {
+        method: 'POST', headers: sbHeaders(), body: JSON.stringify(msgBody)
+      }).then(function() { return { ok: true, thread_id: ch.id }; });
+    });
+  }
+
   //  INIT
   // ═══════════════════════════════════════════════════
 
@@ -1202,6 +1402,10 @@ var PL = (function() {
     submitMaintenance: submitMaintenance,
     openMaintDetail: openMaintDetail,
     sendChat: sendChat,
+    loadMessages: loadMessages,
+    openThread: openThread,
+    sendMessage: sendMessage,
+    newMessage: newMessage,
     loadParkingPlans: loadParkingPlans,
     selectPlan: selectPlan,
     bookParking: bookParking,
