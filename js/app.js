@@ -1824,7 +1824,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       }
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="document.querySelector('.nav-tab[onclick*=\\'messages\\']')?.click();setTimeout(()=>{document.querySelectorAll('.sub-tab').forEach(t=>{if(t.textContent.trim().startsWith('${r.type==='short-stay'?'Short-Term':'Long-Term'}'))t.click()});},150)">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
   // Delete button — available for any booking (not permanent long-term leases)
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
@@ -9458,8 +9458,9 @@ function parseNoteField(note, field) {
 }
 
 function msgTenantFromDetail() {
-  document.querySelector('.nav-tab[onclick*="messages"]')?.click();
-  setTimeout(()=>{document.querySelectorAll('.sub-tab').forEach(t=>{if(t.textContent.trim().startsWith('Long-Term'))t.click()});},150);
+  if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
+  var t = INNAGO_TENANTS[currentTenantIdx];
+  openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
 }
 
 // ═══════════════════════════════════════════════════
@@ -9474,23 +9475,14 @@ function openMsgModal(name, email, phone, bookingId, type) {
   document.getElementById('msgRecipientType').value = type || '';
   document.getElementById('msgBody').value = '';
 
-  // Build channel buttons based on type
-  var channels = [];
-  if (type === 'short-term') {
-    channels = [
-      {id:'channel', label:'Channel', icon:'📢'},
-      {id:'sms', label:'SMS', icon:'💬'},
-      {id:'email', label:'Email', icon:'📧'},
-      {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
-    ];
-  } else {
-    // MTM / Long-term — no channel
-    channels = [
-      {id:'sms', label:'SMS', icon:'💬'},
-      {id:'email', label:'Email', icon:'📧'},
-      {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
-    ];
-  }
+  // Build channel buttons — all types get all options
+  var channels = [
+    {id:'app', label:'App', icon:'📱'},
+    {id:'channel', label:'Channel', icon:'📢'},
+    {id:'sms', label:'SMS', icon:'💬'},
+    {id:'email', label:'Email', icon:'📧'},
+    {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
+  ];
   var btnsHtml = channels.map(function(ch, i) {
     return '<button class="msg-ch-btn' + (i === 0 ? ' active' : '') + '" data-channel="' + ch.id + '" onclick="selectMsgChannel(this)">' + ch.icon + ' ' + ch.label + '</button>';
   }).join('');
@@ -9525,7 +9517,23 @@ function sendMsgFromModal() {
     else if (p.match(/\d/)) phone = p;
   });
 
-  if (ch === 'sms') {
+  if (ch === 'app') {
+    // Send via Client App — insert into Supabase client_messages
+    var recipientId = document.getElementById('msgRecipientId').value;
+    var recipientType = document.getElementById('msgRecipientType').value;
+    (async function() {
+      try {
+        var threadId = recipientId || crypto.randomUUID();
+        var insert = { thread_id: threadId, resident_name: name, resident_email: email, resident_phone: phone, subject: 'Message', body: body, sender_type: 'management', read: false, created_at: new Date().toISOString() };
+        var res = await sb.from('client_messages').insert([insert]);
+        if (res.error) throw res.error;
+        alert('App message sent to ' + name);
+        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
+      } catch(e) { alert('Error sending app message: ' + e.message); }
+    })();
+    closeMsgModal();
+    return;
+  } else if (ch === 'sms') {
     if (!phone) { alert('No phone number available for SMS.'); return; }
     if (typeof sendSMS === 'function') sendSMS(phone, body);
     else window.open('sms:' + phone + '?body=' + encodeURIComponent(body));

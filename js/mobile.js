@@ -705,9 +705,9 @@ MOB.msgFromSheet = function(id){
   var r = d.find(function(x){ return x.id === id; });
   if(!r) return;
   MOB.closeSheet();
-  var msgTab = r.type==='short-stay'?'Short-Term':'Long-Term';
-  var navEl = document.querySelector('.nav-tab[onclick*="messages"]');
-  if(navEl){ navEl.click(); setTimeout(function(){document.querySelectorAll('.sub-tab').forEach(function(t){if(t.textContent.trim().startsWith(msgTab))t.click()});},150); }
+  if(typeof openMsgModal === 'function'){
+    openMsgModal(r.name||'', pn(r.note,'Email'), pn(r.note,'Tel'), r.id, r.type==='short-stay'?'short-term':'mtm');
+  }
 };
 
 MOB.openBookingDetail = function(bookingId){
