@@ -9600,56 +9600,14 @@ window.getSelectedChannel = function(container) {
   return btn ? btn.dataset.channel : 'app';
 };
 
-// Sends a message via the selected channel
+// Delivers a message via the selected channel (external delivery only).
+// The message is ALWAYS logged in the current thread by the caller (queueReply / sendMTMReply).
+// This function just handles the external send (SMS app, mailto, WhatsApp, etc.)
 window.sendViaChannel = function(channel, name, email, phone, body, opts) {
   opts = opts || {};
   if (channel === 'app') {
-    // Insert into both client_messages AND channels/messages so the resident portal sees it
-    (async function() {
-      try {
-        var now = new Date().toISOString();
-        var unitVal = opts.unit || '';
-        var subjectVal = opts.subject || 'Message';
-        var propertyVal = opts.property || '';
-
-        // 1) Insert into client_messages (management Message Center)
-        var threadId = opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
-        var cmInsert = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: unitVal, subject: subjectVal, body: body, sender_type: 'management', read: false, created_at: now };
-        if (propertyVal) cmInsert.property = propertyVal;
-        var cmRes = await sb.from('client_messages').insert([cmInsert]);
-        if (cmRes.error) console.warn('client_messages insert warning:', cmRes.error.message);
-
-        // 2) Find or create a channel for this resident, then insert into messages table
-        // This is what the resident portal reads from
-        var channelId = null;
-        // Try to find existing channel by unit + guest name
-        if (unitVal) {
-          var chLookup = await sb.from('channels').select('id').eq('unit_apt', unitVal).eq('guest_name', name).limit(1);
-          if (chLookup.data && chLookup.data.length > 0) {
-            channelId = chLookup.data[0].id;
-          }
-        }
-        // If no existing channel, create one
-        if (!channelId) {
-          var chInsert = { guest_name: name, guest_email: email || '', guest_phone: phone || '', unit_apt: unitVal, platform: 'willowpa', status: 'active', last_message_preview: body.substring(0, 100), last_message_at: now };
-          if (propertyVal) chInsert.listing_name = propertyVal;
-          var chRes = await sb.from('channels').insert([chInsert]).select('id');
-          if (chRes.error) throw chRes.error;
-          channelId = chRes.data[0].id;
-        }
-        // Insert the message into the messages table
-        var msgInsert = { channel_id: channelId, sender: 'management', sender_name: 'Willow PA', body: body, platform: 'willowpa', sent_at: now };
-        var msgRes = await sb.from('messages').insert([msgInsert]);
-        if (msgRes.error) console.warn('messages insert warning:', msgRes.error.message);
-        // Update channel's last message preview
-        await sb.from('channels').update({ last_message_preview: body.substring(0, 100), last_message_at: now }).eq('id', channelId);
-
-        toast('App message sent to ' + name, 'success');
-        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
-        // Refresh inbox if loaded
-        if (typeof loadChannels === 'function') loadChannels(true);
-      } catch(e) { alert('Error sending app message: ' + e.message); }
-    })();
+    // App = in-app message. Nothing to deliver externally — it's already in the thread.
+    toast('App message sent to ' + name, 'success');
   } else if (channel === 'sms') {
     if (!phone) { alert('No phone number available for SMS.'); return; }
     if (typeof sendSMS === 'function') sendSMS(phone, body);
