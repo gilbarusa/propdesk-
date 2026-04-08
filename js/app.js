@@ -9681,7 +9681,8 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
         console.log('[App Channel] Channel update:', updRes.error ? 'ERROR: ' + updRes.error.message : 'OK');
 
         // 4) Also insert into client_messages for the management Message Center
-        var threadId = opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
+        // Use portalChannelId as thread_id so client replies link back to the admin channel
+        var threadId = portalChannelId || opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
         var cmObj = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: unitVal, subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: now };
         if (propertyVal) cmObj.property = propertyVal;
         var cmRes = await sb.from('client_messages').insert([cmObj]);
@@ -9804,6 +9805,30 @@ async function _loadModalThread(name, unit, silent) {
       var msgRes = await sb.from('messages').select('*').eq('channel_id', allChannelIds[ci]).order('sent_at', {ascending: true});
       if (msgRes.data) messages = messages.concat(msgRes.data);
     }
+
+    // Also load client_messages (resident replies) for these channels
+    for (var ci2 = 0; ci2 < allChannelIds.length; ci2++) {
+      var cmRes = await sb.from('client_messages').select('*').eq('thread_id', allChannelIds[ci2]).eq('sender_type', 'resident').order('created_at', {ascending: true});
+      if (cmRes.data) {
+        cmRes.data.forEach(function(cm) {
+          messages.push({ id: cm.id, channel_id: cm.thread_id, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text', _from_client_messages: true });
+        });
+      }
+    }
+    // Also try matching by resident name/unit in client_messages (catches messages with non-channel thread_ids)
+    if (name) {
+      var cmByName = await sb.from('client_messages').select('*').eq('sender_type', 'resident').ilike('resident_name', name).order('created_at', {ascending: true});
+      if (cmByName.data) {
+        var existingIds = {};
+        messages.forEach(function(m) { if (m.id) existingIds[m.id] = true; });
+        cmByName.data.forEach(function(cm) {
+          if (!existingIds[cm.id]) {
+            messages.push({ id: cm.id, channel_id: cm.thread_id, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text', _from_client_messages: true });
+          }
+        });
+      }
+    }
+
     // Sort all messages by timestamp across all channels
     messages.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
 
@@ -9981,6 +10006,15 @@ async function sendMsgFromModal() {
   // 4) Update channel preview
   await sb.from('channels').update({ last_message_preview: body.substring(0,100), last_message_at: now }).eq('id', channelId);
 
+  // 4b) Also insert into client_messages so the portal can see it
+  try {
+    var cmObj = { thread_id: channelId, resident_name: r.name || '', resident_email: r.email || '', resident_phone: r.phone || '', resident_unit: unit, subject: 'Message', body: body, sender_type: 'management', read: false, created_at: now };
+    if (r.email) cmObj.resident_email = r.email;
+    var cmRes = await sb.from('client_messages').insert([cmObj]);
+    if (cmRes.error) console.error('[Modal] client_messages dual-write error:', cmRes.error.message, cmObj);
+    else console.log('[Modal] client_messages dual-write OK, thread:', channelId);
+  } catch(e) { console.error('[Modal] client_messages dual-write exception:', e.message); }
+
   // 5) External delivery for non-app channels
   if (ch === 'sms') {
     if (r.phone) window.open('sms:' + r.phone + '?body=' + encodeURIComponent(body));
@@ -10113,7 +10147,8 @@ function loadSbChannelMessages(){
 // Send admin reply to a Supabase channel
 function sendAdminReply(channelId, text){
   if(!channelId || !text) return;
-  var msgBody = { channel_id: channelId, sender: 'admin', sender_name: 'Willow Management', body: text, platform: 'willowpa', sent_at: new Date().toISOString() };
+  var now = new Date().toISOString();
+  var msgBody = { channel_id: channelId, sender: 'admin', sender_name: 'Willow Management', body: text, platform: 'willowpa', sent_at: now };
   fetch(SUPA_URL + '/rest/v1/messages', {
     method: 'POST',
     headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' },
@@ -10123,9 +10158,17 @@ function sendAdminReply(channelId, text){
     return fetch(SUPA_URL + '/rest/v1/channels?id=eq.' + channelId, {
       method: 'PATCH',
       headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
-      body: JSON.stringify({ last_message_preview: text.substring(0,100), last_message_at: new Date().toISOString(), unread_count: 0 })
+      body: JSON.stringify({ last_message_preview: text.substring(0,100), last_message_at: now, unread_count: 0 })
     });
   }).then(function(){
+    // Dual-write to client_messages so portal sees the reply
+    var channel = _sbChannelMessages ? _sbChannelMessages.find(function(m){ return m.channelId === channelId; }) : null;
+    var cmBody = { thread_id: channelId, resident_name: channel ? channel.name : '', resident_unit: channel ? channel.apt : '', subject: 'Message', body: text, sender_type: 'management', read: false, created_at: now };
+    fetch(SUPA_URL + '/rest/v1/client_messages', {
+      method: 'POST',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmBody)
+    }).catch(function(e){ console.warn('client_messages dual-write failed:', e); });
     showToast('Reply sent');
     renderDashMessages(_dashMsgFilter);
   }).catch(function(e){ showToast('Send failed: '+e.message); });
@@ -10135,10 +10178,19 @@ function sendAdminReply(channelId, text){
 function openSbThread(channelId){
   if(!channelId) return;
   var url = SUPA_URL + '/rest/v1/messages?select=*&channel_id=eq.' + channelId + '&order=sent_at.asc';
-  fetch(url, {
-    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
-  }).then(function(r){ return r.json(); }).then(function(msgs){
-    if(!Array.isArray(msgs)) msgs = [];
+  // Also fetch client_messages (resident replies) for this channel
+  var cmUrl = SUPA_URL + '/rest/v1/client_messages?select=*&thread_id=eq.' + channelId + '&sender_type=eq.resident&order=created_at.asc';
+  Promise.all([
+    fetch(url, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }),
+    fetch(cmUrl, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ]).then(function(results){
+    var msgs = Array.isArray(results[0]) ? results[0] : [];
+    var cmMsgs = Array.isArray(results[1]) ? results[1] : [];
+    // Merge client_messages into the thread
+    cmMsgs.forEach(function(cm) {
+      msgs.push({ id: cm.id, channel_id: channelId, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text' });
+    });
+    msgs.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
     var channel = _sbChannelMessages.find(function(m){ return m.channelId === channelId; });
     var name = channel ? channel.name : 'Tenant';
     var unit = channel ? channel.apt : '';

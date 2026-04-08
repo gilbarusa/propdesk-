@@ -163,6 +163,18 @@ async function loadMessages(channelId, forceRefresh = false) {
       return cached?.messages || [];
     }
     const msgs = data || [];
+
+    // Also load resident replies from client_messages (thread_id = channelId)
+    try {
+      const cmRes = await sb.from('client_messages').select('*').eq('thread_id', channelId).eq('sender_type', 'resident').order('created_at', { ascending: true });
+      if (cmRes.data && cmRes.data.length) {
+        cmRes.data.forEach(function(cm) {
+          msgs.push({ id: cm.id, channel_id: channelId, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text', _from_client_messages: true });
+        });
+        msgs.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
+      }
+    } catch(e) { console.warn('client_messages load failed:', e.message); }
+
     _msgCache[channelId] = { messages: msgs, fetchedAt: Date.now() };
     return msgs;
   } catch (e) {
@@ -248,7 +260,7 @@ async function sendMessage(channelId, body, viaChannel) {
     try {
       var ch = allChannels.find(function(c) { return c.id === channelId; });
       if (ch) {
-        await sb.from('client_messages').insert([{
+        var cmRes = await sb.from('client_messages').insert([{
           thread_id: channelId,
           resident_name: ch.guest_name || '',
           resident_unit: ch.unit_apt || '',
@@ -261,9 +273,13 @@ async function sendMessage(channelId, body, viaChannel) {
           property: ch.listing_name || '',
           created_at: now
         }]);
+        if (cmRes.error) console.error('[Inbox] client_messages dual-write error:', cmRes.error.message);
+        else console.log('[Inbox] client_messages dual-write OK, thread:', channelId);
+      } else {
+        console.warn('[Inbox] client_messages dual-write skipped: channel not found in allChannels for', channelId);
       }
     } catch (cmErr) {
-      console.warn('client_messages dual-write failed:', cmErr.message);
+      console.error('[Inbox] client_messages dual-write exception:', cmErr.message);
     }
 
     return data?.[0] || null;
