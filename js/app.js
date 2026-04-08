@@ -3418,42 +3418,62 @@ async function renderMessageCenter() {
 
   const totalUnread = msgs.filter(m => m.unread).length;
 
-  el.innerHTML = `
-    <div style="padding:16px 20px 0;">
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
-        <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text);">Message Center</h2>
-        ${totalUnread > 0 ? `<span style="background:#d32f2f;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${totalUnread} unread</span>` : ''}
-        <div style="flex:1"></div>
-        <input type="text" id="msgCenterSearch" placeholder="Search messages..." value="${_msgCenterSearch}"
-          oninput="_msgCenterSearch=this.value;renderMessageCenter()"
-          style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:220px;background:var(--surface);color:var(--text);">
+  // Build left panel contact list
+  var listHtml = '';
+  msgs.forEach(m => {
+    const src = MSG_SOURCE_STYLES[m.source] || MSG_SOURCE_STYLES['short-term'];
+    const dateStr = _msgCenterTimeAgo(m.date);
+    const initial = m.from ? m.from.charAt(0).toUpperCase() : '?';
+    const sel = _msgCenterSelectedId === m.id ? 'background:var(--accent-bg);' : '';
+    const unreadDot = m.unread ? '<span style="width:7px;height:7px;border-radius:50%;background:#d32f2f;flex-shrink:0;"></span>' : '';
+    listHtml += `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);${sel}"
+      onclick="_msgCenterSelectedId='${m.id}';openMsgCenterDetail('${m.id}')"
+      onmouseover="if(!this.style.background.includes('accent'))this.style.background='var(--surface2)'"
+      onmouseout="this.style.background='${sel?'var(--accent-bg)':''}'">
+      <div style="width:32px;height:32px;border-radius:50%;background:${src.bg};color:${src.text};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${initial}</div>
+      <div style="flex:1;min-width:0;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.sent?'➤ ':''}${_esc(m.from)}</span>
+          <span style="font-size:9px;color:var(--text3);flex-shrink:0;margin-left:4px;">${dateStr}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(m.unit||'')} · <span style="color:${src.text}">${src.label}</span></div>
+        <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><strong>${_esc(m.subject)}</strong> — ${_esc((m.body||'').substring(0,50))}</div>
       </div>
+      ${unreadDot}
+    </div>`;
+  });
+
+  el.innerHTML = `
+    <div style="padding:12px 16px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h2 style="margin:0;font-size:18px;font-weight:600;color:var(--text);">Messages</h2>
+      ${totalUnread > 0 ? `<span style="background:#d32f2f;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;">${totalUnread}</span>` : ''}
+      <div style="flex:1"></div>
+      <input type="text" id="msgCenterSearch" placeholder="Search..." value="${_msgCenterSearch}"
+        oninput="_msgCenterSearch=this.value;renderMessageCenter()"
+        style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;width:160px;background:var(--surface);color:var(--text);">
     </div>
-    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:8px;margin:0 20px;">
-      ${msgs.length === 0 ? '<div style="padding:40px;text-align:center;color:var(--text3);background:var(--surface);border-radius:8px;">No messages found</div>' :
-        msgs.map(m => {
-          const src = MSG_SOURCE_STYLES[m.source] || MSG_SOURCE_STYLES['short-term'];
-          const dateStr = _msgCenterTimeAgo(m.date);
-          const unitStr = m.unit ? m.unit : '';
-          return `<div class="msg-center-row ${m.unread ? 'unread' : ''}" onclick="openMsgCenterDetail('${m.id}')">
-            <div class="msg-center-left">
-              <span class="msg-src-badge" style="background:${src.bg};color:${src.text};">${src.label}</span>
-              <span class="msg-center-from">${m.sent ? '<span style="color:var(--text3);font-weight:400;">➤ Sent</span> ' : ''}${m.from}</span>
-              ${unitStr ? `<span class="msg-center-unit">${unitStr}</span>` : ''}
-            </div>
-            <div class="msg-center-right">
-              <span class="msg-center-time">${dateStr}</span>
-            </div>
-            <div class="msg-center-preview">
-              <strong>${m.subject}</strong> — ${(m.body||'').substring(0, 90)}${(m.body||'').length > 90 ? '...' : ''}
-            </div>
-          </div>`;
-        }).join('')
-      }
+    <div style="padding:0 16px 6px;display:flex;gap:4px;flex-wrap:wrap;">
+      ${['all','short-term','long-term','client'].map(f =>
+        `<button onclick="_currentMsgCenterFilter='${f}';renderMessageCenter()" style="padding:4px 10px;border-radius:4px;border:${_currentMsgCenterFilter===f?'none':'1px solid var(--border)'};background:${_currentMsgCenterFilter===f?'var(--accent2)':'var(--surface)'};color:${_currentMsgCenterFilter===f?'#fff':'var(--text2)'};font-size:10px;cursor:pointer;font-family:inherit;">${f==='all'?'All':f==='short-term'?'Short-Term':f==='long-term'?'Long-Term':'Client App'}</button>`
+      ).join('')}
+    </div>
+    <div style="display:flex;height:calc(100vh - 240px);border-top:1px solid var(--border);margin:0 16px;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+      <!-- Left: Contact list -->
+      <div id="mcLeftPanel" style="width:300px;min-width:240px;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0;background:var(--surface);">
+        ${msgs.length === 0 ? '<div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">No messages</div>' : listHtml}
+      </div>
+      <!-- Center: Thread -->
+      <div id="mcCenterPanel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;">Select a conversation</div>
+      </div>
+      <!-- Right: Client card -->
+      <div id="mcRightPanel" style="width:220px;min-width:180px;overflow-y:auto;border-left:1px solid var(--border);flex-shrink:0;background:var(--surface);display:none;"></div>
     </div>
   `;
   updateMsgCenterBadge();
 }
+
+var _msgCenterSelectedId = null;
 
 function _msgCenterTimeAgo(d) {
   if (!d) return '';
@@ -3472,84 +3492,121 @@ function _msgCenterTimeAgo(d) {
 }
 
 async function openMsgCenterDetail(id) {
-  // Mark as read
   const msgs = _getAllCenterMessages();
   const m = msgs.find(x => x.id === id);
   if (!m) return;
 
-  // Mark the source message as read
+  _msgCenterSelectedId = id;
+
+  // Re-highlight in left panel
+  var leftItems = document.querySelectorAll('#mcLeftPanel > div');
+  leftItems.forEach(function(el) { el.style.background = ''; });
+
+  // Mark as read
   if (m.source === 'long-term' && typeof INNAGO_MESSAGES !== 'undefined') {
-    const origId = parseInt(id.replace('lt-', ''));
-    const orig = INNAGO_MESSAGES.find(x => x.id === origId);
+    var origId = parseInt(id.replace('lt-', ''));
+    var orig = INNAGO_MESSAGES.find(x => x.id === origId);
     if (orig) orig.unread = false;
   } else if (m.source === 'short-term' && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
-    const tid = id.replace('st-', '');
-    const orig = AIRBNB_BOOKINGS_SEED.find(x => x.threadId === tid);
-    if (orig) orig.unread = 0;
+    var tid = id.replace('st-', '');
+    var orig2 = AIRBNB_BOOKINGS_SEED.find(x => x.threadId === tid);
+    if (orig2) orig2.unread = 0;
   }
 
-  const src = MSG_SOURCE_STYLES[m.source] || {};
-  const el = document.getElementById('page-msg-center');
-  const unitStr = m.unit ? (m.property ? m.unit + ' at ' + m.property : m.unit) : (m.property || '');
+  var centerEl = document.getElementById('mcCenterPanel');
+  var rightEl = document.getElementById('mcRightPanel');
+  if (!centerEl) return;
+
+  var src = MSG_SOURCE_STYLES[m.source] || {};
+  var unitStr = m.unit ? (m.property ? m.unit + ' at ' + m.property : m.unit) : (m.property || '');
   var threadId = m._threadId || '';
 
-  // Load full thread from client_messages if available
-  var threadHtml = '';
+  // -- Right panel: Client card --
+  if (rightEl) {
+    var initial = m.from ? m.from.split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase() : '?';
+    var cardHtml = '<div style="padding:14px;text-align:center;">';
+    cardHtml += '<div style="width:48px;height:48px;border-radius:50%;background:' + (src.bg||'var(--accent-bg)') + ';color:' + (src.text||'var(--accent2)') + ';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 8px;">'+initial+'</div>';
+    cardHtml += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">'+_esc(m.from)+'</div>';
+    if (m.unit) cardHtml += '<div style="font-size:11px;color:var(--text3);">'+_esc(m.unit)+'</div>';
+    if (m.property) cardHtml += '<div style="font-size:10px;color:var(--text3);">'+_esc(m.property)+'</div>';
+    cardHtml += '<div style="margin-top:8px;"><span class="msg-src-badge" style="background:'+src.bg+';color:'+src.text+';">'+src.label+'</span></div>';
+    cardHtml += '<div style="text-align:left;font-size:11px;color:var(--text2);border-top:1px solid var(--border);padding-top:10px;margin-top:10px;">';
+    if (m._phone) cardHtml += '<div style="margin-bottom:6px;">📞 <a href="tel:'+m._phone+'" style="color:var(--accent);text-decoration:none;">'+m._phone+'</a></div>';
+    if (m._email) cardHtml += '<div style="margin-bottom:6px;">✉ <a href="mailto:'+m._email+'" style="color:var(--accent);text-decoration:none;word-break:break-all;font-size:10px;">'+m._email+'</a></div>';
+    cardHtml += '</div>';
+    cardHtml += '<button onclick="openMsgModal(\''+_esc(m.from).replace(/'/g,"\\'")+'\',\''+_esc(m._email||'').replace(/'/g,"\\'")+'\',\''+_esc(m._phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.unit||'').replace(/'/g,"\\'")+'\')" style="width:100%;margin-top:10px;padding:7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:11px;font-family:inherit;color:var(--text);">💬 Full Chat</button>';
+    cardHtml += '</div>';
+    rightEl.innerHTML = cardHtml;
+    rightEl.style.display = '';
+  }
+
+  // -- Center panel: Thread header + messages + reply --
+  centerEl.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;">Loading thread...</div>';
+
+  // Header
+  var headerHtml = '<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;">';
+  headerHtml += '<div style="font-size:14px;font-weight:600;color:var(--text);">'+_esc(m.subject)+'</div>';
+  headerHtml += '<div style="font-size:11px;color:var(--text2);">'+(m.sent?'Sent to':'From')+' <strong>'+_esc(m.from)+'</strong>'+(unitStr?' — '+_esc(unitStr):'')+'</div>';
+  headerHtml += '</div>';
+
+  // Load thread from client_messages
+  var bubblesHtml = '';
   if (threadId) {
     try {
       var res = await sb.from('client_messages').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
       if (res.data && res.data.length > 0) {
-        // Mark unread management messages as read
         sb.from('client_messages').update({ read: true }).eq('thread_id', threadId).eq('sender_type', 'resident').eq('read', false).then(function(){});
-        threadHtml = '<div style="display:flex;flex-direction:column;gap:8px;padding:16px 20px;max-height:400px;overflow-y:auto;" id="msgCenterThread">';
         res.data.forEach(function(msg) {
           var isAdmin = msg.sender_type === 'management';
           var time = new Date(msg.created_at).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
           var date = new Date(msg.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric'});
-          threadHtml += '<div style="display:flex;' + (isAdmin ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';">';
-          threadHtml += '<div style="max-width:75%;background:' + (isAdmin ? 'var(--accent)' : 'var(--surface2)') + ';color:' + (isAdmin ? '#fff' : 'var(--text)') + ';padding:8px 14px;border-radius:' + (isAdmin ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';font-size:12px;line-height:1.5;">';
-          threadHtml += '<div style="font-size:10px;font-weight:600;margin-bottom:2px;opacity:.7;">' + (isAdmin ? 'Management' : (msg.resident_name || 'Resident')) + '</div>';
-          threadHtml += '<div style="white-space:pre-wrap;">' + _esc(msg.body) + '</div>';
-          threadHtml += '<div style="font-size:9px;opacity:.5;margin-top:3px;">' + date + ' ' + time + '</div>';
-          threadHtml += '</div></div>';
+          bubblesHtml += '<div style="display:flex;'+(isAdmin?'justify-content:flex-end':'justify-content:flex-start')+';">';
+          bubblesHtml += '<div style="max-width:75%;background:'+(isAdmin?'var(--accent)':'var(--surface2)')+';color:'+(isAdmin?'#fff':'var(--text)')+';padding:8px 12px;border-radius:'+(isAdmin?'12px 12px 2px 12px':'12px 12px 12px 2px')+';font-size:12px;line-height:1.45;">';
+          bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+(isAdmin?'Management':_esc(msg.resident_name||'Resident'))+'</div>';
+          bubblesHtml += '<div style="white-space:pre-wrap;">'+_esc(msg.body)+'</div>';
+          bubblesHtml += '<div style="font-size:8px;opacity:.5;margin-top:2px;">'+date+' '+time+'</div>';
+          bubblesHtml += '</div></div>';
         });
-        threadHtml += '</div>';
       }
     } catch(e) { console.warn('Thread load error:', e); }
   }
-
-  // Fallback: show single message if no thread loaded
-  if (!threadHtml) {
-    threadHtml = '<div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">' + _esc(m.body) + '</div>';
+  // Fallback: single message bubble
+  if (!bubblesHtml) {
+    bubblesHtml = '<div style="display:flex;justify-content:flex-start;"><div style="max-width:80%;background:var(--surface2);color:var(--text);padding:8px 12px;border-radius:12px;font-size:12px;line-height:1.45;">';
+    bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+_esc(m.from)+'</div>';
+    bubblesHtml += '<div style="white-space:pre-wrap;">'+_esc(m.body)+'</div>';
+    bubblesHtml += '</div></div>';
   }
 
-  el.innerHTML = `
-    <div style="padding:16px 20px 0;">
-      <button onclick="renderMessageCenter()" style="background:none;border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--text2);margin-bottom:12px;">← Back to Messages</button>
-    </div>
-    <div style="margin:0 20px 20px;background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;">
-      <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2);">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span class="msg-src-badge" style="background:${src.bg};color:${src.text};">${src.label}</span>
-          <span style="font-size:11px;color:var(--text3);">${_msgCenterTimeAgo(m.date)}</span>
-        </div>
-        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">${m.subject}</div>
-        <div style="font-size:12px;color:var(--text2);">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong>${unitStr ? ' — ' + unitStr : ''}</div>
-      </div>
-      ${threadHtml}
-      <div style="padding:12px 20px 16px;border-top:1px solid var(--border);" id="msgCenterReplyArea">
-        ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
-        <textarea id="msgCenterReply" placeholder="Type your reply..." style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"></textarea>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button onclick="(function(){var b=document.getElementById('msgCenterReply').value.trim();if(!b){alert('Please type a message.');return;}var ch=getSelectedChannel(document.getElementById('msgCenterReplyArea'));sendViaChannel(ch,'${m.from.replace(/'/g,"\\'")}','${(m._email||'').replace(/'/g,"\\'")}','${(m._phone||'').replace(/'/g,"\\'")}',b,{subject:'${(m.subject||'').replace(/'/g,"\\'")}',threadId:'${threadId.replace(/'/g,"\\'")}'});document.getElementById('msgCenterReply').value='';toast('Reply sent!');})();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
-        </div>
-      </div>
-    </div>
-  `;
-  // Scroll thread to bottom
-  var threadEl = document.getElementById('msgCenterThread');
-  if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+  var escapedFrom = _esc(m.from).replace(/'/g,"\\'");
+  var escapedEmail = _esc(m._email||'').replace(/'/g,"\\'");
+  var escapedPhone = _esc(m._phone||'').replace(/'/g,"\\'");
+  var escapedSubj = _esc(m.subject||'').replace(/'/g,"\\'");
+  var escapedTid = threadId.replace(/'/g,"\\'");
+
+  var html = headerHtml;
+  html += '<div id="mcThreadBubbles" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;">'+bubblesHtml+'</div>';
+  html += '<div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0;" id="mcReplyArea">';
+  html += '<input id="mcReplyInput" placeholder="Type your reply..." style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--text);" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\');}">';
+  html += '<button onclick="_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\')" style="padding:6px 14px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
+  html += '</div>';
+
+  centerEl.innerHTML = html;
+  var bubDiv = document.getElementById('mcThreadBubbles');
+  if (bubDiv) bubDiv.scrollTop = bubDiv.scrollHeight;
   updateMsgCenterBadge();
+}
+
+function _mcSendReply(from, email, phone, subject, threadId) {
+  var input = document.getElementById('mcReplyInput');
+  var body = input ? input.value.trim() : '';
+  if (!body) return;
+  input.value = '';
+  var ch = 'app';
+  sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
+  toast('Reply sent!');
+  // Refresh thread after delay
+  setTimeout(function() { if (_msgCenterSelectedId) openMsgCenterDetail(_msgCenterSelectedId); }, 1000);
 }
 
 // ── Applications Data & Render ──
