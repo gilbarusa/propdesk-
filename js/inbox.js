@@ -663,6 +663,7 @@ async function renderInbox() {
                 <option value="longterm_mention">Long-term Mention</option>
               </select>
               <span style="flex:1;"></span>
+              <button onclick="triggerInboxAISuggest()" title="AI-powered reply suggestion" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-family:inherit;font-size:9px;cursor:pointer;font-weight:600;">⚡ AI Suggest</button>
               <button onclick="viewSendQueue()" title="View pending messages" style="background:#fff;color:#7d5228;border:1px solid #ddd8ce;border-radius:4px;padding:5px 8px;font-family:inherit;font-size:9px;cursor:pointer;position:relative;">📤 Queue<span id="queueBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:#c62828;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:12px;text-align:center;"></span></button>
             </div>
             ${typeof buildChannelSelector === 'function' ? buildChannelSelector('channel') : ''}
@@ -1158,24 +1159,28 @@ function _buildInboxAISystemPrompt() {
 }
 
 async function triggerInboxAISuggest() {
-  if (!currentChannelId) return;
+  if (!currentChannelId) { if (typeof showToast === 'function') showToast('Select a conversation first', 'warning'); return; }
   const channel = allChannels.find(c => c.id === currentChannelId);
   if (!channel) return;
 
-  // Show loading state in suggestion panel
+  // Show loading state on the reply input
+  const replyInput = document.getElementById('replyInput');
+  if (replyInput) {
+    replyInput.value = '⚡ AI is thinking...';
+    replyInput.disabled = true;
+  }
+
+  // Also show in suggestion panel if visible
   const panel = document.getElementById('suggestionPanel');
   const textArea = document.getElementById('suggestionText');
   const confidence = document.getElementById('suggestionConfidence');
   const reasoning = document.getElementById('suggestionReasoning');
-
   if (panel) panel.style.display = 'block';
   if (confidence) { confidence.textContent = 'AI thinking...'; confidence.style.background = '#7c3aed'; }
   if (reasoning) reasoning.textContent = 'Generating response with Claude AI...';
-  if (textArea) textArea.value = '';
 
   try {
     const messages = await loadMessages(currentChannelId);
-    // Build conversation context
     const recent = messages.slice(-10);
     const convoText = recent.map(function(m) {
       const who = m.sender === 'guest' ? (channel.guest_name || 'Guest') : 'Management';
@@ -1205,18 +1210,32 @@ async function triggerInboxAISuggest() {
 
     if (data.content && data.content[0] && data.content[0].text) {
       const suggestion = data.content[0].text;
+      // Put AI suggestion directly into reply input for easy editing
+      if (replyInput) {
+        replyInput.value = suggestion;
+        replyInput.disabled = false;
+        replyInput.style.height = 'auto';
+        replyInput.style.height = Math.min(replyInput.scrollHeight, 200) + 'px';
+        replyInput.focus();
+      }
+      // Also update suggestion panel
       if (textArea) textArea.value = suggestion;
       if (confidence) { confidence.textContent = 'AI Generated'; confidence.style.background = '#7c3aed'; }
-      if (reasoning) reasoning.textContent = 'Claude AI suggestion based on conversation context';
+      if (reasoning) reasoning.textContent = 'Claude AI suggestion — edit in reply box then Send';
       currentSuggestion = { suggestion: suggestion, confidence: 0.9, category: 'ai', subcategory: 'anthropic', reasoning: 'AI-generated reply' };
+      if (typeof showToast === 'function') showToast('AI suggestion ready — review and send', 'success');
     } else {
+      if (replyInput) { replyInput.value = ''; replyInput.disabled = false; }
       if (confidence) { confidence.textContent = 'Error'; confidence.style.background = '#c62828'; }
       if (reasoning) reasoning.textContent = data.error ? data.error.message : 'AI suggestion unavailable';
+      if (typeof showToast === 'function') showToast('AI suggestion unavailable', 'error');
     }
   } catch (e) {
     console.error('AI suggestion failed:', e);
+    if (replyInput) { replyInput.value = ''; replyInput.disabled = false; }
     if (confidence) { confidence.textContent = 'Error'; confidence.style.background = '#c62828'; }
-    if (reasoning) reasoning.textContent = 'Failed to get AI suggestion: ' + e.message;
+    if (reasoning) reasoning.textContent = 'Failed: ' + e.message;
+    if (typeof showToast === 'function') showToast('AI suggestion failed', 'error');
   }
 }
 
@@ -1647,14 +1666,19 @@ window.openInboxThread = function(guestName) {
   }
 
   if (isShortTerm) {
-    // Navigate to Short-Term module → Messages page → auto-select thread
+    // IMPORTANT: Clear current selection immediately to prevent stale cache
+    currentChannelId = null;
+
+    // Store the target name for async matching
+    window._pendingInboxTarget = normalName;
+
     // Step 1: Switch to Short-Term module
     if (typeof switchModule === 'function') {
       var moduleTab = document.querySelector('.module-tab[onclick*="short-term"]');
       switchModule('short-term', moduleTab);
     }
 
-    // Step 2: Switch to Messages page
+    // Step 2: Switch to Messages page and auto-select the right thread
     setTimeout(function() {
       if (typeof showPage === 'function') {
         var msgTab = null;
@@ -1664,14 +1688,16 @@ window.openInboxThread = function(guestName) {
         showPage('messages', msgTab);
       }
 
-      // Step 3: Wait for renderInbox to complete, then auto-select
-      // Use a polling approach to wait for allChannels to be ready
+      // Step 3: Poll until channels are loaded, then select the correct one
+      var targetName = window._pendingInboxTarget;
       var attempts = 0;
       var trySelect = function() {
         attempts++;
+        // Re-read target in case another click happened
+        targetName = window._pendingInboxTarget;
         if (allChannels && allChannels.length > 0) {
           var match = allChannels.find(function(ch) {
-            return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
+            return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === targetName;
           });
           if (match) {
             currentChannelId = match.id;
@@ -1679,9 +1705,9 @@ window.openInboxThread = function(guestName) {
             return;
           }
         }
-        if (attempts < 10) setTimeout(trySelect, 300);
+        if (attempts < 15) setTimeout(trySelect, 300);
       };
-      setTimeout(trySelect, 500);
+      setTimeout(trySelect, 400);
     }, 150);
     return;
   }
