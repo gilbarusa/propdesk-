@@ -57,59 +57,70 @@ const _msgCache = {}; // channelId → { messages, fetchedAt }
 // DATA LAYER
 // ═══════════════════════════════════════════════════════
 
-async function loadChannels() {
+// Channel cache to avoid re-fetching on every navigation
+let _channelsCache = null;
+let _channelsCacheTime = 0;
+const _CHANNELS_CACHE_TTL = 120000; // 2 minutes
+
+async function loadChannels(forceRefresh = false) {
+  // Return cached channels if fresh
+  if (!forceRefresh && _channelsCache && (Date.now() - _channelsCacheTime < _CHANNELS_CACHE_TTL)) {
+    return _channelsCache;
+  }
+
   try {
-    // Join booking data so we have financial + calendar info on each channel
-    const { data: channels, error } = await sb
-      .from('channels')
-      .select('*')
-      .order('last_message_at', { ascending: false });
+    // Fetch channels and ALL bookings in parallel (2 queries instead of 118+)
+    const [channelsRes, bookingsRes] = await Promise.all([
+      sb.from('channels').select('*').order('last_message_at', { ascending: false }),
+      sb.from('bookings').select('*')
+    ]);
 
-    if (error) {
-      console.error('Error loading channels:', error);
-      return [];
+    if (channelsRes.error) {
+      console.error('Error loading channels:', channelsRes.error);
+      return _channelsCache || [];
     }
 
-    // Enrich each channel with its booking data
-    const enriched = [];
-    for (const ch of (channels || [])) {
-      if (ch.booking_id) {
-        const { data: booking } = await sb
-          .from('bookings')
-          .select('*')
-          .eq('id', ch.booking_id)
-          .single();
+    const channels = channelsRes.data || [];
+    const bookings = bookingsRes.data || [];
 
-        if (booking) {
-          enriched.push({
-            ...ch,
-            check_in: booking.check_in,
-            check_out: booking.check_out,
-            nights: booking.nights,
-            total_payout: booking.total_payout,
-            nightly_rate: booking.nightly_rate,
-            cleaning_fee: booking.cleaning_fee,
-            service_fee: booking.service_fee,
-            taxes: booking.taxes,
-            host_payout: booking.host_payout,
-            booking_status: booking.booking_status,
-            guest_count: booking.guest_count,
-            adults: booking.adults,
-            children: booking.children,
-            infants: booking.infants,
-            pets: booking.pets,
-            confirm_code: booking.external_id,
-            payment_status: booking.payment_status
-          });
-          continue;
-        }
+    // Build a lookup map: booking_id → booking
+    const bookingMap = {};
+    bookings.forEach(function(b) { bookingMap[b.id] = b; });
+
+    // Enrich channels with booking data using the map (instant, no DB calls)
+    const enriched = channels.map(function(ch) {
+      if (ch.booking_id && bookingMap[ch.booking_id]) {
+        var booking = bookingMap[ch.booking_id];
+        return Object.assign({}, ch, {
+          check_in: booking.check_in,
+          check_out: booking.check_out,
+          nights: booking.nights,
+          total_payout: booking.total_payout,
+          nightly_rate: booking.nightly_rate,
+          cleaning_fee: booking.cleaning_fee,
+          service_fee: booking.service_fee,
+          taxes: booking.taxes,
+          host_payout: booking.host_payout,
+          booking_status: booking.booking_status,
+          guest_count: booking.guest_count,
+          adults: booking.adults,
+          children: booking.children,
+          infants: booking.infants,
+          pets: booking.pets,
+          confirm_code: booking.external_id,
+          payment_status: booking.payment_status
+        });
       }
-      enriched.push(ch);
-    }
+      return ch;
+    });
+
+    // Cache the result
+    _channelsCache = enriched;
+    _channelsCacheTime = Date.now();
     return enriched;
   } catch (e) {
     console.error('Channel load failed:', e);
-    return [];
+    return _channelsCache || [];
   }
 }
 
@@ -1563,8 +1574,9 @@ async function syncMessages() {
 
   try {
     if (typeof PlatformSync !== 'undefined') {
-      // Clear message cache so fresh data loads after sync
+      // Clear all caches so fresh data loads after sync
       Object.keys(_msgCache).forEach(k => delete _msgCache[k]);
+      _channelsCache = null; _channelsCacheTime = 0;
       const t0 = performance.now();
       const result = await PlatformSync.syncAll();
       const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
@@ -1621,6 +1633,16 @@ function viewReservation(platform, confirmCode) {
     alert('No external reservation page for this platform.');
   }
 }
+
+// ── Preload channels on app boot (don't wait for Messages click) ──
+setTimeout(function() {
+  if (typeof sb !== 'undefined') {
+    loadChannels().then(function(ch) {
+      allChannels = ch;
+      console.log('[Inbox] Preloaded ' + ch.length + ' channels');
+    }).catch(function() {});
+  }
+}, 1000);
 
 function escapeHtml(text) {
   const div = document.createElement('div');
