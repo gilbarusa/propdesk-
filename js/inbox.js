@@ -1509,3 +1509,40 @@ function startPlatformAutoSync() {
     console.log('[Sync] Auto-sync started (5 min interval)');
   }
 }
+
+// ═══════════════════════════════════════════════════════
+// GLOBAL: Open inbox view and auto-select a guest's thread
+// Called from Pipeline, Long-Term, Client App "Message" buttons
+// ═══════════════════════════════════════════════════════
+window.openInboxThread = function(guestName) {
+  // Navigate to Short-Term → Messages sub-tab
+  var stTab = document.querySelector('.nav-tab[onclick*="Short-Term"], .nav-tab[onclick*="short-term"]');
+  if (!stTab) {
+    // Try clicking Short-Term main tab
+    document.querySelectorAll('.nav-tab').forEach(function(t) {
+      if (t.textContent.trim().indexOf('Short-Term') > -1) stTab = t;
+    });
+  }
+  if (stTab) stTab.click();
+
+  setTimeout(function() {
+    // Click the Messages sub-tab
+    document.querySelectorAll('.sub-tab').forEach(function(t) {
+      if (t.textContent.trim() === 'Messages') t.click();
+    });
+
+    // Wait for inbox to render, then auto-select matching channel
+    setTimeout(function() {
+      if (guestName && allChannels && allChannels.length > 0) {
+        var normalName = guestName.toLowerCase().replace(/[^a-z]/g, '');
+        var match = allChannels.find(function(ch) {
+          return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
+        });
+        if (match) {
+          currentChannelId = match.id;
+          renderInbox();
+        }
+      }
+    }, 300);
+  }, 200);
+};
