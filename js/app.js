@@ -3078,21 +3078,131 @@ function showMTMMessage(id) {
   const m = INNAGO_MESSAGES.find(msg => msg.id === id);
   if (!m) return;
   m.unread = false;
+  window._currentMTMMsgId = id;
   // Re-render list to update unread state
   filterMTMMessages();
   const detail = document.getElementById('mtmMsgDetail');
   const loc = m.unit ? `${m.unit} at ${m.property}` : 'All Properties';
+
+  // Find tenant info for contact details
+  var tenant = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS.find(function(t) {
+    return t.name && m.from && t.name.toLowerCase() === m.from.toLowerCase();
+  }) : null;
+
   detail.innerHTML = `
     <div class="mtm-msg-detail-header">
       <div class="mtm-msg-detail-from">${m.subject}</div>
       <div class="mtm-msg-detail-meta">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong> ${m.unit ? '(' + loc + ')' : ''} &mdash; ${m.date} at ${m.time}</div>
     </div>
     <div class="mtm-msg-detail-body">${m.body}</div>
-    ${!m.sent ? `<div class="mtm-msg-reply-box">
-      <textarea class="mtm-msg-reply-input" placeholder="Type your reply..."></textarea>
-      <button class="mtm-msg-reply-btn" onclick="alert('Reply sent!')">Send Reply</button>
+    ${!m.sent ? `
+    <!-- AI Reply Assistant -->
+    <div id="mtmAiPanel" style="margin:12px 0;padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fefce8;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">⚡</span>
+          <span style="font-weight:700;font-size:14px;color:#92400e;">AI Reply Assistant</span>
+        </div>
+        <button id="mtmAiBtn" onclick="triggerMTMAISuggest()" style="padding:6px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">AI Suggest Reply</button>
+      </div>
+      <div id="mtmAiLoading" style="display:none;text-align:center;padding:12px;"><span style="color:#7c3aed;font-size:13px;">Thinking...</span></div>
+      <div id="mtmAiResult" style="display:none;">
+        <div id="mtmAiText" style="background:#fff;border:1px solid #7c3aed;border-radius:8px;padding:10px;font-size:13px;color:#374151;line-height:1.5;white-space:pre-wrap;"></div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button onclick="useMTMAISuggestion()" style="padding:4px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Use This</button>
+          <button onclick="triggerMTMAISuggest()" style="padding:4px 12px;background:#e5e7eb;color:#374151;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Regenerate</button>
+        </div>
+      </div>
+    </div>
+    <div class="mtm-msg-reply-box">
+      ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
+      <textarea class="mtm-msg-reply-input" id="mtmReplyInput" placeholder="Type your reply..."></textarea>
+      <button class="mtm-msg-reply-btn" onclick="sendMTMReply()">Send Reply</button>
     </div>` : ''}
   `;
+}
+
+// Long-Term AI suggestion
+async function triggerMTMAISuggest() {
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  if (!m) return;
+  var btn = document.getElementById('mtmAiBtn');
+  var loading = document.getElementById('mtmAiLoading');
+  var result = document.getElementById('mtmAiResult');
+  if (btn) { btn.disabled = true; btn.textContent = 'Thinking...'; }
+  if (loading) loading.style.display = 'block';
+  if (result) result.style.display = 'none';
+
+  try {
+    var kb = (typeof WILLOW_KB !== 'undefined') ? WILLOW_KB : {};
+    var sysPrompt = 'You are a helpful property management assistant for Willow Partnership, LLC. Draft replies to tenant messages.\n';
+    sysPrompt += '- Always use "We" not "I". Professional but warm tone.\n';
+    sysPrompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+    sysPrompt += '- Keep it under 150 words.\n';
+
+    var userPrompt = 'Tenant: ' + m.from;
+    if (m.unit) userPrompt += ' (Unit ' + m.unit + ' at ' + (m.property || '') + ')';
+    userPrompt += '\nSubject: ' + m.subject;
+    userPrompt += '\nMessage: ' + m.body;
+    userPrompt += '\n\nDraft a reply to this tenant message.';
+
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        system: sysPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      var textEl = document.getElementById('mtmAiText');
+      if (textEl) textEl.textContent = data.content[0].text;
+      if (result) result.style.display = 'block';
+    } else {
+      toast('AI suggestion unavailable', 'error');
+    }
+  } catch(e) {
+    console.error('MTM AI suggestion failed:', e);
+    toast('AI suggestion failed: ' + e.message, 'error');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'AI Suggest Reply'; }
+  if (loading) loading.style.display = 'none';
+}
+
+function useMTMAISuggestion() {
+  var textEl = document.getElementById('mtmAiText');
+  var ta = document.getElementById('mtmReplyInput');
+  if (ta && textEl) { ta.value = textEl.textContent; ta.focus(); }
+}
+
+function sendMTMReply() {
+  var body = (document.getElementById('mtmReplyInput') || {}).value || '';
+  if (!body.trim()) { alert('Please type a message.'); return; }
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  if (!m) return;
+
+  // Get selected channel
+  var ch = typeof getSelectedChannel === 'function' ? getSelectedChannel(document.getElementById('mtmMsgDetail')) : 'app';
+
+  // Find tenant info
+  var tenant = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS.find(function(t) {
+    return t.name && m.from && t.name.toLowerCase() === m.from.toLowerCase();
+  }) : null;
+
+  var email = tenant ? (tenant.email || '') : '';
+  var phone = tenant ? (tenant.phone || '') : '';
+
+  if (typeof sendViaChannel === 'function') {
+    sendViaChannel(ch, m.from, email, phone, body, { subject: 'Re: ' + m.subject, property: m.property || '' });
+  } else {
+    alert('Reply sent!');
+  }
+
+  // Clear input
+  document.getElementById('mtmReplyInput').value = '';
 }
 
 function composeMTMMessage() {
@@ -3110,14 +3220,8 @@ function composeMTMMessage() {
       </select>
       <input type="text" id="mtm-compose-subject" class="mtm-search" style="width:100%;" placeholder="Subject...">
       <textarea id="mtm-compose-body" class="mtm-msg-reply-input" placeholder="Message body..." style="min-height:120px;"></textarea>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <select id="mtm-msg-channel" style="width:auto;font-size:12px;padding:6px 8px;">
-          <option value="sms">SMS</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="email">Email</option>
-        </select>
-        <button class="mtm-msg-reply-btn" onclick="sendMTMCompose()" style="flex:1">Send Message</button>
-      </div>
+      ${typeof buildChannelSelector === 'function' ? buildChannelSelector('sms') : ''}
+      <button class="mtm-msg-reply-btn" onclick="sendMTMCompose()" style="width:100%">Send Message</button>
     </div>
   `;
 }
@@ -3125,16 +3229,21 @@ function sendMTMCompose(){
   const toVal = (document.getElementById('mtm-compose-to')||{}).value||'';
   const subject = (document.getElementById('mtm-compose-subject')||{}).value||'';
   const body = (document.getElementById('mtm-compose-body')||{}).value||'';
-  const channel = (document.getElementById('mtm-msg-channel')||{}).value||'sms';
+  const channel = typeof getSelectedChannel === 'function' ? getSelectedChannel(document.getElementById('mtmMsgDetail')) : 'sms';
   if(!toVal){ alert('Select a tenant.'); return; }
   if(!body.trim()){ alert('Enter a message.'); return; }
   const tenants = toVal==='all' ? INNAGO_TENANTS : INNAGO_TENANTS.filter(t=>t.name===toVal);
   let sent=0;
   tenants.forEach(t => {
-    const to = channel==='email' ? (t.email||'') : (t.phone||'');
-    if(!to) return;
-    WPA_sendMessage({to, msg:'WillowPA: '+body, channel, toEmail:channel==='email'?to:undefined, subject:subject||'Message from WillowPA', silent:sent>0});
-    sent++;
+    if (typeof sendViaChannel === 'function') {
+      sendViaChannel(channel, t.name, t.email || '', t.phone || '', body, { subject: subject || 'Message from WillowPA', property: t.property || '' });
+      sent++;
+    } else {
+      const to = channel==='email' ? (t.email||'') : (t.phone||'');
+      if(!to) return;
+      WPA_sendMessage({to, msg:'WillowPA: '+body, channel, toEmail:channel==='email'?to:undefined, subject:subject||'Message from WillowPA', silent:sent>0});
+      sent++;
+    }
   });
   if(sent===0) alert('No contact info found for selected tenant(s) on channel: '+channel);
   else toast(sent+' message(s) sent via '+channel.toUpperCase());
@@ -9461,11 +9570,8 @@ function parseNoteField(note, field) {
 function msgTenantFromDetail() {
   if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
   var t = INNAGO_TENANTS[currentTenantIdx];
-  if (typeof openInboxThread === 'function') {
-    openInboxThread(t.name);
-  } else {
-    openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
-  }
+  // Long-term tenants go straight to modal (faster, they aren't in inbox channels)
+  openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
 }
 
 // ═══════════════════════════════════════════════════

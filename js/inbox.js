@@ -642,7 +642,8 @@ async function renderInbox() {
               <button onclick="approveSuggestion()" style="background:#4CAF50;color:#fff;border:none;border-radius:5px;padding:6px 12px;font-family:inherit;font-size:10px;cursor:pointer;font-weight:600;">✅ Approve</button>
               <button onclick="editSuggestion()" style="background:#e8b94a;color:#fff;border:none;border-radius:5px;padding:6px 12px;font-family:inherit;font-size:10px;cursor:pointer;font-weight:600;">✏️ Edit</button>
               <button onclick="dismissSuggestion()" style="background:#fff;color:#c62828;border:1px solid #c62828;border-radius:5px;padding:6px 10px;font-family:inherit;font-size:10px;cursor:pointer;">✕</button>
-              <button onclick="regenerateSuggestion()" style="background:#fff;color:#7d5228;border:1px solid #7d5228;border-radius:5px;padding:6px 10px;font-family:inherit;font-size:10px;cursor:pointer;margin-left:auto;">🔄 Retry</button>
+              <button onclick="regenerateSuggestion()" style="background:#fff;color:#7d5228;border:1px solid #7d5228;border-radius:5px;padding:6px 10px;font-family:inherit;font-size:10px;cursor:pointer;">🔄 Retry</button>
+              <button onclick="triggerInboxAISuggest()" style="background:#7c3aed;color:#fff;border:none;border-radius:5px;padding:6px 12px;font-family:inherit;font-size:10px;cursor:pointer;font-weight:600;margin-left:auto;">⚡ AI Suggest</button>
             </div>
           </div>
 
@@ -1108,6 +1109,118 @@ function showToast(msg, type = 'info') {
 }
 
 // ═══════════════════════════════════════════════════════
+// ANTHROPIC AI REPLY ASSISTANT — powered by Claude API
+// Works alongside the KB-based Willow Bot suggestion
+// ═══════════════════════════════════════════════════════
+
+const _AI_PROXY = 'https://tech.willowpa.com/proxy.php';
+
+function _buildInboxAISystemPrompt() {
+  var kb = (typeof WILLOW_KB !== 'undefined') ? WILLOW_KB : {};
+  var prompt = 'You are a helpful property management assistant for Willow Partnership, LLC. ';
+  prompt += 'You help draft replies to guest and resident messages.\n\n';
+  prompt += '## Company Info\n';
+  if (kb.company) {
+    prompt += '- Name: ' + (kb.company.name || '') + '\n';
+    prompt += '- Phone: ' + (kb.company.phone || '') + '\n';
+    prompt += '- Email: ' + (kb.company.email || '') + '\n';
+    prompt += '- Hours: ' + (kb.company.hours || '') + '\n';
+  }
+  var props = kb.properties || {};
+  if (Object.keys(props).length > 0) {
+    prompt += '\n## Properties\n';
+    Object.keys(props).forEach(function(k) {
+      var p = props[k];
+      if (p && p.address) {
+        prompt += '- ' + k + ': ' + p.address + '\n';
+        if (p.entrancePin) prompt += '  Entrance PIN: ' + p.entrancePin + '\n';
+        if (p.wifi) prompt += '  WiFi: ' + p.wifi.network + ' / ' + p.wifi.password + '\n';
+      }
+    });
+  }
+  prompt += '\n## Tone Guidelines\n';
+  prompt += '- Always use "We" not "I"\n';
+  prompt += '- Professional but warm tone\n';
+  prompt += '- Never use slang or overly casual language\n';
+  prompt += '- Never promise specific outcomes for refunds\n';
+  prompt += '- Never share other guests information\n';
+  prompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+  prompt += '\n## Key Policies\n';
+  prompt += '- Parking tags must be displayed immediately or vehicles may be towed\n';
+  prompt += '- Extra parking: https://parking.willowpa.com/ select property, password: 1234\n';
+  prompt += '- Guests are not responsible for utilities\n';
+  prompt += '- Pets require approval with breed/type description first\n';
+  prompt += '- Cancellation policy does not typically allow refunds for reserved days\n';
+  prompt += '- Check-in info sent 1 day before reservation\n';
+  prompt += '- After hours: only urgent matters addressed, others next business day\n';
+  prompt += '\nDraft a concise, helpful reply. Do NOT include subject lines or email headers. Just the message body. Keep it under 150 words unless the topic requires more detail.';
+  return prompt;
+}
+
+async function triggerInboxAISuggest() {
+  if (!currentChannelId) return;
+  const channel = allChannels.find(c => c.id === currentChannelId);
+  if (!channel) return;
+
+  // Show loading state in suggestion panel
+  const panel = document.getElementById('suggestionPanel');
+  const textArea = document.getElementById('suggestionText');
+  const confidence = document.getElementById('suggestionConfidence');
+  const reasoning = document.getElementById('suggestionReasoning');
+
+  if (panel) panel.style.display = 'block';
+  if (confidence) { confidence.textContent = 'AI thinking...'; confidence.style.background = '#7c3aed'; }
+  if (reasoning) reasoning.textContent = 'Generating response with Claude AI...';
+  if (textArea) textArea.value = '';
+
+  try {
+    const messages = await loadMessages(currentChannelId);
+    // Build conversation context
+    const recent = messages.slice(-10);
+    const convoText = recent.map(function(m) {
+      const who = m.sender === 'guest' ? (channel.guest_name || 'Guest') : 'Management';
+      return who + ': ' + m.body;
+    }).join('\n');
+
+    let userPrompt = 'Guest: ' + channel.guest_name;
+    if (channel.unit_apt) userPrompt += ' (Unit ' + channel.unit_apt + ')';
+    if (channel.listing_name) userPrompt += ' at ' + channel.listing_name;
+    if (channel.check_in) userPrompt += '\nCheck-in: ' + channel.check_in;
+    if (channel.check_out) userPrompt += ' | Check-out: ' + channel.check_out;
+    if (channel.booking_status) userPrompt += '\nStatus: ' + channel.booking_status;
+    userPrompt += '\n\nConversation:\n' + convoText;
+    userPrompt += '\n\nDraft a reply to the guest\'s latest message.';
+
+    const resp = await fetch(_AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        system: _buildInboxAISystemPrompt(),
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    const data = await resp.json();
+
+    if (data.content && data.content[0] && data.content[0].text) {
+      const suggestion = data.content[0].text;
+      if (textArea) textArea.value = suggestion;
+      if (confidence) { confidence.textContent = 'AI Generated'; confidence.style.background = '#7c3aed'; }
+      if (reasoning) reasoning.textContent = 'Claude AI suggestion based on conversation context';
+      currentSuggestion = { suggestion: suggestion, confidence: 0.9, category: 'ai', subcategory: 'anthropic', reasoning: 'AI-generated reply' };
+    } else {
+      if (confidence) { confidence.textContent = 'Error'; confidence.style.background = '#c62828'; }
+      if (reasoning) reasoning.textContent = data.error ? data.error.message : 'AI suggestion unavailable';
+    }
+  } catch (e) {
+    console.error('AI suggestion failed:', e);
+    if (confidence) { confidence.textContent = 'Error'; confidence.style.background = '#c62828'; }
+    if (reasoning) reasoning.textContent = 'Failed to get AI suggestion: ' + e.message;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // MULTI-PLATFORM BROWSER SEND QUEUE
 // Supports: Airbnb, VRBO, Booking.com
 // Messages are queued here, then sent via browser automation
@@ -1513,36 +1626,73 @@ function startPlatformAutoSync() {
 // ═══════════════════════════════════════════════════════
 // GLOBAL: Open inbox view and auto-select a guest's thread
 // Called from Pipeline, Long-Term, Client App "Message" buttons
+// Smart routing: short-term → inbox view, long-term → modal with channels
 // ═══════════════════════════════════════════════════════
 window.openInboxThread = function(guestName) {
-  // Navigate to Short-Term → Messages sub-tab
-  var stTab = document.querySelector('.nav-tab[onclick*="Short-Term"], .nav-tab[onclick*="short-term"]');
-  if (!stTab) {
-    // Try clicking Short-Term main tab
-    document.querySelectorAll('.nav-tab').forEach(function(t) {
-      if (t.textContent.trim().indexOf('Short-Term') > -1) stTab = t;
+  if (!guestName) return;
+  var normalName = guestName.toLowerCase().replace(/[^a-z]/g, '');
+
+  // 1. Check if this is a short-term guest (in AIRBNB_BOOKINGS_SEED or allChannels)
+  var isShortTerm = false;
+  if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+    isShortTerm = AIRBNB_BOOKINGS_SEED.some(function(b) {
+      return b.guest && b.guest.toLowerCase().replace(/[^a-z]/g, '') === normalName;
     });
   }
-  if (stTab) stTab.click();
-
-  setTimeout(function() {
-    // Click the Messages sub-tab
-    document.querySelectorAll('.sub-tab').forEach(function(t) {
-      if (t.textContent.trim() === 'Messages') t.click();
+  // Also check loaded channels
+  if (!isShortTerm && allChannels && allChannels.length > 0) {
+    isShortTerm = allChannels.some(function(ch) {
+      return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
     });
+  }
 
-    // Wait for inbox to render, then auto-select matching channel
+  if (isShortTerm) {
+    // Navigate to Short-Term → Messages → auto-select thread
+    var stTab = document.querySelector('.nav-tab[onclick*="Short-Term"], .nav-tab[onclick*="short-term"]');
+    if (!stTab) {
+      document.querySelectorAll('.nav-tab').forEach(function(t) {
+        if (t.textContent.trim().indexOf('Short-Term') > -1) stTab = t;
+      });
+    }
+    if (stTab) stTab.click();
+
     setTimeout(function() {
-      if (guestName && allChannels && allChannels.length > 0) {
-        var normalName = guestName.toLowerCase().replace(/[^a-z]/g, '');
-        var match = allChannels.find(function(ch) {
-          return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
-        });
-        if (match) {
-          currentChannelId = match.id;
-          renderInbox();
+      document.querySelectorAll('.sub-tab').forEach(function(t) {
+        if (t.textContent.trim() === 'Messages') t.click();
+      });
+      setTimeout(function() {
+        if (allChannels && allChannels.length > 0) {
+          var match = allChannels.find(function(ch) {
+            return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
+          });
+          if (match) {
+            currentChannelId = match.id;
+            renderInbox();
+          }
         }
-      }
-    }, 300);
-  }, 200);
+      }, 150);
+    }, 100);
+    return;
+  }
+
+  // 2. Check if this is a long-term tenant (in INNAGO_TENANTS)
+  var tenant = null;
+  if (typeof INNAGO_TENANTS !== 'undefined') {
+    tenant = INNAGO_TENANTS.find(function(t) {
+      return t.name && t.name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
+    });
+  }
+
+  if (tenant) {
+    // Open modal with full channel options for long-term tenant
+    if (typeof openMsgModal === 'function') {
+      openMsgModal(tenant.name, tenant.email || '', tenant.phone || '', '', 'mtm');
+    }
+    return;
+  }
+
+  // 3. Fallback: open modal with whatever info we have
+  if (typeof openMsgModal === 'function') {
+    openMsgModal(guestName, '', '', '', '');
+  }
 };
