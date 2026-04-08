@@ -1739,85 +1739,44 @@ window.openInboxThread = function(guestName) {
   if (!guestName) return;
   var normalName = guestName.toLowerCase().replace(/[^a-z]/g, '');
 
-  // 1. Check if this is a short-term guest (in AIRBNB_BOOKINGS_SEED or allChannels)
-  var isShortTerm = false;
+  // Always open the unified message modal — find the best contact info we have
+
+  // 1. Check short-term guests (AIRBNB_BOOKINGS_SEED)
   if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
-    isShortTerm = AIRBNB_BOOKINGS_SEED.some(function(b) {
+    var booking = AIRBNB_BOOKINGS_SEED.find(function(b) {
       return b.guest && b.guest.toLowerCase().replace(/[^a-z]/g, '') === normalName;
     });
-  }
-  // Also check loaded channels
-  if (!isShortTerm && allChannels && allChannels.length > 0) {
-    isShortTerm = allChannels.some(function(ch) {
-      return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
-    });
-  }
-
-  if (isShortTerm) {
-    // IMPORTANT: Clear current selection immediately to prevent stale cache
-    currentChannelId = null;
-
-    // Store the target name for async matching
-    window._pendingInboxTarget = normalName;
-
-    // Step 1: Switch to Short-Term module
-    if (typeof switchModule === 'function') {
-      var moduleTab = document.querySelector('.module-tab[onclick*="short-term"]');
-      switchModule('short-term', moduleTab);
+    if (booking) {
+      var unit = booking.unit || '';
+      openMsgModal(booking.guest, '', booking.phone || '', booking.confirmCode || '', 'short-term', unit);
+      return;
     }
-
-    // Step 2: Switch to Messages page and auto-select the right thread
-    setTimeout(function() {
-      if (typeof showPage === 'function') {
-        var msgTab = null;
-        document.querySelectorAll('.nav-tab').forEach(function(t) {
-          if (t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'messages'") > -1) msgTab = t;
-        });
-        showPage('messages', msgTab);
-      }
-
-      // Step 3: Poll until channels are loaded, then select the correct one
-      var targetName = window._pendingInboxTarget;
-      var attempts = 0;
-      var trySelect = function() {
-        attempts++;
-        // Re-read target in case another click happened
-        targetName = window._pendingInboxTarget;
-        if (allChannels && allChannels.length > 0) {
-          var match = allChannels.find(function(ch) {
-            return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === targetName;
-          });
-          if (match) {
-            currentChannelId = match.id;
-            renderInbox();
-            return;
-          }
-        }
-        if (attempts < 15) setTimeout(trySelect, 300);
-      };
-      setTimeout(trySelect, 400);
-    }, 150);
-    return;
   }
 
-  // 2. Check if this is a long-term tenant (in INNAGO_TENANTS)
-  var tenant = null;
+  // 2. Check loaded inbox channels
+  if (allChannels && allChannels.length > 0) {
+    var ch = allChannels.find(function(c) {
+      return c.guest_name && c.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
+    });
+    if (ch) {
+      var chUnit = ch.unit_apt || '';
+      if (!chUnit && ch.listing_name) { var p = ch.listing_name.split('·'); chUnit = p.length > 1 ? p[0].trim().split(' ')[0] : ''; }
+      openMsgModal(ch.guest_name, ch.guest_email || '', ch.guest_phone || '', ch.external_id || '', ch.platform || 'short-term', chUnit);
+      return;
+    }
+  }
+
+  // 3. Check long-term tenants
   if (typeof INNAGO_TENANTS !== 'undefined') {
-    tenant = INNAGO_TENANTS.find(function(t) {
+    var tenant = INNAGO_TENANTS.find(function(t) {
       return t.name && t.name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
     });
-  }
-
-  if (tenant) {
-    // Open modal with full channel options for long-term tenant
-    if (typeof openMsgModal === 'function') {
-      openMsgModal(tenant.name, tenant.email || '', tenant.phone || '', '', 'mtm');
+    if (tenant) {
+      openMsgModal(tenant.name, tenant.email || '', tenant.phone || '', '', 'mtm', tenant.unit || '');
+      return;
     }
-    return;
   }
 
-  // 3. Fallback: open modal with whatever info we have
-  if (typeof openMsgModal === 'function') {
-    openMsgModal(guestName, '', '', '', '');
-  }
+  // 4. Fallback
+  openMsgModal(guestName, '', '', '', '', '');
 };

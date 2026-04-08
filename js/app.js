@@ -1824,7 +1824,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       }
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="if(typeof openInboxThread==='function'){openInboxThread('${(r.name||'').replace(/'/g,"\\'")}')}else{openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')}">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="if(typeof openInboxThread==='function'){openInboxThread('${(r.name||'').replace(/'/g,"\\'")}')}else{openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}','${(r.apt||'').replace(/'/g,"\\'")}')}">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
   // Delete button — available for any booking (not permanent long-term leases)
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
@@ -9571,7 +9571,7 @@ function msgTenantFromDetail() {
   if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
   var t = INNAGO_TENANTS[currentTenantIdx];
   // Long-term tenants go straight to modal (faster, they aren't in inbox channels)
-  openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
+  openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm', t.unit || '');
 }
 
 // ═══════════════════════════════════════════════════
@@ -9689,24 +9689,115 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
 };
 
 // ═══════════════════════════════════════════════════
-//  MESSAGING MODAL — Send SMS/Email/WhatsApp/Channel
+//  UNIFIED MESSAGING MODAL — Chat view with client card
+//  Uses channels + messages tables (same path as portal)
 // ═══════════════════════════════════════════════════
-function openMsgModal(name, email, phone, bookingId, type) {
-  // type = 'short-term' | 'mtm' | 'long-term'
+var _modalRecipient = {};
+
+function openMsgModal(name, email, phone, bookingId, type, unit) {
+  _modalRecipient = { name: name||'', email: email||'', phone: phone||'', bookingId: bookingId||'', type: type||'', unit: unit||'' };
+
   document.getElementById('msgModalTitle').textContent = 'Message ' + (name || 'Guest');
-  document.getElementById('msgRecipientName').textContent = name || '';
-  document.getElementById('msgRecipientContact').textContent = [email, phone].filter(Boolean).join(' · ');
   document.getElementById('msgRecipientId').value = bookingId || '';
   document.getElementById('msgRecipientType').value = type || '';
   document.getElementById('msgBody').value = '';
+  document.getElementById('msgChannelId').value = '';
+  document.getElementById('msgUnitApt').value = unit || '';
 
-  // Build channel buttons using shared selector
+  // Client card
+  var initials = (name||'?').split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase();
+  document.getElementById('msgClientAvatar').textContent = initials;
+  document.getElementById('msgClientName').textContent = name || 'Guest';
+  document.getElementById('msgClientUnit').textContent = unit ? 'Unit ' + unit : (type || '');
+
+  var details = '';
+  if (phone) details += '<div>📞 <a href="tel:' + phone + '" style="color:var(--accent);text-decoration:none;">' + phone + '</a></div>';
+  if (email) details += '<div>✉ <a href="mailto:' + email + '" style="color:var(--accent);text-decoration:none;">' + email + '</a></div>';
+  if (type) details += '<div style="margin-top:6px;"><span style="background:var(--accent-bg);color:var(--accent2);font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;">' + type + '</span></div>';
+  document.getElementById('msgClientDetails').innerHTML = details;
+
+  // Channel buttons
   document.getElementById('msgChannelBtns').innerHTML = buildChannelSelector('app');
+
+  // Load conversation history
+  _loadModalThread(name, unit || '');
+
   document.getElementById('msgOverlay').style.display = 'flex';
 }
 
+async function _loadModalThread(name, unit) {
+  var thread = document.getElementById('msgThread');
+  thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:11px;padding:30px 0;">Loading messages...</div>';
+
+  try {
+    // Find willowpa channel for this person (by unit or name)
+    var channelId = null;
+    var chRes;
+    if (unit) {
+      chRes = await sb.from('channels').select('id').eq('unit_apt', unit).eq('platform', 'willowpa').limit(1);
+      if (chRes.data && chRes.data.length) channelId = chRes.data[0].id;
+    }
+    if (!channelId && name) {
+      chRes = await sb.from('channels').select('id').eq('guest_name', name).eq('platform', 'willowpa').limit(1);
+      if (chRes.data && chRes.data.length) channelId = chRes.data[0].id;
+    }
+
+    document.getElementById('msgChannelId').value = channelId || '';
+
+    if (!channelId) {
+      thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">No messages yet. Start the conversation below.</div>';
+      return;
+    }
+
+    // Load messages
+    var msgRes = await sb.from('messages').select('*').eq('channel_id', channelId).order('sent_at', {ascending: true});
+    var messages = msgRes.data || [];
+
+    if (!messages.length) {
+      thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">No messages yet. Start the conversation below.</div>';
+      return;
+    }
+
+    var html = '';
+    var lastDate = '';
+    messages.forEach(function(msg) {
+      var d = new Date(msg.sent_at);
+      var dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      var timeStr = d.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+      if (dateStr !== lastDate) {
+        html += '<div style="text-align:center;color:var(--text3);font-size:10px;margin:6px 0;">' + dateStr + '</div>';
+        lastDate = dateStr;
+      }
+      var isHost = msg.sender === 'host' || msg.sender === 'management';
+      var platform = (msg.platform || '').toLowerCase();
+      var chLabels = {sms:'SMS', email:'Email', whatsapp:'WhatsApp', app:'App', airbnb:'Airbnb', vrbo:'VRBO', booking:'Booking.com', willowpa:'App', channel:''};
+      var chLabel = chLabels[platform] || '';
+      var badge = chLabel ? ' · <span style="opacity:.5">via ' + chLabel + '</span>' : '';
+
+      if (msg.sender === 'system') {
+        html += '<div style="text-align:center;margin:4px 0;"><span style="background:var(--surface);color:var(--text3);font-size:10px;padding:4px 12px;border-radius:12px;">' + _esc(msg.body) + '</span></div>';
+      } else {
+        html += '<div style="display:flex;' + (isHost ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';">' +
+          '<div style="max-width:75%;background:' + (isHost ? 'var(--accent)' : 'var(--surface)') + ';color:' + (isHost ? '#fff' : 'var(--text)') + ';padding:8px 12px;border-radius:' + (isHost ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';font-size:12px;line-height:1.45;box-shadow:0 1px 2px rgba(0,0,0,.06);">' +
+          '<div style="white-space:pre-wrap;">' + _esc(msg.body) + '</div>' +
+          '<div style="font-size:9px;opacity:.6;margin-top:3px;text-align:' + (isHost ? 'right' : 'left') + ';">' + timeStr + badge + '</div>' +
+          '</div></div>';
+      }
+    });
+
+    thread.innerHTML = html;
+    setTimeout(function(){ thread.scrollTop = thread.scrollHeight; }, 50);
+  } catch(e) {
+    thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">Could not load messages.</div>';
+    console.warn('Modal thread load error:', e);
+  }
+}
+
+function _esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
 function closeMsgModal() {
   document.getElementById('msgOverlay').style.display = 'none';
+  _modalRecipient = {};
 }
 
 function selectMsgChannel(btn) {
@@ -9714,25 +9805,105 @@ function selectMsgChannel(btn) {
   btn.classList.add('active');
 }
 
-function sendMsgFromModal() {
-  var ch = getSelectedChannel(document.getElementById('msgOverlay'));
+async function sendMsgFromModal() {
   var body = document.getElementById('msgBody').value.trim();
-  if (!body) { alert('Please type a message.'); return; }
+  if (!body) return;
 
-  var name = document.getElementById('msgRecipientName').textContent;
-  var contact = document.getElementById('msgRecipientContact').textContent;
+  var ch = getSelectedChannel(document.getElementById('msgOverlay'));
+  var r = _modalRecipient;
+  var unit = document.getElementById('msgUnitApt').value || r.unit || '';
+  var now = new Date().toISOString();
 
-  // Extract email/phone from contact string
-  var parts = contact.split(' · ');
-  var email = '', phone = '';
-  parts.forEach(function(p) {
-    p = p.trim();
-    if (p.indexOf('@') > -1) email = p;
-    else if (p.match(/\d/)) phone = p;
-  });
+  // 1) Find or create willowpa channel (same path as portal)
+  var channelId = document.getElementById('msgChannelId').value || '';
+  if (!channelId) {
+    // Try to find existing
+    if (unit) {
+      var lookup = await sb.from('channels').select('id').eq('unit_apt', unit).eq('platform', 'willowpa').limit(1);
+      if (lookup.data && lookup.data.length) channelId = lookup.data[0].id;
+    }
+    if (!channelId && r.name) {
+      var lookup2 = await sb.from('channels').select('id').eq('guest_name', r.name).eq('platform', 'willowpa').limit(1);
+      if (lookup2.data && lookup2.data.length) channelId = lookup2.data[0].id;
+    }
+    // Create new channel
+    if (!channelId) {
+      var chInsert = { guest_name: r.name, guest_email: r.email||'', guest_phone: r.phone||'', unit_apt: unit, platform: 'willowpa', status: 'active', last_message_preview: body.substring(0,100), last_message_at: now };
+      var chRes = await sb.from('channels').insert([chInsert]).select('id');
+      if (chRes.error) { alert('Error creating thread: ' + chRes.error.message); return; }
+      channelId = chRes.data[0].id;
+    }
+    document.getElementById('msgChannelId').value = channelId;
+  }
 
-  sendViaChannel(ch, name, email, phone, body, {subject: 'Message from Willow PA'});
-  closeMsgModal();
+  // 2) Insert message into messages table (same as portal's sbSendMessage)
+  var platform = ch || 'willowpa';
+  var msgInsert = { channel_id: channelId, sender: 'host', sender_name: 'Management', body: body, platform: platform, sent_at: now, message_type: 'text' };
+  var msgRes = await sb.from('messages').insert([msgInsert]);
+  if (msgRes.error) { alert('Error sending: ' + msgRes.error.message); return; }
+
+  // 3) Update channel preview
+  await sb.from('channels').update({ last_message_preview: body.substring(0,100), last_message_at: now }).eq('id', channelId);
+
+  // 4) External delivery for non-app channels
+  if (ch === 'sms') {
+    if (r.phone) window.open('sms:' + r.phone + '?body=' + encodeURIComponent(body));
+  } else if (ch === 'email') {
+    if (r.email) window.open('mailto:' + r.email + '?subject=' + encodeURIComponent('Message from Willow PA') + '&body=' + encodeURIComponent(body));
+  } else if (ch === 'whatsapp') {
+    if (r.phone) window.open('https://wa.me/' + r.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent(body), '_blank');
+  }
+
+  // 5) Clear input + refresh thread
+  document.getElementById('msgBody').value = '';
+  toast('Message sent to ' + r.name, 'success');
+  _loadModalThread(r.name, unit);
+
+  // Refresh inbox if loaded
+  if (typeof loadChannels === 'function') loadChannels(true);
+}
+
+// AI Suggest in modal
+async function triggerModalAISuggest() {
+  var r = _modalRecipient;
+  var body = document.getElementById('msgBody').value.trim();
+  var thread = document.getElementById('msgThread');
+  var msgs = thread ? thread.innerText.substring(0, 2000) : '';
+
+  var systemPrompt = 'You are a professional property management assistant for Willow PA. Write a helpful, friendly reply to the resident/guest. Keep it concise (2-4 sentences).';
+  var userPrompt = 'Resident: ' + r.name;
+  if (r.unit) userPrompt += ' (Unit ' + r.unit + ')';
+  userPrompt += '\n\nConversation so far:\n' + msgs;
+  if (body) userPrompt += '\n\nDraft so far: ' + body;
+  userPrompt += '\n\nWrite a professional reply:';
+
+  // Show loading
+  var overlay = document.createElement('div');
+  overlay.id = '_modalAIOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:500px;max-width:90vw;"><div style="text-align:center;color:#7c3aed;font-weight:600;margin-bottom:12px;">Generating AI suggestion...</div><div style="text-align:center;font-size:12px;color:#999;">Please wait</div></div>';
+  document.body.appendChild(overlay);
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    });
+    var data = await resp.json();
+    var suggestion = (data.content && data.content[0] && data.content[0].text) || 'Could not generate suggestion.';
+
+    overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:500px;max-width:90vw;">' +
+      '<div style="font-weight:600;color:#7c3aed;margin-bottom:12px;">AI Suggestion</div>' +
+      '<textarea id="_aiSuggestText" style="width:100%;min-height:120px;border:1px solid #ddd;border-radius:8px;padding:10px;font-family:inherit;font-size:13px;resize:vertical;">' + suggestion.replace(/</g,'&lt;') + '</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:12px;">' +
+      '<button onclick="document.getElementById(\'msgBody\').value=document.getElementById(\'_aiSuggestText\').value;document.getElementById(\'_modalAIOverlay\').remove();" style="background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;font-weight:600;">Approve</button>' +
+      '<button onclick="triggerModalAISuggest();document.getElementById(\'_modalAIOverlay\').remove();" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;">Regenerate</button>' +
+      '<button onclick="document.getElementById(\'_modalAIOverlay\').remove();" style="background:#fff;color:#c62828;border:1px solid #c62828;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;">Dismiss</button>' +
+      '</div></div>';
+  } catch(e) {
+    overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;"><div style="color:#c62828;">AI error: ' + e.message + '</div><button onclick="this.closest(\'div\').parentElement.remove();" style="margin-top:12px;padding:8px 16px;border:none;border-radius:6px;background:#eee;cursor:pointer;">Close</button></div>';
+  }
 }
 
 // ═══════════════════════════════════════════════════
