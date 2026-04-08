@@ -1824,7 +1824,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       }
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="document.querySelector('.nav-tab[onclick*=\\'messages\\']')?.click();setTimeout(()=>{document.querySelectorAll('.sub-tab').forEach(t=>{if(t.textContent.trim().startsWith('${r.type==='short-stay'?'Short-Term':'Long-Term'}'))t.click()});},150)">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
   // Delete button — available for any booking (not permanent long-term leases)
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
@@ -3142,6 +3142,7 @@ function sendMTMCompose(){
 
 // ══════════════════════════════════════════════════════════════
 //  UNIFIED MESSAGE CENTER
+//  Merges Short-Term (Airbnb/VRBO), Long-Term (Innago), and Client App messages
 // ══════════════════════════════════════════════════════════════
 
 let _currentMsgCenterFilter = 'all';
@@ -3163,73 +3164,186 @@ const MSG_SOURCE_STYLES = {
 
 function _getAllCenterMessages() {
   const msgs = [];
+  // Short-term: from AIRBNB_BOOKINGS_SEED (inbox.js)
   if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
-    AIRBNB_BOOKINGS_SEED.forEach(function(b) {
-      if (!b.lastMsg && !b.lastMsgAt) return;
-      msgs.push({ id:'st-'+b.threadId, from:b.guest, unit:b.unit, property:b.listing?(b.listing.substring(0,40)):'', date:b.lastMsgAt||b.bookedAt, subject:b.status==='inquiry'?'Inquiry':(b.status==='change_requested'?'Change Request':'Booking Message'), body:b.lastMsg||'No messages yet', unread:b.unread>0, source:'short-term', platform:'airbnb', threadId:b.threadId });
+    AIRBNB_BOOKINGS_SEED.forEach(b => {
+      if (!b.lastMsg && !b.lastMsgAt) return; // skip bookings with no messages
+      msgs.push({
+        id: 'st-' + b.threadId,
+        from: b.guest,
+        unit: b.unit,
+        property: b.listing ? b.listing.substring(0, 40) : '',
+        date: b.lastMsgAt || b.bookedAt,
+        subject: b.status === 'inquiry' ? 'Inquiry' : (b.status === 'change_requested' ? 'Change Request' : 'Booking Message'),
+        body: b.lastMsg || 'No messages yet',
+        unread: b.unread > 0,
+        source: 'short-term',
+        platform: 'airbnb',
+        threadId: b.threadId
+      });
     });
   }
+  // Long-term: from INNAGO_MESSAGES
   if (typeof INNAGO_MESSAGES !== 'undefined') {
-    INNAGO_MESSAGES.forEach(function(m) {
-      msgs.push({ id:'lt-'+m.id, from:m.from, unit:m.unit, property:m.property, date:m.date+' '+m.time, subject:m.subject, body:m.body, unread:m.unread, source:'long-term', sent:m.sent });
+    INNAGO_MESSAGES.forEach(m => {
+      msgs.push({
+        id: 'lt-' + m.id,
+        from: m.from,
+        unit: m.unit,
+        property: m.property,
+        date: m.date + ' ' + m.time,
+        subject: m.subject,
+        body: m.body,
+        unread: m.unread,
+        source: 'long-term',
+        sent: m.sent
+      });
     });
   }
-  CLIENT_APP_MESSAGES.forEach(function(m){ msgs.push(Object.assign({},m)); });
-  msgs.sort(function(a,b){ return new Date(b.date)-new Date(a.date); });
+  // Client App
+  CLIENT_APP_MESSAGES.forEach(m => msgs.push({...m}));
+
+  // Sort by date descending
+  msgs.sort((a, b) => new Date(b.date) - new Date(a.date));
   return msgs;
 }
 
-function _countUnreadMessages(){ return _getAllCenterMessages().filter(function(m){return m.unread;}).length; }
+function _countUnreadMessages() {
+  return _getAllCenterMessages().filter(m => m.unread).length;
+}
 
 function updateMsgCenterBadge() {
-  var count = _countUnreadMessages();
-  var badge = document.getElementById('msgCenterBadge');
-  if(badge){ badge.textContent=count; badge.style.display=count>0?'inline-block':'none'; }
+  const count = _countUnreadMessages();
+  const badge = document.getElementById('msgCenterBadge');
+  if (badge) {
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+  }
 }
 
 function renderMessageCenter() {
-  var el = document.getElementById('page-msg-center');
-  if(!el) return;
-  var filter = _currentMsgCenterFilter;
-  var search = _msgCenterSearch.toLowerCase();
-  var msgs = _getAllCenterMessages();
-  if(filter!=='all') msgs = msgs.filter(function(m){return m.source===filter;});
-  if(search) msgs = msgs.filter(function(m){ return (m.from||'').toLowerCase().indexOf(search)!==-1||(m.subject||'').toLowerCase().indexOf(search)!==-1||(m.body||'').toLowerCase().indexOf(search)!==-1||(m.unit||'').toLowerCase().indexOf(search)!==-1; });
-  var totalUnread = msgs.filter(function(m){return m.unread;}).length;
-  var rows = msgs.length===0 ? '<div style="padding:40px;text-align:center;color:var(--text3);background:var(--surface);border-radius:8px;">No messages found</div>' : msgs.map(function(m){
-    var src = MSG_SOURCE_STYLES[m.source]||MSG_SOURCE_STYLES['short-term'];
-    var dateStr = _msgCenterTimeAgo(m.date);
-    var unitStr = m.unit||'';
-    return '<div class="msg-center-row '+(m.unread?'unread':'')+'" onclick="openMsgCenterDetail(\''+m.id+'\')"><div class="msg-center-left"><span class="msg-src-badge" style="background:'+src.bg+';color:'+src.text+';">'+src.label+'</span><span class="msg-center-from">'+(m.sent?'<span style="color:var(--text3);font-weight:400;">\u27A4 Sent</span> ':'')+m.from+'</span>'+(unitStr?'<span class="msg-center-unit">'+unitStr+'</span>':'')+'</div><div class="msg-center-right"><span class="msg-center-time">'+dateStr+'</span></div><div class="msg-center-preview"><strong>'+m.subject+'</strong> \u2014 '+(m.body||'').substring(0,90)+((m.body||'').length>90?'...':'')+'</div></div>';
-  }).join('');
-  el.innerHTML = '<div style="padding:16px 20px 0;"><div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;"><h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text);">Message Center</h2>'+(totalUnread>0?'<span style="background:#d32f2f;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">'+totalUnread+' unread</span>':'')+'<div style="flex:1"></div><input type="text" id="msgCenterSearch" placeholder="Search messages..." value="'+_msgCenterSearch+'" oninput="_msgCenterSearch=this.value;renderMessageCenter()" style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:220px;background:var(--surface);color:var(--text);"></div></div><div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:8px;margin:0 20px;">'+rows+'</div>';
+  const el = document.getElementById('page-msg-center');
+  if (!el) return;
+
+  const filter = _currentMsgCenterFilter;
+  const search = _msgCenterSearch.toLowerCase();
+  let msgs = _getAllCenterMessages();
+
+  // Apply source filter
+  if (filter !== 'all') {
+    msgs = msgs.filter(m => m.source === filter);
+  }
+  // Apply search
+  if (search) {
+    msgs = msgs.filter(m =>
+      (m.from||'').toLowerCase().includes(search) ||
+      (m.subject||'').toLowerCase().includes(search) ||
+      (m.body||'').toLowerCase().includes(search) ||
+      (m.unit||'').toLowerCase().includes(search)
+    );
+  }
+
+  const totalUnread = msgs.filter(m => m.unread).length;
+
+  el.innerHTML = `
+    <div style="padding:16px 20px 0;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap;">
+        <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text);">Message Center</h2>
+        ${totalUnread > 0 ? `<span style="background:#d32f2f;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${totalUnread} unread</span>` : ''}
+        <div style="flex:1"></div>
+        <input type="text" id="msgCenterSearch" placeholder="Search messages..." value="${_msgCenterSearch}"
+          oninput="_msgCenterSearch=this.value;renderMessageCenter()"
+          style="padding:7px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:inherit;width:220px;background:var(--surface);color:var(--text);">
+      </div>
+    </div>
+    <div style="padding:0 20px 20px;display:flex;flex-direction:column;gap:1px;background:var(--border);border-radius:8px;margin:0 20px;">
+      ${msgs.length === 0 ? '<div style="padding:40px;text-align:center;color:var(--text3);background:var(--surface);border-radius:8px;">No messages found</div>' :
+        msgs.map(m => {
+          const src = MSG_SOURCE_STYLES[m.source] || MSG_SOURCE_STYLES['short-term'];
+          const dateStr = _msgCenterTimeAgo(m.date);
+          const unitStr = m.unit ? m.unit : '';
+          return `<div class="msg-center-row ${m.unread ? 'unread' : ''}" onclick="openMsgCenterDetail('${m.id}')">
+            <div class="msg-center-left">
+              <span class="msg-src-badge" style="background:${src.bg};color:${src.text};">${src.label}</span>
+              <span class="msg-center-from">${m.sent ? '<span style="color:var(--text3);font-weight:400;">➤ Sent</span> ' : ''}${m.from}</span>
+              ${unitStr ? `<span class="msg-center-unit">${unitStr}</span>` : ''}
+            </div>
+            <div class="msg-center-right">
+              <span class="msg-center-time">${dateStr}</span>
+            </div>
+            <div class="msg-center-preview">
+              <strong>${m.subject}</strong> — ${(m.body||'').substring(0, 90)}${(m.body||'').length > 90 ? '...' : ''}
+            </div>
+          </div>`;
+        }).join('')
+      }
+    </div>
+  `;
   updateMsgCenterBadge();
 }
 
 function _msgCenterTimeAgo(d) {
-  if(!d) return '';
-  var now=Date.now(), then=new Date(d).getTime();
-  if(isNaN(then)) return d;
-  var diff=now-then, mins=Math.floor(diff/60000);
-  if(mins<1) return 'now';
-  if(mins<60) return mins+'m ago';
-  var hrs=Math.floor(mins/60);
-  if(hrs<24) return hrs+'h ago';
-  var days=Math.floor(hrs/24);
-  if(days<7) return days+'d ago';
-  return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  if (!d) return '';
+  const now = Date.now();
+  const then = new Date(d).getTime();
+  if (isNaN(then)) return d; // fallback to raw string
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return days + 'd ago';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
 function openMsgCenterDetail(id) {
-  var msgs=_getAllCenterMessages(), m=msgs.find(function(x){return x.id===id;});
-  if(!m) return;
-  if(m.source==='long-term'&&typeof INNAGO_MESSAGES!=='undefined'){var oid=parseInt(id.replace('lt-',''));var orig=INNAGO_MESSAGES.find(function(x){return x.id===oid;});if(orig)orig.unread=false;}
-  else if(m.source==='short-term'&&typeof AIRBNB_BOOKINGS_SEED!=='undefined'){var tid=id.replace('st-','');var orig2=AIRBNB_BOOKINGS_SEED.find(function(x){return x.threadId===tid;});if(orig2)orig2.unread=0;}
-  else if(m.source==='client'){var orig3=CLIENT_APP_MESSAGES.find(function(x){return x.id===id;});if(orig3)orig3.unread=false;}
-  var src=MSG_SOURCE_STYLES[m.source]||{};
-  var el=document.getElementById('page-msg-center');
-  var unitStr=m.unit?(m.property?m.unit+' at '+m.property:m.unit):(m.property||'');
-  el.innerHTML='<div style="padding:16px 20px 0;"><button onclick="renderMessageCenter()" style="background:none;border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--text2);margin-bottom:12px;">\u2190 Back to Messages</button></div><div style="margin:0 20px 20px;background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;"><div style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2);"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span class="msg-src-badge" style="background:'+src.bg+';color:'+src.text+';">'+src.label+'</span><span style="font-size:11px;color:var(--text3);">'+_msgCenterTimeAgo(m.date)+'</span></div><div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">'+m.subject+'</div><div style="font-size:12px;color:var(--text2);">'+(m.sent?'Sent by':'From')+' <strong>'+m.from+'</strong>'+(unitStr?' \u2014 '+unitStr:'')+'</div></div><div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">'+m.body+'</div>'+(!m.sent?'<div style="padding:12px 20px 16px;border-top:1px solid var(--border);"><textarea id="msgCenterReply" placeholder="Type your reply..." style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"></textarea><div style="display:flex;gap:8px;margin-top:8px;"><button onclick="toast(\'Reply sent!\');renderMessageCenter();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button></div></div>':'')+'</div>';
+  // Mark as read
+  const msgs = _getAllCenterMessages();
+  const m = msgs.find(x => x.id === id);
+  if (!m) return;
+
+  // Mark the source message as read
+  if (m.source === 'long-term' && typeof INNAGO_MESSAGES !== 'undefined') {
+    const origId = parseInt(id.replace('lt-', ''));
+    const orig = INNAGO_MESSAGES.find(x => x.id === origId);
+    if (orig) orig.unread = false;
+  } else if (m.source === 'short-term' && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+    const tid = id.replace('st-', '');
+    const orig = AIRBNB_BOOKINGS_SEED.find(x => x.threadId === tid);
+    if (orig) orig.unread = 0;
+  } else if (m.source === 'client') {
+    const orig = CLIENT_APP_MESSAGES.find(x => x.id === id);
+    if (orig) orig.unread = false;
+  }
+
+  const src = MSG_SOURCE_STYLES[m.source] || {};
+  const el = document.getElementById('page-msg-center');
+  const unitStr = m.unit ? (m.property ? m.unit + ' at ' + m.property : m.unit) : (m.property || '');
+
+  el.innerHTML = `
+    <div style="padding:16px 20px 0;">
+      <button onclick="renderMessageCenter()" style="background:none;border:1px solid var(--border);padding:6px 14px;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;color:var(--text2);margin-bottom:12px;">← Back to Messages</button>
+    </div>
+    <div style="margin:0 20px 20px;background:var(--surface);border-radius:8px;border:1px solid var(--border);overflow:hidden;">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span class="msg-src-badge" style="background:${src.bg};color:${src.text};">${src.label}</span>
+          <span style="font-size:11px;color:var(--text3);">${_msgCenterTimeAgo(m.date)}</span>
+        </div>
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">${m.subject}</div>
+        <div style="font-size:12px;color:var(--text2);">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong>${unitStr ? ' — ' + unitStr : ''}</div>
+      </div>
+      <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">${m.body}</div>
+      ${!m.sent ? `<div style="padding:12px 20px 16px;border-top:1px solid var(--border);">
+        <textarea id="msgCenterReply" placeholder="Type your reply..." style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button onclick="toast('Reply sent!');renderMessageCenter();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
+        </div>
+      </div>` : ''}
+    </div>
+  `;
   updateMsgCenterBadge();
 }
 
@@ -8408,6 +8522,7 @@ async function boot() {
     if(_isMob && typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
       WILLOW_MOBILE.init();
     } else if(_isMob){
+      // mobile.js hasn't loaded yet — wait for it instead of rendering desktop
       var _mobPoll = setInterval(function(){
         if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
           clearInterval(_mobPoll);
@@ -9343,9 +9458,8 @@ function parseNoteField(note, field) {
 }
 
 function msgTenantFromDetail() {
-  if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
-  var t = INNAGO_TENANTS[currentTenantIdx];
-  openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
+  document.querySelector('.nav-tab[onclick*="messages"]')?.click();
+  setTimeout(()=>{document.querySelectorAll('.sub-tab').forEach(t=>{if(t.textContent.trim().startsWith('Long-Term'))t.click()});},150);
 }
 
 // ═══════════════════════════════════════════════════
