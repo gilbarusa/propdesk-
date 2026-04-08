@@ -9614,6 +9614,13 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
         var unitVal = opts.unit || '';
         var propertyVal = opts.property || '';
 
+        // Fallback: extract unit from property/listing_name if unit is empty (e.g. "926-1 Fox Chase · ...")
+        if (!unitVal && propertyVal) {
+          var parts = propertyVal.split('·');
+          if (parts.length > 1) unitVal = parts[0].trim();
+          else unitVal = propertyVal.split(' ')[0] || '';
+        }
+
         console.log('[App Channel] Sending to:', name, 'unit:', unitVal, 'property:', propertyVal);
 
         // 1) Find existing willowpa channel for this unit, or create one

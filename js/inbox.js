@@ -1071,13 +1071,21 @@ async function queueReply() {
   // Map 'channel' to the original platform (airbnb, vrbo, etc.)
   var viaChannel = (selectedCh && selectedCh !== 'channel') ? selectedCh : (channel.platform || 'willowpa');
 
+  // Extract unit: use unit_apt if available, otherwise parse from listing_name (e.g. "926-1 Fox Chase · ...")
+  var unitVal = channel.unit_apt || '';
+  if (!unitVal && channel.listing_name) {
+    var parts = channel.listing_name.split('·');
+    if (parts.length > 1) unitVal = parts[0].trim();
+    else unitVal = channel.listing_name.split(' ')[0] || '';
+  }
+
   // ALWAYS save the message in the SAME thread (messages table) regardless of channel
   await sendMessage(currentChannelId, message, viaChannel);
 
   // Then handle external delivery based on channel
   if (selectedCh && selectedCh !== 'channel') {
     // Non-default channel selected — do external delivery (SMS/Email/WhatsApp/App)
-    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message', unit: channel.unit_apt || '', property: channel.listing_name || ''});
+    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message', unit: unitVal, property: channel.listing_name || ''});
     showToast(`✅ Sent via ${viaChannel.toUpperCase()} to ${channel.guest_name}.`, 'success');
   } else if (['airbnb', 'vrbo', 'booking'].includes(channel.platform) && channel.external_id) {
     // Default channel on booking platforms — queue for platform send
