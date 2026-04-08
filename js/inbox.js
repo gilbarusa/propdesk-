@@ -1453,7 +1453,7 @@ async function triggerInboxAIRephrase() {
   var text = input ? input.value.trim() : '';
   if (!text) { if (typeof showToast === 'function') showToast('Type something first, then click Rephrase', 'warning'); return; }
 
-  var channel = channels.find(c => c.id === currentChannelId);
+  var channel = allChannels.find(c => c.id === currentChannelId);
   var guestName = channel ? channel.guest_name : 'Guest';
 
   input.disabled = true;
