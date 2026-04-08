@@ -4,7 +4,7 @@
    Loaded AFTER inbox.js.
    v2 -- single chat per resident, read receipts
    ================================================================= */
-(function() {
+(function() { 
   'use strict';
 
   // -- Column list for client_messages (must be explicit -- Supabase quirk) --
