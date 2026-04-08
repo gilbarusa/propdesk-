@@ -1647,20 +1647,28 @@ window.openInboxThread = function(guestName) {
   }
 
   if (isShortTerm) {
-    // Navigate to Short-Term → Messages → auto-select thread
-    var stTab = document.querySelector('.nav-tab[onclick*="Short-Term"], .nav-tab[onclick*="short-term"]');
-    if (!stTab) {
-      document.querySelectorAll('.nav-tab').forEach(function(t) {
-        if (t.textContent.trim().indexOf('Short-Term') > -1) stTab = t;
-      });
+    // Navigate to Short-Term module → Messages page → auto-select thread
+    // Step 1: Switch to Short-Term module
+    if (typeof switchModule === 'function') {
+      var moduleTab = document.querySelector('.module-tab[onclick*="short-term"]');
+      switchModule('short-term', moduleTab);
     }
-    if (stTab) stTab.click();
 
+    // Step 2: Switch to Messages page
     setTimeout(function() {
-      document.querySelectorAll('.sub-tab').forEach(function(t) {
-        if (t.textContent.trim() === 'Messages') t.click();
-      });
-      setTimeout(function() {
+      if (typeof showPage === 'function') {
+        var msgTab = null;
+        document.querySelectorAll('.nav-tab').forEach(function(t) {
+          if (t.getAttribute('onclick') && t.getAttribute('onclick').indexOf("'messages'") > -1) msgTab = t;
+        });
+        showPage('messages', msgTab);
+      }
+
+      // Step 3: Wait for renderInbox to complete, then auto-select
+      // Use a polling approach to wait for allChannels to be ready
+      var attempts = 0;
+      var trySelect = function() {
+        attempts++;
         if (allChannels && allChannels.length > 0) {
           var match = allChannels.find(function(ch) {
             return ch.guest_name && ch.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
@@ -1668,10 +1676,13 @@ window.openInboxThread = function(guestName) {
           if (match) {
             currentChannelId = match.id;
             renderInbox();
+            return;
           }
         }
-      }, 150);
-    }, 100);
+        if (attempts < 10) setTimeout(trySelect, 300);
+      };
+      setTimeout(trySelect, 500);
+    }, 150);
     return;
   }
 
