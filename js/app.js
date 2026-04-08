@@ -3521,21 +3521,86 @@ async function openMsgCenterDetail(id) {
   var unitStr = m.unit ? (m.property ? m.unit + ' at ' + m.property : m.unit) : (m.property || '');
   var threadId = m._threadId || '';
 
-  // -- Right panel: Client card --
+  // -- Right panel: Client card (enriched with booking details) --
   if (rightEl) {
     var initial = m.from ? m.from.split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase() : '?';
-    var cardHtml = '<div style="padding:14px;text-align:center;">';
+
+    // Try to find booking/channel data for this contact
+    var booking = null;
+    var channel = null;
+    if (m.source === 'short-term' && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+      booking = AIRBNB_BOOKINGS_SEED.find(function(b){ return b.threadId === (m.threadId || id.replace('st-','')); });
+    }
+    // Also try matching by name in channels cache
+    if (!booking && typeof _channelsCache !== 'undefined' && _channelsCache) {
+      channel = _channelsCache.find(function(c){ return c.name === m.from || c.guest_name === m.from; });
+    }
+
+    var phone = m._phone || (booking ? booking.phone : '') || (channel ? channel.guest_phone : '') || '';
+    var email = m._email || (booking ? booking.email : '') || (channel ? channel.guest_email : '') || '';
+    var listingName = m.property || (booking ? booking.listing : '') || (channel ? channel.listing_name : '') || '';
+    var unitVal = m.unit || (booking ? booking.unit : '') || (channel ? channel.unit_apt : '') || '';
+    var checkIn = (booking ? booking.checkin || booking.check_in : '') || (channel ? channel.check_in : '') || '';
+    var checkOut = (booking ? booking.checkout || booking.check_out : '') || (channel ? channel.check_out : '') || '';
+    var guests = (booking ? booking.guests || booking.adults : 0) || (channel ? channel.guest_count || channel.adults : 0) || 0;
+    var nights = (booking ? booking.nights : 0) || (channel ? channel.nights : 0) || 0;
+    var nightlyRate = (booking ? booking.nightly_rate : 0) || (channel ? channel.nightly_rate : 0) || 0;
+    var cleaningFee = (booking ? booking.cleaning_fee : 0) || (channel ? channel.cleaning_fee : 0) || 0;
+    var totalPayout = (booking ? booking.total_payout || booking.total : 0) || (channel ? channel.total_payout : 0) || 0;
+    var confirmCode = (booking ? booking.confirm_code || booking.confirmCode : '') || (channel ? channel.confirm_code : '') || '';
+    var platform = m.platform || (booking ? booking.platform : '') || (channel ? channel.platform : '') || 'willowpa';
+    var bStatus = (booking ? booking.status : '') || (channel ? channel.status : '') || '';
+
+    function _fmtMcDate(d) { if (!d) return 'N/A'; try { return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch(e){ return d; } }
+    function _fmtMcMoney(v) { return '$' + (parseFloat(v)||0).toFixed(2); }
+
+    var cardHtml = '<div style="padding:14px;text-align:center;border-bottom:1px solid var(--border);">';
     cardHtml += '<div style="width:48px;height:48px;border-radius:50%;background:' + (src.bg||'var(--accent-bg)') + ';color:' + (src.text||'var(--accent2)') + ';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 8px;">'+initial+'</div>';
     cardHtml += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">'+_esc(m.from)+'</div>';
-    if (m.unit) cardHtml += '<div style="font-size:11px;color:var(--text3);">'+_esc(m.unit)+'</div>';
-    if (m.property) cardHtml += '<div style="font-size:10px;color:var(--text3);">'+_esc(m.property)+'</div>';
-    cardHtml += '<div style="margin-top:8px;"><span class="msg-src-badge" style="background:'+src.bg+';color:'+src.text+';">'+src.label+'</span></div>';
-    cardHtml += '<div style="text-align:left;font-size:11px;color:var(--text2);border-top:1px solid var(--border);padding-top:10px;margin-top:10px;">';
-    if (m._phone) cardHtml += '<div style="margin-bottom:6px;">📞 <a href="tel:'+m._phone+'" style="color:var(--accent);text-decoration:none;">'+m._phone+'</a></div>';
-    if (m._email) cardHtml += '<div style="margin-bottom:6px;">✉ <a href="mailto:'+m._email+'" style="color:var(--accent);text-decoration:none;word-break:break-all;font-size:10px;">'+m._email+'</a></div>';
+    cardHtml += '<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">via '+_esc(src.label||'WillowPA')+'</div>';
+    if (phone) cardHtml += '<div style="margin-bottom:4px;font-size:11px;">📞 <a href="tel:'+phone+'" style="color:var(--accent);text-decoration:none;">'+_esc(phone)+'</a></div>';
+    if (email) cardHtml += '<div style="margin-bottom:6px;font-size:10px;">✉ <a href="mailto:'+email+'" style="color:var(--accent);text-decoration:none;word-break:break-all;">'+_esc(email)+'</a></div>';
+    cardHtml += '<button onclick="openMsgModal(\''+_esc(m.from).replace(/'/g,"\\'")+'\',\''+_esc(email).replace(/'/g,"\\'")+'\',\''+_esc(phone).replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(unitVal).replace(/'/g,"\\'")+'\')" style="width:100%;margin-top:6px;padding:7px;background:' + (src.bg||'var(--accent-bg)') + ';color:' + (src.text||'var(--accent2)') + ';border:none;border-radius:5px;cursor:pointer;font-size:10px;font-family:inherit;font-weight:600;">Message on WillowPA</button>';
     cardHtml += '</div>';
-    cardHtml += '<button onclick="openMsgModal(\''+_esc(m.from).replace(/'/g,"\\'")+'\',\''+_esc(m._email||'').replace(/'/g,"\\'")+'\',\''+_esc(m._phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.unit||'').replace(/'/g,"\\'")+'\')" style="width:100%;margin-top:10px;padding:7px;border:1px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-size:11px;font-family:inherit;color:var(--text);">💬 Full Chat</button>';
+
+    // Booking Details section
+    cardHtml += '<div style="padding:12px 14px;border-bottom:1px solid var(--border);">';
+    cardHtml += '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Booking Details</div>';
+    if (listingName) cardHtml += '<div style="font-size:11px;color:var(--text);font-weight:500;margin-bottom:2px;">'+_esc(listingName)+'</div>';
+    if (unitVal) cardHtml += '<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">'+_esc(unitVal)+'</div>';
+    cardHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Check-in</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+_fmtMcDate(checkIn)+'</div></div>';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Check-out</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+_fmtMcDate(checkOut)+'</div></div>';
     cardHtml += '</div>';
+    if (bStatus) {
+      var statusColors = {confirmed:'#43a047',inquiry:'#ef6c00',change_requested:'#e65100',pending:'#f9a825',cancelled:'#c62828'};
+      var sColor = statusColors[bStatus] || 'var(--text3)';
+      cardHtml += '<div style="margin-bottom:6px;"><span style="background:'+sColor+'22;color:'+sColor+';padding:3px 8px;border-radius:4px;font-size:9px;font-weight:600;text-transform:capitalize;">'+_esc(bStatus.replace(/_/g,' '))+'</span>';
+      if (confirmCode) cardHtml += ' <span style="background:var(--surface2);color:var(--text3);padding:3px 6px;border-radius:4px;font-size:9px;">#'+_esc(confirmCode)+'</span>';
+      cardHtml += '</div>';
+    }
+    cardHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Guests</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+guests+'</div></div>';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Nights</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+nights+'</div></div>';
+    cardHtml += '</div></div>';
+
+    // Financials section
+    cardHtml += '<div style="padding:12px 14px;border-bottom:1px solid var(--border);">';
+    cardHtml += '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Financials</div>';
+    cardHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:10px;color:var(--text3);">Nightly rate</span><span style="font-size:10px;color:var(--text);font-weight:500;">'+_fmtMcMoney(nightlyRate)+'</span></div>';
+    if (cleaningFee) cardHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:10px;color:var(--text3);">Cleaning fee</span><span style="font-size:10px;color:var(--text);">'+_fmtMcMoney(cleaningFee)+'</span></div>';
+    cardHtml += '<div style="display:flex;justify-content:space-between;padding-top:4px;border-top:1px solid var(--border);"><span style="font-size:11px;color:var(--text);font-weight:600;">Total</span><span style="font-size:11px;color:#1565c0;font-weight:700;">'+_fmtMcMoney(totalPayout)+'</span></div>';
+    cardHtml += '</div>';
+
+    // Actions section
+    cardHtml += '<div style="padding:12px 14px;">';
+    cardHtml += '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Actions</div>';
+    if (confirmCode && typeof viewReservation === 'function') {
+      cardHtml += '<button onclick="viewReservation(\''+_esc(platform)+'\',\''+_esc(confirmCode)+'\')" style="width:100%;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:7px;font-family:inherit;font-size:10px;cursor:pointer;margin-bottom:6px;">View Booking on WillowPA</button>';
+    }
+    cardHtml += '<button onclick="openMsgModal(\''+_esc(m.from).replace(/'/g,"\\'")+'\',\''+_esc(email).replace(/'/g,"\\'")+'\',\''+_esc(phone).replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(unitVal).replace(/'/g,"\\'")+'\')" style="width:100%;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:7px;font-family:inherit;font-size:10px;cursor:pointer;">💬 Full Chat</button>';
+    cardHtml += '</div>';
+
     rightEl.innerHTML = cardHtml;
     rightEl.style.display = '';
   }
@@ -3586,10 +3651,12 @@ async function openMsgCenterDetail(id) {
 
   var html = headerHtml;
   html += '<div id="mcThreadBubbles" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;">'+bubblesHtml+'</div>';
-  html += '<div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:6px;flex-shrink:0;" id="mcReplyArea">';
-  html += '<input id="mcReplyInput" placeholder="Type your reply..." style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--text);" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\');}">';
+  html += '<div style="padding:8px 12px;border-top:1px solid var(--border);flex-shrink:0;" id="mcReplyArea">';
+  html += buildChannelSelector('app');
+  html += '<div style="display:flex;gap:6px;">';
+  html += '<input id="mcReplyInput" placeholder="Type your reply... nothing is sent until you approve." style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--text);" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\');}">';
   html += '<button onclick="_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\')" style="padding:6px 14px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
-  html += '</div>';
+  html += '</div></div>';
 
   centerEl.innerHTML = html;
   var bubDiv = document.getElementById('mcThreadBubbles');
@@ -3602,7 +3669,7 @@ function _mcSendReply(from, email, phone, subject, threadId) {
   var body = input ? input.value.trim() : '';
   if (!body) return;
   input.value = '';
-  var ch = 'app';
+  var ch = getSelectedChannel(document.getElementById('mcReplyArea')) || 'app';
   sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
   toast('Reply sent!');
   // Refresh thread after delay
