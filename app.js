@@ -1824,7 +1824,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       }
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="if(typeof openInboxThread==='function'){openInboxThread('${(r.name||'').replace(/'/g,"\\'")}')}else{openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}')}">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
   // Delete button — available for any booking (not permanent long-term leases)
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
@@ -3078,21 +3078,131 @@ function showMTMMessage(id) {
   const m = INNAGO_MESSAGES.find(msg => msg.id === id);
   if (!m) return;
   m.unread = false;
+  window._currentMTMMsgId = id;
   // Re-render list to update unread state
   filterMTMMessages();
   const detail = document.getElementById('mtmMsgDetail');
   const loc = m.unit ? `${m.unit} at ${m.property}` : 'All Properties';
+
+  // Find tenant info for contact details
+  var tenant = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS.find(function(t) {
+    return t.name && m.from && t.name.toLowerCase() === m.from.toLowerCase();
+  }) : null;
+
   detail.innerHTML = `
     <div class="mtm-msg-detail-header">
       <div class="mtm-msg-detail-from">${m.subject}</div>
       <div class="mtm-msg-detail-meta">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong> ${m.unit ? '(' + loc + ')' : ''} &mdash; ${m.date} at ${m.time}</div>
     </div>
     <div class="mtm-msg-detail-body">${m.body}</div>
-    ${!m.sent ? `<div class="mtm-msg-reply-box">
-      <textarea class="mtm-msg-reply-input" placeholder="Type your reply..."></textarea>
-      <button class="mtm-msg-reply-btn" onclick="alert('Reply sent!')">Send Reply</button>
+    ${!m.sent ? `
+    <!-- AI Reply Assistant -->
+    <div id="mtmAiPanel" style="margin:12px 0;padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fefce8;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">⚡</span>
+          <span style="font-weight:700;font-size:14px;color:#92400e;">AI Reply Assistant</span>
+        </div>
+        <button id="mtmAiBtn" onclick="triggerMTMAISuggest()" style="padding:6px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">AI Suggest Reply</button>
+      </div>
+      <div id="mtmAiLoading" style="display:none;text-align:center;padding:12px;"><span style="color:#7c3aed;font-size:13px;">Thinking...</span></div>
+      <div id="mtmAiResult" style="display:none;">
+        <div id="mtmAiText" style="background:#fff;border:1px solid #7c3aed;border-radius:8px;padding:10px;font-size:13px;color:#374151;line-height:1.5;white-space:pre-wrap;"></div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button onclick="useMTMAISuggestion()" style="padding:4px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Use This</button>
+          <button onclick="triggerMTMAISuggest()" style="padding:4px 12px;background:#e5e7eb;color:#374151;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Regenerate</button>
+        </div>
+      </div>
+    </div>
+    <div class="mtm-msg-reply-box">
+      ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
+      <textarea class="mtm-msg-reply-input" id="mtmReplyInput" placeholder="Type your reply..."></textarea>
+      <button class="mtm-msg-reply-btn" onclick="sendMTMReply()">Send Reply</button>
     </div>` : ''}
   `;
+}
+
+// Long-Term AI suggestion
+async function triggerMTMAISuggest() {
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  if (!m) return;
+  var btn = document.getElementById('mtmAiBtn');
+  var loading = document.getElementById('mtmAiLoading');
+  var result = document.getElementById('mtmAiResult');
+  if (btn) { btn.disabled = true; btn.textContent = 'Thinking...'; }
+  if (loading) loading.style.display = 'block';
+  if (result) result.style.display = 'none';
+
+  try {
+    var kb = (typeof WILLOW_KB !== 'undefined') ? WILLOW_KB : {};
+    var sysPrompt = 'You are a helpful property management assistant for Willow Partnership, LLC. Draft replies to tenant messages.\n';
+    sysPrompt += '- Always use "We" not "I". Professional but warm tone.\n';
+    sysPrompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+    sysPrompt += '- Keep it under 150 words.\n';
+
+    var userPrompt = 'Tenant: ' + m.from;
+    if (m.unit) userPrompt += ' (Unit ' + m.unit + ' at ' + (m.property || '') + ')';
+    userPrompt += '\nSubject: ' + m.subject;
+    userPrompt += '\nMessage: ' + m.body;
+    userPrompt += '\n\nDraft a reply to this tenant message.';
+
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        system: sysPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      var textEl = document.getElementById('mtmAiText');
+      if (textEl) textEl.textContent = data.content[0].text;
+      if (result) result.style.display = 'block';
+    } else {
+      toast('AI suggestion unavailable', 'error');
+    }
+  } catch(e) {
+    console.error('MTM AI suggestion failed:', e);
+    toast('AI suggestion failed: ' + e.message, 'error');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'AI Suggest Reply'; }
+  if (loading) loading.style.display = 'none';
+}
+
+function useMTMAISuggestion() {
+  var textEl = document.getElementById('mtmAiText');
+  var ta = document.getElementById('mtmReplyInput');
+  if (ta && textEl) { ta.value = textEl.textContent; ta.focus(); }
+}
+
+function sendMTMReply() {
+  var body = (document.getElementById('mtmReplyInput') || {}).value || '';
+  if (!body.trim()) { alert('Please type a message.'); return; }
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  if (!m) return;
+
+  // Get selected channel
+  var ch = typeof getSelectedChannel === 'function' ? getSelectedChannel(document.getElementById('mtmMsgDetail')) : 'app';
+
+  // Find tenant info
+  var tenant = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS.find(function(t) {
+    return t.name && m.from && t.name.toLowerCase() === m.from.toLowerCase();
+  }) : null;
+
+  var email = tenant ? (tenant.email || '') : '';
+  var phone = tenant ? (tenant.phone || '') : '';
+
+  if (typeof sendViaChannel === 'function') {
+    sendViaChannel(ch, m.from, email, phone, body, { subject: 'Re: ' + m.subject, property: m.property || '' });
+  } else {
+    alert('Reply sent!');
+  }
+
+  // Clear input
+  document.getElementById('mtmReplyInput').value = '';
 }
 
 function composeMTMMessage() {
@@ -3110,14 +3220,8 @@ function composeMTMMessage() {
       </select>
       <input type="text" id="mtm-compose-subject" class="mtm-search" style="width:100%;" placeholder="Subject...">
       <textarea id="mtm-compose-body" class="mtm-msg-reply-input" placeholder="Message body..." style="min-height:120px;"></textarea>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <select id="mtm-msg-channel" style="width:auto;font-size:12px;padding:6px 8px;">
-          <option value="sms">SMS</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="email">Email</option>
-        </select>
-        <button class="mtm-msg-reply-btn" onclick="sendMTMCompose()" style="flex:1">Send Message</button>
-      </div>
+      ${typeof buildChannelSelector === 'function' ? buildChannelSelector('sms') : ''}
+      <button class="mtm-msg-reply-btn" onclick="sendMTMCompose()" style="width:100%">Send Message</button>
     </div>
   `;
 }
@@ -3125,16 +3229,21 @@ function sendMTMCompose(){
   const toVal = (document.getElementById('mtm-compose-to')||{}).value||'';
   const subject = (document.getElementById('mtm-compose-subject')||{}).value||'';
   const body = (document.getElementById('mtm-compose-body')||{}).value||'';
-  const channel = (document.getElementById('mtm-msg-channel')||{}).value||'sms';
+  const channel = typeof getSelectedChannel === 'function' ? getSelectedChannel(document.getElementById('mtmMsgDetail')) : 'sms';
   if(!toVal){ alert('Select a tenant.'); return; }
   if(!body.trim()){ alert('Enter a message.'); return; }
   const tenants = toVal==='all' ? INNAGO_TENANTS : INNAGO_TENANTS.filter(t=>t.name===toVal);
   let sent=0;
   tenants.forEach(t => {
-    const to = channel==='email' ? (t.email||'') : (t.phone||'');
-    if(!to) return;
-    WPA_sendMessage({to, msg:'WillowPA: '+body, channel, toEmail:channel==='email'?to:undefined, subject:subject||'Message from WillowPA', silent:sent>0});
-    sent++;
+    if (typeof sendViaChannel === 'function') {
+      sendViaChannel(channel, t.name, t.email || '', t.phone || '', body, { subject: subject || 'Message from WillowPA', property: t.property || '' });
+      sent++;
+    } else {
+      const to = channel==='email' ? (t.email||'') : (t.phone||'');
+      if(!to) return;
+      WPA_sendMessage({to, msg:'WillowPA: '+body, channel, toEmail:channel==='email'?to:undefined, subject:subject||'Message from WillowPA', silent:sent>0});
+      sent++;
+    }
   });
   if(sent===0) alert('No contact info found for selected tenant(s) on channel: '+channel);
   else toast(sent+' message(s) sent via '+channel.toUpperCase());
@@ -3336,10 +3445,11 @@ function openMsgCenterDetail(id) {
         <div style="font-size:12px;color:var(--text2);">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong>${unitStr ? ' — ' + unitStr : ''}</div>
       </div>
       <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">${m.body}</div>
-      ${!m.sent ? `<div style="padding:12px 20px 16px;border-top:1px solid var(--border);">
+      ${!m.sent ? `<div style="padding:12px 20px 16px;border-top:1px solid var(--border);" id="msgCenterReplyArea">
+        ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
         <textarea id="msgCenterReply" placeholder="Type your reply..." style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"></textarea>
         <div style="display:flex;gap:8px;margin-top:8px;">
-          <button onclick="toast('Reply sent!');renderMessageCenter();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
+          <button onclick="(function(){var b=document.getElementById('msgCenterReply').value.trim();if(!b){alert('Please type a message.');return;}var ch=getSelectedChannel(document.getElementById('msgCenterReplyArea'));sendViaChannel(ch,'${m.from.replace(/'/g,"\\'")}','${(m._email||'').replace(/'/g,"\\'")}','${(m._phone||'').replace(/'/g,"\\'")}',b,{subject:'${(m.subject||'').replace(/'/g,"\\'")}',threadId:'${(m._threadId||'').replace(/'/g,"\\'")}'});document.getElementById('msgCenterReply').value='';toast('Reply sent!');})();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
         </div>
       </div>` : ''}
     </div>
@@ -9460,8 +9570,71 @@ function parseNoteField(note, field) {
 function msgTenantFromDetail() {
   if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
   var t = INNAGO_TENANTS[currentTenantIdx];
+  // Long-term tenants go straight to modal (faster, they aren't in inbox channels)
   openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm');
 }
+
+// ═══════════════════════════════════════════════════
+//  UNIFIED CHANNEL SELECTOR — used across all message UIs
+// ═══════════════════════════════════════════════════
+window._MSG_CHANNELS = [
+  {id:'app', label:'App', icon:'📱'},
+  {id:'channel', label:'Channel', icon:'📢'},
+  {id:'sms', label:'SMS', icon:'💬'},
+  {id:'email', label:'Email', icon:'📧'},
+  {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
+];
+
+// Returns HTML string for channel selector buttons
+window.buildChannelSelector = function(selectedId) {
+  return '<div class="msg-channel-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' +
+    _MSG_CHANNELS.map(function(ch) {
+      var cls = ch.id === (selectedId || 'app') ? ' active' : '';
+      return '<button class="msg-ch-btn' + cls + '" data-channel="' + ch.id + '" onclick="selectMsgChannel(this)">' + ch.icon + ' ' + ch.label + '</button>';
+    }).join('') + '</div>';
+};
+
+// Returns the currently selected channel id from a parent container
+window.getSelectedChannel = function(container) {
+  var btn = (container || document).querySelector('.msg-ch-btn.active');
+  return btn ? btn.dataset.channel : 'app';
+};
+
+// Delivers a message via the selected channel (external delivery only).
+// The message is ALWAYS logged in the current thread by the caller (queueReply / sendMTMReply).
+// This function just handles the external send (SMS app, mailto, WhatsApp, etc.)
+window.sendViaChannel = function(channel, name, email, phone, body, opts) {
+  opts = opts || {};
+  if (channel === 'app') {
+    // App channel: also insert into client_messages so the client app receives it
+    (async function() {
+      try {
+        var now = new Date().toISOString();
+        var unitVal = opts.unit || '';
+        var threadId = opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
+        var cmInsert = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: unitVal, subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: now };
+        if (opts.property) cmInsert.property = opts.property;
+        var cmRes = await sb.from('client_messages').insert([cmInsert]);
+        if (cmRes.error) console.warn('client_messages insert warning:', cmRes.error.message);
+        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
+      } catch(e) { console.warn('client_messages error:', e.message); }
+    })();
+    toast('App message sent to ' + name, 'success');
+  } else if (channel === 'sms') {
+    if (!phone) { alert('No phone number available for SMS.'); return; }
+    if (typeof sendSMS === 'function') sendSMS(phone, body);
+    else window.open('sms:' + phone + '?body=' + encodeURIComponent(body));
+  } else if (channel === 'email') {
+    if (!email) { alert('No email available.'); return; }
+    window.open('mailto:' + email + '?subject=' + encodeURIComponent(opts.subject || 'Message from Willow PA') + '&body=' + encodeURIComponent(body));
+  } else if (channel === 'whatsapp') {
+    if (!phone) { alert('No phone number available for WhatsApp.'); return; }
+    var waPhone = phone.replace(/\D/g, '');
+    window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(body), '_blank');
+  } else if (channel === 'channel') {
+    toast('Channel message queued for: ' + name, 'info');
+  }
+};
 
 // ═══════════════════════════════════════════════════
 //  MESSAGING MODAL — Send SMS/Email/WhatsApp/Channel
@@ -9475,18 +9648,8 @@ function openMsgModal(name, email, phone, bookingId, type) {
   document.getElementById('msgRecipientType').value = type || '';
   document.getElementById('msgBody').value = '';
 
-  // Build channel buttons — all types get all options
-  var channels = [
-    {id:'app', label:'App', icon:'📱'},
-    {id:'channel', label:'Channel', icon:'📢'},
-    {id:'sms', label:'SMS', icon:'💬'},
-    {id:'email', label:'Email', icon:'📧'},
-    {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
-  ];
-  var btnsHtml = channels.map(function(ch, i) {
-    return '<button class="msg-ch-btn' + (i === 0 ? ' active' : '') + '" data-channel="' + ch.id + '" onclick="selectMsgChannel(this)">' + ch.icon + ' ' + ch.label + '</button>';
-  }).join('');
-  document.getElementById('msgChannelBtns').innerHTML = btnsHtml;
+  // Build channel buttons using shared selector
+  document.getElementById('msgChannelBtns').innerHTML = buildChannelSelector('app');
   document.getElementById('msgOverlay').style.display = 'flex';
 }
 
@@ -9500,8 +9663,7 @@ function selectMsgChannel(btn) {
 }
 
 function sendMsgFromModal() {
-  var channel = (document.querySelector('.msg-ch-btn.active') || {}).dataset;
-  var ch = channel ? channel.channel : 'sms';
+  var ch = getSelectedChannel(document.getElementById('msgOverlay'));
   var body = document.getElementById('msgBody').value.trim();
   if (!body) { alert('Please type a message.'); return; }
 
@@ -9517,38 +9679,7 @@ function sendMsgFromModal() {
     else if (p.match(/\d/)) phone = p;
   });
 
-  if (ch === 'app') {
-    // Send via Client App — insert into Supabase client_messages
-    var recipientId = document.getElementById('msgRecipientId').value;
-    var recipientType = document.getElementById('msgRecipientType').value;
-    (async function() {
-      try {
-        var threadId = recipientId || crypto.randomUUID();
-        var insert = { thread_id: threadId, resident_name: name, resident_email: email, resident_phone: phone, subject: 'Message', body: body, sender_type: 'management', read: false, created_at: new Date().toISOString() };
-        var res = await sb.from('client_messages').insert([insert]);
-        if (res.error) throw res.error;
-        alert('App message sent to ' + name);
-        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
-      } catch(e) { alert('Error sending app message: ' + e.message); }
-    })();
-    closeMsgModal();
-    return;
-  } else if (ch === 'sms') {
-    if (!phone) { alert('No phone number available for SMS.'); return; }
-    if (typeof sendSMS === 'function') sendSMS(phone, body);
-    else window.open('sms:' + phone + '?body=' + encodeURIComponent(body));
-  } else if (ch === 'email') {
-    if (!email) { alert('No email available.'); return; }
-    window.open('mailto:' + email + '?subject=Message from Willow PA&body=' + encodeURIComponent(body));
-  } else if (ch === 'whatsapp') {
-    if (!phone) { alert('No phone number available for WhatsApp.'); return; }
-    var waPhone = phone.replace(/\D/g, '');
-    window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(body), '_blank');
-  } else if (ch === 'channel') {
-    // Channel messaging — use Hostfully channel API or internal messaging
-    alert('Channel message queued for: ' + name + '\n\n' + body);
-  }
-
+  sendViaChannel(ch, name, email, phone, body, {subject: 'Message from Willow PA'});
   closeMsgModal();
 }
 

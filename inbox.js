@@ -192,19 +192,20 @@ function getBlockingBookings(unitApt, startDate, endDate, bookings) {
   });
 }
 
-async function sendMessage(channelId, body) {
+async function sendMessage(channelId, body, viaChannel) {
   try {
-    const { data, error } = await sb
-      .from('messages')
-      .insert([{
+    var insertObj = {
         channel_id: channelId,
         sender: 'host',
         sender_name: 'You',
         body: body,
-        platform: 'willowpa',
+        platform: viaChannel || 'willowpa',
         sent_at: new Date().toISOString(),
         message_type: 'text'
-      }])
+    };
+    const { data, error } = await sb
+      .from('messages')
+      .insert([insertObj])
       .select();
 
     if (error) {
@@ -615,8 +616,14 @@ async function renderInbox() {
           lastDate = msgDate;
         }
 
-        const isHost = msg.sender === 'host';
+        const isHost = msg.sender === 'host' || msg.sender === 'management';
         const isSys = msg.sender === 'system';
+
+        // Channel label for the message
+        const msgPlatform = (msg.platform || '').toLowerCase();
+        const channelLabels = { sms: 'SMS', email: 'Email', whatsapp: 'WhatsApp', app: 'App', airbnb: 'Airbnb', vrbo: 'VRBO', booking: 'Booking.com', willowpa: 'App', channel: '' };
+        const channelLabel = channelLabels[msgPlatform] || '';
+        const channelBadge = channelLabel ? `<span style="font-size:8px;opacity:0.5;margin-left:4px;">· via ${channelLabel}</span>` : '';
 
         if (isSys) {
           html += `
@@ -629,7 +636,7 @@ async function renderInbox() {
             <div style="display:flex;${isHost ? 'justify-content:flex-end' : 'justify-content:flex-start'};">
               <div style="max-width:75%;background:${isHost ? '#7d5228' : '#f0ebe4'};color:${isHost ? '#fff' : '#2c2416'};padding:8px 12px;border-radius:${isHost ? '12px 12px 2px 12px' : '12px 12px 12px 2px'};font-size:12px;line-height:1.45;">
                 <div style="white-space:pre-wrap;">${escapeHtml(msg.body)}</div>
-                <div style="font-size:9px;opacity:0.6;margin-top:3px;text-align:${isHost ? 'right' : 'left'};">${msgTime}</div>
+                <div style="font-size:9px;opacity:0.6;margin-top:3px;text-align:${isHost ? 'right' : 'left'};">${msgTime}${channelBadge}</div>
               </div>
             </div>
           `;
@@ -1059,21 +1066,21 @@ async function queueReply() {
 
   const message = input.value.trim();
 
-  // Check if a non-default channel is selected via the unified selector
+  // Determine which channel is selected (app, sms, email, whatsapp, or default channel)
   var selectedCh = typeof getSelectedChannel === 'function' ? getSelectedChannel() : 'channel';
+  // Map 'channel' to the original platform (airbnb, vrbo, etc.)
+  var viaChannel = (selectedCh && selectedCh !== 'channel') ? selectedCh : (channel.platform || 'willowpa');
+
+  // ALWAYS save the message in the SAME thread (messages table) regardless of channel
+  await sendMessage(currentChannelId, message, viaChannel);
+
+  // Then handle external delivery based on channel
   if (selectedCh && selectedCh !== 'channel') {
-    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message'});
-    input.value = '';
-    input.style.height = '60px';
-    dismissSuggestion();
-    return;
-  }
-
-  // Save approved message to Supabase as host message
-  await sendMessage(currentChannelId, message);
-
-  // Queue for platform send (works for airbnb, vrbo, booking)
-  if (['airbnb', 'vrbo', 'booking'].includes(channel.platform) && channel.external_id) {
+    // Non-default channel selected — do external delivery (SMS/Email/WhatsApp/App)
+    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message', unit: channel.unit_apt || '', property: channel.listing_name || ''});
+    showToast(`✅ Sent via ${viaChannel.toUpperCase()} to ${channel.guest_name}.`, 'success');
+  } else if (['airbnb', 'vrbo', 'booking'].includes(channel.platform) && channel.external_id) {
+    // Default channel on booking platforms — queue for platform send
     const queue = JSON.parse(localStorage.getItem('willowSendQueue') || '[]');
     queue.push({
       platform: channel.platform,
@@ -1098,11 +1105,14 @@ async function queueReply() {
   // Also dismiss suggestion panel if open
   dismissSuggestion();
 
+  // Clear message cache for this channel so refresh shows the new message
+  if (_msgCache && currentChannelId) delete _msgCache[currentChannelId];
+
   renderInbox();
   setTimeout(() => {
     const container = document.getElementById('messagesContainer');
     if (container) container.scrollTop = container.scrollHeight;
-  }, 200);
+  }, 300);
 }
 
 function showToast(msg, type = 'info') {
