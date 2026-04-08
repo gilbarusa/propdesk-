@@ -664,6 +664,7 @@ async function renderInbox() {
               <span style="flex:1;"></span>
               <button onclick="viewSendQueue()" title="View pending messages" style="background:#fff;color:#7d5228;border:1px solid #ddd8ce;border-radius:4px;padding:5px 8px;font-family:inherit;font-size:9px;cursor:pointer;position:relative;">📤 Queue<span id="queueBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:#c62828;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:12px;text-align:center;"></span></button>
             </div>
+            ${typeof buildChannelSelector === 'function' ? buildChannelSelector('channel') : ''}
             <div style="display:flex;gap:6px;align-items:flex-end;">
               <textarea
                 id="replyInput"
@@ -1044,6 +1045,16 @@ async function queueReply() {
   if (!channel) return;
 
   const message = input.value.trim();
+
+  // Check if a non-default channel is selected via the unified selector
+  var selectedCh = typeof getSelectedChannel === 'function' ? getSelectedChannel() : 'channel';
+  if (selectedCh && selectedCh !== 'channel') {
+    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message', threadId: channel.external_id || ''});
+    input.value = '';
+    input.style.height = '60px';
+    dismissSuggestion();
+    return;
+  }
 
   // Save approved message to Supabase as host message
   await sendMessage(currentChannelId, message);

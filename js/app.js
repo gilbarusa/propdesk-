@@ -3336,10 +3336,11 @@ function openMsgCenterDetail(id) {
         <div style="font-size:12px;color:var(--text2);">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong>${unitStr ? ' — ' + unitStr : ''}</div>
       </div>
       <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">${m.body}</div>
-      ${!m.sent ? `<div style="padding:12px 20px 16px;border-top:1px solid var(--border);">
+      ${!m.sent ? `<div style="padding:12px 20px 16px;border-top:1px solid var(--border);" id="msgCenterReplyArea">
+        ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
         <textarea id="msgCenterReply" placeholder="Type your reply..." style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"></textarea>
         <div style="display:flex;gap:8px;margin-top:8px;">
-          <button onclick="toast('Reply sent!');renderMessageCenter();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
+          <button onclick="(function(){var b=document.getElementById('msgCenterReply').value.trim();if(!b){alert('Please type a message.');return;}var ch=getSelectedChannel(document.getElementById('msgCenterReplyArea'));sendViaChannel(ch,'${m.from.replace(/'/g,"\\'")}','${(m._email||'').replace(/'/g,"\\'")}','${(m._phone||'').replace(/'/g,"\\'")}',b,{subject:'${(m.subject||'').replace(/'/g,"\\'")}',threadId:'${(m._threadId||'').replace(/'/g,"\\'")}'});document.getElementById('msgCenterReply').value='';toast('Reply sent!');})();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
         </div>
       </div>` : ''}
     </div>
@@ -9464,6 +9465,64 @@ function msgTenantFromDetail() {
 }
 
 // ═══════════════════════════════════════════════════
+//  UNIFIED CHANNEL SELECTOR — used across all message UIs
+// ═══════════════════════════════════════════════════
+window._MSG_CHANNELS = [
+  {id:'app', label:'App', icon:'📱'},
+  {id:'channel', label:'Channel', icon:'📢'},
+  {id:'sms', label:'SMS', icon:'💬'},
+  {id:'email', label:'Email', icon:'📧'},
+  {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
+];
+
+// Returns HTML string for channel selector buttons
+window.buildChannelSelector = function(selectedId) {
+  return '<div class="msg-channel-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' +
+    _MSG_CHANNELS.map(function(ch) {
+      var cls = ch.id === (selectedId || 'app') ? ' active' : '';
+      return '<button class="msg-ch-btn' + cls + '" data-channel="' + ch.id + '" onclick="selectMsgChannel(this)">' + ch.icon + ' ' + ch.label + '</button>';
+    }).join('') + '</div>';
+};
+
+// Returns the currently selected channel id from a parent container
+window.getSelectedChannel = function(container) {
+  var btn = (container || document).querySelector('.msg-ch-btn.active');
+  return btn ? btn.dataset.channel : 'app';
+};
+
+// Sends a message via the selected channel
+window.sendViaChannel = function(channel, name, email, phone, body, opts) {
+  opts = opts || {};
+  if (channel === 'app') {
+    // Insert into Supabase client_messages
+    (async function() {
+      try {
+        var threadId = opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
+        var insert = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: new Date().toISOString() };
+        if (opts.property) insert.property = opts.property;
+        var res = await sb.from('client_messages').insert([insert]);
+        if (res.error) throw res.error;
+        toast('App message sent to ' + name, 'success');
+        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
+      } catch(e) { alert('Error sending app message: ' + e.message); }
+    })();
+  } else if (channel === 'sms') {
+    if (!phone) { alert('No phone number available for SMS.'); return; }
+    if (typeof sendSMS === 'function') sendSMS(phone, body);
+    else window.open('sms:' + phone + '?body=' + encodeURIComponent(body));
+  } else if (channel === 'email') {
+    if (!email) { alert('No email available.'); return; }
+    window.open('mailto:' + email + '?subject=' + encodeURIComponent(opts.subject || 'Message from Willow PA') + '&body=' + encodeURIComponent(body));
+  } else if (channel === 'whatsapp') {
+    if (!phone) { alert('No phone number available for WhatsApp.'); return; }
+    var waPhone = phone.replace(/\D/g, '');
+    window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(body), '_blank');
+  } else if (channel === 'channel') {
+    toast('Channel message queued for: ' + name, 'info');
+  }
+};
+
+// ═══════════════════════════════════════════════════
 //  MESSAGING MODAL — Send SMS/Email/WhatsApp/Channel
 // ═══════════════════════════════════════════════════
 function openMsgModal(name, email, phone, bookingId, type) {
@@ -9475,18 +9534,8 @@ function openMsgModal(name, email, phone, bookingId, type) {
   document.getElementById('msgRecipientType').value = type || '';
   document.getElementById('msgBody').value = '';
 
-  // Build channel buttons — all types get all options
-  var channels = [
-    {id:'app', label:'App', icon:'📱'},
-    {id:'channel', label:'Channel', icon:'📢'},
-    {id:'sms', label:'SMS', icon:'💬'},
-    {id:'email', label:'Email', icon:'📧'},
-    {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
-  ];
-  var btnsHtml = channels.map(function(ch, i) {
-    return '<button class="msg-ch-btn' + (i === 0 ? ' active' : '') + '" data-channel="' + ch.id + '" onclick="selectMsgChannel(this)">' + ch.icon + ' ' + ch.label + '</button>';
-  }).join('');
-  document.getElementById('msgChannelBtns').innerHTML = btnsHtml;
+  // Build channel buttons using shared selector
+  document.getElementById('msgChannelBtns').innerHTML = buildChannelSelector('app');
   document.getElementById('msgOverlay').style.display = 'flex';
 }
 
@@ -9500,8 +9549,7 @@ function selectMsgChannel(btn) {
 }
 
 function sendMsgFromModal() {
-  var channel = (document.querySelector('.msg-ch-btn.active') || {}).dataset;
-  var ch = channel ? channel.channel : 'sms';
+  var ch = getSelectedChannel(document.getElementById('msgOverlay'));
   var body = document.getElementById('msgBody').value.trim();
   if (!body) { alert('Please type a message.'); return; }
 
@@ -9517,38 +9565,7 @@ function sendMsgFromModal() {
     else if (p.match(/\d/)) phone = p;
   });
 
-  if (ch === 'app') {
-    // Send via Client App — insert into Supabase client_messages
-    var recipientId = document.getElementById('msgRecipientId').value;
-    var recipientType = document.getElementById('msgRecipientType').value;
-    (async function() {
-      try {
-        var threadId = recipientId || crypto.randomUUID();
-        var insert = { thread_id: threadId, resident_name: name, resident_email: email, resident_phone: phone, subject: 'Message', body: body, sender_type: 'management', read: false, created_at: new Date().toISOString() };
-        var res = await sb.from('client_messages').insert([insert]);
-        if (res.error) throw res.error;
-        alert('App message sent to ' + name);
-        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
-      } catch(e) { alert('Error sending app message: ' + e.message); }
-    })();
-    closeMsgModal();
-    return;
-  } else if (ch === 'sms') {
-    if (!phone) { alert('No phone number available for SMS.'); return; }
-    if (typeof sendSMS === 'function') sendSMS(phone, body);
-    else window.open('sms:' + phone + '?body=' + encodeURIComponent(body));
-  } else if (ch === 'email') {
-    if (!email) { alert('No email available.'); return; }
-    window.open('mailto:' + email + '?subject=Message from Willow PA&body=' + encodeURIComponent(body));
-  } else if (ch === 'whatsapp') {
-    if (!phone) { alert('No phone number available for WhatsApp.'); return; }
-    var waPhone = phone.replace(/\D/g, '');
-    window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(body), '_blank');
-  } else if (ch === 'channel') {
-    // Channel messaging — use Hostfully channel API or internal messaging
-    alert('Channel message queued for: ' + name + '\n\n' + body);
-  }
-
+  sendViaChannel(ch, name, email, phone, body, {subject: 'Message from Willow PA'});
   closeMsgModal();
 }
 

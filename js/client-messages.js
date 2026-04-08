@@ -177,7 +177,17 @@
     var msg = (window._liveClientMsgs || []).find(function(m) { return m.id === msgId; });
     if (!msg) { toast('Message not found', 'error'); return; }
 
-    // Use the most recent thread_id for the reply
+    // Check which channel is selected
+    var channel = typeof getSelectedChannel === 'function' ? getSelectedChannel() : 'app';
+
+    // Non-app channels: send via that channel and clear textarea
+    if (channel !== 'app') {
+      sendViaChannel(channel, msg.from, msg._email || '', msg._phone || '', body, {subject: msg.subject, threadId: msg._allThreadIds && msg._allThreadIds.length > 0 ? msg._allThreadIds[msg._allThreadIds.length - 1] : '', property: msg.property || 'Chelbourne'});
+      if (ta) ta.value = '';
+      return;
+    }
+
+    // App channel: insert into Supabase client_messages
     var latestThread = msg._allThreadIds.length > 0
       ? msg._allThreadIds[msg._allThreadIds.length - 1]
       : msg._residentKey;
@@ -203,7 +213,6 @@
       }
       toast('Reply sent!');
       await window._refreshClientMsgs();
-      // Reopen the detail to show updated conversation
       var refreshedMsg = (window._liveClientMsgs || []).find(function(m) { return m.id === msgId; });
       if (refreshedMsg) {
         renderMessageCenter();
@@ -534,11 +543,20 @@
           }, 50);
         }
 
+        // Inject channel selector above the reply textarea
+        var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
+        if (ta && ta.parentElement && !ta.parentElement.querySelector('.msg-channel-btns')) {
+          if (typeof buildChannelSelector === 'function') {
+            var chDiv = document.createElement('div');
+            chDiv.innerHTML = buildChannelSelector('app');
+            ta.parentElement.insertBefore(chDiv, ta);
+          }
+        }
+
         // Inject AI suggestion panel above the reply textarea
         window._currentAIMsgId = id;
         var panel = buildSuggestionPanel(msg);
         window._currentKBText = panel.kbSuggestion;
-        var ta = document.querySelector('textarea[placeholder="Type your reply..."]');
         if (ta && ta.parentElement && !document.getElementById('aiSuggestionPanel')) {
           var panelDiv = document.createElement('div');
           panelDiv.innerHTML = panel.html;
