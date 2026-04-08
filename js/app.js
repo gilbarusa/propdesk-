@@ -10302,6 +10302,75 @@ function openSbThread(channelId){
   });
 }
 
+// Inline thread loader for 3-panel dashboard messages
+function _openSbThreadInline(channelId) {
+  if (!channelId) return;
+  var threadEl = document.getElementById('dashMsgThread');
+  if (!threadEl) { openSbThread(channelId); return; } // fallback to slideout
+
+  threadEl.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;">Loading...</div>';
+
+  var url = SUPA_URL + '/rest/v1/messages?select=*&channel_id=eq.' + channelId + '&order=sent_at.asc';
+  var cmUrl = SUPA_URL + '/rest/v1/client_messages?select=*&thread_id=eq.' + channelId + '&sender_type=eq.resident&order=created_at.asc';
+  Promise.all([
+    fetch(url, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }),
+    fetch(cmUrl, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ]).then(function(results) {
+    var msgs = Array.isArray(results[0]) ? results[0] : [];
+    var cmMsgs = Array.isArray(results[1]) ? results[1] : [];
+    cmMsgs.forEach(function(cm) {
+      msgs.push({ id: cm.id, channel_id: channelId, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text' });
+    });
+    msgs.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
+
+    var channel = _sbChannelMessages.find(function(m){ return m.channelId === channelId; });
+    var name = channel ? channel.name : 'Tenant';
+
+    // Show client card on right
+    if (channel) {
+      _renderDashClientCard({ name: channel.name, apt: channel.apt, phone: channel.phone, email: channel.email, source: 'tenant-portal', stage: '' });
+    }
+
+    // Build thread HTML
+    var html = '<div style="flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;" id="dashInlineMsgs">';
+    if (!msgs.length) {
+      html += '<div style="text-align:center;color:var(--text3);font-size:11px;padding:30px 0;">No messages yet</div>';
+    }
+    msgs.forEach(function(m) {
+      var isAdmin = m.sender === 'admin' || m.sender === 'host' || m.sender === 'management';
+      var time = new Date(m.sent_at).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+      var date = new Date(m.sent_at).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      html += '<div style="display:flex;' + (isAdmin ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';">';
+      html += '<div style="max-width:78%;background:' + (isAdmin ? 'var(--accent)' : 'var(--surface2)') + ';color:' + (isAdmin ? '#fff' : 'var(--text)') + ';padding:6px 10px;border-radius:' + (isAdmin ? '10px 10px 2px 10px' : '10px 10px 10px 2px') + ';font-size:11px;line-height:1.45;">';
+      html += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">' + _esc(m.sender_name || m.sender) + '</div>';
+      html += '<div style="white-space:pre-wrap;">' + _esc(m.body) + '</div>';
+      html += '<div style="font-size:8px;opacity:.5;margin-top:2px;">' + date + ' ' + time + '</div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+
+    // Reply bar
+    html += '<div style="padding:6px 10px;border-top:1px solid var(--border);display:flex;gap:6px;">';
+    html += '<input id="dashInlineReply" placeholder="Reply..." style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_sendDashInlineReply(\''+channelId+'\');}">';
+    html += '<button onclick="_sendDashInlineReply(\''+channelId+'\')" style="padding:5px 12px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
+    html += '</div>';
+
+    threadEl.innerHTML = html;
+    var msgsDiv = document.getElementById('dashInlineMsgs');
+    if (msgsDiv) msgsDiv.scrollTop = msgsDiv.scrollHeight;
+  });
+}
+
+function _sendDashInlineReply(channelId) {
+  var input = document.getElementById('dashInlineReply');
+  var text = input ? input.value.trim() : '';
+  if (!text) return;
+  input.value = '';
+  sendAdminReply(channelId, text);
+  // Refresh thread after short delay
+  setTimeout(function() { _openSbThreadInline(channelId); }, 800);
+}
+
 function buildDashMessages(){
   var msgs = [];
   var active = dedupActive();
@@ -10400,38 +10469,39 @@ function dashMsgTimeAgo(d){
   return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
 }
 
+var _dashSelectedMsgId = null;
+
 function renderDashMessages(filter){
   _dashMsgFilter = filter || 'all';
   var el = document.getElementById('dashMsgList');
   if(!el) return;
   var msgs = buildDashMessages();
   var filtered = _dashMsgFilter==='all' ? msgs : msgs.filter(function(m){ return m.source===_dashMsgFilter; });
-  var limit = _dashMsgShowAll ? filtered.length : 8;
+  var limit = _dashMsgShowAll ? filtered.length : 30;
   var shown = filtered.slice(0, limit);
 
   if(!shown.length){
-    el.innerHTML = '<div class="dash-empty-state">No messages from this source</div>';
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px;">No messages</div>';
     return;
   }
 
-  var html = '<div class="dmsg-grid">';
+  var html = '';
   shown.forEach(function(m){
     var initial = m.name ? m.name.charAt(0).toUpperCase() : '?';
-    html += '<div class="dmsg-row" onclick="openDashMsgAction(\''+m.id+'\',\''+m.source+'\','+( m.bookingId?'\''+m.bookingId+'\'':'null')+')">';
-    html += '<div class="dmsg-avatar">'+initial+'</div>';
-    html += '<div class="dmsg-body">';
-    html += '<div class="dmsg-top"><span class="dmsg-name">'+m.name+'</span><span class="dmsg-time">'+dashMsgTimeAgo(m.time)+'</span></div>';
-    html += '<div class="dmsg-meta">'+m.apt+(m.stage?' · '+m.stage:'')+'</div>';
-    html += '<div class="dmsg-preview">'+m.preview+'</div>';
+    var sel = _dashSelectedMsgId === m.id ? 'background:var(--accent-bg);' : '';
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);'+sel+'" '
+         +  'onclick="openDashMsgAction(\''+m.id+'\',\''+m.source+'\','+(m.bookingId?'\''+m.bookingId+'\'':'null')+')" '
+         +  'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\''+(sel?'var(--accent-bg)':'')+'\';">';
+    html += '<div style="width:30px;height:30px;border-radius:50%;background:var(--accent-bg);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">'+initial+'</div>';
+    html += '<div style="flex:1;min-width:0;overflow:hidden;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;">';
+    html += '<span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.name)+'</span>';
+    html += '<span style="font-size:9px;color:var(--text3);flex-shrink:0;margin-left:4px;">'+dashMsgTimeAgo(m.time)+'</span>';
     html += '</div>';
-    html += '<div class="dmsg-src-wrap">'+dashMsgSrcBadge(m.source)+'</div>';
-    html += '</div>';
+    html += '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.apt||'')+(m.unread?' · <span style="color:var(--accent2);font-weight:600;">unread</span>':'')+'</div>';
+    html += '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.preview)+'</div>';
+    html += '</div></div>';
   });
-  html += '</div>';
-
-  if(filtered.length > limit){
-    html += '<div style="text-align:center;font-size:11px;color:var(--text3);margin-top:6px;">Showing '+limit+' of '+filtered.length+' messages</div>';
-  }
   el.innerHTML = html;
 }
 
@@ -10447,13 +10517,70 @@ function showAllDashMessages(){
   renderDashMessages(_dashMsgFilter);
 }
 
+function _renderDashClientCard(m) {
+  var card = document.getElementById('dashMsgCard');
+  if (!card) return;
+  var initial = m.name ? m.name.split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase() : '?';
+  var html = '<div style="padding:14px;text-align:center;">';
+  html += '<div style="width:48px;height:48px;border-radius:50%;background:var(--accent-bg);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 8px;">'+initial+'</div>';
+  html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">'+_esc(m.name)+'</div>';
+  if (m.apt) html += '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Unit '+_esc(m.apt)+'</div>';
+  html += '<div style="text-align:left;font-size:11px;color:var(--text2);border-top:1px solid var(--border);padding-top:8px;">';
+  if (m.phone) html += '<div style="margin-bottom:4px;">📞 <a href="tel:'+m.phone+'" style="color:var(--accent);text-decoration:none;">'+m.phone+'</a></div>';
+  if (m.email) html += '<div style="margin-bottom:4px;">✉ <a href="mailto:'+m.email+'" style="color:var(--accent);text-decoration:none;word-break:break-all;">'+m.email+'</a></div>';
+  html += '<div style="margin-bottom:4px;">'+dashMsgSrcBadge(m.source)+'</div>';
+  if (m.stage) html += '<div style="margin-top:4px;font-size:10px;color:var(--text3);">'+_esc(m.stage)+'</div>';
+  html += '</div>';
+  // Quick action buttons
+  html += '<div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">';
+  html += '<button onclick="openMsgModal(\''+_esc(m.name).replace(/'/g,"\\'")+'\',\''+_esc(m.email||'').replace(/'/g,"\\'")+'\',\''+_esc(m.phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.apt||'').replace(/'/g,"\\'")+'\')" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;font-size:10px;font-family:inherit;color:var(--text);">💬 Open Full Chat</button>';
+  html += '</div>';
+  html += '</div>';
+  card.innerHTML = html;
+  card.style.display = '';
+}
+
 function openDashMsgAction(msgId, source, bookingId){
-  // Supabase channel thread — open admin reply panel
+  _dashSelectedMsgId = msgId;
+  renderDashMessages(_dashMsgFilter); // re-render to highlight
+
+  // Supabase channel thread — show in center panel
   if(msgId.indexOf('sb-')===0){
     var chId = msgId.replace('sb-','');
-    openSbThread(chId);
+    _openSbThreadInline(chId);
     return;
   }
+  // For non-Supabase messages, show what we have in center panel + client card
+  var msgs = buildDashMessages();
+  var m = msgs.find(function(x){ return x.id === msgId; });
+  if (m) {
+    _renderDashClientCard(m);
+    // Show preview in center
+    var threadEl = document.getElementById('dashMsgThread');
+    if (threadEl) {
+      var html = '<div style="flex:1;overflow-y:auto;padding:16px;">';
+      html += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px;">'+_esc(m.name)+' — '+_esc(m.apt||'')+'</div>';
+      html += '<div style="background:var(--surface2);padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.5;color:var(--text);">'+_esc(m.preview)+'</div>';
+      if (m.stage) html += '<div style="margin-top:8px;font-size:10px;color:var(--text3);">Status: '+_esc(m.stage)+'</div>';
+      html += '</div>';
+      html += '<div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:6px;">';
+      html += '<input id="dashInlineReply" placeholder="Reply..." style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;" onkeydown="if(event.key===\'Enter\')openMsgModal(\''+_esc(m.name).replace(/'/g,"\\'")+'\',\''+_esc(m.email||'').replace(/'/g,"\\'")+'\',\''+_esc(m.phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.apt||'').replace(/'/g,"\\'")+'\')">';
+      html += '<button onclick="openMsgModal(\''+_esc(m.name).replace(/'/g,"\\'")+'\',\''+_esc(m.email||'').replace(/'/g,"\\'")+'\',\''+_esc(m.phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.apt||'').replace(/'/g,"\\'")+'\')" style="padding:6px 12px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Reply</button>';
+      html += '</div>';
+      threadEl.innerHTML = html;
+    }
+  }
+
+  // If it's a booking with a Supabase channel, try to load thread
+  if(bookingId || source === 'short-stay') {
+    // Find matching Supabase channel
+    var chMatch = _sbChannelMessages.find(function(c){ return m && c.name === m.name; });
+    if(chMatch) { _openSbThreadInline(chMatch.channelId); return; }
+  }
+}
+
+// Original openDashMsgAction navigation (kept for backward compatibility)
+function _openDashMsgNavigation(msgId, source, bookingId){
   // If it's a booking, open pipeline detail
   if(bookingId && typeof window.pipelineState !== 'undefined'){
     var b = window.pipelineState.bookings.find(function(x){ return x.id == bookingId; });
