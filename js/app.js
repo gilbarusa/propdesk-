@@ -9614,11 +9614,10 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
         var unitVal = opts.unit || '';
         var propertyVal = opts.property || '';
 
-        // Fallback: extract unit from property/listing_name if unit is empty (e.g. "926-1 Fox Chase · ...")
-        if (!unitVal && propertyVal) {
-          var parts = propertyVal.split('·');
-          if (parts.length > 1) unitVal = parts[0].trim();
-          else unitVal = propertyVal.split(' ')[0] || '';
+        // Fallback: look up unit from AIRBNB_BOOKINGS_SEED by name (clean unit values)
+        if (!unitVal && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+          var seedMatch = AIRBNB_BOOKINGS_SEED.find(function(b) { return b.guest === name; });
+          if (seedMatch) unitVal = seedMatch.unit || '';
         }
 
         console.log('[App Channel] Sending to:', name, 'unit:', unitVal, 'property:', propertyVal);

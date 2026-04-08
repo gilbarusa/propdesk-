@@ -1071,12 +1071,11 @@ async function queueReply() {
   // Map 'channel' to the original platform (airbnb, vrbo, etc.)
   var viaChannel = (selectedCh && selectedCh !== 'channel') ? selectedCh : (channel.platform || 'willowpa');
 
-  // Extract unit: use unit_apt if available, otherwise parse from listing_name (e.g. "926-1 Fox Chase · ...")
+  // Get clean unit from AIRBNB_BOOKINGS_SEED (reliable source) or channel.unit_apt
   var unitVal = channel.unit_apt || '';
-  if (!unitVal && channel.listing_name) {
-    var parts = channel.listing_name.split('·');
-    if (parts.length > 1) unitVal = parts[0].trim();
-    else unitVal = channel.listing_name.split(' ')[0] || '';
+  if (!unitVal && channel.guest_name && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+    var seedMatch = AIRBNB_BOOKINGS_SEED.find(function(b) { return b.guest === channel.guest_name; });
+    if (seedMatch) unitVal = seedMatch.unit || '';
   }
 
   // ALWAYS save the message in the SAME thread (messages table) regardless of channel
@@ -1759,8 +1758,12 @@ window.openInboxThread = function(guestName) {
       return c.guest_name && c.guest_name.toLowerCase().replace(/[^a-z]/g, '') === normalName;
     });
     if (ch) {
+      // Try to get clean unit from AIRBNB_BOOKINGS_SEED first
       var chUnit = ch.unit_apt || '';
-      if (!chUnit && ch.listing_name) { var p = ch.listing_name.split('·'); chUnit = p.length > 1 ? p[0].trim().split(' ')[0] : ''; }
+      if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+        var seedMatch = AIRBNB_BOOKINGS_SEED.find(function(b) { return b.guest && b.guest.toLowerCase().replace(/[^a-z]/g, '') === normalName; });
+        if (seedMatch) chUnit = seedMatch.unit || chUnit;
+      }
       openMsgModal(ch.guest_name, ch.guest_email || '', ch.guest_phone || '', ch.external_id || '', ch.platform || 'short-term', chUnit);
       return;
     }
