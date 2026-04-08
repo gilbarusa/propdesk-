@@ -1062,7 +1062,7 @@ async function queueReply() {
   // Check if a non-default channel is selected via the unified selector
   var selectedCh = typeof getSelectedChannel === 'function' ? getSelectedChannel() : 'channel';
   if (selectedCh && selectedCh !== 'channel') {
-    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message'});
+    sendViaChannel(selectedCh, channel.guest_name, channel.guest_email || '', channel.guest_phone || '', message, {subject: 'Booking Message', unit: channel.unit_apt || '', property: channel.listing_name || ''});
     input.value = '';
     input.style.height = '60px';
     dismissSuggestion();

@@ -9608,7 +9608,7 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
     (async function() {
       try {
         var threadId = opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
-        var insert = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: new Date().toISOString() };
+        var insert = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: opts.unit || '', subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: new Date().toISOString() };
         if (opts.property) insert.property = opts.property;
         var res = await sb.from('client_messages').insert([insert]);
         if (res.error) throw res.error;
