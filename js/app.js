@@ -3045,9 +3045,31 @@ const INNAGO_MESSAGES = [
   {id:10,from:"Tarsha R. Scovens",unit:"1",property:"1614 Valley Glen Rd",date:"Mar 18, 2026",time:"7:45 PM",subject:"Water Heater",body:"The hot water has been lukewarm at best for the past few days. I think the water heater might need to be looked at or replaced. Can you send someone?",unread:false,sent:false}
 ];
 
-function renderMTMMessages() {
+async function renderMTMMessages() {
   const list = document.getElementById('mtmMsgList');
   if (!list) return;
+
+  // Also load Supabase channels for long-term tenants (so unified messaging data appears)
+  try {
+    var tenantNames = (typeof TENANTS !== 'undefined') ? TENANTS.filter(function(t) { return t.type === 'long-term'; }).map(function(t) { return t.name; }) : [];
+    if (tenantNames.length > 0 && typeof sb !== 'undefined') {
+      var chRes = await sb.from('channels').select('*').in('guest_name', tenantNames).order('last_message_at', { ascending: false });
+      if (chRes.data && chRes.data.length) {
+        // Add Supabase channels as inbox entries viewable via unified modal
+        var sbMsgList = document.getElementById('mtmSbChannels');
+        if (sbMsgList) {
+          sbMsgList.innerHTML = '<div style="font-size:10px;font-weight:600;color:#9e9485;text-transform:uppercase;padding:8px 0;">Supabase Conversations</div>' +
+            chRes.data.map(function(ch) {
+              return '<div class="mtm-msg-item" onclick="openMsgModal(\'' + (ch.guest_name||'').replace(/'/g,"\\'") + '\',\'\',\'\',\'\',\'long-term\',\'' + (ch.unit_apt||'').replace(/'/g,"\\'") + '\')" style="cursor:pointer;padding:8px;border-bottom:1px solid #f0ebe4;">' +
+                '<div style="font-weight:500;font-size:12px;">' + (ch.guest_name||'Unknown') + '</div>' +
+                '<div style="font-size:11px;color:#635c4e;">' + (ch.last_message_preview||'(no messages)') + '</div>' +
+                '</div>';
+            }).join('');
+        }
+      }
+    }
+  } catch(e) { console.warn('Error loading LT channels:', e); }
+
   filterMTMMessages();
 }
 
@@ -9692,6 +9714,25 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
 //  Uses channels + messages tables (same path as portal)
 // ═══════════════════════════════════════════════════
 var _modalRecipient = {};
+var _msgPollInterval = null;
+
+function _startMsgPolling(name, unit) {
+  _stopMsgPolling();
+  _msgPollInterval = setInterval(function() {
+    if (document.getElementById('msgOverlay').style.display === 'flex') {
+      _loadModalThread(name, unit, true); // true = silent refresh (no loading spinner)
+    } else {
+      _stopMsgPolling();
+    }
+  }, 5000);
+}
+
+function _stopMsgPolling() {
+  if (_msgPollInterval) {
+    clearInterval(_msgPollInterval);
+    _msgPollInterval = null;
+  }
+}
 
 function openMsgModal(name, email, phone, bookingId, type, unit) {
   _modalRecipient = { name: name||'', email: email||'', phone: phone||'', bookingId: bookingId||'', type: type||'', unit: unit||'' };
@@ -9718,39 +9759,53 @@ function openMsgModal(name, email, phone, bookingId, type, unit) {
   // Channel buttons
   document.getElementById('msgChannelBtns').innerHTML = buildChannelSelector('app');
 
-  // Load conversation history
+  // Load conversation history + start auto-refresh polling
   _loadModalThread(name, unit || '');
+  _startMsgPolling(name, unit || '');
 
   document.getElementById('msgOverlay').style.display = 'flex';
 }
 
-async function _loadModalThread(name, unit) {
+async function _loadModalThread(name, unit, silent) {
   var thread = document.getElementById('msgThread');
-  thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:11px;padding:30px 0;">Loading messages...</div>';
+  if (!silent) {
+    thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:11px;padding:30px 0;">Loading messages...</div>';
+  }
 
   try {
-    // Find willowpa channel for this person (by unit or name)
-    var channelId = null;
+    // Find ALL channels for this person (by unit or name) — unified thread across all platforms
+    var allChannelIds = [];
+    var willowpaChannelId = null;
     var chRes;
     if (unit) {
-      chRes = await sb.from('channels').select('id').eq('unit_apt', unit).eq('platform', 'willowpa').limit(1);
-      if (chRes.data && chRes.data.length) channelId = chRes.data[0].id;
+      chRes = await sb.from('channels').select('id,platform').eq('unit_apt', unit);
+      if (chRes.data && chRes.data.length) {
+        chRes.data.forEach(function(c) { allChannelIds.push(c.id); if (c.platform === 'willowpa') willowpaChannelId = c.id; });
+      }
     }
-    if (!channelId && name) {
-      chRes = await sb.from('channels').select('id').eq('guest_name', name).eq('platform', 'willowpa').limit(1);
-      if (chRes.data && chRes.data.length) channelId = chRes.data[0].id;
+    if (!allChannelIds.length && name) {
+      chRes = await sb.from('channels').select('id,platform').eq('guest_name', name);
+      if (chRes.data && chRes.data.length) {
+        chRes.data.forEach(function(c) { allChannelIds.push(c.id); if (c.platform === 'willowpa') willowpaChannelId = c.id; });
+      }
     }
 
-    document.getElementById('msgChannelId').value = channelId || '';
+    // Store the willowpa channel for sending (prefer willowpa for new messages)
+    document.getElementById('msgChannelId').value = willowpaChannelId || (allChannelIds.length ? allChannelIds[0] : '');
 
-    if (!channelId) {
+    if (!allChannelIds.length) {
       thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">No messages yet. Start the conversation below.</div>';
       return;
     }
 
-    // Load messages
-    var msgRes = await sb.from('messages').select('*').eq('channel_id', channelId).order('sent_at', {ascending: true});
-    var messages = msgRes.data || [];
+    // Load messages from ALL channels for this person — one unified thread
+    var messages = [];
+    for (var ci = 0; ci < allChannelIds.length; ci++) {
+      var msgRes = await sb.from('messages').select('*').eq('channel_id', allChannelIds[ci]).order('sent_at', {ascending: true});
+      if (msgRes.data) messages = messages.concat(msgRes.data);
+    }
+    // Sort all messages by timestamp across all channels
+    messages.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
 
     if (!messages.length) {
       thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">No messages yet. Start the conversation below.</div>';
@@ -9776,18 +9831,34 @@ async function _loadModalThread(name, unit) {
       if (msg.sender === 'system') {
         html += '<div style="text-align:center;margin:4px 0;"><span style="background:var(--surface);color:var(--text3);font-size:10px;padding:4px 12px;border-radius:12px;">' + _esc(msg.body) + '</span></div>';
       } else {
+        var attachHtml = '';
+        if (msg.attachment_url) {
+          if (msg.message_type === 'image' || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.attachment_url)) {
+            attachHtml = '<div style="margin:4px 0;"><a href="' + _esc(msg.attachment_url) + '" target="_blank"><img src="' + _esc(msg.attachment_url) + '" style="max-width:200px;max-height:180px;border-radius:6px;cursor:pointer;" onerror="this.style.display=\'none\'"></a></div>';
+          } else {
+            var fname = msg.attachment_url.split('/').pop() || 'File';
+            attachHtml = '<div style="margin:4px 0;"><a href="' + _esc(msg.attachment_url) + '" target="_blank" style="color:' + (isHost ? '#fff' : 'var(--accent2)') + ';font-size:11px;text-decoration:underline;">📎 ' + _esc(fname) + '</a></div>';
+          }
+        }
         html += '<div style="display:flex;' + (isHost ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';">' +
           '<div style="max-width:75%;background:' + (isHost ? 'var(--accent)' : 'var(--surface)') + ';color:' + (isHost ? '#fff' : 'var(--text)') + ';padding:8px 12px;border-radius:' + (isHost ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';font-size:12px;line-height:1.45;box-shadow:0 1px 2px rgba(0,0,0,.06);">' +
+          attachHtml +
           '<div style="white-space:pre-wrap;">' + _esc(msg.body) + '</div>' +
-          '<div style="font-size:9px;opacity:.6;margin-top:3px;text-align:' + (isHost ? 'right' : 'left') + ';">' + timeStr + badge + '</div>' +
+          '<div style="font-size:9px;opacity:.6;margin-top:3px;text-align:' + (isHost ? 'right' : 'left') + ';">' + timeStr + badge + (isHost && msg.read_at ? ' <span title="Read ' + new Date(msg.read_at).toLocaleString() + '" style="color:' + (isHost ? '#90EE90' : '#4CAF50') + ';font-weight:bold;">✓✓</span>' : (isHost ? ' <span style="opacity:.4">✓</span>' : '')) + '</div>' +
           '</div></div>';
       }
     });
 
+    // Smart scroll: on silent refresh, only scroll if user is near bottom; otherwise always scroll
+    var wasNearBottom = !silent || (thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80);
     thread.innerHTML = html;
-    setTimeout(function(){ thread.scrollTop = thread.scrollHeight; }, 50);
+    if (wasNearBottom) {
+      setTimeout(function(){ thread.scrollTop = thread.scrollHeight; }, 50);
+    }
   } catch(e) {
-    thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">Could not load messages.</div>';
+    if (!silent) {
+      thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">Could not load messages.</div>';
+    }
     console.warn('Modal thread load error:', e);
   }
 }
@@ -9795,8 +9866,60 @@ async function _loadModalThread(name, unit) {
 function _esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
 function closeMsgModal() {
+  _stopMsgPolling();
+  clearMsgAttachment();
   document.getElementById('msgOverlay').style.display = 'none';
   _modalRecipient = {};
+}
+
+// ── File Attachment Handling ──
+var _msgPendingFile = null;
+
+function handleMsgFileSelect(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  _msgPendingFile = file;
+  var preview = document.getElementById('msgAttachPreview');
+  document.getElementById('msgAttachName').textContent = '📎 ' + file.name + ' (' + _formatBytes(file.size) + ')';
+  preview.style.display = 'flex';
+}
+
+function clearMsgAttachment() {
+  _msgPendingFile = null;
+  var preview = document.getElementById('msgAttachPreview');
+  if (preview) preview.style.display = 'none';
+  var input = document.getElementById('msgFileInput');
+  if (input) input.value = '';
+}
+
+function _formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function _uploadMsgFile(file, channelId) {
+  // Upload file to Supabase Storage bucket 'message-attachments'
+  var ext = file.name.split('.').pop() || 'bin';
+  var path = 'ch-' + channelId + '/' + Date.now() + '-' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+  var url = sb.supabaseUrl + '/storage/v1/object/message-attachments/' + path;
+  var resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + sb.supabaseKey,
+      'apikey': sb.supabaseKey,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true'
+    },
+    body: file
+  });
+  if (!resp.ok) {
+    // If bucket doesn't exist, try creating it via RPC or use fallback
+    console.warn('Upload failed:', resp.status, await resp.text());
+    return null;
+  }
+  // Get public URL
+  return sb.supabaseUrl + '/storage/v1/object/public/message-attachments/' + path;
 }
 
 function selectMsgChannel(btn) {
@@ -9806,7 +9929,7 @@ function selectMsgChannel(btn) {
 
 async function sendMsgFromModal() {
   var body = document.getElementById('msgBody').value.trim();
-  if (!body) return;
+  if (!body && !_msgPendingFile) return;
 
   var ch = getSelectedChannel(document.getElementById('msgOverlay'));
   var r = _modalRecipient;
@@ -9835,16 +9958,30 @@ async function sendMsgFromModal() {
     document.getElementById('msgChannelId').value = channelId;
   }
 
-  // 2) Insert message into messages table (same as portal's sbSendMessage)
+  // 2) Upload attachment if present
+  var attachmentUrl = null;
+  var messageType = 'text';
+  if (_msgPendingFile) {
+    toast('Uploading file...', 'info');
+    attachmentUrl = await _uploadMsgFile(_msgPendingFile, channelId);
+    if (attachmentUrl) {
+      messageType = _msgPendingFile.type && _msgPendingFile.type.startsWith('image/') ? 'image' : 'file';
+      if (!body) body = '📎 ' + _msgPendingFile.name;
+    }
+    clearMsgAttachment();
+  }
+
+  // 3) Insert message into messages table (same as portal's sbSendMessage)
   var platform = ch || 'willowpa';
-  var msgInsert = { channel_id: channelId, sender: 'host', sender_name: 'Management', body: body, platform: platform, sent_at: now, message_type: 'text' };
+  var msgInsert = { channel_id: channelId, sender: 'host', sender_name: 'Management', body: body, platform: platform, sent_at: now, message_type: messageType };
+  if (attachmentUrl) msgInsert.attachment_url = attachmentUrl;
   var msgRes = await sb.from('messages').insert([msgInsert]);
   if (msgRes.error) { alert('Error sending: ' + msgRes.error.message); return; }
 
-  // 3) Update channel preview
+  // 4) Update channel preview
   await sb.from('channels').update({ last_message_preview: body.substring(0,100), last_message_at: now }).eq('id', channelId);
 
-  // 4) External delivery for non-app channels
+  // 5) External delivery for non-app channels
   if (ch === 'sms') {
     if (r.phone) window.open('sms:' + r.phone + '?body=' + encodeURIComponent(body));
   } else if (ch === 'email') {
@@ -9853,7 +9990,7 @@ async function sendMsgFromModal() {
     if (r.phone) window.open('https://wa.me/' + r.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent(body), '_blank');
   }
 
-  // 5) Clear input + refresh thread
+  // 6) Clear input + refresh thread
   document.getElementById('msgBody').value = '';
   toast('Message sent to ' + r.name, 'success');
   _loadModalThread(r.name, unit);

@@ -53,6 +53,27 @@ let currentFilter = 'all';
 let currentSearch = '';
 const _msgCache = {}; // channelId → { messages, fetchedAt }
 
+// ── Inbox Auto-Refresh Polling ──
+let _inboxPollInterval = null;
+
+function startInboxPolling() {
+  stopInboxPolling();
+  _inboxPollInterval = setInterval(function() {
+    if (!currentChannelId) return;
+    // Force refresh the current thread's messages cache then re-render
+    delete _msgCache[currentChannelId];
+    _channelsCacheTime = 0; // force channel list refresh too
+    renderInbox();
+  }, 7000);
+}
+
+function stopInboxPolling() {
+  if (_inboxPollInterval) {
+    clearInterval(_inboxPollInterval);
+    _inboxPollInterval = null;
+  }
+}
+
 // ═══════════════════════════════════════════════════════
 // DATA LAYER
 // ═══════════════════════════════════════════════════════
@@ -507,12 +528,36 @@ async function renderInbox() {
   if (filtered.length === 0) {
     html += `<div style="padding:24px;text-align:center;color:#9e9485;font-size:12px;">No channels match your search.</div>`;
   } else {
+    // Group channels by guest name — show one entry per guest with all platform badges
+    const guestGroups = {};
     filtered.forEach(ch => {
+      const key = ch.guest_name || ch.id;
+      if (!guestGroups[key]) {
+        guestGroups[key] = { channels: [], latestAt: ch.last_message_at, latestPreview: ch.last_message_preview, totalUnread: 0, primaryChannel: ch };
+      }
+      guestGroups[key].channels.push(ch);
+      guestGroups[key].totalUnread += (ch.unread_count || 0);
+      if (ch.last_message_at > guestGroups[key].latestAt) {
+        guestGroups[key].latestAt = ch.last_message_at;
+        guestGroups[key].latestPreview = ch.last_message_preview;
+        guestGroups[key].primaryChannel = ch;
+      }
+    });
+
+    // Sort groups by most recent message
+    const sortedGroups = Object.values(guestGroups).sort((a, b) => new Date(b.latestAt) - new Date(a.latestAt));
+
+    sortedGroups.forEach(group => {
+      const ch = group.primaryChannel;
       const colors = PLATFORM_COLORS[ch.platform] || PLATFORM_COLORS.direct;
-      const isActive = currentChannelId === ch.id;
+      const isActive = group.channels.some(c => c.id === currentChannelId);
       const checkInDate = ch.check_in ? new Date(ch.check_in).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
       const checkOutDate = ch.check_out ? new Date(ch.check_out).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
-      const timeStr = formatMessageTime(ch.last_message_at);
+      const timeStr = formatMessageTime(group.latestAt);
+      const platformBadges = group.channels.map(c => {
+        const cc = PLATFORM_COLORS[c.platform] || PLATFORM_COLORS.direct;
+        return `<span style="padding:1px 5px;border-radius:3px;background:${cc.bg};color:${cc.text};font-size:8px;font-weight:600;letter-spacing:0.3px;flex-shrink:0;">${cc.label}</span>`;
+      }).join(' ');
 
       html += `
         <div
@@ -524,16 +569,16 @@ async function renderInbox() {
               <div style="flex-shrink:0;width:8px;height:8px;border-radius:50%;background:${colors.bg};" title="${colors.label}"></div>
               <div style="min-width:0;flex:1;">
                 <div style="font-weight:500;font-size:12px;color:#2c2416;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ch.guest_name}</div>
-                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#9e9485;">
-                  <span style="padding:1px 5px;border-radius:3px;background:${colors.bg};color:${colors.text};font-size:8px;font-weight:600;letter-spacing:0.3px;flex-shrink:0;">${colors.label}</span>
+                <div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#9e9485;flex-wrap:wrap;">
+                  ${platformBadges}
                   <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${ch.unit_apt || ch.listing_name}</span>
                 </div>
               </div>
             </div>
-            ${ch.unread_count > 0 ? `<div style="background:#FF5A5F;color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;flex-shrink:0;font-weight:600;">${ch.unread_count}</div>` : ''}
+            ${group.totalUnread > 0 ? `<div style="background:#FF5A5F;color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;flex-shrink:0;font-weight:600;">${group.totalUnread}</div>` : ''}
           </div>
           <div style="font-size:11px;color:#635c4e;line-height:1.4;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">
-            ${ch.last_message_preview || '(no messages)'}
+            ${group.latestPreview || '(no messages)'}
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:9px;color:#9e9485;margin-bottom:4px;">
             <span>${timeStr}</span>
@@ -581,7 +626,14 @@ async function renderInbox() {
       html += `</div></div>`;
     } else {
       const colors = PLATFORM_COLORS[channel.platform] || PLATFORM_COLORS.direct;
-      const messages = await loadMessages(currentChannelId);
+      // Load messages from ALL channels for this guest (unified thread)
+      const guestChannelIds = allChannels.filter(c => c.guest_name === channel.guest_name || (channel.unit_apt && c.unit_apt === channel.unit_apt)).map(c => c.id);
+      let messages = [];
+      for (const cid of guestChannelIds) {
+        const chMsgs = await loadMessages(cid);
+        messages = messages.concat(chMsgs);
+      }
+      messages.sort((a, b) => new Date(a.sent_at) - new Date(b.sent_at));
       const checkInDate = channel.check_in ? new Date(channel.check_in).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
       const checkOutDate = channel.check_out ? new Date(channel.check_out).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
       const bookingStatus = STATUS_COLORS[channel.booking_status || channel.status] || STATUS_COLORS.confirmed;
@@ -632,11 +684,21 @@ async function renderInbox() {
             </div>
           `;
         } else {
+          let attachHtml = '';
+          if (msg.attachment_url) {
+            if (msg.message_type === 'image' || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.attachment_url)) {
+              attachHtml = `<div style="margin:4px 0;"><a href="${escapeHtml(msg.attachment_url)}" target="_blank"><img src="${escapeHtml(msg.attachment_url)}" style="max-width:200px;max-height:180px;border-radius:6px;cursor:pointer;" onerror="this.style.display='none'"></a></div>`;
+            } else {
+              const fname = msg.attachment_url.split('/').pop() || 'File';
+              attachHtml = `<div style="margin:4px 0;"><a href="${escapeHtml(msg.attachment_url)}" target="_blank" style="color:${isHost ? '#fff' : '#7d5228'};font-size:11px;text-decoration:underline;">📎 ${escapeHtml(fname)}</a></div>`;
+            }
+          }
           html += `
             <div style="display:flex;${isHost ? 'justify-content:flex-end' : 'justify-content:flex-start'};">
               <div style="max-width:75%;background:${isHost ? '#7d5228' : '#f0ebe4'};color:${isHost ? '#fff' : '#2c2416'};padding:8px 12px;border-radius:${isHost ? '12px 12px 2px 12px' : '12px 12px 12px 2px'};font-size:12px;line-height:1.45;">
+                ${attachHtml}
                 <div style="white-space:pre-wrap;">${escapeHtml(msg.body)}</div>
-                <div style="font-size:9px;opacity:0.6;margin-top:3px;text-align:${isHost ? 'right' : 'left'};">${msgTime}${channelBadge}</div>
+                <div style="font-size:9px;opacity:0.6;margin-top:3px;text-align:${isHost ? 'right' : 'left'};">${msgTime}${channelBadge}${isHost && msg.read_at ? ` <span title="Read ${new Date(msg.read_at).toLocaleString()}" style="color:#4CAF50;font-weight:bold;">✓✓</span>` : (isHost ? ' <span style="opacity:.4">✓</span>' : '')}</div>
               </div>
             </div>
           `;
@@ -792,6 +854,12 @@ async function renderInbox() {
   html += `</div>`;
   container.innerHTML = html;
 
+  // Auto-scroll messages to bottom after render
+  setTimeout(() => {
+    const mc = document.getElementById('messagesContainer');
+    if (mc) mc.scrollTop = mc.scrollHeight;
+  }, 50);
+
   // Update nav badge
   const totalUnread = allChannels.reduce((sum, c) => sum + (c.unread_count || 0), 0);
   const badge = document.getElementById('msgBadge');
@@ -813,6 +881,13 @@ async function renderInbox() {
     setTimeout(() => {
       toPreload.forEach(c => loadMessages(c.id)); // fire-and-forget
     }, 200);
+  }
+
+  // Start auto-refresh polling when a thread is active
+  if (currentChannelId) {
+    startInboxPolling();
+  } else {
+    stopInboxPolling();
   }
 }
 
