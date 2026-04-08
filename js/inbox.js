@@ -1105,11 +1105,14 @@ async function queueReply() {
   // Also dismiss suggestion panel if open
   dismissSuggestion();
 
+  // Clear message cache for this channel so refresh shows the new message
+  if (_msgCache && currentChannelId) delete _msgCache[currentChannelId];
+
   renderInbox();
   setTimeout(() => {
     const container = document.getElementById('messagesContainer');
     if (container) container.scrollTop = container.scrollHeight;
-  }, 200);
+  }, 300);
 }
 
 function showToast(msg, type = 'info') {

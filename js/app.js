@@ -9606,7 +9606,45 @@ window.getSelectedChannel = function(container) {
 window.sendViaChannel = function(channel, name, email, phone, body, opts) {
   opts = opts || {};
   if (channel === 'app') {
-    // App = in-app message. Nothing to deliver externally — it's already in the thread.
+    // App channel: insert into channels/messages tables so the Resident Portal sees it.
+    // The portal queries channels by unit_apt, then messages by channel_id.
+    (async function() {
+      try {
+        var now = new Date().toISOString();
+        var unitVal = opts.unit || '';
+        var propertyVal = opts.property || '';
+
+        // 1) Find existing willowpa channel for this resident's unit, or create one
+        var portalChannelId = null;
+        if (unitVal) {
+          var lookup = await sb.from('channels').select('id').eq('unit_apt', unitVal).eq('platform', 'willowpa').limit(1);
+          if (lookup.data && lookup.data.length > 0) {
+            portalChannelId = lookup.data[0].id;
+          }
+        }
+        if (!portalChannelId) {
+          // Create a new willowpa channel for this resident
+          var chInsert = { guest_name: name, guest_email: email || '', guest_phone: phone || '', unit_apt: unitVal, platform: 'willowpa', status: 'active', last_message_preview: body.substring(0, 100), last_message_at: now };
+          if (propertyVal) chInsert.listing_name = propertyVal;
+          var chRes = await sb.from('channels').insert([chInsert]).select('id');
+          if (chRes.error) throw chRes.error;
+          portalChannelId = chRes.data[0].id;
+        }
+
+        // 2) Insert message into the messages table under that channel
+        await sb.from('messages').insert([{ channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: 'text' }]);
+
+        // 3) Update channel preview
+        await sb.from('channels').update({ last_message_preview: body.substring(0, 100), last_message_at: now, unread_count: 1 }).eq('id', portalChannelId);
+
+        // 4) Also insert into client_messages for the management Message Center
+        var threadId = opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
+        await sb.from('client_messages').insert([{ thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: unitVal, subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: now, property: propertyVal || undefined }]);
+
+        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
+        if (typeof loadChannels === 'function') loadChannels(true);
+      } catch(e) { console.warn('App channel send error:', e.message); alert('Error sending app message: ' + e.message); }
+    })();
     toast('App message sent to ' + name, 'success');
   } else if (channel === 'sms') {
     if (!phone) { alert('No phone number available for SMS.'); return; }
