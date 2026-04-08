@@ -1169,26 +1169,61 @@ function _buildInboxAISystemPrompt() {
   return prompt;
 }
 
+// Show/hide the AI suggestion overlay panel
+function _showAIPanel(html) {
+  var existing = document.getElementById('aiSuggestOverlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'aiSuggestOverlay';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var panel = document.createElement('div');
+  panel.style.cssText = 'background:#fff;border-radius:16px;width:600px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);overflow:hidden;';
+  panel.innerHTML = html;
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+}
+
+function _closeAIPanel() {
+  var el = document.getElementById('aiSuggestOverlay');
+  if (el) el.remove();
+}
+
+function _approveAISuggestion() {
+  var ta = document.getElementById('aiSuggestTextarea');
+  var replyInput = document.getElementById('replyInput');
+  if (ta && replyInput) {
+    replyInput.value = ta.value;
+    replyInput.style.height = 'auto';
+    replyInput.style.height = Math.min(replyInput.scrollHeight, 200) + 'px';
+    replyInput.focus();
+  }
+  _closeAIPanel();
+  if (typeof showToast === 'function') showToast('Suggestion copied to reply box', 'success');
+}
+
 async function triggerInboxAISuggest() {
   if (!currentChannelId) { if (typeof showToast === 'function') showToast('Select a conversation first', 'warning'); return; }
   const channel = allChannels.find(c => c.id === currentChannelId);
   if (!channel) return;
 
-  // Show loading state on the reply input
-  const replyInput = document.getElementById('replyInput');
-  if (replyInput) {
-    replyInput.value = '⚡ AI is thinking...';
-    replyInput.disabled = true;
-  }
-
-  // Also show in suggestion panel if visible
-  const panel = document.getElementById('suggestionPanel');
-  const textArea = document.getElementById('suggestionText');
-  const confidence = document.getElementById('suggestionConfidence');
-  const reasoning = document.getElementById('suggestionReasoning');
-  if (panel) panel.style.display = 'block';
-  if (confidence) { confidence.textContent = 'AI thinking...'; confidence.style.background = '#7c3aed'; }
-  if (reasoning) reasoning.textContent = 'Generating response with Claude AI...';
+  // Show loading panel
+  _showAIPanel(
+    '<div style="padding:24px;">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">' +
+        '<span style="font-size:24px;">⚡</span>' +
+        '<span style="font-size:18px;font-weight:700;color:#7c3aed;">AI Reply Assistant</span>' +
+        '<span style="font-size:13px;color:#9e9485;margin-left:auto;">for ' + (channel.guest_name || 'Guest') + '</span>' +
+      '</div>' +
+      '<div style="text-align:center;padding:40px 0;">' +
+        '<div style="font-size:32px;margin-bottom:12px;animation:pulse 1.5s infinite;">🤖</div>' +
+        '<div style="color:#7c3aed;font-size:15px;font-weight:600;">Thinking...</div>' +
+        '<div style="color:#9e9485;font-size:12px;margin-top:4px;">Analyzing conversation and drafting reply</div>' +
+      '</div>' +
+    '</div>'
+  );
 
   try {
     const messages = await loadMessages(currentChannelId);
@@ -1221,32 +1256,45 @@ async function triggerInboxAISuggest() {
 
     if (data.content && data.content[0] && data.content[0].text) {
       const suggestion = data.content[0].text;
-      // Put AI suggestion directly into reply input for easy editing
-      if (replyInput) {
-        replyInput.value = suggestion;
-        replyInput.disabled = false;
-        replyInput.style.height = 'auto';
-        replyInput.style.height = Math.min(replyInput.scrollHeight, 200) + 'px';
-        replyInput.focus();
-      }
-      // Also update suggestion panel
-      if (textArea) textArea.value = suggestion;
-      if (confidence) { confidence.textContent = 'AI Generated'; confidence.style.background = '#7c3aed'; }
-      if (reasoning) reasoning.textContent = 'Claude AI suggestion — edit in reply box then Send';
-      currentSuggestion = { suggestion: suggestion, confidence: 0.9, category: 'ai', subcategory: 'anthropic', reasoning: 'AI-generated reply' };
-      if (typeof showToast === 'function') showToast('AI suggestion ready — review and send', 'success');
+
+      // Show the suggestion in a large readable panel — NOT in the reply box
+      _showAIPanel(
+        '<div style="padding:24px;display:flex;flex-direction:column;max-height:80vh;">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-shrink:0;">' +
+            '<span style="font-size:24px;">⚡</span>' +
+            '<span style="font-size:18px;font-weight:700;color:#7c3aed;">AI Reply Assistant</span>' +
+            '<span style="font-size:13px;color:#9e9485;margin-left:auto;">for ' + (channel.guest_name || 'Guest') + '</span>' +
+            '<button onclick="_closeAIPanel()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9e9485;padding:0 4px;">&times;</button>' +
+          '</div>' +
+          '<div style="font-size:11px;color:#9e9485;margin-bottom:8px;flex-shrink:0;">Review the suggested reply below. Edit if needed, then click Approve to use it.</div>' +
+          '<textarea id="aiSuggestTextarea" style="flex:1;min-height:200px;padding:16px;border:2px solid #7c3aed;border-radius:12px;font-family:inherit;font-size:14px;line-height:1.6;resize:vertical;box-sizing:border-box;color:#2c2416;background:#faf8f5;">' + suggestion.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</textarea>' +
+          '<div style="display:flex;gap:10px;margin-top:16px;flex-shrink:0;">' +
+            '<button onclick="_approveAISuggestion()" style="flex:1;padding:12px 24px;background:#4CAF50;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">✅ Approve & Use</button>' +
+            '<button onclick="triggerInboxAISuggest()" style="padding:12px 20px;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">🔄 Regenerate</button>' +
+            '<button onclick="_closeAIPanel()" style="padding:12px 20px;background:#fff;color:#c62828;border:2px solid #c62828;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">✕ Dismiss</button>' +
+          '</div>' +
+        '</div>'
+      );
     } else {
-      if (replyInput) { replyInput.value = ''; replyInput.disabled = false; }
-      if (confidence) { confidence.textContent = 'Error'; confidence.style.background = '#c62828'; }
-      if (reasoning) reasoning.textContent = data.error ? data.error.message : 'AI suggestion unavailable';
-      if (typeof showToast === 'function') showToast('AI suggestion unavailable', 'error');
+      _showAIPanel(
+        '<div style="padding:24px;text-align:center;">' +
+          '<div style="font-size:32px;margin-bottom:12px;">❌</div>' +
+          '<div style="font-size:16px;font-weight:600;color:#c62828;margin-bottom:8px;">AI Suggestion Unavailable</div>' +
+          '<div style="color:#9e9485;font-size:13px;margin-bottom:16px;">' + (data.error ? data.error.message : 'Could not generate a suggestion right now.') + '</div>' +
+          '<button onclick="_closeAIPanel()" style="padding:10px 24px;background:#7d5228;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">Close</button>' +
+        '</div>'
+      );
     }
   } catch (e) {
     console.error('AI suggestion failed:', e);
-    if (replyInput) { replyInput.value = ''; replyInput.disabled = false; }
-    if (confidence) { confidence.textContent = 'Error'; confidence.style.background = '#c62828'; }
-    if (reasoning) reasoning.textContent = 'Failed: ' + e.message;
-    if (typeof showToast === 'function') showToast('AI suggestion failed', 'error');
+    _showAIPanel(
+      '<div style="padding:24px;text-align:center;">' +
+        '<div style="font-size:32px;margin-bottom:12px;">❌</div>' +
+        '<div style="font-size:16px;font-weight:600;color:#c62828;margin-bottom:8px;">AI Suggestion Failed</div>' +
+        '<div style="color:#9e9485;font-size:13px;margin-bottom:16px;">' + e.message + '</div>' +
+        '<button onclick="_closeAIPanel()" style="padding:10px 24px;background:#7d5228;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;">Close</button>' +
+      '</div>'
+    );
   }
 }
 
