@@ -3139,7 +3139,10 @@ function showMTMMessage(id) {
     <div class="mtm-msg-reply-box">
       ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
       <textarea class="mtm-msg-reply-input" id="mtmReplyInput" placeholder="Type your reply..."></textarea>
-      <button class="mtm-msg-reply-btn" onclick="sendMTMReply()">Send Reply</button>
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+        <button class="mtm-msg-reply-btn" onclick="sendMTMReply()">Send Reply</button>
+        <button onclick="triggerMTMAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit;">🔄 Rephrase</button>
+      </div>
     </div>` : ''}
   `;
 }
@@ -3198,6 +3201,46 @@ function useMTMAISuggestion() {
   var textEl = document.getElementById('mtmAiText');
   var ta = document.getElementById('mtmReplyInput');
   if (ta && textEl) { ta.value = textEl.textContent; ta.focus(); }
+}
+
+// Long-Term AI Rephrase
+async function triggerMTMAIRephrase() {
+  var input = document.getElementById('mtmReplyInput');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  var tenantName = m ? m.from : 'Tenant';
+
+  input.disabled = true;
+  var origText = input.value;
+  input.value = 'Rephrasing...';
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message to tenant ' + tenantName + ':\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = origText;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.value = origText;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
+  input.disabled = false;
+  input.focus();
 }
 
 function sendMTMReply() {
@@ -3281,8 +3324,11 @@ let _msgCenterSearch = '';
 
 // Live client_messages from Supabase (loaded by _refreshClientMsgs)
 var _liveClientMessages = [];
+var _clientMsgsCacheTime = 0;
 
-async function _refreshClientMsgs() {
+async function _refreshClientMsgs(forceRefresh) {
+  // Cache for 30 seconds to avoid re-fetching on filter/search changes
+  if (!forceRefresh && _liveClientMessages.length > 0 && (Date.now() - _clientMsgsCacheTime < 30000)) return;
   try {
     var res = await sb.from('client_messages').select('*').order('created_at', { ascending: false }).limit(200);
     if (res.error) { console.warn('client_messages load error:', res.error.message); return; }
@@ -3800,7 +3846,12 @@ async function openMsgCenterDetail(contactKey) {
   var html = headerHtml;
   html += '<div id="mcThreadBubbles" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;">'+bubblesHtml+'</div>';
   html += '<div style="padding:8px 12px;border-top:1px solid var(--border);flex-shrink:0;" id="mcReplyArea">';
+  html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
   html += buildChannelSelector('app');
+  html += '<div style="margin-left:auto;display:flex;gap:4px;">';
+  html += '<button onclick="_mcAISuggest()" title="AI-suggested reply" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">⚡ AI Suggest</button>';
+  html += '<button onclick="_mcAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">🔄 Rephrase</button>';
+  html += '</div></div>';
   html += '<div style="display:flex;gap:6px;">';
   html += '<input id="mcReplyInput" placeholder="Type your reply... nothing is sent until you approve." style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--text);" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\');}">';
   html += '<button onclick="_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\')" style="padding:6px 14px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
@@ -3822,7 +3873,104 @@ function _mcSendReply(from, email, phone, subject, threadId) {
   sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
   toast('Reply sent!');
   // Refresh thread after delay
-  setTimeout(function() { if (_msgCenterSelectedId) openMsgCenterDetail(_msgCenterSelectedId); }, 1000);
+  setTimeout(function() { if (_msgCenterSelectedContact) openMsgCenterDetail(_msgCenterSelectedContact); }, 1000);
+}
+
+// ── AI Suggest & Rephrase for Message Center ──
+var _MC_AI_PROXY = 'https://tech.willowpa.com/proxy.php';
+
+function _mcBuildSystemPrompt() {
+  var prompt = 'You are a helpful property management assistant for Willow Partnership, LLC. ';
+  prompt += 'You help draft replies to guest and resident messages.\n\n';
+  prompt += '## Tone Guidelines\n';
+  prompt += '- Always use "We" not "I"\n';
+  prompt += '- Professional but warm tone\n';
+  prompt += '- Never use slang or overly casual language\n';
+  prompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+  prompt += '\nDraft a concise, helpful reply. Do NOT include subject lines or email headers. Just the message body. Keep it under 150 words.';
+  return prompt;
+}
+
+async function _mcAISuggest() {
+  // Get conversation context from the bubbles
+  var bubbles = document.querySelectorAll('#mcThreadBubbles > div');
+  if (!bubbles || bubbles.length === 0) { toast('No conversation to suggest from', 'warning'); return; }
+
+  var convoText = '';
+  bubbles.forEach(function(el) {
+    var label = el.querySelector('div[style*="font-weight:600"]');
+    var body = el.querySelector('div[style*="white-space:pre-wrap"]');
+    if (label && body) convoText += (label.textContent || '') + ': ' + (body.textContent || '') + '\n';
+  });
+
+  // Find contact info from grouped data
+  var m = _mcGroupedContacts.find(function(c) { return (c.from||'').toLowerCase().trim() === _msgCenterSelectedContact; });
+  var guestName = m ? m.from : 'Guest';
+  var unit = m ? m.unit : '';
+
+  var userPrompt = 'Guest: ' + guestName;
+  if (unit) userPrompt += ' (Unit ' + unit + ')';
+  userPrompt += '\n\nConversation:\n' + convoText;
+  userPrompt += '\n\nDraft a reply to the guest\'s latest message.';
+
+  // Show loading in a small inline area
+  var input = document.getElementById('mcReplyInput');
+  if (input) { input.value = 'Generating AI suggestion...'; input.disabled = true; }
+
+  try {
+    var resp = await fetch(_MC_AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, system: _mcBuildSystemPrompt(), messages: [{ role: 'user', content: userPrompt }] })
+    });
+    var data = await resp.json();
+    if (input) input.disabled = false;
+    if (data.content && data.content[0] && data.content[0].text) {
+      if (input) { input.value = data.content[0].text; input.focus(); }
+    } else {
+      if (input) input.value = '';
+      toast('AI suggestion unavailable', 'error');
+    }
+  } catch(e) {
+    if (input) { input.disabled = false; input.value = ''; }
+    toast('AI suggestion failed: ' + e.message, 'error');
+  }
+}
+
+async function _mcAIRephrase() {
+  var input = document.getElementById('mcReplyInput');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  input.disabled = true;
+  var original = text;
+
+  try {
+    var resp = await fetch(_MC_AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: 'You are a property management communication assistant. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message:\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    input.disabled = false;
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      input.focus();
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = original;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.disabled = false;
+    input.value = original;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
 }
 
 // ── Applications Data & Render ──

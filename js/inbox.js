@@ -58,16 +58,30 @@ let _inboxPollInterval = null;
 
 function startInboxPolling() {
   stopInboxPolling();
-  _inboxPollInterval = setInterval(function() {
+  _inboxPollInterval = setInterval(async function() {
     if (!currentChannelId) return;
-    // Skip refresh if user is actively typing in the reply input
+    // Skip refresh if user is actively typing
     var replyEl = document.getElementById('replyInput');
     if (replyEl && (document.activeElement === replyEl || replyEl.value.trim())) return;
-    // Force refresh the current thread's messages cache then re-render
-    delete _msgCache[currentChannelId];
-    _channelsCacheTime = 0; // force channel list refresh too
-    renderInbox();
-  }, 7000);
+    // Check for new messages without full re-render
+    try {
+      var oldMsgs = _msgCache[currentChannelId];
+      var oldCount = oldMsgs ? oldMsgs.length : -1;
+      delete _msgCache[currentChannelId];
+      var newMsgs = await loadMessages(currentChannelId, true);
+      if (newMsgs && newMsgs.length !== oldCount) {
+        // Only re-render message bubbles, not the entire page
+        var mc = document.getElementById('messagesContainer');
+        if (mc) {
+          var scrollAtBottom = mc.scrollHeight - mc.scrollTop - mc.clientHeight < 80;
+          renderInbox();
+          if (scrollAtBottom) {
+            setTimeout(function(){ var mc2 = document.getElementById('messagesContainer'); if(mc2) mc2.scrollTop = mc2.scrollHeight; }, 100);
+          }
+        }
+      }
+    } catch(e) { /* silent poll error */ }
+  }, 10000);
 }
 
 function stopInboxPolling() {
@@ -786,6 +800,7 @@ async function renderInbox() {
               </select>
               <span style="flex:1;"></span>
               <button onclick="triggerInboxAISuggest()" title="AI-powered reply suggestion" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-family:inherit;font-size:9px;cursor:pointer;font-weight:600;">⚡ AI Suggest</button>
+              <button onclick="triggerInboxAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:4px;padding:5px 10px;font-family:inherit;font-size:9px;cursor:pointer;font-weight:600;">🔄 Rephrase</button>
               <button onclick="viewSendQueue()" title="View pending messages" style="background:#fff;color:#7d5228;border:1px solid #ddd8ce;border-radius:4px;padding:5px 8px;font-family:inherit;font-size:9px;cursor:pointer;position:relative;">📤 Queue<span id="queueBadge" style="display:none;position:absolute;top:-5px;right:-5px;background:#c62828;color:#fff;font-size:8px;font-weight:700;padding:1px 4px;border-radius:10px;min-width:12px;text-align:center;"></span></button>
             </div>
             ${typeof buildChannelSelector === 'function' ? buildChannelSelector('channel') : ''}
@@ -1430,6 +1445,46 @@ async function triggerInboxAISuggest() {
       '</div>'
     );
   }
+}
+
+// ── AI Rephrase for Short-Term Inbox ──
+async function triggerInboxAIRephrase() {
+  var input = document.getElementById('replyInput');
+  var text = input ? input.value.trim() : '';
+  if (!text) { if (typeof showToast === 'function') showToast('Type something first, then click Rephrase', 'warning'); return; }
+
+  var channel = channels.find(c => c.id === currentChannelId);
+  var guestName = channel ? channel.guest_name : 'Guest';
+
+  input.disabled = true;
+  var origText = input.value;
+  input.value = 'Rephrasing...';
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message to guest ' + guestName + ':\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      if (typeof showToast === 'function') showToast('Text rephrased!', 'success');
+    } else {
+      input.value = origText;
+      if (typeof showToast === 'function') showToast('Rephrase unavailable', 'error');
+    }
+  } catch (e) {
+    input.value = origText;
+    if (typeof showToast === 'function') showToast('Rephrase failed: ' + e.message, 'error');
+  }
+  input.disabled = false;
+  input.focus();
 }
 
 // ═══════════════════════════════════════════════════════
