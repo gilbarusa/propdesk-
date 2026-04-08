@@ -3221,8 +3221,8 @@ async function triggerMTMAIRephrase() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
         system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
         messages: [{ role: 'user', content: 'Rephrase this message to tenant ' + tenantName + ':\n\n' + text }]
       })
@@ -10568,6 +10568,44 @@ async function triggerModalAISuggest() {
   } catch(e) {
     overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;"><div style="color:#c62828;">AI error: ' + e.message + '</div><button onclick="this.closest(\'div\').parentElement.remove();" style="margin-top:12px;padding:8px 16px;border:none;border-radius:6px;background:#eee;cursor:pointer;">Close</button></div>';
   }
+}
+
+// AI Rephrase in modal
+async function triggerModalAIRephrase() {
+  var input = document.getElementById('msgBody');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  var r = _modalRecipient;
+  input.disabled = true;
+  var origText = input.value;
+  input.value = 'Rephrasing...';
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message to ' + (r.name || 'resident') + ':\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = origText;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.value = origText;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
+  input.disabled = false;
+  input.focus();
 }
 
 // ═══════════════════════════════════════════════════

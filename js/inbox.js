@@ -1465,8 +1465,8 @@ async function triggerInboxAIRephrase() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
         system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
         messages: [{ role: 'user', content: 'Rephrase this message to guest ' + guestName + ':\n\n' + text }]
       })
