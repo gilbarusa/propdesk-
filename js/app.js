@@ -9614,36 +9614,55 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
         var unitVal = opts.unit || '';
         var propertyVal = opts.property || '';
 
-        // 1) Find existing willowpa channel for this resident's unit, or create one
+        console.log('[App Channel] Sending to:', name, 'unit:', unitVal, 'property:', propertyVal);
+
+        // 1) Find existing willowpa channel for this unit, or create one
         var portalChannelId = null;
         if (unitVal) {
           var lookup = await sb.from('channels').select('id').eq('unit_apt', unitVal).eq('platform', 'willowpa').limit(1);
+          console.log('[App Channel] Lookup result:', lookup.data, lookup.error);
           if (lookup.data && lookup.data.length > 0) {
             portalChannelId = lookup.data[0].id;
+            console.log('[App Channel] Found existing channel:', portalChannelId);
+          }
+        }
+        // Also try without platform filter if no willowpa channel found
+        if (!portalChannelId && unitVal) {
+          var lookup2 = await sb.from('channels').select('id').eq('unit_apt', unitVal).limit(1);
+          if (lookup2.data && lookup2.data.length > 0) {
+            portalChannelId = lookup2.data[0].id;
+            console.log('[App Channel] Found channel (any platform):', portalChannelId);
           }
         }
         if (!portalChannelId) {
           // Create a new willowpa channel for this resident
-          var chInsert = { guest_name: name, guest_email: email || '', guest_phone: phone || '', unit_apt: unitVal, platform: 'willowpa', status: 'active', last_message_preview: body.substring(0, 100), last_message_at: now };
+          var chInsert = { guest_name: name, guest_email: email || '', guest_phone: phone || '', unit_apt: unitVal, platform: 'willowpa', status: 'active', last_message_preview: body.substring(0, 100), last_message_at: now, unread_count: 0 };
           if (propertyVal) chInsert.listing_name = propertyVal;
           var chRes = await sb.from('channels').insert([chInsert]).select('id');
+          console.log('[App Channel] Created channel:', chRes.data, chRes.error);
           if (chRes.error) throw chRes.error;
           portalChannelId = chRes.data[0].id;
         }
 
         // 2) Insert message into the messages table under that channel
-        await sb.from('messages').insert([{ channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: 'text' }]);
+        var msgRes = await sb.from('messages').insert([{ channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: 'text' }]);
+        console.log('[App Channel] Message insert:', msgRes.error ? 'ERROR: ' + msgRes.error.message : 'OK');
 
-        // 3) Update channel preview
-        await sb.from('channels').update({ last_message_preview: body.substring(0, 100), last_message_at: now, unread_count: 1 }).eq('id', portalChannelId);
+        // 3) Update channel preview + bump unread
+        var updRes = await sb.from('channels').update({ last_message_preview: body.substring(0, 100), last_message_at: now }).eq('id', portalChannelId);
+        console.log('[App Channel] Channel update:', updRes.error ? 'ERROR: ' + updRes.error.message : 'OK');
 
         // 4) Also insert into client_messages for the management Message Center
         var threadId = opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
-        await sb.from('client_messages').insert([{ thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: unitVal, subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: now, property: propertyVal || undefined }]);
+        var cmObj = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: unitVal, subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: now };
+        if (propertyVal) cmObj.property = propertyVal;
+        var cmRes = await sb.from('client_messages').insert([cmObj]);
+        console.log('[App Channel] client_messages insert:', cmRes.error ? 'ERROR: ' + cmRes.error.message : 'OK');
 
         if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
         if (typeof loadChannels === 'function') loadChannels(true);
-      } catch(e) { console.warn('App channel send error:', e.message); alert('Error sending app message: ' + e.message); }
+        console.log('[App Channel] All done — message should be in portal for unit:', unitVal);
+      } catch(e) { console.error('[App Channel] FATAL:', e.message); alert('Error sending app message: ' + e.message); }
     })();
     toast('App message sent to ' + name, 'success');
   } else if (channel === 'sms') {
