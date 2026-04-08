@@ -10503,6 +10503,7 @@ async function sendMsgFromModal() {
   // 4b) Also insert into client_messages so the portal can see it
   try {
     var cmObj = { thread_id: channelId, resident_name: r.name || '', resident_email: r.email || '', resident_phone: r.phone || '', resident_unit: unit, subject: 'Message', body: body, sender_type: 'management', read: false, created_at: now };
+    if (attachmentUrl) { cmObj.attachment_url = attachmentUrl; cmObj.message_type = messageType; }
     if (r.email) cmObj.resident_email = r.email;
     var cmRes = await sb.from('client_messages').insert([cmObj]);
     if (cmRes.error) console.error('[Modal] client_messages dual-write error:', cmRes.error.message, cmObj);
