@@ -3317,7 +3317,26 @@ async function _refreshClientMsgs() {
         if (!r.read && r.sender_type === 'resident') threadMap[tid].unread = true;
       }
     });
-    _liveClientMessages = Object.values(threadMap);
+    // Tag source based on whether resident matches a short-term booking or long-term tenant
+    var threadList = Object.values(threadMap);
+    threadList.forEach(function(t) {
+      var nameLC = (t.from || '').toLowerCase().trim();
+      var unitLC = (t.unit || '').toLowerCase().trim();
+      // Check short-term bookings
+      if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+        var stMatch = AIRBNB_BOOKINGS_SEED.find(function(b) {
+          return (b.guest || '').toLowerCase().trim() === nameLC
+              || (unitLC && (b.unit || '').toLowerCase().trim() === unitLC);
+        });
+        if (stMatch) { t.source = 'short-term'; t.platform = stMatch.platform || 'airbnb'; t.threadId = stMatch.threadId; return; }
+      }
+      // Check long-term tenants
+      if (typeof INNAGO_MESSAGES !== 'undefined') {
+        var ltMatch = INNAGO_MESSAGES.find(function(m) { return (m.from || '').toLowerCase().trim() === nameLC; });
+        if (ltMatch) { t.source = 'long-term'; return; }
+      }
+    });
+    _liveClientMessages = threadList;
     console.log('[MsgCenter] Loaded', _liveClientMessages.length, 'threads from client_messages');
   } catch(e) { console.warn('_refreshClientMsgs error:', e.message); }
 }
