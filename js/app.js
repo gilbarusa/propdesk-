@@ -3382,6 +3382,66 @@ function _countUnreadMessages() {
   return _getAllCenterMessages().filter(m => m.unread).length;
 }
 
+// Group flat message list by contact name → one entry per person
+function _groupMessagesByContact(msgs) {
+  var map = {};
+  msgs.forEach(function(m) {
+    var key = (m.from || 'Unknown').toLowerCase().trim();
+    if (!map[key]) {
+      map[key] = {
+        id: m.id,
+        from: m.from,
+        unit: m.unit || '',
+        property: m.property || '',
+        date: m.date,
+        subject: m.subject,
+        body: m.body,
+        unread: !!m.unread,
+        source: m.source,
+        platform: m.platform || '',
+        sent: m.sent,
+        _email: m._email || '',
+        _phone: m._phone || '',
+        _threadId: m._threadId || '',
+        threadId: m.threadId || '',
+        _allMsgIds: [m.id],
+        _allThreadIds: [m._threadId || m.threadId || ''].filter(Boolean),
+        _msgCount: 1,
+        _unreadCount: m.unread ? 1 : 0
+      };
+    } else {
+      var g = map[key];
+      g._allMsgIds.push(m.id);
+      g._msgCount++;
+      if (m.unread) { g.unread = true; g._unreadCount++; }
+      // Keep the latest message info for preview
+      if (new Date(m.date) > new Date(g.date)) {
+        g.date = m.date;
+        g.body = m.body;
+        g.subject = m.subject;
+        g.sent = m.sent;
+        g.id = m.id;
+      }
+      // Accumulate thread IDs
+      var tid = m._threadId || m.threadId || '';
+      if (tid && g._allThreadIds.indexOf(tid) === -1) g._allThreadIds.push(tid);
+      // Fill in missing contact info
+      if (!g._email && m._email) g._email = m._email;
+      if (!g._phone && m._phone) g._phone = m._phone;
+      if (!g.unit && m.unit) g.unit = m.unit;
+      if (!g.property && m.property) g.property = m.property;
+      if (!g.platform && m.platform) g.platform = m.platform;
+      if (!g.threadId && m.threadId) g.threadId = m.threadId;
+      if (!g._threadId && m._threadId) g._threadId = m._threadId;
+    }
+  });
+  // Convert to array, sorted by latest date descending
+  return Object.values(map).sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+}
+
+// Store grouped contacts so openMsgCenterDetail can access them
+var _mcGroupedContacts = [];
+
 function updateMsgCenterBadge() {
   const count = _countUnreadMessages();
   const badge = document.getElementById('msgCenterBadge');
@@ -3400,15 +3460,15 @@ async function renderMessageCenter() {
 
   const filter = _currentMsgCenterFilter;
   const search = _msgCenterSearch.toLowerCase();
-  let msgs = _getAllCenterMessages();
+  let rawMsgs = _getAllCenterMessages();
 
-  // Apply source filter
+  // Apply source filter before grouping
   if (filter !== 'all') {
-    msgs = msgs.filter(m => m.source === filter);
+    rawMsgs = rawMsgs.filter(m => m.source === filter);
   }
-  // Apply search
+  // Apply search before grouping
   if (search) {
-    msgs = msgs.filter(m =>
+    rawMsgs = rawMsgs.filter(m =>
       (m.from||'').toLowerCase().includes(search) ||
       (m.subject||'').toLowerCase().includes(search) ||
       (m.body||'').toLowerCase().includes(search) ||
@@ -3416,24 +3476,30 @@ async function renderMessageCenter() {
     );
   }
 
+  // Group by contact name — one row per person
+  var msgs = _groupMessagesByContact(rawMsgs);
+  _mcGroupedContacts = msgs;
+
   const totalUnread = msgs.filter(m => m.unread).length;
 
-  // Build left panel contact list
+  // Build left panel contact list (one entry per person)
   var listHtml = '';
-  msgs.forEach(m => {
+  msgs.forEach(function(m, idx) {
     const src = MSG_SOURCE_STYLES[m.source] || MSG_SOURCE_STYLES['short-term'];
     const dateStr = _msgCenterTimeAgo(m.date);
     const initial = m.from ? m.from.charAt(0).toUpperCase() : '?';
-    const sel = _msgCenterSelectedId === m.id ? 'background:var(--accent-bg);' : '';
+    const contactKey = (m.from||'').toLowerCase().trim();
+    const sel = _msgCenterSelectedContact === contactKey ? 'background:var(--accent-bg);' : '';
     const unreadDot = m.unread ? '<span style="width:7px;height:7px;border-radius:50%;background:#d32f2f;flex-shrink:0;"></span>' : '';
+    const countBadge = m._msgCount > 1 ? '<span style="font-size:8px;color:var(--text3);margin-left:2px;">(' + m._msgCount + ')</span>' : '';
     listHtml += `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);${sel}"
-      onclick="_msgCenterSelectedId='${m.id}';openMsgCenterDetail('${m.id}')"
+      onclick="_msgCenterSelectedContact='${contactKey}';openMsgCenterDetail('${contactKey}')"
       onmouseover="if(!this.style.background.includes('accent'))this.style.background='var(--surface2)'"
       onmouseout="this.style.background='${sel?'var(--accent-bg)':''}'">
       <div style="width:32px;height:32px;border-radius:50%;background:${src.bg};color:${src.text};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${initial}</div>
       <div style="flex:1;min-width:0;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:baseline;">
-          <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.sent?'➤ ':''}${_esc(m.from)}</span>
+          <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.sent?'➤ ':''}${_esc(m.from)}${countBadge}</span>
           <span style="font-size:9px;color:var(--text3);flex-shrink:0;margin-left:4px;">${dateStr}</span>
         </div>
         <div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(m.unit||'')} · <span style="color:${src.text}">${src.label}</span></div>
@@ -3474,6 +3540,7 @@ async function renderMessageCenter() {
 }
 
 var _msgCenterSelectedId = null;
+var _msgCenterSelectedContact = null;
 
 function _msgCenterTimeAgo(d) {
   if (!d) return '';
@@ -3491,26 +3558,35 @@ function _msgCenterTimeAgo(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-async function openMsgCenterDetail(id) {
-  const msgs = _getAllCenterMessages();
-  const m = msgs.find(x => x.id === id);
-  if (!m) return;
+async function openMsgCenterDetail(contactKey) {
+  // Find grouped contact by key (lowercase name)
+  var m = _mcGroupedContacts.find(function(c) { return (c.from||'').toLowerCase().trim() === contactKey; });
+  if (!m) {
+    // Fallback: try by id for backwards compat
+    var allMsgs = _getAllCenterMessages();
+    m = allMsgs.find(function(x) { return x.id === contactKey; });
+    if (!m) return;
+  }
 
-  _msgCenterSelectedId = id;
+  _msgCenterSelectedContact = contactKey;
 
   // Re-highlight in left panel
   var leftItems = document.querySelectorAll('#mcLeftPanel > div');
   leftItems.forEach(function(el) { el.style.background = ''; });
 
-  // Mark as read
-  if (m.source === 'long-term' && typeof INNAGO_MESSAGES !== 'undefined') {
-    var origId = parseInt(id.replace('lt-', ''));
-    var orig = INNAGO_MESSAGES.find(x => x.id === origId);
-    if (orig) orig.unread = false;
-  } else if (m.source === 'short-term' && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
-    var tid = id.replace('st-', '');
-    var orig2 = AIRBNB_BOOKINGS_SEED.find(x => x.threadId === tid);
-    if (orig2) orig2.unread = 0;
+  // Mark as read across all grouped messages
+  if (m._allMsgIds) {
+    m._allMsgIds.forEach(function(mid) {
+      if (mid.startsWith('lt-') && typeof INNAGO_MESSAGES !== 'undefined') {
+        var origId = parseInt(mid.replace('lt-', ''));
+        var orig = INNAGO_MESSAGES.find(function(x) { return x.id === origId; });
+        if (orig) orig.unread = false;
+      } else if (mid.startsWith('st-') && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+        var tid2 = mid.replace('st-', '');
+        var orig2 = AIRBNB_BOOKINGS_SEED.find(function(x) { return x.threadId === tid2; });
+        if (orig2) orig2.unread = 0;
+      }
+    });
   }
 
   var centerEl = document.getElementById('mcCenterPanel');
@@ -3519,7 +3595,10 @@ async function openMsgCenterDetail(id) {
 
   var src = MSG_SOURCE_STYLES[m.source] || {};
   var unitStr = m.unit ? (m.property ? m.unit + ' at ' + m.property : m.unit) : (m.property || '');
-  var threadId = m._threadId || '';
+
+  // Collect all thread IDs for this contact
+  var allThreadIds = m._allThreadIds || [];
+  var primaryThreadId = m._threadId || m.threadId || (allThreadIds.length > 0 ? allThreadIds[0] : '');
 
   // -- Right panel: Client card (enriched with booking details) --
   if (rightEl) {
@@ -3528,12 +3607,11 @@ async function openMsgCenterDetail(id) {
     // Try to find booking/channel data for this contact
     var booking = null;
     var channel = null;
-    if (m.source === 'short-term' && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
-      booking = AIRBNB_BOOKINGS_SEED.find(function(b){ return b.threadId === (m.threadId || id.replace('st-','')); });
+    if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+      booking = AIRBNB_BOOKINGS_SEED.find(function(b){ return (b.guest||'').toLowerCase().trim() === contactKey; });
     }
-    // Also try matching by name in channels cache
     if (!booking && typeof _channelsCache !== 'undefined' && _channelsCache) {
-      channel = _channelsCache.find(function(c){ return c.name === m.from || c.guest_name === m.from; });
+      channel = _channelsCache.find(function(c){ return (c.name||'').toLowerCase().trim() === contactKey || (c.guest_name||'').toLowerCase().trim() === contactKey; });
     }
 
     var phone = m._phone || (booking ? booking.phone : '') || (channel ? channel.guest_phone : '') || '';
@@ -3610,32 +3688,70 @@ async function openMsgCenterDetail(id) {
 
   // Header
   var headerHtml = '<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;">';
-  headerHtml += '<div style="font-size:14px;font-weight:600;color:var(--text);">'+_esc(m.subject)+'</div>';
-  headerHtml += '<div style="font-size:11px;color:var(--text2);">'+(m.sent?'Sent to':'From')+' <strong>'+_esc(m.from)+'</strong>'+(unitStr?' — '+_esc(unitStr):'')+'</div>';
+  headerHtml += '<div style="font-size:14px;font-weight:600;color:var(--text);">'+_esc(m.from)+'</div>';
+  headerHtml += '<div style="font-size:11px;color:var(--text2);">'+_esc(unitStr||'')+' · '+(m._msgCount > 1 ? m._msgCount + ' messages' : '1 message')+'</div>';
   headerHtml += '</div>';
 
-  // Load thread from client_messages
-  var bubblesHtml = '';
-  if (threadId) {
+  // Load ALL threads for this contact from client_messages
+  var allBubbles = [];
+
+  // Load from each thread_id
+  for (var ti = 0; ti < allThreadIds.length; ti++) {
+    var tid = allThreadIds[ti];
+    if (!tid) continue;
     try {
-      var res = await sb.from('client_messages').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
+      var res = await sb.from('client_messages').select('*').eq('thread_id', tid).order('created_at', { ascending: true });
       if (res.data && res.data.length > 0) {
-        sb.from('client_messages').update({ read: true }).eq('thread_id', threadId).eq('sender_type', 'resident').eq('read', false).then(function(){});
+        // Mark as read
+        sb.from('client_messages').update({ read: true }).eq('thread_id', tid).eq('sender_type', 'resident').eq('read', false).then(function(){});
         res.data.forEach(function(msg) {
-          var isAdmin = msg.sender_type === 'management';
-          var time = new Date(msg.created_at).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
-          var date = new Date(msg.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric'});
-          bubblesHtml += '<div style="display:flex;'+(isAdmin?'justify-content:flex-end':'justify-content:flex-start')+';">';
-          bubblesHtml += '<div style="max-width:75%;background:'+(isAdmin?'var(--accent)':'var(--surface2)')+';color:'+(isAdmin?'#fff':'var(--text)')+';padding:8px 12px;border-radius:'+(isAdmin?'12px 12px 2px 12px':'12px 12px 12px 2px')+';font-size:12px;line-height:1.45;">';
-          bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+(isAdmin?'Management':_esc(msg.resident_name||'Resident'))+'</div>';
-          bubblesHtml += '<div style="white-space:pre-wrap;">'+_esc(msg.body)+'</div>';
-          bubblesHtml += '<div style="font-size:8px;opacity:.5;margin-top:2px;">'+date+' '+time+'</div>';
-          bubblesHtml += '</div></div>';
+          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject });
         });
       }
-    } catch(e) { console.warn('Thread load error:', e); }
+    } catch(e) { console.warn('Thread load error:', tid, e); }
   }
-  // Fallback: single message bubble
+
+  // Also try loading by resident name if no thread results
+  if (allBubbles.length === 0 && m.from) {
+    try {
+      var nameRes = await sb.from('client_messages').select('*').ilike('resident_name', m.from).order('created_at', { ascending: true }).limit(100);
+      if (nameRes.data) {
+        nameRes.data.forEach(function(msg) {
+          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject });
+        });
+        // Mark as read
+        if (nameRes.data.length > 0) {
+          sb.from('client_messages').update({ read: true }).ilike('resident_name', m.from).eq('sender_type', 'resident').eq('read', false).then(function(){});
+        }
+      }
+    } catch(e) { console.warn('Name-based thread load error:', e); }
+  }
+
+  // Sort all bubbles chronologically
+  allBubbles.sort(function(a, b) { return new Date(a.time) - new Date(b.time); });
+
+  // Build chat bubbles HTML
+  var bubblesHtml = '';
+  var lastDateStr = '';
+  allBubbles.forEach(function(msg) {
+    var isAdmin = msg.sender_type === 'management';
+    var time = new Date(msg.time).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+    var date = new Date(msg.time).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    // Date separator
+    if (date !== lastDateStr) {
+      bubblesHtml += '<div style="text-align:center;font-size:9px;color:var(--text3);padding:4px 0;">'+date+'</div>';
+      lastDateStr = date;
+    }
+    bubblesHtml += '<div style="display:flex;'+(isAdmin?'justify-content:flex-end':'justify-content:flex-start')+';">';
+    bubblesHtml += '<div style="max-width:75%;background:'+(isAdmin?'var(--accent)':'var(--surface2)')+';color:'+(isAdmin?'#fff':'var(--text)')+';padding:8px 12px;border-radius:'+(isAdmin?'12px 12px 2px 12px':'12px 12px 12px 2px')+';font-size:12px;line-height:1.45;">';
+    bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+(isAdmin?'Management':_esc(msg.name))+'</div>';
+    if (msg.subject) bubblesHtml += '<div style="font-size:9px;font-weight:500;opacity:.6;margin-bottom:2px;">'+_esc(msg.subject)+'</div>';
+    bubblesHtml += '<div style="white-space:pre-wrap;">'+_esc(msg.body)+'</div>';
+    bubblesHtml += '<div style="font-size:8px;opacity:.5;margin-top:2px;">'+time+'</div>';
+    bubblesHtml += '</div></div>';
+  });
+
+  // Fallback: show single message bubble if no DB results
   if (!bubblesHtml) {
     bubblesHtml = '<div style="display:flex;justify-content:flex-start;"><div style="max-width:80%;background:var(--surface2);color:var(--text);padding:8px 12px;border-radius:12px;font-size:12px;line-height:1.45;">';
     bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+_esc(m.from)+'</div>';
@@ -3647,7 +3763,7 @@ async function openMsgCenterDetail(id) {
   var escapedEmail = _esc(m._email||'').replace(/'/g,"\\'");
   var escapedPhone = _esc(m._phone||'').replace(/'/g,"\\'");
   var escapedSubj = _esc(m.subject||'').replace(/'/g,"\\'");
-  var escapedTid = threadId.replace(/'/g,"\\'");
+  var escapedTid = primaryThreadId.replace(/'/g,"\\'");
 
   var html = headerHtml;
   html += '<div id="mcThreadBubbles" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;">'+bubblesHtml+'</div>';
@@ -3661,6 +3777,7 @@ async function openMsgCenterDetail(id) {
   centerEl.innerHTML = html;
   var bubDiv = document.getElementById('mcThreadBubbles');
   if (bubDiv) bubDiv.scrollTop = bubDiv.scrollHeight;
+  m.unread = false;
   updateMsgCenterBadge();
 }
 
