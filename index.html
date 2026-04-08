@@ -3049,6 +3049,7 @@
             <textarea id="msgBody" placeholder="Type your message..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsgFromModal()}" style="flex:1;min-height:50px;max-height:120px;border:1px solid var(--border);border-radius:8px;padding:10px;font-size:13px;font-family:inherit;resize:none;background:var(--surface2);color:var(--text);"></textarea>
             <div style="display:flex;flex-direction:column;gap:4px;">
               <button onclick="triggerModalAISuggest()" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:10px;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap;">AI Suggest</button>
+              <button onclick="triggerModalAIRephrase()" style="background:#e8b94a;color:#fff;border:none;border-radius:6px;padding:7px 12px;font-size:10px;cursor:pointer;font-weight:600;font-family:inherit;white-space:nowrap;">Rephrase</button>
               <button onclick="sendMsgFromModal()" style="background:var(--accent2);color:#fff;border:none;border-radius:6px;padding:7px 16px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit;">Send</button>
             </div>
           </div>
@@ -3071,11 +3072,11 @@
 <script src="js/config.js"></script>
 <script src="js/ft-db.js"></script>
 <script src="js/fieldtrack.js"></script>
-<script src="js/app.js?v=20260408"></script>
+<script src="js/app.js?v=20260408b"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
-<script src="js/inbox.js?v=20260408"></script>
+<script src="js/inbox.js?v=20260408b"></script>
 <script src="js/pipeline.js"></script>
 
 <!-- ══ GLOBAL Drill-Down & Invoice Panels (outside all pages) ══ -->
