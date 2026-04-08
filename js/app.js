@@ -3279,13 +3279,51 @@ function sendMTMCompose(){
 let _currentMsgCenterFilter = 'all';
 let _msgCenterSearch = '';
 
-const CLIENT_APP_MESSAGES = [
-  {id:'ca-1',from:'Maria Gonzalez',unit:'46-210',property:'46 Township Line',date:'2026-04-06T09:15:00',subject:'Lockout Request',body:'Hi, I accidentally locked myself out. Can someone let me in?',unread:true,source:'client'},
-  {id:'ca-2',from:'James Whitfield',unit:'46-331',property:'46 Township Line',date:'2026-04-05T17:30:00',subject:'AC Not Working',body:'The air conditioning in my unit stopped blowing cold air yesterday evening.',unread:true,source:'client'},
-  {id:'ca-3',from:'Emily Chen',unit:'Unit 4',property:'7845 Montgomery Ave',date:'2026-04-04T11:00:00',subject:'Package Pickup',body:'I got a notification about a package. Where can I pick it up?',unread:false,source:'client'},
-  {id:'ca-4',from:'Devon Williams',unit:'A1',property:'431 Valley Rd',date:'2026-04-03T14:20:00',subject:'Lease Question',body:'When does my renewal option become available? I want to plan ahead.',unread:false,source:'client'},
-  {id:'ca-5',from:'Priya Patel',unit:'46-128',property:'46 Township Line',date:'2026-04-02T08:45:00',subject:'Guest Parking',body:'I have family visiting this weekend. Is guest parking available?',unread:false,source:'client'}
-];
+// Live client_messages from Supabase (loaded by _refreshClientMsgs)
+var _liveClientMessages = [];
+
+async function _refreshClientMsgs() {
+  try {
+    var res = await sb.from('client_messages').select('*').order('created_at', { ascending: false }).limit(200);
+    if (res.error) { console.warn('client_messages load error:', res.error.message); return; }
+    var rows = res.data || [];
+    // Group by thread_id → one entry per thread (latest message, aggregate unread)
+    var threadMap = {};
+    rows.forEach(function(r) {
+      var tid = r.thread_id || r.id;
+      if (!threadMap[tid]) {
+        threadMap[tid] = {
+          id: 'cm-' + tid,
+          from: r.resident_name || 'Resident',
+          unit: r.resident_unit || '',
+          property: r.property || '',
+          date: r.created_at,
+          subject: r.subject || 'Message',
+          body: r.body || '',
+          unread: (!r.read && r.sender_type === 'resident'),
+          source: 'client',
+          _email: r.resident_email || '',
+          _phone: r.resident_phone || '',
+          _threadId: tid,
+          sent: r.sender_type === 'management'
+        };
+      } else {
+        // Update with latest info
+        if (new Date(r.created_at) > new Date(threadMap[tid].date)) {
+          threadMap[tid].date = r.created_at;
+          threadMap[tid].body = r.body || '';
+          threadMap[tid].sent = r.sender_type === 'management';
+        }
+        if (!r.read && r.sender_type === 'resident') threadMap[tid].unread = true;
+      }
+    });
+    _liveClientMessages = Object.values(threadMap);
+    console.log('[MsgCenter] Loaded', _liveClientMessages.length, 'threads from client_messages');
+  } catch(e) { console.warn('_refreshClientMsgs error:', e.message); }
+}
+
+// Seed data as fallback (shown only until live data loads)
+var CLIENT_APP_MESSAGES = [];
 
 const MSG_SOURCE_STYLES = {
   'short-term': { bg: '#e3f2fd', text: '#1565c0', label: 'Short-Term' },
@@ -3331,8 +3369,9 @@ function _getAllCenterMessages() {
       });
     });
   }
-  // Client App
-  CLIENT_APP_MESSAGES.forEach(m => msgs.push({...m}));
+  // Client App (live from Supabase, or seed data as fallback)
+  var clientMsgs = _liveClientMessages.length > 0 ? _liveClientMessages : CLIENT_APP_MESSAGES;
+  clientMsgs.forEach(m => msgs.push({...m}));
 
   // Sort by date descending
   msgs.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -3352,9 +3391,12 @@ function updateMsgCenterBadge() {
   }
 }
 
-function renderMessageCenter() {
+async function renderMessageCenter() {
   const el = document.getElementById('page-msg-center');
   if (!el) return;
+
+  // Load live client_messages from Supabase
+  await _refreshClientMsgs();
 
   const filter = _currentMsgCenterFilter;
   const search = _msgCenterSearch.toLowerCase();
@@ -3429,7 +3471,7 @@ function _msgCenterTimeAgo(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function openMsgCenterDetail(id) {
+async function openMsgCenterDetail(id) {
   // Mark as read
   const msgs = _getAllCenterMessages();
   const m = msgs.find(x => x.id === id);
@@ -3444,14 +3486,42 @@ function openMsgCenterDetail(id) {
     const tid = id.replace('st-', '');
     const orig = AIRBNB_BOOKINGS_SEED.find(x => x.threadId === tid);
     if (orig) orig.unread = 0;
-  } else if (m.source === 'client') {
-    const orig = CLIENT_APP_MESSAGES.find(x => x.id === id);
-    if (orig) orig.unread = false;
   }
 
   const src = MSG_SOURCE_STYLES[m.source] || {};
   const el = document.getElementById('page-msg-center');
   const unitStr = m.unit ? (m.property ? m.unit + ' at ' + m.property : m.unit) : (m.property || '');
+  var threadId = m._threadId || '';
+
+  // Load full thread from client_messages if available
+  var threadHtml = '';
+  if (threadId) {
+    try {
+      var res = await sb.from('client_messages').select('*').eq('thread_id', threadId).order('created_at', { ascending: true });
+      if (res.data && res.data.length > 0) {
+        // Mark unread management messages as read
+        sb.from('client_messages').update({ read: true }).eq('thread_id', threadId).eq('sender_type', 'resident').eq('read', false).then(function(){});
+        threadHtml = '<div style="display:flex;flex-direction:column;gap:8px;padding:16px 20px;max-height:400px;overflow-y:auto;" id="msgCenterThread">';
+        res.data.forEach(function(msg) {
+          var isAdmin = msg.sender_type === 'management';
+          var time = new Date(msg.created_at).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+          var date = new Date(msg.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+          threadHtml += '<div style="display:flex;' + (isAdmin ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';">';
+          threadHtml += '<div style="max-width:75%;background:' + (isAdmin ? 'var(--accent)' : 'var(--surface2)') + ';color:' + (isAdmin ? '#fff' : 'var(--text)') + ';padding:8px 14px;border-radius:' + (isAdmin ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';font-size:12px;line-height:1.5;">';
+          threadHtml += '<div style="font-size:10px;font-weight:600;margin-bottom:2px;opacity:.7;">' + (isAdmin ? 'Management' : (msg.resident_name || 'Resident')) + '</div>';
+          threadHtml += '<div style="white-space:pre-wrap;">' + _esc(msg.body) + '</div>';
+          threadHtml += '<div style="font-size:9px;opacity:.5;margin-top:3px;">' + date + ' ' + time + '</div>';
+          threadHtml += '</div></div>';
+        });
+        threadHtml += '</div>';
+      }
+    } catch(e) { console.warn('Thread load error:', e); }
+  }
+
+  // Fallback: show single message if no thread loaded
+  if (!threadHtml) {
+    threadHtml = '<div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">' + _esc(m.body) + '</div>';
+  }
 
   el.innerHTML = `
     <div style="padding:16px 20px 0;">
@@ -3466,16 +3536,19 @@ function openMsgCenterDetail(id) {
         <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">${m.subject}</div>
         <div style="font-size:12px;color:var(--text2);">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong>${unitStr ? ' — ' + unitStr : ''}</div>
       </div>
-      <div style="padding:20px;font-size:13px;line-height:1.6;color:var(--text);">${m.body}</div>
-      ${!m.sent ? `<div style="padding:12px 20px 16px;border-top:1px solid var(--border);" id="msgCenterReplyArea">
+      ${threadHtml}
+      <div style="padding:12px 20px 16px;border-top:1px solid var(--border);" id="msgCenterReplyArea">
         ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
         <textarea id="msgCenterReply" placeholder="Type your reply..." style="width:100%;min-height:60px;padding:10px;border:1px solid var(--border);border-radius:6px;font-family:var(--font);font-size:12px;background:var(--surface);color:var(--text);resize:vertical;box-sizing:border-box;"></textarea>
         <div style="display:flex;gap:8px;margin-top:8px;">
-          <button onclick="(function(){var b=document.getElementById('msgCenterReply').value.trim();if(!b){alert('Please type a message.');return;}var ch=getSelectedChannel(document.getElementById('msgCenterReplyArea'));sendViaChannel(ch,'${m.from.replace(/'/g,"\\'")}','${(m._email||'').replace(/'/g,"\\'")}','${(m._phone||'').replace(/'/g,"\\'")}',b,{subject:'${(m.subject||'').replace(/'/g,"\\'")}',threadId:'${(m._threadId||'').replace(/'/g,"\\'")}'});document.getElementById('msgCenterReply').value='';toast('Reply sent!');})();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
+          <button onclick="(function(){var b=document.getElementById('msgCenterReply').value.trim();if(!b){alert('Please type a message.');return;}var ch=getSelectedChannel(document.getElementById('msgCenterReplyArea'));sendViaChannel(ch,'${m.from.replace(/'/g,"\\'")}','${(m._email||'').replace(/'/g,"\\'")}','${(m._phone||'').replace(/'/g,"\\'")}',b,{subject:'${(m.subject||'').replace(/'/g,"\\'")}',threadId:'${threadId.replace(/'/g,"\\'")}'});document.getElementById('msgCenterReply').value='';toast('Reply sent!');})();" style="padding:8px 20px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:500;">Send Reply</button>
         </div>
-      </div>` : ''}
+      </div>
     </div>
   `;
+  // Scroll thread to bottom
+  var threadEl = document.getElementById('msgCenterThread');
+  if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
   updateMsgCenterBadge();
 }
 
