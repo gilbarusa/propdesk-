@@ -7052,7 +7052,12 @@ function pkSB(table, query, method, body) {
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  return fetch(url, opts).then(function(r) { return r.json(); });
+  return fetch(url, opts).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.message || 'Request failed'); });
+    var ct = r.headers.get('content-type') || '';
+    if (r.status === 204 || !ct.includes('json')) return [];
+    return r.json();
+  });
 }
 
 function showParkingSection(sec) {
@@ -7152,118 +7157,233 @@ function WPA_pkLoadBuildings() {
   });
 }
 
+var _pkRatePlans = {}; // keyed by building_id
+
+function WPA_pkLoadRatePlans(buildingId) {
+  return pkSB('parking_rate_plans', 'select=*&building_id=eq.' + buildingId + '&order=is_default.desc,name.asc').then(function(rows) {
+    _pkRatePlans[buildingId] = Array.isArray(rows) ? rows : [];
+    return _pkRatePlans[buildingId];
+  });
+}
+
 function WPA_pkRenderBuildings() {
   var el = document.getElementById('pkBuildingsList');
   if (_pkBuildings.length === 0) {
     el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center">No buildings configured yet. Add one above.</div>';
     return;
   }
-  el.innerHTML = _pkBuildings.map(function(b) {
-    var plans = (b.plans || []).map(function(p) {
-      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label || p.name ? ' (' + _esc(p.label || p.name) + ')' : '') + '</span>';
-    }).join(' ');
-    var pricing = '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--accent)">$' + parseFloat(b.per_day||0).toFixed(2) + '/day · min $' + parseFloat(b.minimum_cost||0).toFixed(2) + '</span>';
-    var stripeTag = b.stripe_account_name ? '<span style="display:inline-block;background:var(--green-bg,#e8f5e9);border:1px solid var(--green,#4caf50);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--green,#4caf50)">Stripe: ' + _esc(b.stripe_account_name) + '</span>' : '<span style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:#e65100">No Stripe</span>';
-    return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
-      '<div style="display:flex;justify-content:space-between;align-items:start">' +
-        '<div><h3 style="border:none;padding:0;margin:0 0 4px">' + _esc(b.name) + '</h3>' +
-          (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">' + _esc(b.address) + '</div>' : '') +
-          '<div>' + pricing + ' ' + stripeTag + ' ' + (plans || '<span style="font-size:11px;color:var(--text3)">No bulk plans</span>') + '</div>' +
+  // Load rate plans for all buildings then render
+  Promise.all(_pkBuildings.map(function(b) { return WPA_pkLoadRatePlans(b.id); })).then(function() {
+    el.innerHTML = _pkBuildings.map(function(b) {
+      var rps = _pkRatePlans[b.id] || [];
+      var stripeTag = b.stripe_account_name ? '<span style="display:inline-block;background:var(--green-bg,#e8f5e9);border:1px solid var(--green,#4caf50);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--green,#4caf50)">Stripe: ' + _esc(b.stripe_account_name) + '</span>' : '<span style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:#e65100">No Stripe</span>';
+
+      // Rate plans section
+      var rpHtml = '';
+      if (rps.length === 0) {
+        rpHtml = '<div style="font-size:11px;color:var(--text3);padding:8px 0">No rate plans. Add one to enable parking.</div>';
+      } else {
+        rpHtml = rps.map(function(rp) {
+          var defBadge = rp.is_default ? '<span style="background:var(--accent);color:#fff;font-size:9px;padding:1px 6px;border-radius:4px;margin-left:4px">DEFAULT</span>' : '';
+          var pkgs = (rp.packages || []).map(function(pk) {
+            return pk.days + 'd/$' + parseFloat(pk.price).toFixed(0);
+          }).join(', ');
+          var priceLine = '$' + parseFloat(rp.per_day||0).toFixed(2) + '/day';
+          if (rp.free_days > 0) priceLine = rp.free_days + ' days free then ' + priceLine;
+          if (rp.minimum_cost > 0) priceLine += ' · min $' + parseFloat(rp.minimum_cost).toFixed(2);
+          if (pkgs) priceLine += ' · Packages: ' + pkgs;
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin:4px 0;background:var(--surface2);border:1px solid var(--border);border-radius:6px">' +
+            '<div style="font-size:12px"><strong>' + _esc(rp.name) + '</strong>' + defBadge + ' <span style="color:var(--text3);margin-left:8px">' + priceLine + '</span></div>' +
+            '<div style="display:flex;gap:4px">' +
+              '<button onclick="WPA_pkEditRatePlan(\'' + rp.id + '\',\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px">Edit</button>' +
+              '<button onclick="WPA_pkDeleteRatePlan(\'' + rp.id + '\',\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px;color:var(--red)">X</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
+          '<div><h3 style="border:none;padding:0;margin:0 0 4px">' + _esc(b.name) + '</h3>' +
+            (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">' + _esc(b.address) + '</div>' : '') +
+            '<div>' + stripeTag + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px">' +
+            '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">Edit</button>' +
+            '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">Delete</button>' +
+          '</div>' +
         '</div>' +
-        '<div style="display:flex;gap:6px">' +
-          '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">Edit</button>' +
-          '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">Delete</button>' +
+        '<div style="border-top:1px solid var(--border);padding-top:8px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--text3)">Rate Plans</span>' +
+            '<button onclick="WPA_pkShowRatePlanForm(\'' + b.id + '\')" class="btn-subtle" style="padding:2px 10px;font-size:10px">+ Add Plan</button>' +
+          '</div>' +
+          rpHtml +
         '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
+      '</div>';
+    }).join('');
+  });
 }
 
-function WPA_pkShowBuildingForm(id) {
+function WPA_pkShowBuildingForm() {
   document.getElementById('pkBuildingForm').style.display = 'block';
+  document.getElementById('pkRatePlanForm').style.display = 'none';
   document.getElementById('pkBldId').value = '';
   document.getElementById('pkBldName').value = '';
   document.getElementById('pkBldAddr').value = '';
-  document.getElementById('pkBldPerDay').value = '';
-  document.getElementById('pkBldMinCost').value = '';
   document.getElementById('pkBldStripeAcct').value = '';
   document.getElementById('pkBldStripePK').value = '';
   document.getElementById('pkBldStripeSK').value = '';
-  document.getElementById('pkBldPlans').innerHTML = '';
   document.getElementById('pkBldFormTitle').textContent = 'Add Building';
-  WPA_pkAddPlanRow();
 }
 
 function WPA_pkEditBuilding(id) {
   var b = _pkBuildings.find(function(x) { return x.id === id; });
   if (!b) return;
   document.getElementById('pkBuildingForm').style.display = 'block';
+  document.getElementById('pkRatePlanForm').style.display = 'none';
   document.getElementById('pkBldId').value = b.id;
   document.getElementById('pkBldName').value = b.name;
   document.getElementById('pkBldAddr').value = b.address || '';
-  document.getElementById('pkBldPerDay').value = b.per_day || '';
-  document.getElementById('pkBldMinCost').value = b.minimum_cost || '';
   document.getElementById('pkBldStripeAcct').value = b.stripe_account_name || '';
   document.getElementById('pkBldStripePK').value = b.stripe_publishable_key || '';
   document.getElementById('pkBldStripeSK').value = b.stripe_secret_key || '';
   document.getElementById('pkBldFormTitle').textContent = 'Edit Building';
-  document.getElementById('pkBldPlans').innerHTML = '';
-  (b.plans || []).forEach(function(p) { WPA_pkAddPlanRow(p.days, p.price, p.label || p.name); });
-  if ((b.plans || []).length === 0) WPA_pkAddPlanRow();
-}
-
-var _pkPlanRowId = 0;
-function WPA_pkAddPlanRow(days, price, label) {
-  var rid = _pkPlanRowId++;
-  var el = document.getElementById('pkBldPlans');
-  var row = document.createElement('div');
-  row.id = 'pk-plan-row-' + rid;
-  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
-  row.innerHTML =
-    '<input type="number" placeholder="Days" value="' + (days || '') + '" class="pk-admin-input" style="width:70px" data-field="days">' +
-    '<input type="number" step="0.01" placeholder="Price $" value="' + (price || '') + '" class="pk-admin-input" style="width:90px" data-field="price">' +
-    '<input type="text" placeholder="Label (e.g. 1 Month)" value="' + (label || '') + '" class="pk-admin-input" style="flex:1" data-field="label">' +
-    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">X</button>';
-  el.appendChild(row);
 }
 
 function WPA_pkSaveBuilding() {
   var name = document.getElementById('pkBldName').value.trim();
   if (!name) { alert('Building name is required'); return; }
-  var plans = [];
-  document.querySelectorAll('#pkBldPlans > div').forEach(function(row) {
-    var d = row.querySelector('[data-field=days]').value;
-    var p = row.querySelector('[data-field=price]').value;
-    var l = row.querySelector('[data-field=label]').value;
-    if (d && p) plans.push({ id: 'plan_' + Date.now() + '_' + plans.length, name: l || (d + ' days'), days: parseInt(d), price: parseFloat(p) });
-  });
   var id = document.getElementById('pkBldId').value;
-  var perDay = parseFloat(document.getElementById('pkBldPerDay').value) || 0;
-  var minCost = parseFloat(document.getElementById('pkBldMinCost').value) || 0;
   var stripeAcct = document.getElementById('pkBldStripeAcct').value.trim();
   var stripePK = document.getElementById('pkBldStripePK').value.trim();
   var stripeSK = document.getElementById('pkBldStripeSK').value.trim();
-  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), plans: plans, per_day: perDay, minimum_cost: minCost, stripe_account_name: stripeAcct, stripe_publishable_key: stripePK, stripe_secret_key: stripeSK, active: true, updated: new Date().toISOString() };
+  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), stripe_account_name: stripeAcct, stripe_publishable_key: stripePK, stripe_secret_key: stripeSK, active: true, updated: new Date().toISOString() };
 
   if (id) {
-    // Update existing
-    pkSB('parking_buildings', 'id=eq.' + id, 'PATCH', body).then(function(d) {
+    pkSB('parking_buildings', 'id=eq.' + id, 'PATCH', body).then(function() {
       document.getElementById('pkBuildingForm').style.display = 'none';
+      toast('Building saved', 'success');
       WPA_pkLoadBuildings();
     }).catch(function(e) { alert('Error: ' + e.message); });
   } else {
-    // Insert new
     body.id = 'bld_' + Date.now();
-    pkSB('parking_buildings', '', 'POST', body).then(function(d) {
+    pkSB('parking_buildings', '', 'POST', body).then(function() {
       document.getElementById('pkBuildingForm').style.display = 'none';
+      toast('Building created', 'success');
       WPA_pkLoadBuildings();
     }).catch(function(e) { alert('Error: ' + e.message); });
   }
 }
 
 function WPA_pkDeleteBuilding(id) {
-  if (!confirm('Delete this building? This cannot be undone.')) return;
-  pkSB('parking_buildings', 'id=eq.' + id, 'DELETE').then(function() { WPA_pkLoadBuildings(); });
+  if (!confirm('Delete this building and all its rate plans? This cannot be undone.')) return;
+  pkSB('parking_buildings', 'id=eq.' + id, 'DELETE').then(function() {
+    toast('Building deleted', 'success');
+    WPA_pkLoadBuildings();
+  }).catch(function(e) { alert('Delete failed: ' + (e.message || e)); });
+}
+
+// ── Rate Plan Management ──
+function WPA_pkShowRatePlanForm(buildingId) {
+  document.getElementById('pkRatePlanForm').style.display = 'block';
+  document.getElementById('pkBuildingForm').style.display = 'none';
+  document.getElementById('pkRpId').value = '';
+  document.getElementById('pkRpBuildingId').value = buildingId;
+  document.getElementById('pkRpName').value = '';
+  document.getElementById('pkRpPerDay').value = '';
+  document.getElementById('pkRpMinCost').value = '';
+  document.getElementById('pkRpFreeDays').value = '0';
+  document.getElementById('pkRpDefault').checked = false;
+  document.getElementById('pkRpPackages').innerHTML = '';
+  var bld = _pkBuildings.find(function(x) { return x.id === buildingId; });
+  document.getElementById('pkRpFormTitle').textContent = 'Add Rate Plan — ' + (bld ? bld.name : '');
+}
+
+function WPA_pkEditRatePlan(rpId, buildingId) {
+  var rps = _pkRatePlans[buildingId] || [];
+  var rp = rps.find(function(x) { return x.id === rpId; });
+  if (!rp) return;
+  document.getElementById('pkRatePlanForm').style.display = 'block';
+  document.getElementById('pkBuildingForm').style.display = 'none';
+  document.getElementById('pkRpId').value = rp.id;
+  document.getElementById('pkRpBuildingId').value = buildingId;
+  document.getElementById('pkRpName').value = rp.name;
+  document.getElementById('pkRpPerDay').value = rp.per_day || '';
+  document.getElementById('pkRpMinCost').value = rp.minimum_cost || '';
+  document.getElementById('pkRpFreeDays').value = rp.free_days || 0;
+  document.getElementById('pkRpDefault').checked = !!rp.is_default;
+  var bld = _pkBuildings.find(function(x) { return x.id === buildingId; });
+  document.getElementById('pkRpFormTitle').textContent = 'Edit Rate Plan — ' + (bld ? bld.name : '');
+  document.getElementById('pkRpPackages').innerHTML = '';
+  (rp.packages || []).forEach(function(pk) { WPA_pkAddPackageRow(pk.days, pk.price, pk.name); });
+}
+
+var _pkPkgRowId = 0;
+function WPA_pkAddPackageRow(days, price, label) {
+  var rid = _pkPkgRowId++;
+  var el = document.getElementById('pkRpPackages');
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  row.innerHTML =
+    '<input type="number" placeholder="Days" value="' + (days || '') + '" class="pk-admin-input" style="width:70px" data-field="days">' +
+    '<input type="number" step="0.01" placeholder="Price $" value="' + (price || '') + '" class="pk-admin-input" style="width:90px" data-field="price">' +
+    '<input type="text" placeholder="Label (e.g. 10 days)" value="' + _esc(label || '') + '" class="pk-admin-input" style="flex:1" data-field="label">' +
+    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">X</button>';
+  el.appendChild(row);
+}
+
+function WPA_pkSaveRatePlan() {
+  var name = document.getElementById('pkRpName').value.trim();
+  if (!name) { alert('Plan name is required'); return; }
+  var buildingId = document.getElementById('pkRpBuildingId').value;
+  var id = document.getElementById('pkRpId').value;
+  var packages = [];
+  document.querySelectorAll('#pkRpPackages > div').forEach(function(row) {
+    var d = row.querySelector('[data-field=days]').value;
+    var p = row.querySelector('[data-field=price]').value;
+    var l = row.querySelector('[data-field=label]').value;
+    if (d && p) packages.push({ name: l || (d + ' days'), days: parseInt(d), price: parseFloat(p) });
+  });
+
+  var isDefault = document.getElementById('pkRpDefault').checked;
+  var body = {
+    building_id: buildingId,
+    name: name,
+    per_day: parseFloat(document.getElementById('pkRpPerDay').value) || 0,
+    minimum_cost: parseFloat(document.getElementById('pkRpMinCost').value) || 0,
+    free_days: parseInt(document.getElementById('pkRpFreeDays').value) || 0,
+    packages: packages,
+    is_default: isDefault,
+    active: true,
+    updated_at: new Date().toISOString()
+  };
+
+  // If setting as default, unset other defaults first
+  var saveChain = Promise.resolve();
+  if (isDefault) {
+    saveChain = pkSB('parking_rate_plans', 'building_id=eq.' + buildingId + '&is_default=eq.true', 'PATCH', { is_default: false });
+  }
+
+  saveChain.then(function() {
+    if (id) {
+      return pkSB('parking_rate_plans', 'id=eq.' + id, 'PATCH', body);
+    } else {
+      body.id = 'rp_' + buildingId + '_' + Date.now();
+      return pkSB('parking_rate_plans', '', 'POST', body);
+    }
+  }).then(function() {
+    document.getElementById('pkRatePlanForm').style.display = 'none';
+    toast('Rate plan saved', 'success');
+    WPA_pkRenderBuildings();
+  }).catch(function(e) { alert('Error: ' + (e.message || e)); });
+}
+
+function WPA_pkDeleteRatePlan(rpId, buildingId) {
+  if (!confirm('Delete this rate plan?')) return;
+  pkSB('parking_rate_plans', 'id=eq.' + rpId, 'DELETE').then(function() {
+    toast('Rate plan deleted', 'success');
+    WPA_pkRenderBuildings();
+  }).catch(function(e) { alert('Delete failed: ' + (e.message || e)); });
 }
 
 // ── Coupons ──
