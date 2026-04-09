@@ -7143,11 +7143,12 @@ function WPA_pkRenderBuildings() {
       return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label || p.name ? ' (' + _esc(p.label || p.name) + ')' : '') + '</span>';
     }).join(' ');
     var pricing = '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--accent)">$' + parseFloat(b.per_day||0).toFixed(2) + '/day · min $' + parseFloat(b.minimum_cost||0).toFixed(2) + '</span>';
+    var stripeTag = b.stripe_account_name ? '<span style="display:inline-block;background:var(--green-bg,#e8f5e9);border:1px solid var(--green,#4caf50);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--green,#4caf50)">Stripe: ' + _esc(b.stripe_account_name) + '</span>' : '<span style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:#e65100">No Stripe</span>';
     return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:start">' +
         '<div><h3 style="border:none;padding:0;margin:0 0 4px">' + _esc(b.name) + '</h3>' +
           (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">' + _esc(b.address) + '</div>' : '') +
-          '<div>' + pricing + ' ' + (plans || '<span style="font-size:11px;color:var(--text3)">No bulk plans</span>') + '</div>' +
+          '<div>' + pricing + ' ' + stripeTag + ' ' + (plans || '<span style="font-size:11px;color:var(--text3)">No bulk plans</span>') + '</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px">' +
           '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">Edit</button>' +
@@ -7165,6 +7166,9 @@ function WPA_pkShowBuildingForm(id) {
   document.getElementById('pkBldAddr').value = '';
   document.getElementById('pkBldPerDay').value = '';
   document.getElementById('pkBldMinCost').value = '';
+  document.getElementById('pkBldStripeAcct').value = '';
+  document.getElementById('pkBldStripePK').value = '';
+  document.getElementById('pkBldStripeSK').value = '';
   document.getElementById('pkBldPlans').innerHTML = '';
   document.getElementById('pkBldFormTitle').textContent = 'Add Building';
   WPA_pkAddPlanRow();
@@ -7179,6 +7183,9 @@ function WPA_pkEditBuilding(id) {
   document.getElementById('pkBldAddr').value = b.address || '';
   document.getElementById('pkBldPerDay').value = b.per_day || '';
   document.getElementById('pkBldMinCost').value = b.minimum_cost || '';
+  document.getElementById('pkBldStripeAcct').value = b.stripe_account_name || '';
+  document.getElementById('pkBldStripePK').value = b.stripe_publishable_key || '';
+  document.getElementById('pkBldStripeSK').value = b.stripe_secret_key || '';
   document.getElementById('pkBldFormTitle').textContent = 'Edit Building';
   document.getElementById('pkBldPlans').innerHTML = '';
   (b.plans || []).forEach(function(p) { WPA_pkAddPlanRow(p.days, p.price, p.label || p.name); });
@@ -7213,7 +7220,10 @@ function WPA_pkSaveBuilding() {
   var id = document.getElementById('pkBldId').value;
   var perDay = parseFloat(document.getElementById('pkBldPerDay').value) || 0;
   var minCost = parseFloat(document.getElementById('pkBldMinCost').value) || 0;
-  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), plans: plans, per_day: perDay, minimum_cost: minCost, active: true, updated: new Date().toISOString() };
+  var stripeAcct = document.getElementById('pkBldStripeAcct').value.trim();
+  var stripePK = document.getElementById('pkBldStripePK').value.trim();
+  var stripeSK = document.getElementById('pkBldStripeSK').value.trim();
+  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), plans: plans, per_day: perDay, minimum_cost: minCost, stripe_account_name: stripeAcct, stripe_publishable_key: stripePK, stripe_secret_key: stripeSK, active: true, updated: new Date().toISOString() };
 
   if (id) {
     // Update existing
