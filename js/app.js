@@ -5922,6 +5922,7 @@ function openAddPropertyModal() {
   document.getElementById('propFormGuests').value = '';
   document.getElementById('propFormOwner').value = '';
   document.getElementById('propFormStatus').value = 'Active';
+  loadParkingBuildingOptions('');
   openModal('addPropertyModal');
 }
 
@@ -5940,7 +5941,25 @@ function openEditPropertyModal(apt) {
   document.getElementById('propFormStatus').value = p.status || 'Active';
   document.getElementById('propFormHostfullyUid').value = p.hostfully_uid || '';
   document.getElementById('propFormApt').value = p.apt || '';
+  loadParkingBuildingOptions(p.parking_building_id || '');
   openModal('addPropertyModal');
+}
+
+async function loadParkingBuildingOptions(selectedId) {
+  var sel = document.getElementById('propFormParkingBuilding');
+  sel.innerHTML = '<option value="">— None —</option>';
+  try {
+    var res = await pkSB('parking_buildings', 'select=id,name&active=eq.true&order=name.asc');
+    if (Array.isArray(res)) {
+      res.forEach(function(b) {
+        var opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = b.name;
+        if (b.id === selectedId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) { /* ignore */ }
 }
 
 async function saveProperty() {
@@ -5959,6 +5978,7 @@ async function saveProperty() {
     max_guests:   parseInt(document.getElementById('propFormGuests').value) || null,
     status:       document.getElementById('propFormStatus').value,
     hostfully_uid:document.getElementById('propFormHostfullyUid').value.trim() || null,
+    parking_building_id: document.getElementById('propFormParkingBuilding').value || null,
     tags: [],
     updated_at: new Date().toISOString()
   };
