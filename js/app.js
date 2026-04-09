@@ -7110,12 +7110,12 @@ function WPA_pkFilterBookings() {
   tbody.innerHTML = filtered.map(function(b) {
     var isExpired = b.end_date < today;
     return '<tr' + (isExpired ? ' style="opacity:.6"' : '') + '>' +
-      '<td>' + esc(b.building_name||'') + '</td>' +
-      '<td><strong>' + esc(b.unit||'') + '</strong></td>' +
-      '<td>' + esc(b.guest_name || '—') + '</td>' +
-      '<td>' + esc(b.car_brand||'') + ' ' + esc(b.car_color||'') + '</td>' +
-      '<td><strong>' + esc(b.license_plate||'') + '</strong></td>' +
-      '<td>' + esc(b.plan||'') + '</td>' +
+      '<td>' + _esc(b.building_name||'') + '</td>' +
+      '<td><strong>' + _esc(b.unit||'') + '</strong></td>' +
+      '<td>' + _esc(b.guest_name || '—') + '</td>' +
+      '<td>' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + '</td>' +
+      '<td><strong>' + _esc(b.license_plate||'') + '</strong></td>' +
+      '<td>' + _esc(b.plan||'') + '</td>' +
       '<td style="font-size:11px">' + (b.start_date||'') + '<br>to ' + (b.end_date||'') + '</td>' +
       '<td>$' + parseFloat(b.amount||0).toFixed(2) + '</td>' +
       '<td><span style="color:var(--accent);font-size:11px">' + b.id + '</span></td>' +
@@ -7140,13 +7140,13 @@ function WPA_pkRenderBuildings() {
   }
   el.innerHTML = _pkBuildings.map(function(b) {
     var plans = (b.plans || []).map(function(p) {
-      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label || p.name ? ' (' + esc(p.label || p.name) + ')' : '') + '</span>';
+      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label || p.name ? ' (' + _esc(p.label || p.name) + ')' : '') + '</span>';
     }).join(' ');
     var pricing = '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--accent)">$' + parseFloat(b.per_day||0).toFixed(2) + '/day · min $' + parseFloat(b.minimum_cost||0).toFixed(2) + '</span>';
     return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:start">' +
-        '<div><h3 style="border:none;padding:0;margin:0 0 4px">' + esc(b.name) + '</h3>' +
-          (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">' + esc(b.address) + '</div>' : '') +
+        '<div><h3 style="border:none;padding:0;margin:0 0 4px">' + _esc(b.name) + '</h3>' +
+          (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">' + _esc(b.address) + '</div>' : '') +
           '<div>' + pricing + ' ' + (plans || '<span style="font-size:11px;color:var(--text3)">No bulk plans</span>') + '</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px">' +
@@ -7258,7 +7258,7 @@ function WPA_pkRenderCoupons() {
     return '<div class="dash-panel" style="margin-bottom:10px;border-left:4px solid ' + (c.active ? 'var(--green)' : 'var(--text3)') + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
         '<div>' +
-          '<span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--accent2)">' + esc(c.code) + '</span>' +
+          '<span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--accent2)">' + _esc(c.code) + '</span>' +
           '<span style="margin-left:10px;font-size:12px;color:var(--text2)">' + typeLabel + '</span>' +
           '<div style="font-size:11px;color:var(--text3);margin-top:4px">' +
             'Used: ' + (c.used || 0) + (c.max_uses ? '/' + c.max_uses : ' (unlimited)') +
@@ -7337,12 +7337,12 @@ function WPA_pkSearchReceipt() {
     el.innerHTML = results.map(function(b) {
       return '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface2)">' +
         '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
-          '<div><strong>' + esc(b.building_name||'') + ' #' + esc(b.unit||'') + '</strong>' +
-            (b.guest_name ? ' — ' + esc(b.guest_name) : '') +
+          '<div><strong>' + _esc(b.building_name||'') + ' #' + _esc(b.unit||'') + '</strong>' +
+            (b.guest_name ? ' — ' + _esc(b.guest_name) : '') +
           '</div>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--text2)">' +
-          '<span style="margin-right:12px">' + esc(b.car_brand||'') + ' ' + esc(b.car_color||'') + ' <strong>' + esc(b.license_plate||'') + '</strong></span>' +
+          '<span style="margin-right:12px">' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + ' <strong>' + _esc(b.license_plate||'') + '</strong></span>' +
           '<span style="margin-right:12px">' + (b.start_date||'') + ' to ' + (b.end_date||'') + '</span>' +
           '<span>$' + parseFloat(b.amount||0).toFixed(2) + '</span>' +
         '</div>' +
