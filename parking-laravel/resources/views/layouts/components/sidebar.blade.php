@@ -8,6 +8,12 @@
             <ul class="metismenu list-unstyled" id="side-menu">
                 <li class="menu-title" key="t-menu">Menu</li>
 
+                {{-- <li @class(['mm-active' => Request::is('dashboard')])>
+                    <a href="{{ route('dashboard.index') }}" class="waves-effect">
+                        <i class="bx bx-home-circle"></i>
+                        <span key="t-dashboards">Dashboard</span>
+                    </a>
+                </li> --}}
                 <li @class(['mm-active' => Request::is(['building','building/create','building/*/edit'])])>
                     <a href="{{ route('building.index') }}" class="waves-effect">
                         <i class="bx bx-building"></i>
