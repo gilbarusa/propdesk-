@@ -1824,7 +1824,7 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
       }
     }
   }
-  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
+  document.getElementById('dRows').innerHTML=[['Lease Type',typeBadge(r.type)],['Check-in',r.checkin?fmtDate(r.checkin):'—'],['Total Stay',rentDisplay],['Balance Owed',r.balance>0?`<span style="color:var(--red)">$${r.balance.toLocaleString()}</span>`:'<span style="color:var(--green)">✓ Paid</span>'],['Next Due',r.due?`<span class="${s==='overdue'?'due-overdue':s==='soon'?'due-soon':''}">${fmtDate(r.due)}</span>`:'—'],['Lease End',r.type!=='short-stay'&&r.lease_end?`<span style="color:var(--blue)">${fmtDate(r.lease_end)}</span>`:'—']].map(([l,v])=>`<div class="detail-row"><span class="dr-label">${l}</span><span class="dr-val">${v}</span></div>`).join('');const hist=r.history||[];document.getElementById('dHistory').innerHTML=hist.length?hist.map(h=>`<div class="history-item"><span class="hi-date">${fmtDate(h.date)}</span><span class="hi-text">${h.text}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:8px 0">No payments recorded yet.</div>';const btns=[];if(r.type!=='available')btns.push(`<button class="btn btn-primary btn-sm" onclick="openPayModal(${id})">💰 Payment</button>`);btns.push(`<button class="btn btn-secondary btn-sm" onclick="openEditModal(${id})">✏️ Edit</button>`);if(r.type!=='available')btns.push(`<button class="btn btn-ghost btn-sm" onclick="archiveTenant(${id})">📦 Archive</button>`);if(r.name)btns.push(`<button class="btn btn-secondary btn-sm" onclick="if(typeof openInboxThread==='function'){openInboxThread('${(r.name||'').replace(/'/g,"\\'")}')}else{openMsgModal('${(r.name||'').replace(/'/g,"\\'")}','${(r.email||parseNoteField(r.note,'Email')||'').replace(/'/g,"\\'")}','${(r.phone||parseNoteField(r.note,'Phone')||'').replace(/'/g,"\\'")}','${id}','${r.type==='short-stay'?'short-term':'mtm'}','${(r.apt||'').replace(/'/g,"\\'")}')}">💬 Message</button>`);btns.push(`<button class="btn btn-ghost btn-sm" onclick="openClearHistoryModal(${id})" style="color:var(--red);border-color:var(--red-border);" title="Clear payment history">🗑 History</button>`);
   // Delete button — available for any booking (not permanent long-term leases)
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
@@ -2114,8 +2114,9 @@ const MODULE_SUB_TABS = {
   'short-term':  [{label:'Dashboard',   page:'st-dashboard'},  {label:'Pipeline', page:'pipeline'}, {label:'Calendar', page:'calendar'}, {label:'Units', page:'units'}, {label:'Messages', page:'messages'}, {label:'Archive', page:'history'}],
   'mtm-lt':      [{label:'Dashboard',   page:'mtm-lt'},     {label:'Tenants', page:'mtm-lt-tenants'}, {label:'Leases', page:'mtm-lt-leases'}, {label:'Rent', page:'mtm-lt-rent'}, {label:'Applications', page:'mtm-lt-applications'}, {label:'Messages', page:'mtm-lt-messages'}],
   'expenses':    [{label:'All',         page:'expenses'},   {label:'By Property', page:'expenses', expView:'property'}, {label:'By Category', page:'expenses', expView:'category'}],
-  'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
+  'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Completed', page:'techtrack', ftPage:'completed'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
+  'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'API Keys', page:'settings', settingsSec:'api-keys'}, {label:'Messaging', page:'settings', settingsSec:'messaging'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
@@ -2142,17 +2143,20 @@ function switchModule(moduleId, tabEl) {
     else if (t.expView) args += ",null,null,'" + t.expView + "'";
     else if (t.pkSec) args += ",null,null,null,'" + t.pkSec + "'";
     else if (t.dlSec) args += ",null,null,null,null,'" + t.dlSec + "'";
-    return `<div class="sub-tab${i === 0 ? ' active' : ''}" onclick="showSubPage(${args})">${t.label}</div>`;
+    else if (t.msgFilter) args += ",null,null,null,null,null,'" + t.msgFilter + "'";
+    const badgeId = t.ftPage ? 'ft-sub-badge-' + t.ftPage : (t.page ? 'sub-badge-' + t.page : '');
+    const badgeHtml = badgeId ? ` <span class="mod-badge" id="${badgeId}" style="display:none">0</span>` : '';
+    return `<div class="sub-tab${i === 0 ? ' active' : ''}" onclick="showSubPage(${args})">${t.label}${badgeHtml}</div>`;
   }).join('');
   // Show default page for this module
   if (tabs.length > 0) {
     const t0 = tabs[0];
-    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec);
+    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec, t0.msgFilter);
   }
 }
 
 let _ftInitialized = false;
-function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) {
+function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter) {
   // Update sub-tab active state
   if (tabEl) {
     tabEl.parentElement.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
@@ -2172,6 +2176,12 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) 
   // ── Delivery section routing ──
   if (dlSec) {
     showDeliverySection(dlSec);
+  }
+
+  // ── Message Center routing ──
+  if (pageId === 'msg-center') {
+    _currentMsgCenterFilter = msgFilter || 'all';
+    renderMessageCenter();
   }
 
   // ── Expenses view routing ──
@@ -2229,7 +2239,7 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec) 
   if(pageId === 'mtm-lt-applications') renderMTMApps();
   if(pageId === 'mtm-lt-expenses') renderExpensesPage();
   if(pageId === 'expenses') renderExpensesPage();
-  if(pageId === 'mtm-lt-maintenance') renderMTMMaint();
+  if(pageId === 'mtm-lt-maintenance') loadMaintenanceFromSupabase();
 }
 
 // ── Property Selector ──
@@ -2512,9 +2522,11 @@ function renderMTMDashboard() {
   if (expiringList) {
     const expLeases = INNAGO_LEASES.filter(l => l.type === 'fixed').sort((a,b) => new Date(a.end) - new Date(b.end)).slice(0, 6);
     expiringList.innerHTML = expLeases.map(l => {
-      const origIdx = INNAGO_LEASES.indexOf(l);
-      return `<div class="mtm-dash-list-item" onclick="openLeaseDetail(${origIdx})" title="Click to view lease">
-      <div><span class="mtm-li-name">${l.tenants.split(',')[0]}</span><br><span class="mtm-li-detail">${l.property} | ${l.unit}</span></div>
+      const tName = l.tenants.split(',')[0].trim();
+      const tIdx = INNAGO_TENANTS.findIndex(t => t.name.includes(tName.split(' ')[0]));
+      const clickAction = tIdx >= 0 ? `openTenantCardFromLease(${tIdx})` : `openLeaseDetail(${INNAGO_LEASES.indexOf(l)})`;
+      return `<div class="mtm-dash-list-item" onclick="${clickAction}" title="Click to view tenant details">
+      <div><span class="mtm-li-name">${tName}</span><br><span class="mtm-li-detail">${l.property} | ${l.unit}</span></div>
       <div style="text-align:right"><span class="mtm-li-val" style="color:var(--orange)">${l.end}</span></div>
     </div>`;
     }).join('');
@@ -3033,9 +3045,31 @@ const INNAGO_MESSAGES = [
   {id:10,from:"Tarsha R. Scovens",unit:"1",property:"1614 Valley Glen Rd",date:"Mar 18, 2026",time:"7:45 PM",subject:"Water Heater",body:"The hot water has been lukewarm at best for the past few days. I think the water heater might need to be looked at or replaced. Can you send someone?",unread:false,sent:false}
 ];
 
-function renderMTMMessages() {
+async function renderMTMMessages() {
   const list = document.getElementById('mtmMsgList');
   if (!list) return;
+
+  // Also load Supabase channels for long-term tenants (so unified messaging data appears)
+  try {
+    var tenantNames = (typeof TENANTS !== 'undefined') ? TENANTS.filter(function(t) { return t.type === 'long-term'; }).map(function(t) { return t.name; }) : [];
+    if (tenantNames.length > 0 && typeof sb !== 'undefined') {
+      var chRes = await sb.from('channels').select('*').in('guest_name', tenantNames).order('last_message_at', { ascending: false });
+      if (chRes.data && chRes.data.length) {
+        // Add Supabase channels as inbox entries viewable via unified modal
+        var sbMsgList = document.getElementById('mtmSbChannels');
+        if (sbMsgList) {
+          sbMsgList.innerHTML = '<div style="font-size:10px;font-weight:600;color:#9e9485;text-transform:uppercase;padding:8px 0;">Supabase Conversations</div>' +
+            chRes.data.map(function(ch) {
+              return '<div class="mtm-msg-item" onclick="openMsgModal(\'' + (ch.guest_name||'').replace(/'/g,"\\'") + '\',\'\',\'\',\'\',\'long-term\',\'' + (ch.unit_apt||'').replace(/'/g,"\\'") + '\')" style="cursor:pointer;padding:8px;border-bottom:1px solid #f0ebe4;">' +
+                '<div style="font-weight:500;font-size:12px;">' + (ch.guest_name||'Unknown') + '</div>' +
+                '<div style="font-size:11px;color:#635c4e;">' + (ch.last_message_preview||'(no messages)') + '</div>' +
+                '</div>';
+            }).join('');
+        }
+      }
+    }
+  } catch(e) { console.warn('Error loading LT channels:', e); }
+
   filterMTMMessages();
 }
 
@@ -3066,21 +3100,174 @@ function showMTMMessage(id) {
   const m = INNAGO_MESSAGES.find(msg => msg.id === id);
   if (!m) return;
   m.unread = false;
+  window._currentMTMMsgId = id;
   // Re-render list to update unread state
   filterMTMMessages();
   const detail = document.getElementById('mtmMsgDetail');
   const loc = m.unit ? `${m.unit} at ${m.property}` : 'All Properties';
+
+  // Find tenant info for contact details
+  var tenant = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS.find(function(t) {
+    return t.name && m.from && t.name.toLowerCase() === m.from.toLowerCase();
+  }) : null;
+
   detail.innerHTML = `
     <div class="mtm-msg-detail-header">
       <div class="mtm-msg-detail-from">${m.subject}</div>
       <div class="mtm-msg-detail-meta">${m.sent ? 'Sent by' : 'From'} <strong>${m.from}</strong> ${m.unit ? '(' + loc + ')' : ''} &mdash; ${m.date} at ${m.time}</div>
     </div>
     <div class="mtm-msg-detail-body">${m.body}</div>
-    ${!m.sent ? `<div class="mtm-msg-reply-box">
-      <textarea class="mtm-msg-reply-input" placeholder="Type your reply..."></textarea>
-      <button class="mtm-msg-reply-btn" onclick="alert('Reply sent!')">Send Reply</button>
+    ${!m.sent ? `
+    <!-- AI Reply Assistant -->
+    <div id="mtmAiPanel" style="margin:12px 0;padding:14px;border:1px solid #e5e7eb;border-radius:12px;background:#fefce8;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">⚡</span>
+          <span style="font-weight:700;font-size:14px;color:#92400e;">AI Reply Assistant</span>
+        </div>
+        <button id="mtmAiBtn" onclick="triggerMTMAISuggest()" style="padding:6px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">AI Suggest Reply</button>
+      </div>
+      <div id="mtmAiLoading" style="display:none;text-align:center;padding:12px;"><span style="color:#7c3aed;font-size:13px;">Thinking...</span></div>
+      <div id="mtmAiResult" style="display:none;">
+        <div id="mtmAiText" style="background:#fff;border:1px solid #7c3aed;border-radius:8px;padding:10px;font-size:13px;color:#374151;line-height:1.5;white-space:pre-wrap;"></div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button onclick="useMTMAISuggestion()" style="padding:4px 12px;background:#7c3aed;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Use This</button>
+          <button onclick="triggerMTMAISuggest()" style="padding:4px 12px;background:#e5e7eb;color:#374151;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">Regenerate</button>
+        </div>
+      </div>
+    </div>
+    <div class="mtm-msg-reply-box">
+      ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
+      <textarea class="mtm-msg-reply-input" id="mtmReplyInput" placeholder="Type your reply..."></textarea>
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+        <button class="mtm-msg-reply-btn" onclick="sendMTMReply()">Send Reply</button>
+        <button onclick="triggerMTMAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit;">🔄 Rephrase</button>
+      </div>
     </div>` : ''}
   `;
+}
+
+// Long-Term AI suggestion
+async function triggerMTMAISuggest() {
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  if (!m) return;
+  var btn = document.getElementById('mtmAiBtn');
+  var loading = document.getElementById('mtmAiLoading');
+  var result = document.getElementById('mtmAiResult');
+  if (btn) { btn.disabled = true; btn.textContent = 'Thinking...'; }
+  if (loading) loading.style.display = 'block';
+  if (result) result.style.display = 'none';
+
+  try {
+    var kb = (typeof WILLOW_KB !== 'undefined') ? WILLOW_KB : {};
+    var sysPrompt = 'You are a helpful property management assistant for Willow Partnership, LLC. Draft replies to tenant messages.\n';
+    sysPrompt += '- Always use "We" not "I". Professional but warm tone.\n';
+    sysPrompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+    sysPrompt += '- Keep it under 150 words.\n';
+
+    var userPrompt = 'Tenant: ' + m.from;
+    if (m.unit) userPrompt += ' (Unit ' + m.unit + ' at ' + (m.property || '') + ')';
+    userPrompt += '\nSubject: ' + m.subject;
+    userPrompt += '\nMessage: ' + m.body;
+    userPrompt += '\n\nDraft a reply to this tenant message.';
+
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 500,
+        system: sysPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      var textEl = document.getElementById('mtmAiText');
+      if (textEl) textEl.textContent = data.content[0].text;
+      if (result) result.style.display = 'block';
+    } else {
+      toast('AI suggestion unavailable', 'error');
+    }
+  } catch(e) {
+    console.error('MTM AI suggestion failed:', e);
+    toast('AI suggestion failed: ' + e.message, 'error');
+  }
+  if (btn) { btn.disabled = false; btn.textContent = 'AI Suggest Reply'; }
+  if (loading) loading.style.display = 'none';
+}
+
+function useMTMAISuggestion() {
+  var textEl = document.getElementById('mtmAiText');
+  var ta = document.getElementById('mtmReplyInput');
+  if (ta && textEl) { ta.value = textEl.textContent; ta.focus(); }
+}
+
+// Long-Term AI Rephrase
+async function triggerMTMAIRephrase() {
+  var input = document.getElementById('mtmReplyInput');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  var tenantName = m ? m.from : 'Tenant';
+
+  input.disabled = true;
+  var origText = input.value;
+  input.value = 'Rephrasing...';
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message to tenant ' + tenantName + ':\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = origText;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.value = origText;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
+  input.disabled = false;
+  input.focus();
+}
+
+function sendMTMReply() {
+  var body = (document.getElementById('mtmReplyInput') || {}).value || '';
+  if (!body.trim()) { alert('Please type a message.'); return; }
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  if (!m) return;
+
+  // Get selected channel
+  var ch = typeof getSelectedChannel === 'function' ? getSelectedChannel(document.getElementById('mtmMsgDetail')) : 'app';
+
+  // Find tenant info
+  var tenant = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS.find(function(t) {
+    return t.name && m.from && t.name.toLowerCase() === m.from.toLowerCase();
+  }) : null;
+
+  var email = tenant ? (tenant.email || '') : '';
+  var phone = tenant ? (tenant.phone || '') : '';
+
+  if (typeof sendViaChannel === 'function') {
+    sendViaChannel(ch, m.from, email, phone, body, { subject: 'Re: ' + m.subject, property: m.property || '' });
+  } else {
+    alert('Reply sent!');
+  }
+
+  // Clear input
+  document.getElementById('mtmReplyInput').value = '';
 }
 
 function composeMTMMessage() {
@@ -3098,14 +3285,8 @@ function composeMTMMessage() {
       </select>
       <input type="text" id="mtm-compose-subject" class="mtm-search" style="width:100%;" placeholder="Subject...">
       <textarea id="mtm-compose-body" class="mtm-msg-reply-input" placeholder="Message body..." style="min-height:120px;"></textarea>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <select id="mtm-msg-channel" style="width:auto;font-size:12px;padding:6px 8px;">
-          <option value="sms">SMS</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="email">Email</option>
-        </select>
-        <button class="mtm-msg-reply-btn" onclick="sendMTMCompose()" style="flex:1">Send Message</button>
-      </div>
+      ${typeof buildChannelSelector === 'function' ? buildChannelSelector('sms') : ''}
+      <button class="mtm-msg-reply-btn" onclick="sendMTMCompose()" style="width:100%">Send Message</button>
     </div>
   `;
 }
@@ -3113,19 +3294,724 @@ function sendMTMCompose(){
   const toVal = (document.getElementById('mtm-compose-to')||{}).value||'';
   const subject = (document.getElementById('mtm-compose-subject')||{}).value||'';
   const body = (document.getElementById('mtm-compose-body')||{}).value||'';
-  const channel = (document.getElementById('mtm-msg-channel')||{}).value||'sms';
+  const channel = typeof getSelectedChannel === 'function' ? getSelectedChannel(document.getElementById('mtmMsgDetail')) : 'sms';
   if(!toVal){ alert('Select a tenant.'); return; }
   if(!body.trim()){ alert('Enter a message.'); return; }
   const tenants = toVal==='all' ? INNAGO_TENANTS : INNAGO_TENANTS.filter(t=>t.name===toVal);
   let sent=0;
   tenants.forEach(t => {
-    const to = channel==='email' ? (t.email||'') : (t.phone||'');
-    if(!to) return;
-    WPA_sendMessage({to, msg:'WillowPA: '+body, channel, toEmail:channel==='email'?to:undefined, subject:subject||'Message from WillowPA', silent:sent>0});
-    sent++;
+    if (typeof sendViaChannel === 'function') {
+      sendViaChannel(channel, t.name, t.email || '', t.phone || '', body, { subject: subject || 'Message from WillowPA', property: t.property || '' });
+      sent++;
+    } else {
+      const to = channel==='email' ? (t.email||'') : (t.phone||'');
+      if(!to) return;
+      WPA_sendMessage({to, msg:'WillowPA: '+body, channel, toEmail:channel==='email'?to:undefined, subject:subject||'Message from WillowPA', silent:sent>0});
+      sent++;
+    }
   });
   if(sent===0) alert('No contact info found for selected tenant(s) on channel: '+channel);
   else toast(sent+' message(s) sent via '+channel.toUpperCase());
+}
+
+// ══════════════════════════════════════════════════════════════
+//  UNIFIED MESSAGE CENTER
+//  Merges Short-Term (Airbnb/VRBO), Long-Term (Innago), and Client App messages
+// ══════════════════════════════════════════════════════════════
+
+let _currentMsgCenterFilter = 'all';
+let _msgCenterSearch = '';
+
+// Live client_messages from Supabase (loaded by _refreshClientMsgs)
+var _liveClientMessages = [];
+var _clientMsgsCacheTime = 0;
+
+async function _refreshClientMsgs(forceRefresh) {
+  // Cache for 30 seconds to avoid re-fetching on filter/search changes
+  if (!forceRefresh && _liveClientMessages.length > 0 && (Date.now() - _clientMsgsCacheTime < 30000)) return;
+  try {
+    var res = await sb.from('client_messages').select('*').order('created_at', { ascending: false }).limit(200);
+    if (res.error) { console.warn('client_messages load error:', res.error.message); return; }
+    var rows = res.data || [];
+    // Group by thread_id → one entry per thread (latest message, aggregate unread)
+    var threadMap = {};
+    rows.forEach(function(r) {
+      var tid = r.thread_id || r.id;
+      if (!threadMap[tid]) {
+        threadMap[tid] = {
+          id: 'cm-' + tid,
+          from: r.resident_name || 'Resident',
+          unit: r.resident_unit || '',
+          property: r.property || '',
+          date: r.created_at,
+          subject: r.subject || 'Message',
+          body: r.body || '',
+          unread: (!r.read && r.sender_type === 'resident'),
+          source: 'client',
+          _email: r.resident_email || '',
+          _phone: r.resident_phone || '',
+          _threadId: tid,
+          sent: r.sender_type === 'management'
+        };
+      } else {
+        // Update with latest info
+        if (new Date(r.created_at) > new Date(threadMap[tid].date)) {
+          threadMap[tid].date = r.created_at;
+          threadMap[tid].body = r.body || '';
+          threadMap[tid].sent = r.sender_type === 'management';
+        }
+        if (!r.read && r.sender_type === 'resident') threadMap[tid].unread = true;
+      }
+    });
+    // Tag source based on whether resident matches a short-term booking or long-term tenant
+    var threadList = Object.values(threadMap);
+    threadList.forEach(function(t) {
+      var nameLC = (t.from || '').toLowerCase().trim();
+      var unitLC = (t.unit || '').toLowerCase().trim();
+      // Check short-term bookings
+      if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+        var stMatch = AIRBNB_BOOKINGS_SEED.find(function(b) {
+          return (b.guest || '').toLowerCase().trim() === nameLC
+              || (unitLC && (b.unit || '').toLowerCase().trim() === unitLC);
+        });
+        if (stMatch) { t.source = 'short-term'; t.platform = stMatch.platform || 'airbnb'; t.threadId = stMatch.threadId; return; }
+      }
+      // Check long-term tenants
+      if (typeof INNAGO_MESSAGES !== 'undefined') {
+        var ltMatch = INNAGO_MESSAGES.find(function(m) { return (m.from || '').toLowerCase().trim() === nameLC; });
+        if (ltMatch) { t.source = 'long-term'; return; }
+      }
+    });
+    _liveClientMessages = threadList;
+    console.log('[MsgCenter] Loaded', _liveClientMessages.length, 'threads from client_messages');
+  } catch(e) { console.warn('_refreshClientMsgs error:', e.message); }
+}
+
+// Seed data as fallback (shown only until live data loads)
+var CLIENT_APP_MESSAGES = [];
+
+const MSG_SOURCE_STYLES = {
+  'short-term': { bg: '#e3f2fd', text: '#1565c0', label: 'Short-Term' },
+  'long-term':  { bg: '#e8f5e9', text: '#2e7d32', label: 'Long-Term' },
+  'client':     { bg: '#f3e5f5', text: '#7b1fa2', label: 'Client App' }
+};
+
+function _getAllCenterMessages() {
+  const msgs = [];
+  // Short-term: from AIRBNB_BOOKINGS_SEED (inbox.js)
+  if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+    AIRBNB_BOOKINGS_SEED.forEach(b => {
+      if (!b.lastMsg && !b.lastMsgAt) return; // skip bookings with no messages
+      msgs.push({
+        id: 'st-' + b.threadId,
+        from: b.guest,
+        unit: b.unit,
+        property: b.listing ? b.listing.substring(0, 40) : '',
+        date: b.lastMsgAt || b.bookedAt,
+        subject: b.status === 'inquiry' ? 'Inquiry' : (b.status === 'change_requested' ? 'Change Request' : 'Booking Message'),
+        body: b.lastMsg || 'No messages yet',
+        unread: b.unread > 0,
+        source: 'short-term',
+        platform: 'airbnb',
+        threadId: b.threadId
+      });
+    });
+  }
+  // Long-term: from INNAGO_MESSAGES
+  if (typeof INNAGO_MESSAGES !== 'undefined') {
+    INNAGO_MESSAGES.forEach(m => {
+      msgs.push({
+        id: 'lt-' + m.id,
+        from: m.from,
+        unit: m.unit,
+        property: m.property,
+        date: m.date + ' ' + m.time,
+        subject: m.subject,
+        body: m.body,
+        unread: m.unread,
+        source: 'long-term',
+        sent: m.sent
+      });
+    });
+  }
+  // Client App (live from Supabase, or seed data as fallback)
+  var clientMsgs = _liveClientMessages.length > 0 ? _liveClientMessages : CLIENT_APP_MESSAGES;
+  clientMsgs.forEach(m => msgs.push({...m}));
+
+  // Sort by date descending
+  msgs.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return msgs;
+}
+
+function _countUnreadMessages() {
+  return _getAllCenterMessages().filter(m => m.unread).length;
+}
+
+// Group flat message list by contact name → one entry per person
+function _groupMessagesByContact(msgs) {
+  var map = {};
+  msgs.forEach(function(m) {
+    var key = (m.from || 'Unknown').toLowerCase().trim();
+    if (!map[key]) {
+      map[key] = {
+        id: m.id,
+        from: m.from,
+        unit: m.unit || '',
+        property: m.property || '',
+        date: m.date,
+        subject: m.subject,
+        body: m.body,
+        unread: !!m.unread,
+        source: m.source,
+        platform: m.platform || '',
+        sent: m.sent,
+        _email: m._email || '',
+        _phone: m._phone || '',
+        _threadId: m._threadId || '',
+        threadId: m.threadId || '',
+        _allMsgIds: [m.id],
+        _allThreadIds: [m._threadId || m.threadId || ''].filter(Boolean),
+        _msgCount: 1,
+        _unreadCount: m.unread ? 1 : 0
+      };
+    } else {
+      var g = map[key];
+      g._allMsgIds.push(m.id);
+      g._msgCount++;
+      if (m.unread) { g.unread = true; g._unreadCount++; }
+      // Keep the latest message info for preview
+      if (new Date(m.date) > new Date(g.date)) {
+        g.date = m.date;
+        g.body = m.body;
+        g.subject = m.subject;
+        g.sent = m.sent;
+        g.id = m.id;
+      }
+      // Accumulate thread IDs
+      var tid = m._threadId || m.threadId || '';
+      if (tid && g._allThreadIds.indexOf(tid) === -1) g._allThreadIds.push(tid);
+      // Fill in missing contact info
+      if (!g._email && m._email) g._email = m._email;
+      if (!g._phone && m._phone) g._phone = m._phone;
+      if (!g.unit && m.unit) g.unit = m.unit;
+      if (!g.property && m.property) g.property = m.property;
+      if (!g.platform && m.platform) g.platform = m.platform;
+      if (!g.threadId && m.threadId) g.threadId = m.threadId;
+      if (!g._threadId && m._threadId) g._threadId = m._threadId;
+    }
+  });
+  // Convert to array, sorted by latest date descending
+  return Object.values(map).sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+}
+
+// Store grouped contacts so openMsgCenterDetail can access them
+var _mcGroupedContacts = [];
+
+function updateMsgCenterBadge() {
+  const count = _countUnreadMessages();
+  const badge = document.getElementById('msgCenterBadge');
+  if (badge) {
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'inline-block' : 'none';
+  }
+}
+
+async function renderMessageCenter() {
+  const el = document.getElementById('page-msg-center');
+  if (!el) return;
+
+  // Load live client_messages from Supabase
+  await _refreshClientMsgs();
+
+  const filter = _currentMsgCenterFilter;
+  const search = _msgCenterSearch.toLowerCase();
+  let rawMsgs = _getAllCenterMessages();
+
+  // Apply source filter before grouping
+  if (filter !== 'all') {
+    rawMsgs = rawMsgs.filter(m => m.source === filter);
+  }
+  // Apply search before grouping
+  if (search) {
+    rawMsgs = rawMsgs.filter(m =>
+      (m.from||'').toLowerCase().includes(search) ||
+      (m.subject||'').toLowerCase().includes(search) ||
+      (m.body||'').toLowerCase().includes(search) ||
+      (m.unit||'').toLowerCase().includes(search)
+    );
+  }
+
+  // Group by contact name — one row per person
+  var msgs = _groupMessagesByContact(rawMsgs);
+  _mcGroupedContacts = msgs;
+
+  const totalUnread = msgs.filter(m => m.unread).length;
+
+  // Build left panel contact list (one entry per person)
+  var listHtml = '';
+  msgs.forEach(function(m, idx) {
+    const src = MSG_SOURCE_STYLES[m.source] || MSG_SOURCE_STYLES['short-term'];
+    const dateStr = _msgCenterTimeAgo(m.date);
+    const initial = m.from ? m.from.charAt(0).toUpperCase() : '?';
+    const contactKey = (m.from||'').toLowerCase().trim();
+    const sel = _msgCenterSelectedContact === contactKey ? 'background:var(--accent-bg);' : '';
+    const unreadDot = m.unread ? '<span style="width:7px;height:7px;border-radius:50%;background:#d32f2f;flex-shrink:0;"></span>' : '';
+    const countBadge = m._msgCount > 1 ? '<span style="font-size:8px;color:var(--text3);margin-left:2px;">(' + m._msgCount + ')</span>' : '';
+    listHtml += `<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);${sel}"
+      onclick="_msgCenterSelectedContact='${contactKey}';openMsgCenterDetail('${contactKey}')"
+      onmouseover="if(!this.style.background.includes('accent'))this.style.background='var(--surface2)'"
+      onmouseout="this.style.background='${sel?'var(--accent-bg)':''}'">
+      <div style="width:32px;height:32px;border-radius:50%;background:${src.bg};color:${src.text};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">${initial}</div>
+      <div style="flex:1;min-width:0;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.sent?'➤ ':''}${_esc(m.from)}${countBadge}</span>
+          <span style="font-size:9px;color:var(--text3);flex-shrink:0;margin-left:4px;">${dateStr}</span>
+        </div>
+        <div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${_esc(m.unit||'')} · <span style="color:${src.text}">${src.label}</span></div>
+        <div style="font-size:10px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><strong>${_esc(m.subject)}</strong> — ${_esc((m.body||'').substring(0,50))}</div>
+      </div>
+      ${unreadDot}
+    </div>`;
+  });
+
+  el.innerHTML = `
+    <div style="padding:12px 16px 8px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h2 style="margin:0;font-size:18px;font-weight:600;color:var(--text);">Messages</h2>
+      ${totalUnread > 0 ? `<span style="background:#d32f2f;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;">${totalUnread}</span>` : ''}
+      <div style="flex:1"></div>
+      <input type="text" id="msgCenterSearch" placeholder="Search..." value="${_msgCenterSearch}"
+        oninput="_msgCenterSearch=this.value;renderMessageCenter()"
+        style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;width:160px;background:var(--surface);color:var(--text);">
+    </div>
+    <div style="padding:0 16px 6px;display:flex;gap:4px;flex-wrap:wrap;">
+      ${['all','short-term','long-term','client'].map(f =>
+        `<button onclick="_currentMsgCenterFilter='${f}';renderMessageCenter()" style="padding:4px 10px;border-radius:4px;border:${_currentMsgCenterFilter===f?'none':'1px solid var(--border)'};background:${_currentMsgCenterFilter===f?'var(--accent2)':'var(--surface)'};color:${_currentMsgCenterFilter===f?'#fff':'var(--text2)'};font-size:10px;cursor:pointer;font-family:inherit;">${f==='all'?'All':f==='short-term'?'Short-Term':f==='long-term'?'Long-Term':'Client App'}</button>`
+      ).join('')}
+    </div>
+    <div style="display:flex;height:calc(100vh - 240px);border-top:1px solid var(--border);margin:0 16px;border-radius:8px;overflow:hidden;border:1px solid var(--border);">
+      <!-- Left: Contact list -->
+      <div id="mcLeftPanel" style="width:300px;min-width:240px;overflow-y:auto;border-right:1px solid var(--border);flex-shrink:0;background:var(--surface);">
+        ${msgs.length === 0 ? '<div style="padding:40px;text-align:center;color:var(--text3);font-size:12px;">No messages</div>' : listHtml}
+      </div>
+      <!-- Center: Thread -->
+      <div id="mcCenterPanel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg);">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:12px;">Select a conversation</div>
+      </div>
+      <!-- Right: Client card -->
+      <div id="mcRightPanel" style="width:220px;min-width:180px;overflow-y:auto;border-left:1px solid var(--border);flex-shrink:0;background:var(--surface);display:none;"></div>
+    </div>
+  `;
+  updateMsgCenterBadge();
+}
+
+var _msgCenterSelectedId = null;
+var _msgCenterSelectedContact = null;
+
+function _msgCenterTimeAgo(d) {
+  if (!d) return '';
+  const now = Date.now();
+  const then = new Date(d).getTime();
+  if (isNaN(then)) return d; // fallback to raw string
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return days + 'd ago';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+async function openMsgCenterDetail(contactKey) {
+  // Find grouped contact by key (lowercase name)
+  var m = _mcGroupedContacts.find(function(c) { return (c.from||'').toLowerCase().trim() === contactKey; });
+  if (!m) {
+    // Fallback: try by id for backwards compat
+    var allMsgs = _getAllCenterMessages();
+    m = allMsgs.find(function(x) { return x.id === contactKey; });
+    if (!m) return;
+  }
+
+  _msgCenterSelectedContact = contactKey;
+
+  // Re-highlight in left panel
+  var leftItems = document.querySelectorAll('#mcLeftPanel > div');
+  leftItems.forEach(function(el) { el.style.background = ''; });
+
+  // Mark as read across all grouped messages
+  if (m._allMsgIds) {
+    m._allMsgIds.forEach(function(mid) {
+      if (mid.startsWith('lt-') && typeof INNAGO_MESSAGES !== 'undefined') {
+        var origId = parseInt(mid.replace('lt-', ''));
+        var orig = INNAGO_MESSAGES.find(function(x) { return x.id === origId; });
+        if (orig) orig.unread = false;
+      } else if (mid.startsWith('st-') && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+        var tid2 = mid.replace('st-', '');
+        var orig2 = AIRBNB_BOOKINGS_SEED.find(function(x) { return x.threadId === tid2; });
+        if (orig2) orig2.unread = 0;
+      }
+    });
+  }
+
+  var centerEl = document.getElementById('mcCenterPanel');
+  var rightEl = document.getElementById('mcRightPanel');
+  if (!centerEl) return;
+
+  var src = MSG_SOURCE_STYLES[m.source] || {};
+  var unitStr = m.unit ? (m.property ? m.unit + ' at ' + m.property : m.unit) : (m.property || '');
+
+  // Collect all thread IDs for this contact
+  var allThreadIds = m._allThreadIds || [];
+  var primaryThreadId = m._threadId || m.threadId || (allThreadIds.length > 0 ? allThreadIds[0] : '');
+
+  // -- Right panel: Client card (enriched with booking details) --
+  if (rightEl) {
+    var initial = m.from ? m.from.split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase() : '?';
+
+    // Try to find booking/channel data for this contact
+    var booking = null;
+    var channel = null;
+    if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+      booking = AIRBNB_BOOKINGS_SEED.find(function(b){ return (b.guest||'').toLowerCase().trim() === contactKey; });
+    }
+    if (!booking && typeof _channelsCache !== 'undefined' && _channelsCache) {
+      channel = _channelsCache.find(function(c){ return (c.name||'').toLowerCase().trim() === contactKey || (c.guest_name||'').toLowerCase().trim() === contactKey; });
+    }
+
+    var phone = m._phone || (booking ? booking.phone : '') || (channel ? channel.guest_phone : '') || '';
+    var email = m._email || (booking ? booking.email : '') || (channel ? channel.guest_email : '') || '';
+    var listingName = m.property || (booking ? booking.listing : '') || (channel ? channel.listing_name : '') || '';
+    var unitVal = m.unit || (booking ? booking.unit : '') || (channel ? channel.unit_apt : '') || '';
+    var checkIn = (booking ? booking.checkin || booking.check_in : '') || (channel ? channel.check_in : '') || '';
+    var checkOut = (booking ? booking.checkout || booking.check_out : '') || (channel ? channel.check_out : '') || '';
+    var guests = (booking ? booking.guests || booking.adults : 0) || (channel ? channel.guest_count || channel.adults : 0) || 0;
+    var nights = (booking ? booking.nights : 0) || (channel ? channel.nights : 0) || 0;
+    var nightlyRate = (booking ? booking.nightly_rate : 0) || (channel ? channel.nightly_rate : 0) || 0;
+    var cleaningFee = (booking ? booking.cleaning_fee : 0) || (channel ? channel.cleaning_fee : 0) || 0;
+    var totalPayout = (booking ? booking.total_payout || booking.total : 0) || (channel ? channel.total_payout : 0) || 0;
+    var confirmCode = (booking ? booking.confirm_code || booking.confirmCode : '') || (channel ? channel.confirm_code : '') || '';
+    var platform = m.platform || (booking ? booking.platform : '') || (channel ? channel.platform : '') || 'willowpa';
+    var bStatus = (booking ? booking.status : '') || (channel ? channel.status : '') || '';
+
+    function _fmtMcDate(d) { if (!d) return 'N/A'; try { return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); } catch(e){ return d; } }
+    function _fmtMcMoney(v) { return '$' + (parseFloat(v)||0).toFixed(2); }
+
+    var cardHtml = '<div style="padding:14px;text-align:center;border-bottom:1px solid var(--border);">';
+    cardHtml += '<div style="width:48px;height:48px;border-radius:50%;background:' + (src.bg||'var(--accent-bg)') + ';color:' + (src.text||'var(--accent2)') + ';display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 8px;">'+initial+'</div>';
+    cardHtml += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">'+_esc(m.from)+'</div>';
+    cardHtml += '<div style="font-size:10px;color:var(--text3);margin-bottom:6px;">via '+_esc(src.label||'WillowPA')+'</div>';
+    if (phone) cardHtml += '<div style="margin-bottom:4px;font-size:11px;">📞 <a href="tel:'+phone+'" style="color:var(--accent);text-decoration:none;">'+_esc(phone)+'</a></div>';
+    if (email) cardHtml += '<div style="margin-bottom:6px;font-size:10px;">✉ <a href="mailto:'+email+'" style="color:var(--accent);text-decoration:none;word-break:break-all;">'+_esc(email)+'</a></div>';
+    cardHtml += '<button onclick="openMsgModal(\''+_esc(m.from).replace(/'/g,"\\'")+'\',\''+_esc(email).replace(/'/g,"\\'")+'\',\''+_esc(phone).replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(unitVal).replace(/'/g,"\\'")+'\')" style="width:100%;margin-top:6px;padding:7px;background:' + (src.bg||'var(--accent-bg)') + ';color:' + (src.text||'var(--accent2)') + ';border:none;border-radius:5px;cursor:pointer;font-size:10px;font-family:inherit;font-weight:600;">Message on WillowPA</button>';
+    cardHtml += '</div>';
+
+    // Booking Details section
+    cardHtml += '<div style="padding:12px 14px;border-bottom:1px solid var(--border);">';
+    cardHtml += '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Booking Details</div>';
+    if (listingName) cardHtml += '<div style="font-size:11px;color:var(--text);font-weight:500;margin-bottom:2px;">'+_esc(listingName)+'</div>';
+    if (unitVal) cardHtml += '<div style="font-size:10px;color:var(--text3);margin-bottom:8px;">'+_esc(unitVal)+'</div>';
+    cardHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Check-in</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+_fmtMcDate(checkIn)+'</div></div>';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Check-out</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+_fmtMcDate(checkOut)+'</div></div>';
+    cardHtml += '</div>';
+    if (bStatus) {
+      var statusColors = {confirmed:'#43a047',inquiry:'#ef6c00',change_requested:'#e65100',pending:'#f9a825',cancelled:'#c62828'};
+      var sColor = statusColors[bStatus] || 'var(--text3)';
+      cardHtml += '<div style="margin-bottom:6px;"><span style="background:'+sColor+'22;color:'+sColor+';padding:3px 8px;border-radius:4px;font-size:9px;font-weight:600;text-transform:capitalize;">'+_esc(bStatus.replace(/_/g,' '))+'</span>';
+      if (confirmCode) cardHtml += ' <span style="background:var(--surface2);color:var(--text3);padding:3px 6px;border-radius:4px;font-size:9px;">#'+_esc(confirmCode)+'</span>';
+      cardHtml += '</div>';
+    }
+    cardHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Guests</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+guests+'</div></div>';
+    cardHtml += '<div><div style="font-size:9px;color:var(--text3);">Nights</div><div style="font-size:10px;color:var(--text);font-weight:500;">'+nights+'</div></div>';
+    cardHtml += '</div></div>';
+
+    // Financials section
+    cardHtml += '<div style="padding:12px 14px;border-bottom:1px solid var(--border);">';
+    cardHtml += '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Financials</div>';
+    cardHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:10px;color:var(--text3);">Nightly rate</span><span style="font-size:10px;color:var(--text);font-weight:500;">'+_fmtMcMoney(nightlyRate)+'</span></div>';
+    if (cleaningFee) cardHtml += '<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:10px;color:var(--text3);">Cleaning fee</span><span style="font-size:10px;color:var(--text);">'+_fmtMcMoney(cleaningFee)+'</span></div>';
+    cardHtml += '<div style="display:flex;justify-content:space-between;padding-top:4px;border-top:1px solid var(--border);"><span style="font-size:11px;color:var(--text);font-weight:600;">Total</span><span style="font-size:11px;color:#1565c0;font-weight:700;">'+_fmtMcMoney(totalPayout)+'</span></div>';
+    cardHtml += '</div>';
+
+    // Actions section
+    cardHtml += '<div style="padding:12px 14px;">';
+    cardHtml += '<div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Actions</div>';
+    if (confirmCode && typeof viewReservation === 'function') {
+      cardHtml += '<button onclick="viewReservation(\''+_esc(platform)+'\',\''+_esc(confirmCode)+'\')" style="width:100%;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:7px;font-family:inherit;font-size:10px;cursor:pointer;margin-bottom:6px;">View Booking on WillowPA</button>';
+    }
+    cardHtml += '<button onclick="openMsgModal(\''+_esc(m.from).replace(/'/g,"\\'")+'\',\''+_esc(email).replace(/'/g,"\\'")+'\',\''+_esc(phone).replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(unitVal).replace(/'/g,"\\'")+'\')" style="width:100%;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:5px;padding:7px;font-family:inherit;font-size:10px;cursor:pointer;">💬 Full Chat</button>';
+    cardHtml += '</div>';
+
+    rightEl.innerHTML = cardHtml;
+    rightEl.style.display = '';
+  }
+
+  // -- Center panel: Thread header + messages + reply --
+  centerEl.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;">Loading thread...</div>';
+
+  // Header
+  var headerHtml = '<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;">';
+  headerHtml += '<div style="font-size:14px;font-weight:600;color:var(--text);">'+_esc(m.from)+'</div>';
+  headerHtml += '<div style="font-size:11px;color:var(--text2);">'+_esc(unitStr||'')+' · '+(m._msgCount > 1 ? m._msgCount + ' messages' : '1 message')+'</div>';
+  headerHtml += '</div>';
+
+  // Load ALL threads for this contact from client_messages
+  var allBubbles = [];
+
+  // Load from each thread_id
+  for (var ti = 0; ti < allThreadIds.length; ti++) {
+    var tid = allThreadIds[ti];
+    if (!tid) continue;
+    try {
+      var res = await sb.from('client_messages').select('*').eq('thread_id', tid).order('created_at', { ascending: true });
+      if (res.data && res.data.length > 0) {
+        // Mark as read
+        sb.from('client_messages').update({ read: true }).eq('thread_id', tid).eq('sender_type', 'resident').eq('read', false).then(function(){});
+        res.data.forEach(function(msg) {
+          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject, read: msg.read, read_at: msg.read_at });
+        });
+      }
+    } catch(e) { console.warn('Thread load error:', tid, e); }
+  }
+
+  // Also try loading by resident name if no thread results
+  if (allBubbles.length === 0 && m.from) {
+    try {
+      var nameRes = await sb.from('client_messages').select('*').ilike('resident_name', m.from).order('created_at', { ascending: true }).limit(100);
+      if (nameRes.data) {
+        nameRes.data.forEach(function(msg) {
+          allBubbles.push({ sender_type: msg.sender_type, name: msg.resident_name || 'Resident', body: msg.body, time: msg.created_at, subject: msg.subject, read: msg.read, read_at: msg.read_at });
+        });
+        // Mark as read
+        if (nameRes.data.length > 0) {
+          sb.from('client_messages').update({ read: true }).ilike('resident_name', m.from).eq('sender_type', 'resident').eq('read', false).then(function(){});
+        }
+      }
+    } catch(e) { console.warn('Name-based thread load error:', e); }
+  }
+
+  // Sort all bubbles chronologically
+  allBubbles.sort(function(a, b) { return new Date(a.time) - new Date(b.time); });
+
+  // Build chat bubbles HTML
+  var bubblesHtml = '';
+  var lastDateStr = '';
+  allBubbles.forEach(function(msg) {
+    var isAdmin = msg.sender_type === 'management';
+    var time = new Date(msg.time).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+    var date = new Date(msg.time).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    // Date separator
+    if (date !== lastDateStr) {
+      bubblesHtml += '<div style="text-align:center;font-size:9px;color:var(--text3);padding:4px 0;">'+date+'</div>';
+      lastDateStr = date;
+    }
+    bubblesHtml += '<div style="display:flex;'+(isAdmin?'justify-content:flex-end':'justify-content:flex-start')+';">';
+    bubblesHtml += '<div style="max-width:75%;background:'+(isAdmin?'var(--accent)':'var(--surface2)')+';color:'+(isAdmin?'#fff':'var(--text)')+';padding:8px 12px;border-radius:'+(isAdmin?'12px 12px 2px 12px':'12px 12px 12px 2px')+';font-size:12px;line-height:1.45;">';
+    bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+(isAdmin?'Management':_esc(msg.name))+'</div>';
+    if (msg.subject) bubblesHtml += '<div style="font-size:9px;font-weight:500;opacity:.6;margin-bottom:2px;">'+_esc(msg.subject)+'</div>';
+    bubblesHtml += '<div style="white-space:pre-wrap;">'+_esc(msg.body)+'</div>';
+    // Time + read receipt for management messages
+    var receiptHtml = '';
+    if (isAdmin) {
+      if (msg.read && msg.read_at) {
+        var readTime = new Date(msg.read_at).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+        var readDate = new Date(msg.read_at).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+        receiptHtml = ' <span title="Seen '+readDate+' '+readTime+'" style="color:#a5d6a7;font-size:9px;">✓✓</span>';
+      } else if (msg.read) {
+        receiptHtml = ' <span title="Delivered" style="opacity:.6;font-size:9px;">✓✓</span>';
+      } else {
+        receiptHtml = ' <span title="Sent" style="opacity:.4;font-size:9px;">✓</span>';
+      }
+    }
+    bubblesHtml += '<div style="font-size:8px;opacity:.5;margin-top:2px;">'+time+receiptHtml+'</div>';
+    bubblesHtml += '</div></div>';
+  });
+
+  // Fallback: show single message bubble if no DB results
+  if (!bubblesHtml) {
+    bubblesHtml = '<div style="display:flex;justify-content:flex-start;"><div style="max-width:80%;background:var(--surface2);color:var(--text);padding:8px 12px;border-radius:12px;font-size:12px;line-height:1.45;">';
+    bubblesHtml += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">'+_esc(m.from)+'</div>';
+    bubblesHtml += '<div style="white-space:pre-wrap;">'+_esc(m.body)+'</div>';
+    bubblesHtml += '</div></div>';
+  }
+
+  var escapedFrom = _esc(m.from).replace(/'/g,"\\'");
+  var escapedEmail = _esc(m._email||'').replace(/'/g,"\\'");
+  var escapedPhone = _esc(m._phone||'').replace(/'/g,"\\'");
+  var escapedSubj = _esc(m.subject||'').replace(/'/g,"\\'");
+  var escapedTid = primaryThreadId.replace(/'/g,"\\'");
+
+  var html = headerHtml;
+  html += '<div id="mcThreadBubbles" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;">'+bubblesHtml+'</div>';
+  html += '<div style="padding:8px 12px;border-top:1px solid var(--border);flex-shrink:0;" id="mcReplyArea">';
+  html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+  html += buildChannelSelector('app');
+  html += '<div style="margin-left:auto;display:flex;gap:4px;">';
+  html += '<button onclick="_mcAISuggest()" title="AI-suggested reply" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">⚡ AI Suggest</button>';
+  html += '<button onclick="_mcAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">🔄 Rephrase</button>';
+  html += '</div></div>';
+  html += '<div id="mcAttachPreview" style="display:none;padding:4px 10px;background:#fef3c7;border-radius:6px;margin-bottom:4px;font-size:10px;align-items:center;gap:6px;"><span id="mcAttachName"></span><button onclick="_mcClearAttach()" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:12px;padding:0 2px;">&times;</button></div>';
+  html += '<div style="display:flex;gap:6px;align-items:center;">';
+  html += '<input type="file" id="mcFileInput" style="display:none" accept="image/*,.pdf,.doc,.docx,.txt" onchange="_mcHandleFile(this)">';
+  html += '<button onclick="document.getElementById(\'mcFileInput\').click()" title="Attach file" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;cursor:pointer;flex-shrink:0;">📎</button>';
+  html += '<input id="mcReplyInput" placeholder="Type your reply... nothing is sent until you approve." style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--text);" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\');}">';
+  html += '<button onclick="_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\')" style="padding:6px 14px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
+  html += '</div></div>';
+
+  centerEl.innerHTML = html;
+  var bubDiv = document.getElementById('mcThreadBubbles');
+  if (bubDiv) bubDiv.scrollTop = bubDiv.scrollHeight;
+  m.unread = false;
+  updateMsgCenterBadge();
+}
+
+var _mcPendingFile = null;
+
+function _mcHandleFile(input) {
+  if (input.files && input.files[0]) {
+    _mcPendingFile = input.files[0];
+    var preview = document.getElementById('mcAttachPreview');
+    var nameEl = document.getElementById('mcAttachName');
+    if (preview) preview.style.display = 'flex';
+    if (nameEl) nameEl.textContent = '📎 ' + _mcPendingFile.name;
+  }
+}
+
+function _mcClearAttach() {
+  _mcPendingFile = null;
+  var preview = document.getElementById('mcAttachPreview');
+  if (preview) preview.style.display = 'none';
+  var fi = document.getElementById('mcFileInput');
+  if (fi) fi.value = '';
+}
+
+async function _mcSendReply(from, email, phone, subject, threadId) {
+  var input = document.getElementById('mcReplyInput');
+  var body = input ? input.value.trim() : '';
+  if (!body && !_mcPendingFile) return;
+  input.value = '';
+  var ch = getSelectedChannel(document.getElementById('mcReplyArea')) || 'app';
+
+  if (_mcPendingFile && ch === 'app') {
+    // Upload file to Supabase storage, then send with attachment
+    var file = _mcPendingFile;
+    var ext = file.name.split('.').pop() || 'bin';
+    var path = 'mc/' + (threadId || Date.now()) + '/' + Date.now() + '.' + ext;
+    toast('Uploading file...');
+    try {
+      var upRes = await sb.storage.from('message-attachments').upload(path, file, { cacheControl: '3600', upsert: false });
+      if (upRes.error) { toast('Upload failed: ' + upRes.error.message, 'error'); return; }
+      var attachmentUrl = sb.supabaseUrl + '/storage/v1/object/public/message-attachments/' + path;
+      var messageType = file.type && file.type.startsWith('image/') ? 'image' : 'file';
+      if (!body) body = '📎 ' + file.name;
+      _mcClearAttach();
+      sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId, attachmentUrl: attachmentUrl, messageType: messageType });
+    } catch(e) { toast('Upload error: ' + e.message, 'error'); return; }
+  } else {
+    _mcClearAttach();
+    sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
+  }
+  toast('Reply sent!');
+  setTimeout(function() { if (_msgCenterSelectedContact) openMsgCenterDetail(_msgCenterSelectedContact); }, 1000);
+}
+
+// ── AI Suggest & Rephrase for Message Center ──
+var _MC_AI_PROXY = 'https://tech.willowpa.com/proxy.php';
+
+function _mcBuildSystemPrompt() {
+  var prompt = 'You are a helpful property management assistant for Willow Partnership, LLC. ';
+  prompt += 'You help draft replies to guest and resident messages.\n\n';
+  prompt += '## Tone Guidelines\n';
+  prompt += '- Always use "We" not "I"\n';
+  prompt += '- Professional but warm tone\n';
+  prompt += '- Never use slang or overly casual language\n';
+  prompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+  prompt += '\nDraft a concise, helpful reply. Do NOT include subject lines or email headers. Just the message body. Keep it under 150 words.';
+  return prompt;
+}
+
+async function _mcAISuggest() {
+  // Get conversation context from the bubbles
+  var bubbles = document.querySelectorAll('#mcThreadBubbles > div');
+  if (!bubbles || bubbles.length === 0) { toast('No conversation to suggest from', 'warning'); return; }
+
+  var convoText = '';
+  bubbles.forEach(function(el) {
+    var label = el.querySelector('div[style*="font-weight:600"]');
+    var body = el.querySelector('div[style*="white-space:pre-wrap"]');
+    if (label && body) convoText += (label.textContent || '') + ': ' + (body.textContent || '') + '\n';
+  });
+
+  // Find contact info from grouped data
+  var m = _mcGroupedContacts.find(function(c) { return (c.from||'').toLowerCase().trim() === _msgCenterSelectedContact; });
+  var guestName = m ? m.from : 'Guest';
+  var unit = m ? m.unit : '';
+
+  var userPrompt = 'Guest: ' + guestName;
+  if (unit) userPrompt += ' (Unit ' + unit + ')';
+  userPrompt += '\n\nConversation:\n' + convoText;
+  userPrompt += '\n\nDraft a reply to the guest\'s latest message.';
+
+  // Show loading in a small inline area
+  var input = document.getElementById('mcReplyInput');
+  if (input) { input.value = 'Generating AI suggestion...'; input.disabled = true; }
+
+  try {
+    var resp = await fetch(_MC_AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, system: _mcBuildSystemPrompt(), messages: [{ role: 'user', content: userPrompt }] })
+    });
+    var data = await resp.json();
+    if (input) input.disabled = false;
+    if (data.content && data.content[0] && data.content[0].text) {
+      if (input) { input.value = data.content[0].text; input.focus(); }
+    } else {
+      if (input) input.value = '';
+      toast('AI suggestion unavailable', 'error');
+    }
+  } catch(e) {
+    if (input) { input.disabled = false; input.value = ''; }
+    toast('AI suggestion failed: ' + e.message, 'error');
+  }
+}
+
+async function _mcAIRephrase() {
+  var input = document.getElementById('mcReplyInput');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  input.disabled = true;
+  var original = text;
+
+  try {
+    var resp = await fetch(_MC_AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: 'You are a property management communication assistant. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message:\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    input.disabled = false;
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      input.focus();
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = original;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.disabled = false;
+    input.value = original;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
 }
 
 // ── Applications Data & Render ──
@@ -3433,27 +4319,68 @@ function renderMTMExpenses() { renderExpensesPage(); }
 function addMTMExpense() { toggleExpenseForm(); }
 
 // ── Maintenance Data & Render ──
-const INNAGO_MAINTENANCE = [
-  {id:"MT-001",property:"46 Township Line Road",unit:"317",tenant:"Carol Tyndale",issue:"Kitchen faucet leaking",priority:"high",status:"open",created:"Apr 03, 2026"},
-  {id:"MT-002",property:"7845 Montgomery Avenue",unit:"Unit 8",tenant:"Justin Krebs",issue:"Kitchen faucet dripping",priority:"medium",status:"open",created:"Apr 01, 2026"},
-  {id:"MT-003",property:"1614 Valley Glen Rd",unit:"1",tenant:"Tarsha R. Scovens",issue:"Water heater lukewarm",priority:"high",status:"scheduled",created:"Mar 18, 2026"},
-  {id:"MT-004",property:"46 Township Line Road",unit:"232",tenant:"Anna Chubatiuk",issue:"Bathroom exhaust fan not working",priority:"low",status:"in-progress",created:"Mar 15, 2026"},
-  {id:"MT-005",property:"7845 Montgomery Avenue",unit:"Unit 2",tenant:"Gina Krier",issue:"Noise complaint - Unit 4 late-night music",priority:"medium",status:"open",created:"Mar 28, 2026"},
-  {id:"MT-006",property:"46 Township Line Road",unit:"325",tenant:"Naijeya Shykye Lyons",issue:"Closet door off track",priority:"low",status:"scheduled",created:"Mar 20, 2026"},
-  {id:"MT-007",property:"431 Valley Rd",unit:"Unit A2",tenant:"Renat Sakiev",issue:"Window screen torn",priority:"low",status:"resolved",created:"Mar 10, 2026"},
-  {id:"MT-008",property:"46 Township Line Road",unit:"219",tenant:"Sining Wang",issue:"Dishwasher not draining",priority:"medium",status:"resolved",created:"Mar 05, 2026"},
-  {id:"MT-009",property:"7845 Montgomery Avenue",unit:"Unit 6",tenant:"Victoria Deans",issue:"Thermostat not responding",priority:"high",status:"resolved",created:"Feb 28, 2026"},
-  {id:"MT-010",property:"46 Township Line Road",unit:"111",tenant:"David Brooker",issue:"Front door lock sticking",priority:"medium",status:"resolved",created:"Feb 25, 2026"},
-];
+let MAINTENANCE_REQUESTS = [];
+
+async function loadMaintenanceFromSupabase() {
+  try {
+    const { data, error } = await sb.from('maintenance_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) { console.error('Maint load error:', error); return; }
+    MAINTENANCE_REQUESTS = (data || []).map(r => ({
+      id: r.id,
+      property: r.property || r.address || '',
+      unit: r.unit || '',
+      tenant: r.name || '',
+      phone: r.phone || '',
+      email: r.email || '',
+      issue: r.description || '',
+      category: r.category || 'General',
+      priority: r.priority || 'normal',
+      status: mapMaintStatus(r.status),
+      urgency: r.urgency || 'normal',
+      created: fmtMaintDate(r.created_at),
+      created_at: r.created_at,
+      user_type: r.user_type || 'guest',
+      preferred_block: r.preferred_block || '',
+      preferred_date: r.preferred_date || '',
+      preferred_slot: r.preferred_slot || '',
+      preferred_comm: r.preferred_comm || 'sms',
+      no_access_needed: r.no_access_needed || false,
+      permission_to_enter: r.permission_to_enter || false,
+      waiver_agreed: r.waiver_agreed || false,
+      sms_consent: r.sms_consent || false,
+      photo: r.photo || null,
+      admin_notes: r.admin_notes || '',
+      assigned_to: r.assigned_to || '',
+      address: r.address || '',
+      owner: r.owner || '',
+      _raw: r
+    }));
+    renderMTMMaint();
+  } catch (e) { console.error('Maint load exception:', e); }
+}
+
+function mapMaintStatus(s) {
+  const map = { submitted:'open', assigned:'scheduled', scheduled:'scheduled', 'in-progress':'in-progress', completed:'resolved', cancelled:'resolved' };
+  return map[s] || s || 'open';
+}
+
+function fmtMaintDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[d.getMonth()] + ' ' + String(d.getDate()).padStart(2,'0') + ', ' + d.getFullYear();
+}
 
 function renderMTMMaint() {
   const tbody = document.getElementById('mtmMaintBody');
   if (!tbody) return;
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('mtmMaintOpen', INNAGO_MAINTENANCE.filter(m => m.status === 'open').length);
-  el('mtmMaintProgress', INNAGO_MAINTENANCE.filter(m => m.status === 'in-progress').length);
-  el('mtmMaintScheduled', INNAGO_MAINTENANCE.filter(m => m.status === 'scheduled').length);
-  el('mtmMaintResolved', INNAGO_MAINTENANCE.filter(m => m.status === 'resolved').length);
+  el('mtmMaintOpen', MAINTENANCE_REQUESTS.filter(m => m.status === 'open').length);
+  el('mtmMaintProgress', MAINTENANCE_REQUESTS.filter(m => m.status === 'in-progress').length);
+  el('mtmMaintScheduled', MAINTENANCE_REQUESTS.filter(m => m.status === 'scheduled').length);
+  el('mtmMaintResolved', MAINTENANCE_REQUESTS.filter(m => m.status === 'resolved').length);
   filterMTMMaint();
 }
 
@@ -3463,7 +4390,7 @@ function filterMTMMaint() {
   const search = (document.getElementById('mtmMaintSearch')?.value || '').toLowerCase();
   const statusF = document.getElementById('mtmMaintStatusFilter')?.value || 'all';
 
-  const filtered = INNAGO_MAINTENANCE.filter(m => {
+  const filtered = MAINTENANCE_REQUESTS.filter(m => {
     if (statusF !== 'all' && m.status !== statusF) return false;
     if (search && !m.tenant.toLowerCase().includes(search) && !m.issue.toLowerCase().includes(search) && !m.property.toLowerCase().includes(search)) return false;
     return true;
@@ -3478,11 +4405,12 @@ function filterMTMMaint() {
   tbody.innerHTML = filtered.map(m => {
     const statusBadge = `<span class="mtm-badge ${m.status}">${m.status === 'in-progress' ? 'In Progress' : m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>`;
     const priBadge = `<span class="mtm-badge ${m.priority}">${m.priority.charAt(0).toUpperCase() + m.priority.slice(1)}</span>`;
-    return `<tr onclick="alert('Ticket ${m.id}\\n\\n${m.issue}\\n\\nTenant: ${m.tenant}\\nProperty: ${m.property} ${m.unit}\\nPriority: ${m.priority}\\nStatus: ${m.status}')">
-      <td style="font-weight:600;color:var(--accent2)">${m.id}</td>
-      <td><span class="mtm-prop-unit">${m.unit}</span><span class="mtm-prop-addr">${m.property}</span></td>
-      <td>${m.tenant}</td>
-      <td>${m.issue}</td>
+    const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
+    return `<tr onclick="openMaintTicket('${m.id}')" style="cursor:pointer">
+      <td style="font-weight:600;color:var(--accent2)">${m.id.substring(0,10)}</td>
+      <td><span class="mtm-prop-unit">${m.unit || '-'}</span><span class="mtm-prop-addr">${m.property || m.address || '-'}</span></td>
+      <td>${m.tenant}${m.user_type === 'guest' ? ' <span style="font-size:10px;color:#9ca3af">(guest)</span>' : ''}</td>
+      <td>${catIcon} ${m.issue.length > 60 ? m.issue.substring(0,60) + '...' : m.issue}</td>
       <td>${priBadge}</td>
       <td>${statusBadge}</td>
       <td>${m.created}</td>
@@ -3490,8 +4418,112 @@ function filterMTMMaint() {
   }).join('');
 }
 
+function openMaintTicket(id) {
+  const m = MAINTENANCE_REQUESTS.find(r => r.id === id);
+  if (!m) return;
+  const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
+  const statusOpts = ['submitted','assigned','scheduled','in-progress','completed','cancelled'];
+  const priorityOpts = ['low','normal','high','urgent'];
+
+  let html = `<div style="padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+      <div>
+        <h3 style="margin:0;font-size:18px">${catIcon} ${m.category}</h3>
+        <span style="font-size:12px;color:#6b7280">${m.id} &bull; ${m.created} &bull; ${m.user_type === 'guest' ? 'Guest' : 'Resident'}</span>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Tenant</span><div style="font-weight:600">${m.tenant}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Phone</span><div>${m.phone || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Email</span><div>${m.email || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Unit</span><div>${m.unit || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Property/Address</span><div>${m.property || m.address || '-'}</div></div>
+      <div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Preferred Comm</span><div>${m.preferred_comm}</div></div>
+    </div>
+    <div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Description</div>
+      <div style="white-space:pre-wrap">${m.issue}</div>
+    </div>`;
+
+  if (m.preferred_block) {
+    html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px;margin-bottom:12px">
+      <strong>📅 Preferred Time:</strong> ${m.preferred_block}
+    </div>`;
+  }
+
+  let flags = [];
+  if (m.no_access_needed) flags.push('🔑 No access needed');
+  if (m.permission_to_enter) flags.push('🚪 Permission to enter');
+  if (m.waiver_agreed) flags.push('✅ Waiver signed');
+  if (m.sms_consent) flags.push('📱 SMS consent');
+  if (flags.length) {
+    html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      ${flags.map(f => `<span style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:6px;padding:4px 10px;font-size:12px">${f}</span>`).join('')}
+    </div>`;
+  }
+
+  if (m.photo) {
+    html += `<div style="margin-bottom:16px"><img src="${m.photo}" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e5e7eb" onerror="this.style.display='none'"></div>`;
+  }
+
+  html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+    <div>
+      <label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Status</label>
+      <select id="maintTicketStatus" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px">
+        ${statusOpts.map(s => `<option value="${s}" ${(m._raw.status || 'submitted') === s ? 'selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Priority</label>
+      <select id="maintTicketPriority" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px">
+        ${priorityOpts.map(p => `<option value="${p}" ${m.priority === p ? 'selected' : ''}>${p.charAt(0).toUpperCase() + p.slice(1)}</option>`).join('')}
+      </select>
+    </div>
+  </div>
+  <div style="margin-bottom:16px">
+    <label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Admin Notes</label>
+    <textarea id="maintTicketNotes" rows="3" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-family:inherit;resize:vertical">${m.admin_notes || ''}</textarea>
+  </div>
+  <div style="display:flex;gap:10px">
+    <button onclick="saveMaintTicket('${m.id}')" style="flex:1;padding:10px;background:var(--accent2,#c47f00);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Save Changes</button>
+  </div>
+  </div>`;
+
+  // Use a modal/overlay approach
+  let overlay = document.getElementById('maintTicketOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'maintTicketOverlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(overlay);
+  }
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e5e7eb">
+      <h3 style="margin:0;font-size:16px">Maintenance Ticket</h3>
+      <button onclick="document.getElementById('maintTicketOverlay').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#6b7280">&times;</button>
+    </div>
+    ${html}
+  </div>`;
+}
+
+async function saveMaintTicket(id) {
+  const status = document.getElementById('maintTicketStatus')?.value;
+  const priority = document.getElementById('maintTicketPriority')?.value;
+  const notes = document.getElementById('maintTicketNotes')?.value || '';
+
+  try {
+    const { error } = await sb.from('maintenance_requests')
+      .update({ status, priority, admin_notes: notes, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { alert('Error saving: ' + error.message); return; }
+    document.getElementById('maintTicketOverlay').style.display = 'none';
+    await loadMaintenanceFromSupabase();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
 function addMTMMaintTicket() {
-  alert('New Maintenance Ticket\n\nThis would open a form to create a new maintenance request with property, unit, tenant, issue description, priority, and photo upload.');
+  alert('New Maintenance Ticket\n\nTenants submit requests via the Willow Resident App.\nVisit app.willowpa.com to submit a request.');
 }
 
 // ══════════════════════════════════════════════════════
@@ -3694,13 +4726,19 @@ function renderMTMDashboardInteractive() {
     overdueCard.title = 'Click to view overdue units';
   }
 
-  // Make expiring leases list items clickable
+  // Make expiring leases list items clickable — open tenant card
   document.querySelectorAll('#mtmDashExpiring .mtm-dash-list-item').forEach((item, idx) => {
     const expLeases = INNAGO_LEASES.filter(l => l.type === 'fixed').sort((a,b) => new Date(a.end) - new Date(b.end)).slice(0, 6);
     if (expLeases[idx]) {
-      const origIdx = INNAGO_LEASES.indexOf(expLeases[idx]);
-      item.onclick = () => openLeaseDetail(origIdx);
-      item.title = 'Click to view lease details';
+      const tName = expLeases[idx].tenants.split(',')[0].trim();
+      const tIdx = INNAGO_TENANTS.findIndex(t => t.name.includes(tName.split(' ')[0]));
+      if (tIdx >= 0) {
+        item.onclick = () => openTenantCardFromLease(tIdx);
+      } else {
+        const origIdx = INNAGO_LEASES.indexOf(expLeases[idx]);
+        item.onclick = () => openLeaseDetail(origIdx);
+      }
+      item.title = 'Click to view tenant details';
     }
   });
 
@@ -5910,7 +6948,7 @@ async function renderSTDashboard(){
   const ciEl=document.getElementById('stDashCheckIns');
   if(ciEl){
     if(stCI.length===0){ciEl.innerHTML='<div class="dash-empty-state">✓ No ST check-ins in the next 3 days</div>';}
-    else{ciEl.innerHTML=stCI.map(ci=>{const u=data.find(x=>x.apt===ci.apt);return`<div class="dash-move-item"><span class="dash-move-apt">${ci.apt}</span><span class="dash-move-name">${clickablePersonName(ci.name,u,'')}</span><span class="dash-move-when ci">${ci.daysAway===0?'Today':ci.daysAway===1?'Tomorrow':'In '+ci.daysAway+'d'}</span></div>`;}).join('');}
+    else{ciEl.innerHTML=stCI.map(ci=>{const u=data.find(x=>x.apt===ci.apt);return`<div class="dash-move-item" style="cursor:pointer" onclick="drillDownToTenant('${ci.apt}','${(ci.name||'').replace(/'/g,"\\'")}')"><span class="dash-move-apt">${ci.apt}</span><span class="dash-move-name">${clickablePersonName(ci.name,u,'')}</span><span class="dash-move-when ci">${ci.daysAway===0?'Today':ci.daysAway===1?'Tomorrow':'In '+ci.daysAway+'d'}</span></div>`;}).join('');}
   }
 
   // ── ST Check-outs only ──
@@ -5918,8 +6956,18 @@ async function renderSTDashboard(){
   const coEl=document.getElementById('stDashCheckOuts');
   if(coEl){
     if(stCO.length===0){coEl.innerHTML='<div class="dash-empty-state">✓ No ST check-outs in the next 3 days</div>';}
-    else{coEl.innerHTML=stCO.map(co=>{const u=data.find(x=>x.apt===co.apt);return`<div class="dash-move-item"><span class="dash-move-apt">${co.apt}</span><span class="dash-move-name">${clickablePersonName(co.name,u,'')}</span><span class="dash-move-when co">${co.daysAway===0?'Today':co.daysAway===1?'Tomorrow':'In '+co.daysAway+'d'}</span></div>`;}).join('');}
+    else{coEl.innerHTML=stCO.map(co=>{const u=data.find(x=>x.apt===co.apt);return`<div class="dash-move-item" style="cursor:pointer" onclick="drillDownToTenant('${co.apt}','${(co.name||'').replace(/'/g,"\\'")}')"><span class="dash-move-apt">${co.apt}</span><span class="dash-move-name">${clickablePersonName(co.name,u,'')}</span><span class="dash-move-when co">${co.daysAway===0?'Today':co.daysAway===1?'Tomorrow':'In '+co.daysAway+'d'}</span></div>`;}).join('');}
   }
+
+  // ── ST Badge: same-day check-ins + check-outs ──
+  const todayCI = stCI.filter(ci => ci.daysAway === 0).length;
+  const todayCO = stCO.filter(co => co.daysAway === 0).length;
+  const stTotal = todayCI + todayCO;
+  const stBadge = document.getElementById('stBadge');
+  if (stBadge) { stBadge.textContent = stTotal; stBadge.style.display = stTotal > 0 ? 'inline' : 'none'; }
+
+  // ── Message Center Badge ──
+  if (typeof updateMsgCenterBadge === 'function') updateMsgCenterBadge();
 
   // ── ST Revenue Summary ──
   const paidST=stOcc.filter(r=>r.balance<=0).length;
@@ -5962,13 +7010,30 @@ async function renderSTDashboard(){
 }
 
 // ══════════════════════════════════════════════════════
-//  PARKING ADMIN MODULE
+//  PARKING ADMIN MODULE  (Supabase-backed)
 // ══════════════════════════════════════════════════════
-var PK_API = 'https://app.willowpa.com/api/index.php';
-var PK_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
+var PK_SB_URL = (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_URL) || '';
+var PK_SB_KEY = (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_KEY) || '';
 var _pkBookings = [];
 var _pkBuildings = [];
 var _pkCoupons = [];
+
+// ── Supabase REST helper ──
+function pkSB(table, query, method, body) {
+  var url = PK_SB_URL + '/rest/v1/' + table;
+  if (query) url += '?' + query;
+  var opts = {
+    method: method || 'GET',
+    headers: {
+      'apikey': PK_SB_KEY,
+      'Authorization': 'Bearer ' + PK_SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : (method === 'PATCH' || method === 'DELETE') ? 'return=representation' : ''
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(url, opts).then(function(r) { return r.json(); });
+}
 
 function showParkingSection(sec) {
   ['pkBookingsSection','pkBuildingsSection','pkCouponsSection','pkReceiptsSection'].forEach(function(id) {
@@ -5977,53 +7042,43 @@ function showParkingSection(sec) {
   });
   var target = document.getElementById('pk' + sec.charAt(0).toUpperCase() + sec.slice(1) + 'Section');
   if (target) target.style.display = 'block';
-
-  // Load data for the section
   if (sec === 'bookings') WPA_pkLoadBookings();
   if (sec === 'buildings') WPA_pkLoadBuildings();
   if (sec === 'coupons') WPA_pkLoadCoupons();
 }
 
-function pkFetch(action, method, body) {
-  var opts = {
-    method: method || 'GET',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + PK_ADMIN_TOKEN }
-  };
-  if (body) opts.body = JSON.stringify(body);
-  return fetch(PK_API + '?action=' + action, opts).then(function(r) { return r.json(); });
-}
-
 function WPA_pkRefresh() {
   WPA_pkLoadStats();
-  // Refresh whichever section is visible
   if (document.getElementById('pkBookingsSection').style.display !== 'none') WPA_pkLoadBookings();
   if (document.getElementById('pkBuildingsSection').style.display !== 'none') WPA_pkLoadBuildings();
   if (document.getElementById('pkCouponsSection').style.display !== 'none') WPA_pkLoadCoupons();
 }
 
-// ── Stats ──
+// ── Stats (computed from bookings) ──
 function WPA_pkLoadStats() {
-  pkFetch('admin-stats').then(function(d) {
-    if (!d.ok) return;
-    var s = d.stats;
-    document.getElementById('pk-stat-active').textContent = s.active || 0;
-    document.getElementById('pk-stat-revenue').textContent = '$' + (s.month_revenue || 0).toLocaleString();
-    document.getElementById('pk-stat-total').textContent = s.total_bookings || 0;
-    // Update dashboard cards too
+  pkSB('parking_bookings', 'select=id,status,amount,end_date,created&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    var today = new Date().toISOString().split('T')[0];
+    var now = new Date();
+    var monthStart = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-01';
+    var active = rows.filter(function(b) { return b.end_date >= today && b.status === 'active'; });
+    var monthRev = rows.filter(function(b) { return b.created >= monthStart; }).reduce(function(s,b) { return s + parseFloat(b.amount||0); }, 0);
+    document.getElementById('pk-stat-active').textContent = active.length;
+    document.getElementById('pk-stat-revenue').textContent = '$' + monthRev.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0});
+    document.getElementById('pk-stat-total').textContent = rows.length;
     var el = document.getElementById('dash-pk-assigned');
-    if (el) el.textContent = s.active || 0;
+    if (el) el.textContent = active.length;
     var el2 = document.getElementById('dash-pk-available');
-    if (el2) el2.textContent = s.total_bookings || 0;
+    if (el2) el2.textContent = rows.length;
   }).catch(function() {});
 }
 
 // ── Bookings ──
 function WPA_pkLoadBookings() {
-  pkFetch('admin-bookings').then(function(d) {
-    if (!d.ok) return;
-    _pkBookings = d.bookings || [];
+  pkSB('parking_bookings', 'select=*&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    _pkBookings = rows;
     WPA_pkFilterBookings();
-    // Count expiring in next 3 days
     var today = new Date().toISOString().split('T')[0];
     var in3 = new Date(Date.now() + 3*86400000).toISOString().split('T')[0];
     var expiring = _pkBookings.filter(function(b) { return b.end_date >= today && b.end_date <= in3 && b.status === 'active'; });
@@ -6041,7 +7096,7 @@ function WPA_pkFilterBookings() {
     if (status === 'active' && !isActive) return false;
     if (status === 'expired' && isActive) return false;
     if (search) {
-      var hay = (b.license_plate + ' ' + b.unit_number + ' ' + b.guest_name + ' ' + b.building_name + ' ' + b.car_make + ' ' + b.car_color).toLowerCase();
+      var hay = ((b.license_plate||'') + ' ' + (b.unit||'') + ' ' + (b.guest_name||'') + ' ' + (b.building_name||'') + ' ' + (b.car_brand||'') + ' ' + (b.car_color||'')).toLowerCase();
       if (hay.indexOf(search) === -1) return false;
     }
     return true;
@@ -6055,24 +7110,24 @@ function WPA_pkFilterBookings() {
   tbody.innerHTML = filtered.map(function(b) {
     var isExpired = b.end_date < today;
     return '<tr' + (isExpired ? ' style="opacity:.6"' : '') + '>' +
-      '<td>' + esc(b.building_name) + '</td>' +
-      '<td><strong>' + esc(b.unit_number) + '</strong></td>' +
+      '<td>' + esc(b.building_name||'') + '</td>' +
+      '<td><strong>' + esc(b.unit||'') + '</strong></td>' +
       '<td>' + esc(b.guest_name || '—') + '</td>' +
-      '<td>' + esc(b.car_make) + ' ' + esc(b.car_color) + '</td>' +
-      '<td><strong>' + esc(b.license_plate) + '</strong></td>' +
-      '<td>' + esc(b.plan_label) + '</td>' +
-      '<td style="font-size:11px">' + b.start_date + '<br>to ' + b.end_date + '</td>' +
-      '<td>$' + parseFloat(b.amount).toFixed(2) + (b.coupon_code ? '<br><span style="font-size:10px;color:var(--green)">🏷 ' + esc(b.coupon_code) + '</span>' : '') + '</td>' +
-      '<td><a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" style="color:var(--accent);font-size:11px">🧾 Receipt</a></td>' +
+      '<td>' + esc(b.car_brand||'') + ' ' + esc(b.car_color||'') + '</td>' +
+      '<td><strong>' + esc(b.license_plate||'') + '</strong></td>' +
+      '<td>' + esc(b.plan||'') + '</td>' +
+      '<td style="font-size:11px">' + (b.start_date||'') + '<br>to ' + (b.end_date||'') + '</td>' +
+      '<td>$' + parseFloat(b.amount||0).toFixed(2) + '</td>' +
+      '<td><span style="color:var(--accent);font-size:11px">' + b.id + '</span></td>' +
       '</tr>';
   }).join('');
 }
 
 // ── Buildings ──
 function WPA_pkLoadBuildings() {
-  pkFetch('admin-buildings').then(function(d) {
-    if (!d.ok) return;
-    _pkBuildings = d.buildings || [];
+  pkSB('parking_buildings', 'select=*&order=name.asc').then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    _pkBuildings = rows;
     WPA_pkRenderBuildings();
   });
 }
@@ -6085,17 +7140,18 @@ function WPA_pkRenderBuildings() {
   }
   el.innerHTML = _pkBuildings.map(function(b) {
     var plans = (b.plans || []).map(function(p) {
-      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label ? ' (' + esc(p.label) + ')' : '') + '</span>';
+      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label || p.name ? ' (' + esc(p.label || p.name) + ')' : '') + '</span>';
     }).join(' ');
+    var pricing = '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--accent)">$' + parseFloat(b.per_day||0).toFixed(2) + '/day · min $' + parseFloat(b.minimum_cost||0).toFixed(2) + '</span>';
     return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:start">' +
-        '<div><h3 style="border:none;padding:0;margin:0 0 4px">🏢 ' + esc(b.name) + '</h3>' +
+        '<div><h3 style="border:none;padding:0;margin:0 0 4px">' + esc(b.name) + '</h3>' +
           (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">' + esc(b.address) + '</div>' : '') +
-          '<div>' + (plans || '<span style="font-size:11px;color:var(--text3)">No plans</span>') + '</div>' +
+          '<div>' + pricing + ' ' + (plans || '<span style="font-size:11px;color:var(--text3)">No bulk plans</span>') + '</div>' +
         '</div>' +
         '<div style="display:flex;gap:6px">' +
-          '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">✏ Edit</button>' +
-          '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">✕</button>' +
+          '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">Edit</button>' +
+          '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">Delete</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -6107,9 +7163,11 @@ function WPA_pkShowBuildingForm(id) {
   document.getElementById('pkBldId').value = '';
   document.getElementById('pkBldName').value = '';
   document.getElementById('pkBldAddr').value = '';
+  document.getElementById('pkBldPerDay').value = '';
+  document.getElementById('pkBldMinCost').value = '';
   document.getElementById('pkBldPlans').innerHTML = '';
   document.getElementById('pkBldFormTitle').textContent = 'Add Building';
-  WPA_pkAddPlanRow(); // Start with one empty plan row
+  WPA_pkAddPlanRow();
 }
 
 function WPA_pkEditBuilding(id) {
@@ -6119,9 +7177,11 @@ function WPA_pkEditBuilding(id) {
   document.getElementById('pkBldId').value = b.id;
   document.getElementById('pkBldName').value = b.name;
   document.getElementById('pkBldAddr').value = b.address || '';
+  document.getElementById('pkBldPerDay').value = b.per_day || '';
+  document.getElementById('pkBldMinCost').value = b.minimum_cost || '';
   document.getElementById('pkBldFormTitle').textContent = 'Edit Building';
   document.getElementById('pkBldPlans').innerHTML = '';
-  (b.plans || []).forEach(function(p) { WPA_pkAddPlanRow(p.days, p.price, p.label); });
+  (b.plans || []).forEach(function(p) { WPA_pkAddPlanRow(p.days, p.price, p.label || p.name); });
   if ((b.plans || []).length === 0) WPA_pkAddPlanRow();
 }
 
@@ -6136,7 +7196,7 @@ function WPA_pkAddPlanRow(days, price, label) {
     '<input type="number" placeholder="Days" value="' + (days || '') + '" class="pk-admin-input" style="width:70px" data-field="days">' +
     '<input type="number" step="0.01" placeholder="Price $" value="' + (price || '') + '" class="pk-admin-input" style="width:90px" data-field="price">' +
     '<input type="text" placeholder="Label (e.g. 1 Month)" value="' + (label || '') + '" class="pk-admin-input" style="flex:1" data-field="label">' +
-    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">✕</button>';
+    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">X</button>';
   el.appendChild(row);
 }
 
@@ -6148,31 +7208,39 @@ function WPA_pkSaveBuilding() {
     var d = row.querySelector('[data-field=days]').value;
     var p = row.querySelector('[data-field=price]').value;
     var l = row.querySelector('[data-field=label]').value;
-    if (d && p) plans.push({ days: parseInt(d), price: parseFloat(p), label: l || '' });
+    if (d && p) plans.push({ id: 'plan_' + Date.now() + '_' + plans.length, name: l || (d + ' days'), days: parseInt(d), price: parseFloat(p) });
   });
   var id = document.getElementById('pkBldId').value;
-  var method = id ? 'PUT' : 'POST';
-  var body = { id: id, name: name, address: document.getElementById('pkBldAddr').value.trim(), plans: plans, active: true };
-  pkFetch('admin-buildings', method, body).then(function(d) {
-    if (d.ok) {
+  var perDay = parseFloat(document.getElementById('pkBldPerDay').value) || 0;
+  var minCost = parseFloat(document.getElementById('pkBldMinCost').value) || 0;
+  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), plans: plans, per_day: perDay, minimum_cost: minCost, active: true, updated: new Date().toISOString() };
+
+  if (id) {
+    // Update existing
+    pkSB('parking_buildings', 'id=eq.' + id, 'PATCH', body).then(function(d) {
       document.getElementById('pkBuildingForm').style.display = 'none';
       WPA_pkLoadBuildings();
-    } else {
-      alert('Error: ' + (d.error || 'Unknown'));
-    }
-  });
+    }).catch(function(e) { alert('Error: ' + e.message); });
+  } else {
+    // Insert new
+    body.id = 'bld_' + Date.now();
+    pkSB('parking_buildings', '', 'POST', body).then(function(d) {
+      document.getElementById('pkBuildingForm').style.display = 'none';
+      WPA_pkLoadBuildings();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+  }
 }
 
 function WPA_pkDeleteBuilding(id) {
   if (!confirm('Delete this building? This cannot be undone.')) return;
-  pkFetch('admin-buildings&id=' + id, 'DELETE').then(function() { WPA_pkLoadBuildings(); });
+  pkSB('parking_buildings', 'id=eq.' + id, 'DELETE').then(function() { WPA_pkLoadBuildings(); });
 }
 
 // ── Coupons ──
 function WPA_pkLoadCoupons() {
-  pkFetch('admin-coupons').then(function(d) {
-    if (!d.ok) return;
-    _pkCoupons = d.coupons || [];
+  pkSB('parking_coupons', 'select=*&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    _pkCoupons = rows;
     WPA_pkRenderCoupons();
   });
 }
@@ -6184,7 +7252,7 @@ function WPA_pkRenderCoupons() {
     return;
   }
   el.innerHTML = _pkCoupons.map(function(c) {
-    var typeLabel = c.type === 'percent' ? c.value + '% off' : c.type === 'fixed' ? '$' + c.value + ' off' : c.value + ' free days';
+    var typeLabel = c.discount_type === 'percent' ? c.discount_value + '% off' : c.discount_type === 'fixed' ? '$' + c.discount_value + ' off' : c.discount_value + ' free days';
     var statusBg = c.active ? 'var(--green-bg)' : 'var(--surface2)';
     var statusColor = c.active ? 'var(--green)' : 'var(--text3)';
     return '<div class="dash-panel" style="margin-bottom:10px;border-left:4px solid ' + (c.active ? 'var(--green)' : 'var(--text3)') + '">' +
@@ -6192,7 +7260,6 @@ function WPA_pkRenderCoupons() {
         '<div>' +
           '<span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--accent2)">' + esc(c.code) + '</span>' +
           '<span style="margin-left:10px;font-size:12px;color:var(--text2)">' + typeLabel + '</span>' +
-          (c.description ? '<span style="margin-left:10px;font-size:11px;color:var(--text3)">— ' + esc(c.description) + '</span>' : '') +
           '<div style="font-size:11px;color:var(--text3);margin-top:4px">' +
             'Used: ' + (c.used || 0) + (c.max_uses ? '/' + c.max_uses : ' (unlimited)') +
             (c.expires ? ' · Expires: ' + c.expires : '') +
@@ -6201,7 +7268,7 @@ function WPA_pkRenderCoupons() {
         '<div style="display:flex;gap:6px;align-items:center">' +
           '<span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;background:' + statusBg + ';color:' + statusColor + '">' + (c.active ? 'Active' : 'Disabled') + '</span>' +
           '<button onclick="WPA_pkToggleCoupon(\'' + c.id + '\',' + !c.active + ')" class="btn-subtle" style="padding:4px 8px;font-size:10px">' + (c.active ? 'Disable' : 'Enable') + '</button>' +
-          '<button onclick="WPA_pkDeleteCoupon(\'' + c.id + '\')" class="btn-subtle" style="padding:4px 8px;font-size:10px;color:var(--red)">✕</button>' +
+          '<button onclick="WPA_pkDeleteCoupon(\'' + c.id + '\')" class="btn-subtle" style="padding:4px 8px;font-size:10px;color:var(--red)">Delete</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -6223,28 +7290,28 @@ function WPA_pkSaveCoupon() {
   var code = document.getElementById('pkCpnCode').value.trim();
   var value = document.getElementById('pkCpnValue').value;
   if (!code || !value) { alert('Code and value are required'); return; }
-  pkFetch('admin-coupons', 'POST', {
+  var body = {
+    id: 'cpn_' + Date.now(),
     code: code,
-    type: document.getElementById('pkCpnType').value,
-    value: parseFloat(value),
-    description: document.getElementById('pkCpnDesc').value.trim(),
+    discount_type: document.getElementById('pkCpnType').value,
+    discount_value: parseFloat(value),
     max_uses: parseInt(document.getElementById('pkCpnMaxUses').value) || 0,
-    expires: document.getElementById('pkCpnExpires').value || ''
-  }).then(function(d) {
-    if (d.ok) {
-      document.getElementById('pkCouponForm').style.display = 'none';
-      WPA_pkLoadCoupons();
-    }
-  });
+    expires: document.getElementById('pkCpnExpires').value || null,
+    active: true
+  };
+  pkSB('parking_coupons', '', 'POST', body).then(function(d) {
+    document.getElementById('pkCouponForm').style.display = 'none';
+    WPA_pkLoadCoupons();
+  }).catch(function(e) { alert('Error: ' + e.message); });
 }
 
 function WPA_pkToggleCoupon(id, active) {
-  pkFetch('admin-coupons', 'PUT', { id: id, active: active }).then(function() { WPA_pkLoadCoupons(); });
+  pkSB('parking_coupons', 'id=eq.' + id, 'PATCH', { active: active }).then(function() { WPA_pkLoadCoupons(); });
 }
 
 function WPA_pkDeleteCoupon(id) {
   if (!confirm('Delete this coupon?')) return;
-  pkFetch('admin-coupons&id=' + id, 'DELETE').then(function() { WPA_pkLoadCoupons(); });
+  pkSB('parking_coupons', 'id=eq.' + id, 'DELETE').then(function() { WPA_pkLoadCoupons(); });
 }
 
 // ── Receipt Lookup ──
@@ -6254,13 +7321,13 @@ function WPA_pkSearchReceipt() {
   var el = document.getElementById('pkReceiptResult');
   el.innerHTML = '<div style="color:var(--text3);padding:10px;font-size:12px">Searching...</div>';
 
-  pkFetch('admin-bookings').then(function(d) {
-    if (!d.ok) { el.innerHTML = '<div style="color:var(--red)">Error loading bookings</div>'; return; }
-    var results = (d.bookings || []).filter(function(b) {
-      return b.id.toLowerCase().indexOf(q) >= 0 ||
-             b.license_plate.toLowerCase().indexOf(q) >= 0 ||
-             b.unit_number.toLowerCase().indexOf(q) >= 0 ||
-             (b.guest_name || '').toLowerCase().indexOf(q) >= 0;
+  pkSB('parking_bookings', 'select=*&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) { el.innerHTML = '<div style="color:var(--red)">Error loading bookings</div>'; return; }
+    var results = rows.filter(function(b) {
+      return (b.id||'').toLowerCase().indexOf(q) >= 0 ||
+             (b.license_plate||'').toLowerCase().indexOf(q) >= 0 ||
+             (b.unit||'').toLowerCase().indexOf(q) >= 0 ||
+             (b.guest_name||'').toLowerCase().indexOf(q) >= 0;
     }).slice(0, 10);
 
     if (results.length === 0) {
@@ -6270,15 +7337,14 @@ function WPA_pkSearchReceipt() {
     el.innerHTML = results.map(function(b) {
       return '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface2)">' +
         '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
-          '<div><strong>' + esc(b.building_name) + ' #' + esc(b.unit_number) + '</strong>' +
+          '<div><strong>' + esc(b.building_name||'') + ' #' + esc(b.unit||'') + '</strong>' +
             (b.guest_name ? ' — ' + esc(b.guest_name) : '') +
           '</div>' +
-          '<a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" class="btn-backup" style="padding:6px 12px;font-size:11px;text-decoration:none">🧾 View & Print Receipt</a>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--text2)">' +
-          '<span style="margin-right:12px">🚗 ' + esc(b.car_make) + ' ' + esc(b.car_color) + ' <strong>' + esc(b.license_plate) + '</strong></span>' +
-          '<span style="margin-right:12px">📅 ' + b.start_date + ' → ' + b.end_date + '</span>' +
-          '<span>💰 $' + parseFloat(b.amount).toFixed(2) + '</span>' +
+          '<span style="margin-right:12px">' + esc(b.car_brand||'') + ' ' + esc(b.car_color||'') + ' <strong>' + esc(b.license_plate||'') + '</strong></span>' +
+          '<span style="margin-right:12px">' + (b.start_date||'') + ' to ' + (b.end_date||'') + '</span>' +
+          '<span>$' + parseFloat(b.amount||0).toFixed(2) + '</span>' +
         '</div>' +
         '<div style="font-size:10px;color:var(--text3);margin-top:4px">ID: ' + b.id + '</div>' +
       '</div>';
@@ -6607,6 +7673,9 @@ async function renderDashboard(){
       item.title = 'Click for revenue details';
     });
   }, 100);
+
+  // ── Render centralized messages (load Supabase channels first, then render) ──
+  loadSbChannelMessages().then(function(){ renderDashMessages('all'); }).catch(function(){ renderDashMessages('all'); });
 }
 
 // ══════════════════════════════════════════════════════
@@ -8131,11 +9200,27 @@ async function boot() {
       console.warn('loadProperties failed during boot:', propErr.message);
     }
     window.DATA = data; // expose for module nav
-    renderTable();
-    initModuleNav(); // Initialize Layout C navigation
-    initCalScroll();
     subscribeRealtime();
     setTimeout(checkBackupStatus, 500);
+    // On mobile: skip heavy desktop rendering, go straight to mobile UI
+    var _isMob = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+    if(_isMob && typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+      WILLOW_MOBILE.init();
+    } else if(_isMob){
+      // mobile.js hasn't loaded yet — wait for it instead of rendering desktop
+      var _mobPoll = setInterval(function(){
+        if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+          clearInterval(_mobPoll);
+          WILLOW_MOBILE.init();
+        }
+      }, 100);
+      setTimeout(function(){ clearInterval(_mobPoll); }, 5000);
+    } else {
+      renderTable();
+      initModuleNav(); // Initialize Layout C navigation
+      initCalScroll();
+      if (typeof updateMsgCenterBadge === 'function') updateMsgCenterBadge();
+    }
 
   } catch(e) {
     console.error('Boot error:', e);
@@ -8153,9 +9238,23 @@ function bootOffline() {
   document.getElementById('syncStatus').textContent = '⚠ offline';
   document.getElementById('syncStatus').style.color = 'var(--orange)';
   window.DATA = data;
-  renderTable();
-  initModuleNav();
-  initCalScroll();
+  // On mobile: skip heavy desktop rendering, go straight to mobile UI
+  var _isMob = window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
+  if(_isMob && typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+    WILLOW_MOBILE.init();
+  } else if(_isMob){
+    var _mobPoll2 = setInterval(function(){
+      if(typeof WILLOW_MOBILE !== 'undefined' && typeof WILLOW_MOBILE.init === 'function'){
+        clearInterval(_mobPoll2);
+        WILLOW_MOBILE.init();
+      }
+    }, 100);
+    setTimeout(function(){ clearInterval(_mobPoll2); }, 5000);
+  } else {
+    renderTable();
+    initModuleNav();
+    initCalScroll();
+  }
 }
 
 // boot() is now called by authGate() after session check
@@ -9020,4 +10119,1028 @@ function DL_fmtTime(ts) {
 }
 
 function initDeliveryModule() { WPA_dlLoadStats(); }
+
+function openTenantCardFromLease(tenantIdx) {
+  // Switch to MTM Tenants sub-tab and open tenant detail
+  switchModule('mtm-lt');
+  setTimeout(function() {
+    var subTabs = document.querySelectorAll('#subNav .sub-tab');
+    subTabs.forEach(function(t) {
+      t.classList.remove('active');
+      if (t.textContent.trim() === 'Tenants') t.classList.add('active');
+    });
+    showSubPage('mtm-lt-tenants', null);
+    setTimeout(function() {
+      openTenantDetail(tenantIdx);
+    }, 200);
+  }, 150);
+}
+
+function parseNoteField(note, field) {
+  if (!note) return '';
+  var m = note.match(new RegExp(field + ':\\s*([^|\\n]+)', 'i'));
+  return m ? m[1].trim() : '';
+}
+
+function msgTenantFromDetail() {
+  if (typeof currentTenantIdx === 'undefined' || !INNAGO_TENANTS[currentTenantIdx]) return;
+  var t = INNAGO_TENANTS[currentTenantIdx];
+  // Long-term tenants go straight to modal (faster, they aren't in inbox channels)
+  openMsgModal(t.name, t.email || '', t.phone || '', '', 'mtm', t.unit || '');
+}
+
+// ═══════════════════════════════════════════════════
+//  UNIFIED CHANNEL SELECTOR — used across all message UIs
+// ═══════════════════════════════════════════════════
+window._MSG_CHANNELS = [
+  {id:'app', label:'App', icon:'📱'},
+  {id:'channel', label:'Channel', icon:'📢'},
+  {id:'sms', label:'SMS', icon:'💬'},
+  {id:'email', label:'Email', icon:'📧'},
+  {id:'whatsapp', label:'WhatsApp', icon:'🟢'}
+];
+
+// Returns HTML string for channel selector buttons
+window.buildChannelSelector = function(selectedId) {
+  return '<div class="msg-channel-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' +
+    _MSG_CHANNELS.map(function(ch) {
+      var cls = ch.id === (selectedId || 'app') ? ' active' : '';
+      return '<button class="msg-ch-btn' + cls + '" data-channel="' + ch.id + '" onclick="selectMsgChannel(this)">' + ch.icon + ' ' + ch.label + '</button>';
+    }).join('') + '</div>';
+};
+
+// Returns the currently selected channel id from a parent container
+window.getSelectedChannel = function(container) {
+  var btn = (container || document).querySelector('.msg-ch-btn.active');
+  return btn ? btn.dataset.channel : 'app';
+};
+
+// Delivers a message via the selected channel (external delivery only).
+// The message is ALWAYS logged in the current thread by the caller (queueReply / sendMTMReply).
+// This function just handles the external send (SMS app, mailto, WhatsApp, etc.)
+window.sendViaChannel = function(channel, name, email, phone, body, opts) {
+  opts = opts || {};
+  if (channel === 'app') {
+    // App channel: insert into channels/messages tables so the Resident Portal sees it.
+    // The portal queries channels by unit_apt, then messages by channel_id.
+    (async function() {
+      try {
+        var now = new Date().toISOString();
+        var unitVal = opts.unit || '';
+        var propertyVal = opts.property || '';
+
+        // Fallback: look up unit from AIRBNB_BOOKINGS_SEED by name (clean unit values)
+        if (!unitVal && typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+          var seedMatch = AIRBNB_BOOKINGS_SEED.find(function(b) { return b.guest === name; });
+          if (seedMatch) unitVal = seedMatch.unit || '';
+        }
+
+        console.log('[App Channel] Sending to:', name, 'unit:', unitVal, 'property:', propertyVal);
+
+        // 1) Find existing willowpa channel for this unit, or create one
+        var portalChannelId = null;
+        if (unitVal) {
+          var lookup = await sb.from('channels').select('id').eq('unit_apt', unitVal).eq('platform', 'willowpa').limit(1);
+          console.log('[App Channel] Lookup result:', lookup.data, lookup.error);
+          if (lookup.data && lookup.data.length > 0) {
+            portalChannelId = lookup.data[0].id;
+            console.log('[App Channel] Found existing channel:', portalChannelId);
+          }
+        }
+        // Also try without platform filter if no willowpa channel found
+        if (!portalChannelId && unitVal) {
+          var lookup2 = await sb.from('channels').select('id').eq('unit_apt', unitVal).limit(1);
+          if (lookup2.data && lookup2.data.length > 0) {
+            portalChannelId = lookup2.data[0].id;
+            console.log('[App Channel] Found channel (any platform):', portalChannelId);
+          }
+        }
+        if (!portalChannelId) {
+          // Create a new willowpa channel for this resident
+          var chInsert = { guest_name: name, guest_email: email || '', guest_phone: phone || '', unit_apt: unitVal, platform: 'willowpa', status: 'active', last_message_preview: body.substring(0, 100), last_message_at: now, unread_count: 0 };
+          if (propertyVal) chInsert.listing_name = propertyVal;
+          var chRes = await sb.from('channels').insert([chInsert]).select('id');
+          console.log('[App Channel] Created channel:', chRes.data, chRes.error);
+          if (chRes.error) throw chRes.error;
+          portalChannelId = chRes.data[0].id;
+        }
+
+        // 2) Insert message into the messages table under that channel
+        var msgObj = { channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: opts.messageType || 'text' };
+        if (opts.attachmentUrl) msgObj.attachment_url = opts.attachmentUrl;
+        var msgRes = await sb.from('messages').insert([msgObj]);
+        console.log('[App Channel] Message insert:', msgRes.error ? 'ERROR: ' + msgRes.error.message : 'OK');
+
+        // 3) Update channel preview + bump unread
+        var updRes = await sb.from('channels').update({ last_message_preview: body.substring(0, 100), last_message_at: now }).eq('id', portalChannelId);
+        console.log('[App Channel] Channel update:', updRes.error ? 'ERROR: ' + updRes.error.message : 'OK');
+
+        // 4) Also insert into client_messages for the management Message Center
+        // Use portalChannelId as thread_id so client replies link back to the admin channel
+        var threadId = portalChannelId || opts.threadId || (typeof crypto !== 'undefined' ? crypto.randomUUID() : Date.now().toString());
+        var cmObj = { thread_id: threadId, resident_name: name, resident_email: email || '', resident_phone: phone || '', resident_unit: unitVal, subject: opts.subject || 'Message', body: body, sender_type: 'management', read: false, created_at: now };
+        if (propertyVal) cmObj.property = propertyVal;
+        var cmRes = await sb.from('client_messages').insert([cmObj]);
+        console.log('[App Channel] client_messages insert:', cmRes.error ? 'ERROR: ' + cmRes.error.message : 'OK');
+
+        if (typeof _refreshClientMsgs === 'function') _refreshClientMsgs();
+        if (typeof loadChannels === 'function') loadChannels(true);
+        console.log('[App Channel] All done — message should be in portal for unit:', unitVal);
+      } catch(e) { console.error('[App Channel] FATAL:', e.message); alert('Error sending app message: ' + e.message); }
+    })();
+    toast('App message sent to ' + name, 'success');
+  } else if (channel === 'sms') {
+    if (!phone) { alert('No phone number available for SMS.'); return; }
+    if (typeof sendSMS === 'function') sendSMS(phone, body);
+    else window.open('sms:' + phone + '?body=' + encodeURIComponent(body));
+  } else if (channel === 'email') {
+    if (!email) { alert('No email available.'); return; }
+    window.open('mailto:' + email + '?subject=' + encodeURIComponent(opts.subject || 'Message from Willow PA') + '&body=' + encodeURIComponent(body));
+  } else if (channel === 'whatsapp') {
+    if (!phone) { alert('No phone number available for WhatsApp.'); return; }
+    var waPhone = phone.replace(/\D/g, '');
+    window.open('https://wa.me/' + waPhone + '?text=' + encodeURIComponent(body), '_blank');
+  } else if (channel === 'channel') {
+    toast('Channel message queued for: ' + name, 'info');
+  }
+};
+
+// ═══════════════════════════════════════════════════
+//  UNIFIED MESSAGING MODAL — Chat view with client card
+//  Uses channels + messages tables (same path as portal)
+// ═══════════════════════════════════════════════════
+var _modalRecipient = {};
+var _msgPollInterval = null;
+
+function _startMsgPolling(name, unit) {
+  _stopMsgPolling();
+  _msgPollInterval = setInterval(function() {
+    if (document.getElementById('msgOverlay').style.display === 'flex') {
+      _loadModalThread(name, unit, true); // true = silent refresh (no loading spinner)
+    } else {
+      _stopMsgPolling();
+    }
+  }, 5000);
+}
+
+function _stopMsgPolling() {
+  if (_msgPollInterval) {
+    clearInterval(_msgPollInterval);
+    _msgPollInterval = null;
+  }
+}
+
+function openMsgModal(name, email, phone, bookingId, type, unit) {
+  _modalRecipient = { name: name||'', email: email||'', phone: phone||'', bookingId: bookingId||'', type: type||'', unit: unit||'' };
+
+  document.getElementById('msgModalTitle').textContent = 'Message ' + (name || 'Guest');
+  document.getElementById('msgRecipientId').value = bookingId || '';
+  document.getElementById('msgRecipientType').value = type || '';
+  document.getElementById('msgBody').value = '';
+  document.getElementById('msgChannelId').value = '';
+  document.getElementById('msgUnitApt').value = unit || '';
+
+  // Client card
+  var initials = (name||'?').split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase();
+  document.getElementById('msgClientAvatar').textContent = initials;
+  document.getElementById('msgClientName').textContent = name || 'Guest';
+  document.getElementById('msgClientUnit').textContent = unit ? 'Unit ' + unit : (type || '');
+
+  var details = '';
+  if (phone) details += '<div>📞 <a href="tel:' + phone + '" style="color:var(--accent);text-decoration:none;">' + phone + '</a></div>';
+  if (email) details += '<div>✉ <a href="mailto:' + email + '" style="color:var(--accent);text-decoration:none;">' + email + '</a></div>';
+  if (type) details += '<div style="margin-top:6px;"><span style="background:var(--accent-bg);color:var(--accent2);font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600;">' + type + '</span></div>';
+  document.getElementById('msgClientDetails').innerHTML = details;
+
+  // Channel buttons
+  document.getElementById('msgChannelBtns').innerHTML = buildChannelSelector('app');
+
+  // Load conversation history + start auto-refresh polling
+  _loadModalThread(name, unit || '');
+  _startMsgPolling(name, unit || '');
+
+  document.getElementById('msgOverlay').style.display = 'flex';
+}
+
+async function _loadModalThread(name, unit, silent) {
+  var thread = document.getElementById('msgThread');
+  if (!silent) {
+    thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:11px;padding:30px 0;">Loading messages...</div>';
+  }
+
+  try {
+    // Find ALL channels for this person (by unit or name) — unified thread across all platforms
+    var allChannelIds = [];
+    var willowpaChannelId = null;
+    var chRes;
+    if (unit) {
+      chRes = await sb.from('channels').select('id,platform').eq('unit_apt', unit);
+      if (chRes.data && chRes.data.length) {
+        chRes.data.forEach(function(c) { allChannelIds.push(c.id); if (c.platform === 'willowpa') willowpaChannelId = c.id; });
+      }
+    }
+    if (!allChannelIds.length && name) {
+      chRes = await sb.from('channels').select('id,platform').eq('guest_name', name);
+      if (chRes.data && chRes.data.length) {
+        chRes.data.forEach(function(c) { allChannelIds.push(c.id); if (c.platform === 'willowpa') willowpaChannelId = c.id; });
+      }
+    }
+
+    // Store the willowpa channel for sending (prefer willowpa for new messages)
+    document.getElementById('msgChannelId').value = willowpaChannelId || (allChannelIds.length ? allChannelIds[0] : '');
+
+    if (!allChannelIds.length) {
+      thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">No messages yet. Start the conversation below.</div>';
+      return;
+    }
+
+    // Load messages from ALL channels for this person — one unified thread
+    var messages = [];
+    for (var ci = 0; ci < allChannelIds.length; ci++) {
+      var msgRes = await sb.from('messages').select('*').eq('channel_id', allChannelIds[ci]).order('sent_at', {ascending: true});
+      if (msgRes.data) messages = messages.concat(msgRes.data);
+    }
+
+    // Also load client_messages (resident replies) for these channels
+    for (var ci2 = 0; ci2 < allChannelIds.length; ci2++) {
+      var cmRes = await sb.from('client_messages').select('*').eq('thread_id', allChannelIds[ci2]).eq('sender_type', 'resident').order('created_at', {ascending: true});
+      if (cmRes.data) {
+        cmRes.data.forEach(function(cm) {
+          messages.push({ id: cm.id, channel_id: cm.thread_id, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text', _from_client_messages: true });
+        });
+      }
+    }
+    // Also try matching by resident name/unit in client_messages (catches messages with non-channel thread_ids)
+    if (name) {
+      var cmByName = await sb.from('client_messages').select('*').eq('sender_type', 'resident').ilike('resident_name', name).order('created_at', {ascending: true});
+      if (cmByName.data) {
+        var existingIds = {};
+        messages.forEach(function(m) { if (m.id) existingIds[m.id] = true; });
+        cmByName.data.forEach(function(cm) {
+          if (!existingIds[cm.id]) {
+            messages.push({ id: cm.id, channel_id: cm.thread_id, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text', _from_client_messages: true });
+          }
+        });
+      }
+    }
+
+    // Sort all messages by timestamp across all channels
+    messages.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
+
+    if (!messages.length) {
+      thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">No messages yet. Start the conversation below.</div>';
+      return;
+    }
+
+    var html = '';
+    var lastDate = '';
+    messages.forEach(function(msg) {
+      var d = new Date(msg.sent_at);
+      var dateStr = d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      var timeStr = d.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+      if (dateStr !== lastDate) {
+        html += '<div style="text-align:center;color:var(--text3);font-size:10px;margin:6px 0;">' + dateStr + '</div>';
+        lastDate = dateStr;
+      }
+      var isHost = msg.sender === 'host' || msg.sender === 'management';
+      var platform = (msg.platform || '').toLowerCase();
+      var chLabels = {sms:'SMS', email:'Email', whatsapp:'WhatsApp', app:'App', airbnb:'Airbnb', vrbo:'VRBO', booking:'Booking.com', willowpa:'App', channel:''};
+      var chLabel = chLabels[platform] || '';
+      var badge = chLabel ? ' · <span style="opacity:.5">via ' + chLabel + '</span>' : '';
+
+      if (msg.sender === 'system') {
+        html += '<div style="text-align:center;margin:4px 0;"><span style="background:var(--surface);color:var(--text3);font-size:10px;padding:4px 12px;border-radius:12px;">' + _esc(msg.body) + '</span></div>';
+      } else {
+        var attachHtml = '';
+        if (msg.attachment_url) {
+          if (msg.message_type === 'image' || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.attachment_url)) {
+            attachHtml = '<div style="margin:4px 0;"><a href="' + _esc(msg.attachment_url) + '" target="_blank"><img src="' + _esc(msg.attachment_url) + '" style="max-width:200px;max-height:180px;border-radius:6px;cursor:pointer;" onerror="this.style.display=\'none\'"></a></div>';
+          } else {
+            var fname = msg.attachment_url.split('/').pop() || 'File';
+            attachHtml = '<div style="margin:4px 0;"><a href="' + _esc(msg.attachment_url) + '" target="_blank" style="color:' + (isHost ? '#fff' : 'var(--accent2)') + ';font-size:11px;text-decoration:underline;">📎 ' + _esc(fname) + '</a></div>';
+          }
+        }
+        html += '<div style="display:flex;' + (isHost ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';">' +
+          '<div style="max-width:75%;background:' + (isHost ? 'var(--accent)' : 'var(--surface)') + ';color:' + (isHost ? '#fff' : 'var(--text)') + ';padding:8px 12px;border-radius:' + (isHost ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';font-size:12px;line-height:1.45;box-shadow:0 1px 2px rgba(0,0,0,.06);">' +
+          attachHtml +
+          '<div style="white-space:pre-wrap;">' + _esc(msg.body) + '</div>' +
+          '<div style="font-size:9px;opacity:.6;margin-top:3px;text-align:' + (isHost ? 'right' : 'left') + ';">' + timeStr + badge + (isHost && msg.read_at ? ' <span title="Read ' + new Date(msg.read_at).toLocaleString() + '" style="color:' + (isHost ? '#90EE90' : '#4CAF50') + ';font-weight:bold;">✓✓</span>' : (isHost ? ' <span style="opacity:.4">✓</span>' : '')) + '</div>' +
+          '</div></div>';
+      }
+    });
+
+    // Smart scroll: on silent refresh, only scroll if user is near bottom; otherwise always scroll
+    var wasNearBottom = !silent || (thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80);
+    thread.innerHTML = html;
+    if (wasNearBottom) {
+      setTimeout(function(){ thread.scrollTop = thread.scrollHeight; }, 50);
+    }
+  } catch(e) {
+    if (!silent) {
+      thread.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:40px 0;">Could not load messages.</div>';
+    }
+    console.warn('Modal thread load error:', e);
+  }
+}
+
+function _esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+function closeMsgModal() {
+  _stopMsgPolling();
+  clearMsgAttachment();
+  document.getElementById('msgOverlay').style.display = 'none';
+  _modalRecipient = {};
+}
+
+// ── File Attachment Handling ──
+var _msgPendingFile = null;
+
+function handleMsgFileSelect(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  _msgPendingFile = file;
+  var preview = document.getElementById('msgAttachPreview');
+  document.getElementById('msgAttachName').textContent = '📎 ' + file.name + ' (' + _formatBytes(file.size) + ')';
+  preview.style.display = 'flex';
+}
+
+function clearMsgAttachment() {
+  _msgPendingFile = null;
+  var preview = document.getElementById('msgAttachPreview');
+  if (preview) preview.style.display = 'none';
+  var input = document.getElementById('msgFileInput');
+  if (input) input.value = '';
+}
+
+function _formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+async function _uploadMsgFile(file, channelId) {
+  // Upload file to Supabase Storage bucket 'message-attachments'
+  var ext = file.name.split('.').pop() || 'bin';
+  var path = 'ch-' + channelId + '/' + Date.now() + '-' + Math.random().toString(36).substr(2, 6) + '.' + ext;
+  var url = sb.supabaseUrl + '/storage/v1/object/message-attachments/' + path;
+  var resp = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + sb.supabaseKey,
+      'apikey': sb.supabaseKey,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true'
+    },
+    body: file
+  });
+  if (!resp.ok) {
+    // If bucket doesn't exist, try creating it via RPC or use fallback
+    console.warn('Upload failed:', resp.status, await resp.text());
+    return null;
+  }
+  // Get public URL
+  return sb.supabaseUrl + '/storage/v1/object/public/message-attachments/' + path;
+}
+
+function selectMsgChannel(btn) {
+  btn.parentElement.querySelectorAll('.msg-ch-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+async function sendMsgFromModal() {
+  var body = document.getElementById('msgBody').value.trim();
+  if (!body && !_msgPendingFile) return;
+
+  var ch = getSelectedChannel(document.getElementById('msgOverlay'));
+  var r = _modalRecipient;
+  var unit = document.getElementById('msgUnitApt').value || r.unit || '';
+  var now = new Date().toISOString();
+
+  // 1) Find or create willowpa channel (same path as portal)
+  var channelId = document.getElementById('msgChannelId').value || '';
+  if (!channelId) {
+    // Try to find existing
+    if (unit) {
+      var lookup = await sb.from('channels').select('id').eq('unit_apt', unit).eq('platform', 'willowpa').limit(1);
+      if (lookup.data && lookup.data.length) channelId = lookup.data[0].id;
+    }
+    if (!channelId && r.name) {
+      var lookup2 = await sb.from('channels').select('id').eq('guest_name', r.name).eq('platform', 'willowpa').limit(1);
+      if (lookup2.data && lookup2.data.length) channelId = lookup2.data[0].id;
+    }
+    // Create new channel
+    if (!channelId) {
+      var chInsert = { guest_name: r.name, guest_email: r.email||'', guest_phone: r.phone||'', unit_apt: unit, platform: 'willowpa', status: 'active', last_message_preview: body.substring(0,100), last_message_at: now };
+      var chRes = await sb.from('channels').insert([chInsert]).select('id');
+      if (chRes.error) { alert('Error creating thread: ' + chRes.error.message); return; }
+      channelId = chRes.data[0].id;
+    }
+    document.getElementById('msgChannelId').value = channelId;
+  }
+
+  // 2) Upload attachment if present
+  var attachmentUrl = null;
+  var messageType = 'text';
+  if (_msgPendingFile) {
+    toast('Uploading file...', 'info');
+    attachmentUrl = await _uploadMsgFile(_msgPendingFile, channelId);
+    if (attachmentUrl) {
+      messageType = _msgPendingFile.type && _msgPendingFile.type.startsWith('image/') ? 'image' : 'file';
+      if (!body) body = '📎 ' + _msgPendingFile.name;
+    }
+    clearMsgAttachment();
+  }
+
+  // 3) Insert message into messages table (same as portal's sbSendMessage)
+  var platform = ch || 'willowpa';
+  var msgInsert = { channel_id: channelId, sender: 'host', sender_name: 'Management', body: body, platform: platform, sent_at: now, message_type: messageType };
+  if (attachmentUrl) msgInsert.attachment_url = attachmentUrl;
+  var msgRes = await sb.from('messages').insert([msgInsert]);
+  if (msgRes.error) { alert('Error sending: ' + msgRes.error.message); return; }
+
+  // 4) Update channel preview
+  await sb.from('channels').update({ last_message_preview: body.substring(0,100), last_message_at: now }).eq('id', channelId);
+
+  // 4b) Also insert into client_messages so the portal can see it
+  try {
+    var cmObj = { thread_id: channelId, resident_name: r.name || '', resident_email: r.email || '', resident_phone: r.phone || '', resident_unit: unit, subject: 'Message', body: body, sender_type: 'management', read: false, created_at: now };
+    if (attachmentUrl) { cmObj.attachment_url = attachmentUrl; cmObj.message_type = messageType; }
+    if (r.email) cmObj.resident_email = r.email;
+    var cmRes = await sb.from('client_messages').insert([cmObj]);
+    if (cmRes.error) console.error('[Modal] client_messages dual-write error:', cmRes.error.message, cmObj);
+    else console.log('[Modal] client_messages dual-write OK, thread:', channelId);
+  } catch(e) { console.error('[Modal] client_messages dual-write exception:', e.message); }
+
+  // 5) External delivery for non-app channels
+  if (ch === 'sms') {
+    if (r.phone) window.open('sms:' + r.phone + '?body=' + encodeURIComponent(body));
+  } else if (ch === 'email') {
+    if (r.email) window.open('mailto:' + r.email + '?subject=' + encodeURIComponent('Message from Willow PA') + '&body=' + encodeURIComponent(body));
+  } else if (ch === 'whatsapp') {
+    if (r.phone) window.open('https://wa.me/' + r.phone.replace(/\D/g, '') + '?text=' + encodeURIComponent(body), '_blank');
+  }
+
+  // 6) Clear input + refresh thread
+  document.getElementById('msgBody').value = '';
+  toast('Message sent to ' + r.name, 'success');
+  _loadModalThread(r.name, unit);
+
+  // Refresh inbox if loaded
+  if (typeof loadChannels === 'function') loadChannels(true);
+}
+
+// AI Suggest in modal
+async function triggerModalAISuggest() {
+  var r = _modalRecipient;
+  var body = document.getElementById('msgBody').value.trim();
+  var thread = document.getElementById('msgThread');
+  var msgs = thread ? thread.innerText.substring(0, 2000) : '';
+
+  var systemPrompt = 'You are a professional property management assistant for Willow PA. Write a helpful, friendly reply to the resident/guest. Keep it concise (2-4 sentences).';
+  var userPrompt = 'Resident: ' + r.name;
+  if (r.unit) userPrompt += ' (Unit ' + r.unit + ')';
+  userPrompt += '\n\nConversation so far:\n' + msgs;
+  if (body) userPrompt += '\n\nDraft so far: ' + body;
+  userPrompt += '\n\nWrite a professional reply:';
+
+  // Show loading
+  var overlay = document.createElement('div');
+  overlay.id = '_modalAIOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:3000;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:500px;max-width:90vw;"><div style="text-align:center;color:#7c3aed;font-weight:600;margin-bottom:12px;">Generating AI suggestion...</div><div style="text-align:center;font-size:12px;color:#999;">Please wait</div></div>';
+  document.body.appendChild(overlay);
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, system: systemPrompt, messages: [{ role: 'user', content: userPrompt }] })
+    });
+    var data = await resp.json();
+    var suggestion = (data.content && data.content[0] && data.content[0].text) || 'Could not generate suggestion.';
+
+    overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;width:500px;max-width:90vw;">' +
+      '<div style="font-weight:600;color:#7c3aed;margin-bottom:12px;">AI Suggestion</div>' +
+      '<textarea id="_aiSuggestText" style="width:100%;min-height:120px;border:1px solid #ddd;border-radius:8px;padding:10px;font-family:inherit;font-size:13px;resize:vertical;">' + suggestion.replace(/</g,'&lt;') + '</textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:12px;">' +
+      '<button onclick="document.getElementById(\'msgBody\').value=document.getElementById(\'_aiSuggestText\').value;document.getElementById(\'_modalAIOverlay\').remove();" style="background:#4CAF50;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;font-weight:600;">Approve</button>' +
+      '<button onclick="triggerModalAISuggest();document.getElementById(\'_modalAIOverlay\').remove();" style="background:#7c3aed;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;">Regenerate</button>' +
+      '<button onclick="document.getElementById(\'_modalAIOverlay\').remove();" style="background:#fff;color:#c62828;border:1px solid #c62828;border-radius:6px;padding:8px 16px;font-size:12px;cursor:pointer;">Dismiss</button>' +
+      '</div></div>';
+  } catch(e) {
+    overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;"><div style="color:#c62828;">AI error: ' + e.message + '</div><button onclick="this.closest(\'div\').parentElement.remove();" style="margin-top:12px;padding:8px 16px;border:none;border-radius:6px;background:#eee;cursor:pointer;">Close</button></div>';
+  }
+}
+
+// AI Rephrase in modal
+async function triggerModalAIRephrase() {
+  var input = document.getElementById('msgBody');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  var r = _modalRecipient;
+  input.disabled = true;
+  var origText = input.value;
+  input.value = 'Rephrasing...';
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message to ' + (r.name || 'resident') + ':\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = origText;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.value = origText;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
+  input.disabled = false;
+  input.focus();
+}
+
+// ═══════════════════════════════════════════════════
+//  ST DASHBOARD DRILL-DOWN — click tenant to go to detail
+// ═══════════════════════════════════════════════════
+function drillDownToTenant(apt, name) {
+  // Try to find in pipeline bookings first
+  if (typeof window.pipelineState !== 'undefined' && window.pipelineState.bookings) {
+    var booking = window.pipelineState.bookings.find(function(b) {
+      return (b.unit_apt === apt || b.unit_name === apt) && b.guest_name === name;
+    });
+    if (booking) {
+      // Switch to pipeline and open detail
+      switchModule('short-term');
+      setTimeout(function() {
+        var subTabs = document.querySelectorAll('#subNav .sub-tab');
+        subTabs.forEach(function(t) {
+          t.classList.remove('active');
+          if (t.textContent.trim().indexOf('Pipeline') === 0) t.classList.add('active');
+        });
+        showSubPage('pipeline', null);
+        setTimeout(function() {
+          // Set selected booking in pipeline state and re-render
+          if (typeof window.pipelineState !== 'undefined') {
+            window.pipelineState.selectedBooking = booking;
+            if (typeof window.renderPipeline === 'function') window.renderPipeline();
+          }
+        }, 300);
+      }, 200);
+      return;
+    }
+  }
+  // Fallback: try unit drill-down
+  var unit = data.find(function(u) { return u.apt === apt; });
+  if (unit) {
+    openDrillDown(unit, name);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  CENTRALIZED MESSAGES — Dashboard Unified Inbox
+//  Reads from: local data, pipelineState, FT_state,
+//  AND Supabase channels/messages tables (shared with tenant portal)
+// ══════════════════════════════════════════════════════
+var _dashMsgFilter = 'all';
+var _dashMsgShowAll = false;
+var _sbChannelMessages = []; // cached Supabase channel messages
+
+// Load Supabase channels for the unified inbox
+function loadSbChannelMessages(){
+  if(!SUPA_URL || !SUPA_KEY) return Promise.resolve([]);
+  var url = SUPA_URL + '/rest/v1/channels?select=*&order=last_message_at.desc&limit=50';
+  return fetch(url, {
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+  }).then(function(r){ return r.json(); }).then(function(channels){
+    if(!Array.isArray(channels)) return [];
+    _sbChannelMessages = channels.map(function(ch){
+      return {
+        id: 'sb-'+ch.id, name: ch.guest_name||'Tenant', apt: ch.unit_apt||'',
+        source: (ch.platform==='willowpa'?'tenant-portal':ch.platform)||'tenant-portal',
+        preview: ch.last_message_preview||'', time: ch.last_message_at||ch.created_at,
+        phone: ch.guest_phone||'', email: ch.guest_email||'',
+        bookingId: ch.booking_id||null, stage: '',
+        channelId: ch.id, unread: ch.unread_count||0
+      };
+    });
+    return _sbChannelMessages;
+  }).catch(function(e){ console.warn('SB channels load failed:', e); return []; });
+}
+
+// Send admin reply to a Supabase channel
+function sendAdminReply(channelId, text){
+  if(!channelId || !text) return;
+  var now = new Date().toISOString();
+  var msgBody = { channel_id: channelId, sender: 'admin', sender_name: 'Willow Management', body: text, platform: 'willowpa', sent_at: now };
+  fetch(SUPA_URL + '/rest/v1/messages', {
+    method: 'POST',
+    headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(msgBody)
+  }).then(function(){
+    // Update channel preview
+    return fetch(SUPA_URL + '/rest/v1/channels?id=eq.' + channelId, {
+      method: 'PATCH',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=representation' },
+      body: JSON.stringify({ last_message_preview: text.substring(0,100), last_message_at: now, unread_count: 0 })
+    });
+  }).then(function(){
+    // Dual-write to client_messages so portal sees the reply
+    var channel = _sbChannelMessages ? _sbChannelMessages.find(function(m){ return m.channelId === channelId; }) : null;
+    var cmBody = { thread_id: channelId, resident_name: channel ? channel.name : '', resident_unit: channel ? channel.apt : '', subject: 'Message', body: text, sender_type: 'management', read: false, created_at: now };
+    fetch(SUPA_URL + '/rest/v1/client_messages', {
+      method: 'POST',
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmBody)
+    }).catch(function(e){ console.warn('client_messages dual-write failed:', e); });
+    showToast('Reply sent');
+    renderDashMessages(_dashMsgFilter);
+  }).catch(function(e){ showToast('Send failed: '+e.message); });
+}
+
+// Open a Supabase channel thread in a detail panel
+function openSbThread(channelId){
+  if(!channelId) return;
+  var url = SUPA_URL + '/rest/v1/messages?select=*&channel_id=eq.' + channelId + '&order=sent_at.asc';
+  // Also fetch client_messages (resident replies) for this channel
+  var cmUrl = SUPA_URL + '/rest/v1/client_messages?select=*&thread_id=eq.' + channelId + '&sender_type=eq.resident&order=created_at.asc';
+  Promise.all([
+    fetch(url, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }),
+    fetch(cmUrl, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ]).then(function(results){
+    var msgs = Array.isArray(results[0]) ? results[0] : [];
+    var cmMsgs = Array.isArray(results[1]) ? results[1] : [];
+    // Merge client_messages into the thread
+    cmMsgs.forEach(function(cm) {
+      msgs.push({ id: cm.id, channel_id: channelId, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text' });
+    });
+    msgs.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
+    var channel = _sbChannelMessages.find(function(m){ return m.channelId === channelId; });
+    var name = channel ? channel.name : 'Tenant';
+    var unit = channel ? channel.apt : '';
+
+    var html = '<div class="dash-panel" style="max-width:520px;margin:0 auto;border-left:4px solid var(--accent)">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+    html += '<h3 style="margin:0;padding:0;border:none">💬 '+name+' — Unit '+unit+'</h3>';
+    html += '<button class="btn btn-secondary btn-sm" onclick="document.getElementById(\'sbThreadPanel\').style.display=\'none\'">✕ Close</button>';
+    html += '</div>';
+    html += '<div style="max-height:400px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;" id="sbThreadMsgs">';
+    msgs.forEach(function(m){
+      var isAdmin = m.sender==='admin';
+      html += '<div style="max-width:80%;padding:8px 12px;border-radius:10px;font-size:12px;align-self:'+(isAdmin?'flex-end':'flex-start')+';background:'+(isAdmin?'var(--accent2);color:#fff':'var(--surface2);color:var(--text)')+'">';
+      html += '<div style="font-size:10px;font-weight:600;margin-bottom:2px;opacity:.8">'+(m.sender_name||m.sender)+'</div>';
+      html += m.body;
+      html += '<div style="font-size:9px;opacity:.6;margin-top:3px">'+new Date(m.sent_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<input id="sbReplyInput" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit" placeholder="Reply as admin..." onkeydown="if(event.key===\'Enter\')sendAdminReply(\''+channelId+'\',this.value)">';
+    html += '<button class="btn btn-sm" style="background:var(--accent2);color:#fff;border:none" onclick="sendAdminReply(\''+channelId+'\',document.getElementById(\'sbReplyInput\').value)">Send</button>';
+    html += '</div></div>';
+
+    var panel = document.getElementById('sbThreadPanel');
+    if(!panel){
+      panel = document.createElement('div');
+      panel.id = 'sbThreadPanel';
+      panel.style.cssText = 'position:fixed;top:0;right:0;bottom:0;width:500px;max-width:95vw;background:var(--bg);border-left:2px solid var(--border);z-index:600;padding:20px;overflow-y:auto;box-shadow:-4px 0 20px rgba(0,0,0,.1)';
+      document.body.appendChild(panel);
+    }
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+    var msgsDiv = document.getElementById('sbThreadMsgs');
+    if(msgsDiv) msgsDiv.scrollTop = msgsDiv.scrollHeight;
+  });
+}
+
+// Inline thread loader for 3-panel dashboard messages
+function _openSbThreadInline(channelId) {
+  if (!channelId) return;
+  var threadEl = document.getElementById('dashMsgThread');
+  if (!threadEl) { openSbThread(channelId); return; } // fallback to slideout
+
+  threadEl.innerHTML = '<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;">Loading...</div>';
+
+  var url = SUPA_URL + '/rest/v1/messages?select=*&channel_id=eq.' + channelId + '&order=sent_at.asc';
+  var cmUrl = SUPA_URL + '/rest/v1/client_messages?select=*&thread_id=eq.' + channelId + '&sender_type=eq.resident&order=created_at.asc';
+  Promise.all([
+    fetch(url, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }),
+    fetch(cmUrl, { headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY } }).then(function(r){ return r.json(); }).catch(function(){ return []; })
+  ]).then(function(results) {
+    var msgs = Array.isArray(results[0]) ? results[0] : [];
+    var cmMsgs = Array.isArray(results[1]) ? results[1] : [];
+    cmMsgs.forEach(function(cm) {
+      msgs.push({ id: cm.id, channel_id: channelId, sender: 'guest', sender_name: cm.resident_name || 'Resident', body: cm.body, platform: 'willowpa', sent_at: cm.created_at, message_type: 'text' });
+    });
+    msgs.sort(function(a, b) { return new Date(a.sent_at) - new Date(b.sent_at); });
+
+    var channel = _sbChannelMessages.find(function(m){ return m.channelId === channelId; });
+    var name = channel ? channel.name : 'Tenant';
+
+    // Show client card on right
+    if (channel) {
+      _renderDashClientCard({ name: channel.name, apt: channel.apt, phone: channel.phone, email: channel.email, source: 'tenant-portal', stage: '' });
+    }
+
+    // Build thread HTML
+    var html = '<div style="flex:1;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:6px;" id="dashInlineMsgs">';
+    if (!msgs.length) {
+      html += '<div style="text-align:center;color:var(--text3);font-size:11px;padding:30px 0;">No messages yet</div>';
+    }
+    msgs.forEach(function(m) {
+      var isAdmin = m.sender === 'admin' || m.sender === 'host' || m.sender === 'management';
+      var time = new Date(m.sent_at).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+      var date = new Date(m.sent_at).toLocaleDateString('en-US', {month:'short', day:'numeric'});
+      html += '<div style="display:flex;' + (isAdmin ? 'justify-content:flex-end' : 'justify-content:flex-start') + ';">';
+      html += '<div style="max-width:78%;background:' + (isAdmin ? 'var(--accent)' : 'var(--surface2)') + ';color:' + (isAdmin ? '#fff' : 'var(--text)') + ';padding:6px 10px;border-radius:' + (isAdmin ? '10px 10px 2px 10px' : '10px 10px 10px 2px') + ';font-size:11px;line-height:1.45;">';
+      html += '<div style="font-size:9px;font-weight:600;opacity:.7;margin-bottom:1px;">' + _esc(m.sender_name || m.sender) + '</div>';
+      html += '<div style="white-space:pre-wrap;">' + _esc(m.body) + '</div>';
+      html += '<div style="font-size:8px;opacity:.5;margin-top:2px;">' + date + ' ' + time + '</div>';
+      html += '</div></div>';
+    });
+    html += '</div>';
+
+    // Reply bar
+    html += '<div style="padding:6px 10px;border-top:1px solid var(--border);display:flex;gap:6px;">';
+    html += '<input id="dashInlineReply" placeholder="Reply..." style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_sendDashInlineReply(\''+channelId+'\');}">';
+    html += '<button onclick="_sendDashInlineReply(\''+channelId+'\')" style="padding:5px 12px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
+    html += '</div>';
+
+    threadEl.innerHTML = html;
+    var msgsDiv = document.getElementById('dashInlineMsgs');
+    if (msgsDiv) msgsDiv.scrollTop = msgsDiv.scrollHeight;
+  });
+}
+
+function _sendDashInlineReply(channelId) {
+  var input = document.getElementById('dashInlineReply');
+  var text = input ? input.value.trim() : '';
+  if (!text) return;
+  input.value = '';
+  sendAdminReply(channelId, text);
+  // Refresh thread after short delay
+  setTimeout(function() { _openSbThreadInline(channelId); }, 800);
+}
+
+function buildDashMessages(){
+  var msgs = [];
+  var active = dedupActive();
+  var bookings = (typeof window.pipelineState !== 'undefined' && window.pipelineState && window.pipelineState.bookings) ? window.pipelineState.bookings : [];
+  var jobs = (typeof FT_state !== 'undefined' && FT_state && FT_state.jobs) ? FT_state.jobs : [];
+
+  // Short-term bookings
+  bookings.forEach(function(b){
+    if(!b.guest_name && !b.name) return;
+    var preview = '';
+    if(b.stage==='inquiry') preview='New inquiry';
+    else if(b.stage==='confirmed') preview='Booking confirmed';
+    else if(b.stage==='checked_in'||b.stage==='in_stay') preview='Currently in-stay';
+    else if(b.stage==='pre_arrival') preview='Pre-arrival prep';
+    else preview = (b.stage||'booking')+' update';
+    msgs.push({
+      id:'bk-'+b.id, name:b.guest_name||b.name||'Guest', apt:b.unit_apt||b.unit_name||'',
+      source:'short-stay', preview:preview, time:b.updated_at||b.created_at||b.check_in,
+      phone:b.phone||'', email:b.email||'', bookingId:b.id, stage:b.stage||''
+    });
+  });
+
+  // Long-term & MTM tenants
+  active.forEach(function(r){
+    if(r.type==='available'||!r.name||r.type==='short-stay') return;
+    var lastNote = '';
+    if(r.history && r.history.length) lastNote = r.history[r.history.length-1].text||'';
+    var ctx = r.balance>0 ? 'Balance: $'+Number(r.balance).toLocaleString() : 'Active tenant';
+    msgs.push({
+      id:'lt-'+r.id, name:r.name, apt:r.apt, source:r.type,
+      preview:lastNote||ctx, time:r.due||r.checkin||'',
+      phone:parseNoteField(r.note,'Tel'), email:parseNoteField(r.note,'Email'),
+      bookingId:null, stage:''
+    });
+  });
+
+  // FieldTrack work orders
+  jobs.forEach(function(j){
+    if(!j.title && !j.description) return;
+    var techName = '';
+    if(j.techId && typeof FT_state !== 'undefined' && FT_state.technicians){
+      var t = FT_state.technicians.find(function(x){ return x.id===+j.techId; });
+      if(t) techName = t.name;
+    }
+    msgs.push({
+      id:'ft-'+j.id, name:j.requestedBy||techName||'Tech Service', apt:j.unit||j.property||'',
+      source:'fieldtrack', preview:(j.title||j.description||'Work order').substring(0,60),
+      time:j.date||j.created||'', phone:'', email:'', bookingId:null,
+      stage:(j.status||'open')+(j.priority==='urgent'?' · URGENT':'')
+    });
+  });
+
+  // Add Supabase channel messages (from tenant portal)
+  _sbChannelMessages.forEach(function(m){
+    msgs.push({
+      id: m.id, name: m.name, apt: m.apt,
+      source: 'tenant-portal', preview: m.preview, time: m.time,
+      phone: m.phone, email: m.email, bookingId: m.bookingId, stage: '',
+      channelId: m.channelId, unread: m.unread
+    });
+  });
+
+  // Sort by time descending
+  msgs.sort(function(a,b){
+    var ta = a.time ? new Date(a.time).getTime() : 0;
+    var tb = b.time ? new Date(b.time).getTime() : 0;
+    return tb - ta;
+  });
+  return msgs;
+}
+
+function dashMsgSrcBadge(source){
+  var map = {
+    'short-stay':{label:'Short Term',cls:'dmsg-src-st'},
+    'long-term':{label:'Long Term',cls:'dmsg-src-lt'},
+    'month-to-month':{label:'MTM',cls:'dmsg-src-mtm'},
+    'fieldtrack':{label:'Tech',cls:'dmsg-src-ft'},
+    'parking':{label:'Parking',cls:'dmsg-src-pk'},
+    'delivery':{label:'Mailroom',cls:'dmsg-src-dl'},
+    'tenant-portal':{label:'Portal',cls:'dmsg-src-tp'}
+  };
+  var m = map[source]||{label:source||'Other',cls:'dmsg-src-ot'};
+  return '<span class="dmsg-src '+m.cls+'">'+m.label+'</span>';
+}
+
+function dashMsgTimeAgo(d){
+  if(!d) return '';
+  var diff = Date.now() - new Date(d).getTime();
+  var m = Math.floor(diff/60000);
+  if(m<1) return 'now';
+  if(m<60) return m+'m';
+  var h = Math.floor(m/60);
+  if(h<24) return h+'h';
+  var days = Math.floor(h/24);
+  if(days<7) return days+'d';
+  return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+var _dashSelectedMsgId = null;
+
+function renderDashMessages(filter){
+  _dashMsgFilter = filter || 'all';
+  var el = document.getElementById('dashMsgList');
+  if(!el) return;
+  var msgs = buildDashMessages();
+  var filtered = _dashMsgFilter==='all' ? msgs : msgs.filter(function(m){ return m.source===_dashMsgFilter; });
+  var limit = _dashMsgShowAll ? filtered.length : 30;
+  var shown = filtered.slice(0, limit);
+
+  if(!shown.length){
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px;">No messages</div>';
+    return;
+  }
+
+  var html = '';
+  shown.forEach(function(m){
+    var initial = m.name ? m.name.charAt(0).toUpperCase() : '?';
+    var sel = _dashSelectedMsgId === m.id ? 'background:var(--accent-bg);' : '';
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);'+sel+'" '
+         +  'onclick="openDashMsgAction(\''+m.id+'\',\''+m.source+'\','+(m.bookingId?'\''+m.bookingId+'\'':'null')+')" '
+         +  'onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\''+(sel?'var(--accent-bg)':'')+'\';">';
+    html += '<div style="width:30px;height:30px;border-radius:50%;background:var(--accent-bg);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">'+initial+'</div>';
+    html += '<div style="flex:1;min-width:0;overflow:hidden;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:baseline;">';
+    html += '<span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.name)+'</span>';
+    html += '<span style="font-size:9px;color:var(--text3);flex-shrink:0;margin-left:4px;">'+dashMsgTimeAgo(m.time)+'</span>';
+    html += '</div>';
+    html += '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.apt||'')+(m.unread?' · <span style="color:var(--accent2);font-weight:600;">unread</span>':'')+'</div>';
+    html += '<div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_esc(m.preview)+'</div>';
+    html += '</div></div>';
+  });
+  el.innerHTML = html;
+}
+
+function filterDashMessages(filter, btn){
+  _dashMsgShowAll = false;
+  document.querySelectorAll('.dash-msg-filter').forEach(function(b){ b.classList.remove('active'); });
+  if(btn) btn.classList.add('active');
+  renderDashMessages(filter);
+}
+
+function showAllDashMessages(){
+  _dashMsgShowAll = true;
+  renderDashMessages(_dashMsgFilter);
+}
+
+function _renderDashClientCard(m) {
+  var card = document.getElementById('dashMsgCard');
+  if (!card) return;
+  var initial = m.name ? m.name.split(' ').map(function(n){return n[0]||'';}).join('').slice(0,2).toUpperCase() : '?';
+  var html = '<div style="padding:14px;text-align:center;">';
+  html += '<div style="width:48px;height:48px;border-radius:50%;background:var(--accent-bg);color:var(--accent2);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;margin:0 auto 8px;">'+initial+'</div>';
+  html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;">'+_esc(m.name)+'</div>';
+  if (m.apt) html += '<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Unit '+_esc(m.apt)+'</div>';
+  html += '<div style="text-align:left;font-size:11px;color:var(--text2);border-top:1px solid var(--border);padding-top:8px;">';
+  if (m.phone) html += '<div style="margin-bottom:4px;">📞 <a href="tel:'+m.phone+'" style="color:var(--accent);text-decoration:none;">'+m.phone+'</a></div>';
+  if (m.email) html += '<div style="margin-bottom:4px;">✉ <a href="mailto:'+m.email+'" style="color:var(--accent);text-decoration:none;word-break:break-all;">'+m.email+'</a></div>';
+  html += '<div style="margin-bottom:4px;">'+dashMsgSrcBadge(m.source)+'</div>';
+  if (m.stage) html += '<div style="margin-top:4px;font-size:10px;color:var(--text3);">'+_esc(m.stage)+'</div>';
+  html += '</div>';
+  // Quick action buttons
+  html += '<div style="display:flex;flex-direction:column;gap:4px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px;">';
+  html += '<button onclick="openMsgModal(\''+_esc(m.name).replace(/'/g,"\\'")+'\',\''+_esc(m.email||'').replace(/'/g,"\\'")+'\',\''+_esc(m.phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.apt||'').replace(/'/g,"\\'")+'\')" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;font-size:10px;font-family:inherit;color:var(--text);">💬 Open Full Chat</button>';
+  html += '</div>';
+  html += '</div>';
+  card.innerHTML = html;
+  card.style.display = '';
+}
+
+function openDashMsgAction(msgId, source, bookingId){
+  _dashSelectedMsgId = msgId;
+  renderDashMessages(_dashMsgFilter); // re-render to highlight
+
+  // Supabase channel thread — show in center panel
+  if(msgId.indexOf('sb-')===0){
+    var chId = msgId.replace('sb-','');
+    _openSbThreadInline(chId);
+    return;
+  }
+  // For non-Supabase messages, show what we have in center panel + client card
+  var msgs = buildDashMessages();
+  var m = msgs.find(function(x){ return x.id === msgId; });
+  if (m) {
+    _renderDashClientCard(m);
+    // Show preview in center
+    var threadEl = document.getElementById('dashMsgThread');
+    if (threadEl) {
+      var html = '<div style="flex:1;overflow-y:auto;padding:16px;">';
+      html += '<div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:8px;">'+_esc(m.name)+' — '+_esc(m.apt||'')+'</div>';
+      html += '<div style="background:var(--surface2);padding:10px 14px;border-radius:10px;font-size:12px;line-height:1.5;color:var(--text);">'+_esc(m.preview)+'</div>';
+      if (m.stage) html += '<div style="margin-top:8px;font-size:10px;color:var(--text3);">Status: '+_esc(m.stage)+'</div>';
+      html += '</div>';
+      html += '<div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;gap:6px;">';
+      html += '<input id="dashInlineReply" placeholder="Reply..." style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;" onkeydown="if(event.key===\'Enter\')openMsgModal(\''+_esc(m.name).replace(/'/g,"\\'")+'\',\''+_esc(m.email||'').replace(/'/g,"\\'")+'\',\''+_esc(m.phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.apt||'').replace(/'/g,"\\'")+'\')">';
+      html += '<button onclick="openMsgModal(\''+_esc(m.name).replace(/'/g,"\\'")+'\',\''+_esc(m.email||'').replace(/'/g,"\\'")+'\',\''+_esc(m.phone||'').replace(/'/g,"\\'")+'\',\'\',\''+_esc(m.source)+'\',\''+_esc(m.apt||'').replace(/'/g,"\\'")+'\')" style="padding:6px 12px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Reply</button>';
+      html += '</div>';
+      threadEl.innerHTML = html;
+    }
+  }
+
+  // If it's a booking with a Supabase channel, try to load thread
+  if(bookingId || source === 'short-stay') {
+    // Find matching Supabase channel
+    var chMatch = _sbChannelMessages.find(function(c){ return m && c.name === m.name; });
+    if(chMatch) { _openSbThreadInline(chMatch.channelId); return; }
+  }
+}
+
+// Original openDashMsgAction navigation (kept for backward compatibility)
+function _openDashMsgNavigation(msgId, source, bookingId){
+  // If it's a booking, open pipeline detail
+  if(bookingId && typeof window.pipelineState !== 'undefined'){
+    var b = window.pipelineState.bookings.find(function(x){ return x.id == bookingId; });
+    if(b){
+      switchModule('short-term');
+      setTimeout(function(){
+        var subPipe = document.querySelector('.sub-tab[data-subtab="pipeline"]');
+        if(subPipe) subPipe.click();
+        setTimeout(function(){
+          window.pipelineState.selectedBooking = b;
+          if(typeof window.renderPipeline === 'function') window.renderPipeline();
+        }, 200);
+      }, 200);
+      return;
+    }
+  }
+  // Long-term: open tenant card
+  if(msgId.indexOf('lt-')===0){
+    var rid = parseInt(msgId.replace('lt-',''));
+    var idx = (window.data||[]).findIndex(function(r){ return r.id===rid; });
+    if(idx >= 0){
+      var r = data[idx];
+      if(r.type==='long-term'||r.type==='month-to-month'){
+        switchModule('mtm-lt');
+        setTimeout(function(){
+          var tIdx = INNAGO_TENANTS.findIndex(function(t){ return t.name.includes(r.name.split(' ')[0]); });
+          if(tIdx >= 0) openTenantCardFromLease(tIdx);
+        }, 300);
+        return;
+      }
+      // Short-stay: go to calendar detail
+      openDetail(r.id);
+    }
+    return;
+  }
+  // FieldTrack: switch to techtrack
+  if(msgId.indexOf('ft-')===0){
+    switchModule('techtrack');
+    return;
+  }
+}
 
