@@ -41,7 +41,7 @@ switch ($action) {
 
         // Then try Supabase
         if (!$matched) {
-            $result = supabase('units', 'select=*&archived=is.false');
+            $result = supabase('units', 'select=*&or=(archived.is.false,archived.is.null)');
             if ($result['code'] !== 200 || !is_array($result['data'])) {
                 if (!LOCAL_MODE) {
                     echo json_encode(['error' => 'Could not reach database']);
@@ -66,7 +66,25 @@ switch ($action) {
         }
 
         if (!$matched) {
-            echo json_encode(['error' => 'Invalid credentials. Use your last name + last 4 digits of your phone number.']);
+            // Debug: show what usernames were generated so we can find the mismatch
+            $debugList = [];
+            if (isset($result) && is_array($result['data'] ?? null)) {
+                foreach ($result['data'] as $dUnit) {
+                    $dPhone = '';
+                    if (preg_match('/Tel:\s*\(?(\d[\d\s\-\(\)]*)/i', $dUnit['note'] ?? '', $dpm)) {
+                        $dPhone = preg_replace('/\D/', '', $dpm[1]);
+                    }
+                    $dLast4 = strlen($dPhone) >= 4 ? substr($dPhone, -4) : '';
+                    $dParts = preg_split('/\s+/', trim($dUnit['name'] ?? ''));
+                    $dLast = strtolower(end($dParts));
+                    $dExpected = $dLast . $dLast4;
+                    // Only show entries starting with "sal" to find Salmeron
+                    if (stripos($dUnit['name'] ?? '', 'sal') !== false) {
+                        $debugList[] = ['name' => $dUnit['name'], 'apt' => $dUnit['apt'] ?? '', 'note_snippet' => substr($dUnit['note'] ?? '', 0, 80), 'expected_login' => $dExpected];
+                    }
+                }
+            }
+            echo json_encode(['error' => 'Invalid credentials. Use your last name + last 4 digits of your phone number.', '_debug_sal' => $debugList, '_total_units' => count($result['data'] ?? [])]);
             break;
         }
 
@@ -265,8 +283,8 @@ switch ($action) {
             break;
         }
 
-        // Try Supabase property_settings.app_content first
-        if (!LOCAL_MODE) {
+        // Always try Supabase property_settings.app_content first
+        {
             $unit = $user['unit'] ?? '*';
             // Try unit-specific, then wildcard
             $res = supabase('property_settings', 'select=app_content&apt=eq.' . urlencode($unit));
@@ -325,8 +343,8 @@ switch ($action) {
     case 'useful-info':
         $user = requirePortalAuth();
 
-        // Try Supabase property_settings.app_content first
-        if (!LOCAL_MODE) {
+        // Always try Supabase property_settings.app_content first
+        {
             $unit = $user['unit'] ?? '*';
             $res = supabase('property_settings', 'select=app_content&apt=eq.' . urlencode($unit));
             if ($res['code'] !== 200 || empty($res['data'][0]['app_content'])) {
@@ -380,31 +398,42 @@ switch ($action) {
 
     case 'maintenance-submit':
         $user = requirePortalAuth();
-        if ($user['user_type'] !== 'limited' || true) { // all types can submit
+        $reqId = genId('mnt');
+
+        // Build Supabase row
+        $row = [
+            'id'                  => $reqId,
+            'name'                => $user['name'],
+            'phone'               => $user['phone'] ?? '',
+            'email'               => $user['email'] ?? '',
+            'unit'                => $user['unit'] ?? '',
+            'property'            => $input['property'] ?? '',
+            'address'             => $input['address'] ?? '',
+            'owner'               => $input['owner'] ?? '',
+            'user_type'           => 'resident',
+            'booking_id'          => $user['booking_id'] ?? null,
+            'category'            => trim($input['category'] ?? 'General'),
+            'description'         => trim($input['description'] ?? ''),
+            'urgency'             => trim($input['urgency'] ?? 'normal'),
+            'photo'               => $input['photo'] ?? null,
+            'preferred_date'      => $input['preferred_date'] ?? null,
+            'preferred_slot'      => $input['preferred_slot'] ?? null,
+            'preferred_block'     => $input['preferred_block'] ?? null,
+            'no_access_needed'    => $input['no_access_needed'] ?? false,
+            'permission_to_enter' => $input['permission_to_enter'] ?? false,
+            'waiver_agreed'       => $input['waiver_agreed'] ?? false,
+            'sms_consent'         => $input['sms_consent'] ?? false,
+            'preferred_comm'      => $input['preferred_comm'] ?? 'sms',
+            'status'              => 'submitted',
+            'priority'            => $input['urgency'] === 'urgent' ? 'high' : 'normal'
+        ];
+
+        // Write to Supabase
+        $sbResult = supabase('maintenance_requests', '', 'POST', $row);
+        if ($sbResult['code'] >= 200 && $sbResult['code'] < 300) {
+            // Also keep local JSON copy
             $requests = readJson('maintenance.json', []);
-
-            $req = [
-                'id'          => genId('mnt'),
-                'unit'        => $user['unit'],
-                'name'        => $user['name'],
-                'user_type'   => $user['user_type'],
-                'phone'       => $user['phone'] ?? '',
-                'category'    => trim($input['category'] ?? 'General'),
-                'description' => trim($input['description'] ?? ''),
-                'urgency'     => trim($input['urgency'] ?? 'normal'),
-                'permission_to_enter' => $input['permission_to_enter'] ?? false,
-                'photos'      => $input['photos'] ?? [],
-                'status'      => 'submitted',
-                'created'     => now(),
-                'updated'     => now(),
-                'chat'        => [[
-                    'from'    => 'system',
-                    'text'    => 'Maintenance request submitted.',
-                    'time'    => now()
-                ]]
-            ];
-
-            array_unshift($requests, $req);
+            array_unshift($requests, array_merge($row, ['created' => now()]));
             writeJson('maintenance.json', $requests);
 
             // Add notification
@@ -415,13 +444,63 @@ switch ($action) {
                 'type'  => 'maintenance',
                 'title' => 'Request Submitted',
                 'body'  => 'Your maintenance request has been submitted. We\'ll update you soon.',
-                'ref'   => $req['id'],
+                'ref'   => $reqId,
                 'read'  => false,
                 'time'  => now()
             ]);
             writeJson('notifications.json', $notifs);
 
-            echo json_encode(['ok' => true, 'request' => $req]);
+            echo json_encode(['ok' => true, 'id' => $reqId]);
+        } else {
+            error_log('MAINTENANCE: Supabase insert failed: ' . json_encode($sbResult));
+            echo json_encode(['error' => 'Failed to save request', 'detail' => $sbResult['data']]);
+        }
+        break;
+
+    // Guest (non-authenticated) maintenance submission
+    case 'maintenance-submit-guest':
+        $reqId = genId('mnt');
+        $name  = trim($input['name'] ?? '');
+        $phone = trim($input['phone'] ?? '');
+        $desc  = trim($input['description'] ?? '');
+
+        if (!$name || !$phone || !$desc) {
+            echo json_encode(['error' => 'Name, phone, and description are required']);
+            break;
+        }
+
+        $row = [
+            'id'                  => $reqId,
+            'name'                => $name,
+            'phone'               => $phone,
+            'email'               => trim($input['email'] ?? ''),
+            'unit'                => trim($input['unit'] ?? ''),
+            'property'            => trim($input['property'] ?? ''),
+            'address'             => trim($input['address'] ?? ''),
+            'owner'               => trim($input['owner'] ?? ''),
+            'user_type'           => 'guest',
+            'category'            => trim($input['category'] ?? 'General'),
+            'description'         => $desc,
+            'urgency'             => trim($input['urgency'] ?? 'normal'),
+            'photo'               => $input['photo'] ?? null,
+            'preferred_date'      => $input['preferred_date'] ?? null,
+            'preferred_slot'      => $input['preferred_slot'] ?? null,
+            'preferred_block'     => $input['preferred_block'] ?? null,
+            'no_access_needed'    => $input['no_access_needed'] ?? false,
+            'permission_to_enter' => $input['permission_to_enter'] ?? false,
+            'waiver_agreed'       => $input['waiver_agreed'] ?? false,
+            'sms_consent'         => $input['sms_consent'] ?? false,
+            'preferred_comm'      => $input['preferred_comm'] ?? 'sms',
+            'status'              => 'submitted',
+            'priority'            => ($input['urgency'] ?? '') === 'urgent' ? 'high' : 'normal'
+        ];
+
+        $sbResult = supabase('maintenance_requests', '', 'POST', $row);
+        if ($sbResult['code'] >= 200 && $sbResult['code'] < 300) {
+            echo json_encode(['ok' => true, 'id' => $reqId]);
+        } else {
+            error_log('MAINTENANCE-GUEST: Supabase insert failed: ' . json_encode($sbResult));
+            echo json_encode(['error' => 'Failed to save request']);
         }
         break;
 
@@ -517,14 +596,24 @@ switch ($action) {
         $buildingId = $_GET['building_id'] ?? '';
         if (LOCAL_MODE) {
             $buildings = readLocalJson(PARKING_DATA_DIR, 'buildings.json');
-            $plans = [];
+            $result = ['plans' => [], 'per_day' => 0, 'minimum_cost' => 0, 'free' => 0, 'max_days' => 25];
             foreach ($buildings as $b) {
-                if ($b['id'] === $buildingId) { $plans = $b['plans'] ?? []; break; }
+                if ($b['id'] === $buildingId) {
+                    $result['plans']        = $b['plans'] ?? [];
+                    $result['per_day']      = floatval($b['per_day'] ?? 0);
+                    $result['minimum_cost'] = floatval($b['minimum_cost'] ?? 0);
+                    $result['free']         = intval($b['free'] ?? 0);
+                    break;
+                }
             }
-            echo json_encode($plans);
+            // TODO: Group-based override — check if user's unit belongs to a group
+            // and use group pricing instead of building defaults
+            echo json_encode($result);
         } else {
-            $result = proxyApi(PARKING_API, 'plans&building_id=' . urlencode($buildingId), 'GET', null, false);
-            echo json_encode($result ?? []);
+            // Production: proxy to Laravel which handles Unit > Group > Building hierarchy
+            $unitNumber = $_GET['unit_number'] ?? '';
+            $result = proxyApi(PARKING_API, 'plans&building_id=' . urlencode($buildingId) . '&unit_number=' . urlencode($unitNumber), 'GET', null, false);
+            echo json_encode($result ?? ['plans' => [], 'per_day' => 0, 'minimum_cost' => 0, 'free' => 0, 'max_days' => 25]);
         }
         break;
 
@@ -696,105 +785,326 @@ switch ($action) {
         break;
 
 // ═══════════════════════════════════════════════════
-//  FORMS / AGREEMENTS
+//  FORMS / AGREEMENTS (Supabase-backed)
 // ═══════════════════════════════════════════════════
 
     case 'forms':
+        // List form status for current guest (available to all user types)
         $user = requirePortalAuth();
-        if ($user['user_type'] === 'limited') {
-            echo json_encode(['error' => 'Not available for guest access']);
-            break;
+
+        $unit = $user['unit'] ?? '';
+        $result = [];
+
+        // Get guest_forms row for this unit (most recent)
+        $gf = supabase('guest_forms', 'select=*&unit=eq.' . urlencode($unit) . '&order=created_at.desc&limit=1');
+        $form = ($gf['code'] === 200 && !empty($gf['data'][0])) ? $gf['data'][0] : null;
+
+        // Get agreement template
+        $tpl = supabase('form_templates', 'select=*&order=created_at.desc&limit=1');
+        $template = ($tpl['code'] === 200 && !empty($tpl['data'][0])) ? $tpl['data'][0] : null;
+
+        // Build form list
+        $result = [
+            [
+                'id'          => 'pre-arrival',
+                'title'       => 'Pre-Arrival Form',
+                'description' => 'Phone, ID, guest info, and vehicle details',
+                'type'        => 'pre-arrival',
+                'status'      => $form ? ($form['pre_arrival_status'] ?? 'pending') : 'pending',
+                'submitted'   => $form && ($form['pre_arrival_status'] ?? 'pending') !== 'pending',
+            ],
+            [
+                'id'          => 'agreement',
+                'title'       => $template['agreement_title'] ?? 'Rental Agreement',
+                'description' => 'House rules and rental conditions',
+                'type'        => 'agreement',
+                'status'      => $form ? ($form['agreement_status'] ?? 'pending') : 'pending',
+                'submitted'   => $form && ($form['agreement_status'] ?? 'pending') !== 'pending',
+            ]
+        ];
+
+        // Also return overall status and checkin gate info
+        $overallStatus = $form ? ($form['overall_status'] ?? 'pending') : 'pending';
+        $checkinDate = $form['checkin_date'] ?? $user['checkin'] ?? '';
+        $checkinUnlocked = false;
+        if ($overallStatus === 'approved' && $checkinDate) {
+            // Unlock at midnight the night before checkin
+            $unlockTime = strtotime($checkinDate . ' 00:00:00') - 86400; // midnight day before
+            $checkinUnlocked = time() >= $unlockTime;
         }
-        $forms = readJson('forms.json', []);
-        // Return forms for this unit or universal forms
-        $mine = array_values(array_filter($forms, function($f) use ($user) {
-            return ($f['unit'] ?? '*') === '*' || ($f['unit'] ?? '') === $user['unit'];
-        }));
-        // Filter by user type
-        $mine = array_values(array_filter($mine, function($f) use ($user) {
-            $types = $f['user_types'] ?? ['short-term','short-stay'];
-            return in_array($user['user_type'], $types);
-        }));
-        // Check signed status from signatures
-        $sigs = readJson('signatures.json', []);
-        foreach ($mine as &$f) {
-            $f['signed'] = false;
-            $f['signed_at'] = '';
-            foreach ($sigs as $s) {
-                if ($s['form_id'] === $f['id'] && $s['unit'] === $user['unit']) {
-                    $f['signed'] = true;
-                    $f['signed_at'] = $s['signed_at'] ?? '';
-                    break;
-                }
-            }
-        }
-        unset($f);
-        echo json_encode($mine);
+
+        echo json_encode([
+            'forms'            => $result,
+            'overall_status'   => $overallStatus,
+            'checkin_unlocked' => $checkinUnlocked,
+            'checkin_date'     => $checkinDate,
+            'form_record'      => $form
+        ]);
         break;
 
     case 'form-detail':
+        // Get pre-arrival form prefilled data or agreement text
         $user = requirePortalAuth();
-        $id = $_GET['id'] ?? '';
-        $forms = readJson('forms.json', []);
-        $found = null;
-        foreach ($forms as $f) {
-            if ($f['id'] === $id) { $found = $f; break; }
-        }
-        if (!$found) { http_response_code(404); echo json_encode(['error'=>'Form not found']); break; }
+        $type = $_GET['type'] ?? '';
 
-        // Check if signed
-        $sigs = readJson('signatures.json', []);
-        $found['signed'] = false;
-        $found['signed_at'] = '';
-        foreach ($sigs as $s) {
-            if ($s['form_id'] === $id && $s['unit'] === $user['unit']) {
-                $found['signed'] = true;
-                $found['signed_at'] = $s['signed_at'];
-                break;
-            }
+        $unit = $user['unit'] ?? '';
+        $gf = supabase('guest_forms', 'select=*&unit=eq.' . urlencode($unit) . '&order=created_at.desc&limit=1');
+        $form = ($gf['code'] === 200 && !empty($gf['data'][0])) ? $gf['data'][0] : null;
+
+        if ($type === 'pre-arrival') {
+            echo json_encode([
+                'type'        => 'pre-arrival',
+                'form'        => $form,
+                'prefill'     => [
+                    'first'   => $form['guest_first'] ?? (explode(' ', $user['name'] ?? '')[0] ?? ''),
+                    'last'    => $form['guest_last'] ?? (explode(' ', $user['name'] ?? '', 2)[1] ?? ''),
+                    'phone'   => $form['guest_phone'] ?? $user['phone'] ?? '',
+                    'email'   => $form['guest_email'] ?? $user['email'] ?? '',
+                ]
+            ]);
+        } elseif ($type === 'agreement') {
+            // Get template (try property-specific, then default *)
+            $tpl = supabase('form_templates', 'select=*&order=created_at.desc&limit=1');
+            $template = ($tpl['code'] === 200 && !empty($tpl['data'][0])) ? $tpl['data'][0] : null;
+
+            echo json_encode([
+                'type'           => 'agreement',
+                'form'           => $form,
+                'template_id'    => $template['id'] ?? null,
+                'title'          => $template['agreement_title'] ?? 'Rental Agreement',
+                'text'           => $template['agreement_text'] ?? 'No agreement template configured.',
+                'accepted'       => $form['agreement_accepted'] ?? false,
+                'accepted_at'    => $form['agreement_accepted_at'] ?? null,
+                'prefill'        => [
+                    'first'  => $form['guest_first'] ?? (explode(' ', $user['name'] ?? '')[0] ?? ''),
+                    'last'   => $form['guest_last'] ?? (explode(' ', $user['name'] ?? '', 2)[1] ?? ''),
+                    'email'  => $form['guest_email'] ?? $user['email'] ?? '',
+                ]
+            ]);
+        } else {
+            echo json_encode(['error' => 'Invalid form type']);
         }
-        echo json_encode($found);
         break;
 
-    case 'form-sign':
+    case 'submit-pre-arrival':
+        // Submit pre-arrival form data
         $user = requirePortalAuth();
-        $id = $input['id'] ?? '';
-        if (!$id) { echo json_encode(['error'=>'Form ID required']); break; }
+        $unit = $user['unit'] ?? '';
 
-        $sigs = readJson('signatures.json', []);
-        // Check not already signed
-        foreach ($sigs as $s) {
-            if ($s['form_id'] === $id && $s['unit'] === $user['unit']) {
-                echo json_encode(['error'=>'Already signed']);
-                break 2;
-            }
+        $firstName    = trim($input['guest_first'] ?? '');
+        $lastName     = trim($input['guest_last'] ?? '');
+        $email        = trim($input['guest_email'] ?? '');
+        $phone        = trim($input['guest_phone'] ?? '');
+        $govIdCountry = trim($input['gov_id_country'] ?? 'US');
+        $govIdNumber  = trim($input['gov_id_number'] ?? '');
+        $numGuests    = intval($input['num_guests'] ?? 1);
+        $addGuests    = $input['additional_guests'] ?? [];
+        $addAdultName = trim($input['additional_adult_name'] ?? '');
+        $addAdultPhone= trim($input['additional_adult_phone'] ?? '');
+        $vehicle      = trim($input['vehicle_info'] ?? '');
+        $postalCode   = trim($input['guest_postal_code'] ?? '');
+
+        if (!$firstName || !$lastName || !$phone || !$email) {
+            echo json_encode(['error' => 'Name, phone, and email are required']);
+            break;
         }
 
-        $sigs[] = [
-            'id'        => genId('sig'),
-            'form_id'   => $id,
-            'unit'      => $user['unit'],
-            'name'      => $user['name'],
-            'signed_at' => now(),
-            'ip'        => $_SERVER['REMOTE_ADDR'] ?? ''
+        // Check for existing form record
+        $gf = supabase('guest_forms', 'select=id&unit=eq.' . urlencode($unit) . '&order=created_at.desc&limit=1');
+        $existing = ($gf['code'] === 200 && !empty($gf['data'][0])) ? $gf['data'][0] : null;
+
+        $payload = [
+            'unit'                => $unit,
+            'guest_first'         => $firstName,
+            'guest_last'          => $lastName,
+            'guest_email'         => $email,
+            'guest_phone'         => $phone,
+            'gov_id_country'      => $govIdCountry,
+            'gov_id_number'       => $govIdNumber,
+            'num_guests'          => $numGuests,
+            'additional_guests'   => $addGuests,
+            'additional_adult_name'  => $addAdultName,
+            'additional_adult_phone' => $addAdultPhone,
+            'vehicle_info'        => $vehicle,
+            'guest_postal_code'   => $postalCode,
+            'pre_arrival_status'  => 'submitted',
+            'checkin_date'        => !empty($user['checkin']) ? $user['checkin'] : null,
+            'updated_at'          => date('c')
         ];
-        writeJson('signatures.json', $sigs);
 
-        // Notification
-        $notifs = readJson('notifications.json', []);
-        array_unshift($notifs, [
-            'id'    => genId('ntf'),
-            'unit'  => $user['unit'],
-            'type'  => 'forms',
-            'title' => 'Agreement Signed',
-            'body'  => 'You have successfully signed the agreement.',
-            'ref'   => $id,
-            'read'  => false,
-            'time'  => now()
+        if ($existing) {
+            // Update existing
+            $res = supabase('guest_forms', 'id=eq.' . $existing['id'], 'PATCH', $payload);
+        } else {
+            // Insert new
+            $payload['created_at'] = date('c');
+            $res = supabase('guest_forms', '', 'POST', $payload);
+        }
+
+        if ($res['code'] >= 200 && $res['code'] < 300) {
+            echo json_encode(['ok' => true, 'form_id' => $res['data'][0]['id'] ?? $existing['id'] ?? null]);
+        } else {
+            error_log('FORMS: submit-pre-arrival failed for unit=' . $unit . ' code=' . $res['code'] . ' resp=' . json_encode($res['data']));
+            echo json_encode(['error' => 'Failed to save form', 'detail' => $res['data'], 'code' => $res['code']]);
+        }
+        break;
+
+    case 'upload-id':
+        // Handle government ID file upload
+        $user = requirePortalAuth();
+        $unit = $user['unit'] ?? '';
+
+        if (empty($_FILES['id_file'])) {
+            echo json_encode(['error' => 'No file uploaded']);
+            break;
+        }
+
+        $file = $_FILES['id_file'];
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg','jpeg','png','gif','pdf','heic','webp'];
+        if (!in_array($ext, $allowed)) {
+            echo json_encode(['error' => 'Invalid file type. Allowed: ' . implode(', ', $allowed)]);
+            break;
+        }
+
+        // Max 10MB
+        if ($file['size'] > 10 * 1024 * 1024) {
+            echo json_encode(['error' => 'File too large (max 10MB)']);
+            break;
+        }
+
+        // Save to uploads/ids/ directory
+        $idDir = UPLOAD_DIR . '/ids';
+        if (!is_dir($idDir)) mkdir($idDir, 0755, true);
+        $filename = 'id_' . preg_replace('/[^a-z0-9]/', '', strtolower($unit)) . '_' . time() . '.' . $ext;
+        $destPath = $idDir . '/' . $filename;
+
+        if (!move_uploaded_file($file['tmp_name'], $destPath)) {
+            echo json_encode(['error' => 'Failed to save file']);
+            break;
+        }
+
+        // Update guest_forms record
+        $gf = supabase('guest_forms', 'select=id&unit=eq.' . urlencode($unit) . '&order=created_at.desc&limit=1');
+        $existing = ($gf['code'] === 200 && !empty($gf['data'][0])) ? $gf['data'][0] : null;
+
+        $idPayload = [
+            'id_file_path' => 'uploads/ids/' . $filename,
+            'id_file_name' => $file['name'],
+            'id_status'    => 'submitted',
+            'updated_at'   => date('c')
+        ];
+
+        if ($existing) {
+            supabase('guest_forms', 'id=eq.' . $existing['id'], 'PATCH', $idPayload);
+        } else {
+            $idPayload['unit'] = $unit;
+            $idPayload['created_at'] = date('c');
+            supabase('guest_forms', '', 'POST', $idPayload);
+        }
+
+        echo json_encode(['ok' => true, 'filename' => $filename]);
+        break;
+
+    case 'view-id':
+        // Serve ID image through PHP (bypasses .htaccess / permission issues)
+        $file = basename($_GET['file'] ?? '');
+        $path = UPLOAD_DIR . '/ids/' . $file;
+        if (!$file || !file_exists($path)) {
+            http_response_code(404);
+            echo 'File not found';
+            break;
+        }
+        $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+        $mimeMap = ['jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','gif'=>'image/gif','pdf'=>'application/pdf','webp'=>'image/webp'];
+        $mime = $mimeMap[$ext] ?? 'application/octet-stream';
+        header('Content-Type: ' . $mime);
+        header('Content-Length: ' . filesize($path));
+        readfile($path);
+        exit;
+
+    case 'submit-agreement':
+        // Accept rental agreement
+        $user = requirePortalAuth();
+        $unit = $user['unit'] ?? '';
+        $templateId = $input['template_id'] ?? null;
+
+        // Get or create guest_forms record
+        $gf = supabase('guest_forms', 'select=id&unit=eq.' . urlencode($unit) . '&order=created_at.desc&limit=1');
+        $existing = ($gf['code'] === 200 && !empty($gf['data'][0])) ? $gf['data'][0] : null;
+
+        $agPayload = [
+            'agreement_accepted'     => true,
+            'agreement_accepted_at'  => date('c'),
+            'agreement_template_id'  => $templateId,
+            'agreement_status'       => 'submitted',
+            'agreement_ip'           => $_SERVER['REMOTE_ADDR'] ?? '',
+            'guest_postal_code'      => trim($input['postal_code'] ?? ''),
+            'guest_email'            => trim($input['email'] ?? ''),
+            'updated_at'             => date('c')
+        ];
+
+        if ($existing) {
+            $res = supabase('guest_forms', 'id=eq.' . $existing['id'], 'PATCH', $agPayload);
+        } else {
+            $agPayload['unit'] = $unit;
+            $agPayload['guest_first'] = explode(' ', $user['name'] ?? '')[0] ?? '';
+            $agPayload['guest_last'] = explode(' ', $user['name'] ?? '', 2)[1] ?? '';
+            $agPayload['created_at'] = date('c');
+            $res = supabase('guest_forms', '', 'POST', $agPayload);
+        }
+
+        if ($res['code'] >= 200 && $res['code'] < 300) {
+            echo json_encode(['ok' => true]);
+        } else {
+            echo json_encode(['error' => 'Failed to save agreement', 'detail' => $res['data']]);
+        }
+        break;
+
+    case 'checkin-gate':
+        // Check if guest can access checkin info
+        $user = requirePortalAuth();
+        $unit = $user['unit'] ?? '';
+
+        $gf = supabase('guest_forms', 'select=*&unit=eq.' . urlencode($unit) . '&order=created_at.desc&limit=1');
+        $form = ($gf['code'] === 200 && !empty($gf['data'][0])) ? $gf['data'][0] : null;
+
+        $formsApproved = $form && ($form['overall_status'] ?? 'pending') === 'approved';
+        $checkinDate = $form['checkin_date'] ?? $user['checkin'] ?? '';
+        $timeUnlocked = false;
+        if ($checkinDate) {
+            $unlockTime = strtotime($checkinDate) - 86400; // midnight day before
+            $timeUnlocked = time() >= $unlockTime;
+        }
+
+        $canAccess = $formsApproved && $timeUnlocked;
+
+        $reason = '';
+        if (!$form || ($form['pre_arrival_status'] ?? 'pending') === 'pending') {
+            $reason = 'Please complete your Pre-Arrival Form.';
+        } elseif (($form['agreement_status'] ?? 'pending') === 'pending') {
+            $reason = 'Please complete the Rental Agreement.';
+        } elseif (($form['id_status'] ?? 'pending') === 'pending') {
+            $reason = 'Please upload your Government ID.';
+        } elseif (!$formsApproved) {
+            $reason = 'Your documents are under review. We\'ll notify you once approved.';
+        } elseif (!$timeUnlocked) {
+            $reason = 'Check-in information will be available at midnight the night before your check-in date (' . $checkinDate . ').';
+        }
+
+        echo json_encode([
+            'can_access'      => $canAccess,
+            'forms_approved'  => $formsApproved,
+            'time_unlocked'   => $timeUnlocked,
+            'reason'          => $reason,
+            'checkin_date'    => $checkinDate,
+            'form_status'     => $form ? [
+                'pre_arrival' => $form['pre_arrival_status'] ?? 'pending',
+                'agreement'   => $form['agreement_status'] ?? 'pending',
+                'id_upload'   => $form['id_status'] ?? 'pending',
+                'overall'     => $form['overall_status'] ?? 'pending'
+            ] : null
         ]);
-        writeJson('notifications.json', $notifs);
-
-        echo json_encode(['ok' => true]);
         break;
 
 // ═══════════════════════════════════════════════════
