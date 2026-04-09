@@ -2413,6 +2413,14 @@
             <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Per Day Rate ($)</label><input type="number" step="0.01" id="pkBldPerDay" class="pk-admin-input" placeholder="2.50"></div>
             <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Minimum Cost ($)</label><input type="number" step="0.01" id="pkBldMinCost" class="pk-admin-input" placeholder="7.00"></div>
           </div>
+          <div style="margin-bottom:12px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
+            <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:8px;font-weight:600">Stripe Payment Account</label>
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:8px">
+              <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Account Name</label><input type="text" id="pkBldStripeAcct" class="pk-admin-input" placeholder="e.g. Parking Elkins"></div>
+              <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Publishable Key</label><input type="text" id="pkBldStripePK" class="pk-admin-input" placeholder="pk_live_..."></div>
+            </div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Secret Key</label><input type="password" id="pkBldStripeSK" class="pk-admin-input" placeholder="sk_live_..."></div>
+          </div>
           <div style="margin-bottom:12px">
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:8px">Pricing Plans</label>
             <div id="pkBldPlans"></div>
