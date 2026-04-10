@@ -1829,8 +1829,115 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
   btns.push(`<button class="btn btn-secondary btn-sm" onclick="goToFTPropertyDetail('${(r.apt||'').replace(/'/g,"\\'")}')" style="width:100%;margin-top:4px;justify-content:center;font-weight:600;background:linear-gradient(135deg,rgba(79,196,207,.12),rgba(124,58,237,.08));border-color:rgba(79,196,207,.3)">🔧 Service History &amp; Appliances</button>`);
-  document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
+  document.getElementById('dActions').innerHTML=btns.join('');WPA_loadDetailParking(r);document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
+
+/* ── Parking section on tenant detail card ── */
+function WPA_loadDetailParking(r) {
+  var box = document.getElementById('dParking');
+  var rows = document.getElementById('dParkingRows');
+  if (!box || !rows) return;
+  box.style.display = 'none';
+  rows.innerHTML = '';
+
+  // Search parking_bookings by unit (apt) or guest name
+  var nameEnc = encodeURIComponent((r.name || '').trim());
+  var aptEnc = encodeURIComponent((r.apt || '').trim());
+  var q = 'select=*&or=(unit.eq.' + aptEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5';
+  pkSB('parking_bookings', q).then(function(bookings) {
+    if (!bookings || !bookings.length) return;
+    box.style.display = '';
+
+    // For each booking, show a row with plan switcher
+    var html = '';
+    bookings.forEach(function(bk) {
+      var planLabel = bk.rate_plan_name || bk.plan || 'Default';
+      var dates = (bk.start_date || '?') + ' → ' + (bk.end_date || '?');
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;">';
+      html += '<div style="flex:1;font-size:12px;">';
+      html += '<strong>' + _esc(bk.vehicle || '') + '</strong> <span style="color:var(--muted);font-size:11px;">' + _esc(bk.plate || '') + '</span>';
+      html += '<div style="font-size:10px;color:var(--text3);margin-top:2px;">' + dates + ' · $' + parseFloat(bk.amount || 0).toFixed(2) + '</div>';
+      html += '</div>';
+      html += '<div style="display:flex;align-items:center;gap:4px;">';
+      html += '<select id="dPkPlan_' + bk.id + '" onchange="WPA_switchBookingPlan(\'' + bk.id + '\',\'' + (bk.building_id || '') + '\')" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;" title="Switch rate plan">';
+      html += '<option value="">— ' + _esc(planLabel) + ' —</option>';
+      html += '</select>';
+      html += '</div></div>';
+
+      // Load plan options for this building
+      if (bk.building_id) {
+        pkSB('parking_rate_plans', 'select=id,name,is_default&building_id=eq.' + bk.building_id + '&active=eq.true&order=is_default.desc,name.asc').then(function(plans) {
+          var sel = document.getElementById('dPkPlan_' + bk.id);
+          if (!sel) return;
+          sel.innerHTML = '';
+          plans.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name + (p.is_default ? ' (default)' : '');
+            if (bk.rate_plan_id && p.id === bk.rate_plan_id) opt.selected = true;
+            else if (!bk.rate_plan_id && p.is_default) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        });
+      }
+    });
+    rows.innerHTML = html;
+  }).catch(function() { /* silent */ });
+}
+
+/* ── Switch plan on a parking booking from detail card ── */
+function WPA_switchBookingPlan(bookingId, buildingId) {
+  var sel = document.getElementById('dPkPlan_' + bookingId);
+  if (!sel) return;
+  var planId = sel.value;
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' (default)', '');
+
+  // Get plan details to recalculate price
+  pkSB('parking_rate_plans', 'select=*&id=eq.' + planId).then(function(plans) {
+    if (!plans || !plans.length) return;
+    var plan = plans[0];
+
+    // Get the booking to know the dates
+    return pkSB('parking_bookings', 'select=*&id=eq.' + bookingId).then(function(bks) {
+      if (!bks || !bks.length) return;
+      var bk = bks[0];
+      var start = new Date(bk.start_date + 'T00:00:00');
+      var end = new Date(bk.end_date + 'T00:00:00');
+      var days = Math.max(1, Math.round((end - start) / 86400000));
+
+      // Calculate new amount
+      var billableDays = Math.max(0, days - (plan.free_days || 0));
+      var amount = billableDays * (plan.per_day || 0);
+      if (plan.minimum_cost && amount < plan.minimum_cost) amount = plan.minimum_cost;
+
+      // Check bulk packages
+      var pkgs = plan.packages || [];
+      pkgs.sort(function(a, b) { return b.days - a.days; });
+      for (var i = 0; i < pkgs.length; i++) {
+        if (days >= pkgs[i].days && pkgs[i].price < amount) {
+          amount = pkgs[i].price;
+          break;
+        }
+      }
+      amount = Math.round(amount * 100) / 100;
+
+      // Update the booking
+      return pkSB('parking_bookings', 'id=eq.' + bookingId, 'PATCH', {
+        rate_plan_id: planId,
+        rate_plan_name: planName,
+        amount: amount,
+        plan: planName
+      }).then(function() {
+        toast('Plan switched to ' + planName + ' — $' + amount.toFixed(2), 'success');
+        // Refresh the parking section
+        if (detailId) {
+          var r = data.find(function(x) { return x.id === detailId; });
+          if (r) WPA_loadDetailParking(r);
+        }
+      });
+    });
+  }).catch(function(e) { alert('Failed: ' + e.message); });
+}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
