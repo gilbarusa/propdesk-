@@ -2803,7 +2803,7 @@ function openTenantDetail(idx) {
   }
 
   // Collection data
-  const rentRecords = INNAGO_RENT.filter(r => r.tenant.includes(t.name.split(' ')[0]));
+  const rentRecords = INNAGO_RENT.filter(r => r.tenant && r.tenant.includes(t.name.split(' ')[0]));
   const totalCollected = rentRecords.reduce((s, r) => s + r.paid, 0);
   const pastDue = rentRecords.filter(r => r.status === 'Late' || r.status === 'Overdue');
   const currentInvoices = rentRecords.length;
