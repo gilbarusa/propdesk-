@@ -4651,6 +4651,8 @@ async function loadMaintenanceFromSupabase() {
       assigned_to: r.assigned_to || '',
       address: r.address || '',
       owner: r.owner || '',
+      work_order_id: r.work_order_id || '',
+      chat: r.chat || [],
       _raw: r
     }));
     renderMTMMaint();
@@ -4658,8 +4660,8 @@ async function loadMaintenanceFromSupabase() {
 }
 
 function mapMaintStatus(s) {
-  const map = { submitted:'open', assigned:'scheduled', scheduled:'scheduled', 'in-progress':'in-progress', completed:'resolved', cancelled:'resolved' };
-  return map[s] || s || 'open';
+  // Use actual Supabase statuses directly — no remapping
+  return s || 'submitted';
 }
 
 function fmtMaintDate(iso) {
@@ -4673,10 +4675,10 @@ function renderMTMMaint() {
   const tbody = document.getElementById('mtmMaintBody');
   if (!tbody) return;
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('mtmMaintOpen', MAINTENANCE_REQUESTS.filter(m => m.status === 'open').length);
+  el('mtmMaintOpen', MAINTENANCE_REQUESTS.filter(m => m.status === 'submitted' || m.status === 'assigned').length);
   el('mtmMaintProgress', MAINTENANCE_REQUESTS.filter(m => m.status === 'in-progress').length);
   el('mtmMaintScheduled', MAINTENANCE_REQUESTS.filter(m => m.status === 'scheduled').length);
-  el('mtmMaintResolved', MAINTENANCE_REQUESTS.filter(m => m.status === 'resolved').length);
+  el('mtmMaintResolved', MAINTENANCE_REQUESTS.filter(m => m.status === 'completed' || m.status === 'cancelled').length);
   filterMTMMaint();
 }
 
@@ -4686,8 +4688,17 @@ function filterMTMMaint() {
   const search = (document.getElementById('mtmMaintSearch')?.value || '').toLowerCase();
   const statusF = document.getElementById('mtmMaintStatusFilter')?.value || 'all';
 
+  const statusGroups = {
+    'open': ['submitted','assigned'],
+    'in-progress': ['in-progress'],
+    'scheduled': ['scheduled'],
+    'resolved': ['completed','cancelled']
+  };
   const filtered = MAINTENANCE_REQUESTS.filter(m => {
-    if (statusF !== 'all' && m.status !== statusF) return false;
+    if (statusF !== 'all') {
+      const group = statusGroups[statusF] || [statusF];
+      if (!group.includes(m.status)) return false;
+    }
     if (search && !m.tenant.toLowerCase().includes(search) && !m.issue.toLowerCase().includes(search) && !m.property.toLowerCase().includes(search)) return false;
     return true;
   });
@@ -4699,7 +4710,8 @@ function filterMTMMaint() {
     return;
   }
   tbody.innerHTML = filtered.map(m => {
-    const statusBadge = `<span class="mtm-badge ${m.status}">${m.status === 'in-progress' ? 'In Progress' : m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>`;
+    const statusLabels = {submitted:'New',assigned:'Assigned',scheduled:'Scheduled','in-progress':'In Progress',completed:'Completed',cancelled:'Cancelled'};
+    const statusBadge = `<span class="mtm-badge ${m.status}">${statusLabels[m.status] || m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>`;
     const priBadge = `<span class="mtm-badge ${m.priority}">${m.priority.charAt(0).toUpperCase() + m.priority.slice(1)}</span>`;
     const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
     return `<tr onclick="openMaintTicket('${m.id}')" style="cursor:pointer">
@@ -4758,9 +4770,51 @@ function openMaintTicket(id) {
     </div>`;
   }
 
+  // Show waiver text if permission to enter was granted
+  if (m.permission_to_enter && m.waiver_agreed) {
+    html += `<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px">
+      <strong>Permission to Enter Waiver (Signed)</strong><br>
+      Tenant has granted permission for authorized personnel to enter their unit for the purpose of performing maintenance or repairs.
+      Tenant acknowledges that management and its contractors are not responsible for any damage to personal property during the course of repairs,
+      except in cases of gross negligence. This consent remains valid for the duration of this service request.
+    </div>`;
+  }
+
+  // Show linked Work Order
+  if (m.work_order_id) {
+    html += `<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;margin-bottom:12px">
+      <strong>🔗 Work Order:</strong> ${m.work_order_id}${m.assigned_to ? ' — Assigned to: ' + m.assigned_to : ''}
+    </div>`;
+  }
+
   if (m.photo) {
     html += `<div style="margin-bottom:16px"><img src="${m.photo}" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e5e7eb" onerror="this.style.display='none'"></div>`;
   }
+
+  // Show chat thread
+  if (m.chat && m.chat.length > 0) {
+    html += `<div style="margin-bottom:16px">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:8px">Chat Thread (${m.chat.length} message${m.chat.length !== 1 ? 's' : ''})</div>
+      <div style="background:#f9fafb;border-radius:8px;padding:12px;max-height:200px;overflow-y:auto">`;
+    m.chat.forEach(c => {
+      const isAdmin = c.from === 'admin';
+      const bgColor = isAdmin ? '#dbeafe' : '#f3f4f6';
+      const label = isAdmin ? '🔧 Admin' : '👤 ' + (c.name || 'Tenant');
+      html += `<div style="background:${bgColor};border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px">
+        <div style="font-size:10px;color:#6b7280;margin-bottom:2px">${label} — ${c.time || ''}</div>
+        ${c.text}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Admin chat reply
+  html += `<div style="margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <input id="maintChatInput" placeholder="Reply to tenant..." style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-family:inherit;font-size:13px">
+      <button onclick="sendMaintChat('${m.id}')" style="padding:8px 16px;background:var(--accent2,#c47f00);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">Send</button>
+    </div>
+  </div>`;
 
   html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div>
@@ -4815,6 +4869,25 @@ async function saveMaintTicket(id) {
     if (error) { alert('Error saving: ' + error.message); return; }
     document.getElementById('maintTicketOverlay').style.display = 'none';
     await loadMaintenanceFromSupabase();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function sendMaintChat(id) {
+  const input = document.getElementById('maintChatInput');
+  const msg = (input?.value || '').trim();
+  if (!msg) return;
+  const m = MAINTENANCE_REQUESTS.find(r => r.id === id);
+  if (!m) return;
+
+  const chatArr = [...(m.chat || []), { from: 'admin', name: 'Admin', text: msg, time: new Date().toISOString() }];
+  try {
+    const { error } = await sb.from('maintenance_requests')
+      .update({ chat: chatArr, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { alert('Error: ' + error.message); return; }
+    input.value = '';
+    await loadMaintenanceFromSupabase();
+    openMaintTicket(id); // Refresh the modal
   } catch (e) { alert('Error: ' + e.message); }
 }
 
@@ -10390,7 +10463,7 @@ function updateDashWorkOrders() {
 // ══════════════════════════════════════════════════════
 //  DELIVERY / MAILROOM ADMIN MODULE
 // ══════════════════════════════════════════════════════
-var DL_API = (typeof CONFIG !== 'undefined' && CONFIG.DL_API) || 'https://app.willowpa.com/portal/delivery/api.php';
+var DL_API = (typeof CONFIG !== 'undefined' && CONFIG.DL_API) || 'https://app.willowpa.com/delivery/api.php';
 var DL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
 var _dlPackages = [];
 var _dlTenants = [];
