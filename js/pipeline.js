@@ -1025,7 +1025,7 @@ function renderBookingCard(booking) {
             <a href="#" onclick="event.stopPropagation();openInboxThread('${_escHtml(booking.guest_name).replace(/'/g,"\\'")}')" style="color:var(--accent);text-decoration:none;font-size:11px;font-weight:600;" title="Send message">💬 Message</a>
             <span onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:3px;">
               <span style="font-size:11px;">🅿️</span>
-              <select class="pk-card-plan" data-booking-id="${booking.id}" data-unit="${_escHtml(booking.unit_apt || booking.unit_name || '')}" data-guest="${_escHtml(booking.guest_name || '')}" onchange="WPA_pipelinePlanChange(this)" style="font-size:10px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text2);cursor:pointer;font-family:inherit;max-width:120px;">
+              <select class="pk-card-plan" data-booking-id="${booking.id}" data-unit="${_escHtml(booking.unit_apt || booking.unit_name || '')}" data-guest="${_escHtml(booking.guest_name || '')}" data-listing="${_escHtml(booking.listing_name || '')}" onchange="WPA_pipelinePlanChange(this)" style="font-size:10px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text2);cursor:pointer;font-family:inherit;max-width:120px;">
                 <option value="">Plan…</option>
               </select>
             </span>
@@ -2859,11 +2859,16 @@ async function WPA_populatePipelineParkingPlans() {
     selects.forEach(function(sel) {
       var unit = sel.getAttribute('data-unit') || '';
       var guest = sel.getAttribute('data-guest') || '';
+      var listing = sel.getAttribute('data-listing') || '';
 
       // Find existing parking booking for this guest/unit
       var match = bookings.find(function(b) {
         return (unit && b.unit === unit) || (guest && b.guest_name && b.guest_name.toLowerCase().includes(guest.toLowerCase().split(' ')[0]));
       });
+
+      // Match unit/listing to a building for smart default
+      var searchText = unit + ' ' + listing;
+      var matchedBldId = (typeof WPA_matchBuildingId === 'function') ? WPA_matchBuildingId(buildings, searchText) : null;
 
       sel.innerHTML = '';
       var hasSelected = false;
@@ -2875,10 +2880,12 @@ async function WPA_populatePipelineParkingPlans() {
         opt.textContent = p.name + (bldName ? ' (' + bldName + ')' : '') + (p.is_default ? ' ★' : '');
         // If guest has a booking with this plan, select it
         if (match && match.rate_plan_id === p.id) { opt.selected = true; hasSelected = true; }
+        // Auto-select matching building's default
+        else if (!hasSelected && p.is_default && matchedBldId && p.building_id === matchedBldId) { opt.selected = true; hasSelected = true; }
         sel.appendChild(opt);
       });
 
-      // Auto-select the first default plan if nothing was matched
+      // Fallback: if no building matched, pick first default
       if (!hasSelected) {
         var defaultPlan = plans.find(function(p) { return p.is_default; });
         if (defaultPlan) {

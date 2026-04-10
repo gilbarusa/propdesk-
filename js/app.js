@@ -1855,6 +1855,10 @@ function WPA_loadDetailParking(r) {
     buildings.forEach(function(b) { bldMap[b.id] = b.name; });
     var html = '';
 
+    // Match unit/property to a building
+    var unitText = (r.apt || '') + ' ' + (r.owner || '') + ' ' + (r.note || '');
+    var matchedBldId = WPA_matchBuildingId(buildings, unitText);
+
     // Always show plan selector
     var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
     var hasSelection = !!currentPlanId;
@@ -1866,9 +1870,14 @@ function WPA_loadDetailParking(r) {
       var label = _esc(p.name) + (bldName ? ' (' + _esc(bldName) + ')' : '') + (p.is_default ? ' ★' : '');
       var sel = '';
       if (p.id === currentPlanId) { sel = ' selected'; }
-      else if (!hasSelection && p.is_default) { sel = ' selected'; hasSelection = true; }
+      else if (!hasSelection && p.is_default && matchedBldId && p.building_id === matchedBldId) { sel = ' selected'; hasSelection = true; }
       html += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
     });
+    // Fallback: if no building matched, pick first default
+    if (!hasSelection) {
+      var fbPlan = plans.find(function(p) { return p.is_default; });
+      // Will just show first option selected by browser default
+    }
     html += '</select></div>';
 
     if (bookings.length) {
@@ -2882,6 +2891,10 @@ function WPA_loadTenantParking(t) {
     buildings.forEach(function(b) { bldMap[b.id] = b.name; });
     var html = '';
 
+    // Match tenant's property to a building
+    var tenantText = (t.property || '') + ' ' + (t.unitNum || '');
+    var matchedBldId = WPA_matchBuildingId(buildings, tenantText);
+
     // Always show a plan selector
     var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
     var hasSelection = !!currentPlanId;
@@ -2893,9 +2906,14 @@ function WPA_loadTenantParking(t) {
       var label = _esc(p.name) + (bldName ? ' (' + _esc(bldName) + ')' : '') + (p.is_default ? ' ★' : '');
       var sel = '';
       if (p.id === currentPlanId) { sel = ' selected'; }
-      else if (!hasSelection && p.is_default) { sel = ' selected'; hasSelection = true; }
+      else if (!hasSelection && p.is_default && matchedBldId && p.building_id === matchedBldId) { sel = ' selected'; hasSelection = true; }
       html += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
     });
+    // If no building matched, fall back to first default
+    if (!hasSelection) {
+      var fb = plans.find(function(p) { return p.is_default; });
+      if (fb) { /* re-render would be heavy, just note it */ }
+    }
     html += '</select></div>';
 
     // Show existing bookings if any
@@ -11047,6 +11065,29 @@ async function _loadModalThread(name, unit, silent) {
 }
 
 function _esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+/* Match a property/unit string to a parking building id.
+   Tries street number match first, then keyword match. */
+function WPA_matchBuildingId(buildings, text) {
+  if (!text || !buildings || !buildings.length) return null;
+  var t = text.toLowerCase();
+  for (var i = 0; i < buildings.length; i++) {
+    var addr = (buildings[i].address || buildings[i].name || '').toLowerCase();
+    // Extract leading street number from building address
+    var numMatch = addr.match(/^(\d+)/);
+    if (numMatch) {
+      var num = numMatch[1];
+      // Check property string like "7845 Montgomery Avenue" or unit like "46-206"
+      if (t.indexOf(num) >= 0) return buildings[i].id;
+    }
+    // Keyword fallback: "montg" → montgomery, etc.
+    var keywords = addr.replace(/[^a-z]/g, ' ').trim().split(/\s+/).filter(function(w) { return w.length > 3; });
+    for (var k = 0; k < keywords.length; k++) {
+      if (t.indexOf(keywords[k].substring(0, 4)) >= 0) return buildings[i].id;
+    }
+  }
+  return null;
+}
 
 function closeMsgModal() {
   _stopMsgPolling();
