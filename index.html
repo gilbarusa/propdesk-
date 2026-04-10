@@ -1310,81 +1310,10 @@
       </div>
     </div>
 
-    <!-- ── API KEYS SECTION ── -->
-    <div class="settings-sec" id="settings-sec-api-keys" style="display:none">
-      <div class="sc">
-        <h3>Anthropic — AI Assistant</h3>
-        <p class="scd">Used by TechTrack AI Repair Assistant and any AI features across PropDesk. Key is stored server-side.</p>
-        <div id="main-api-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
-        <div class="form-group" style="max-width:460px">
-          <label>Anthropic API Key</label>
-          <input type="password" id="main-api-key" placeholder="sk-ant-api03-..." autocomplete="off">
-        </div>
-        <button class="btn btn-primary" onclick="WPA_saveApiKey()">Save API Key</button>
-        <button class="btn btn-secondary" style="margin-left:8px" onclick="var el=document.getElementById('main-api-key');el.type=el.type==='password'?'text':'password'">Show/Hide</button>
-        <div style="margin-top:16px;padding:12px 14px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.65">
-          <strong>How to get your API key:</strong><br>
-          1. Go to <strong>console.anthropic.com</strong> and sign up or log in<br>
-          2. Click "API Keys" in the left menu, then "Create Key"<br>
-          3. Copy the key (starts with sk-ant-) and paste it above<br>
-          4. New accounts get free credits to start
-        </div>
-      </div>
-      <div class="sc">
-        <h3>Stripe — Payments</h3>
-        <p class="scd">Used by TechTrack billing (payment links) and any future payment features. Use a test key (sk_test_) for testing, live key (sk_live_) for production.</p>
-        <div id="main-stripe-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
-        <div class="form-group" style="max-width:460px">
-          <label>Stripe Secret Key</label>
-          <input type="password" id="main-stripe-key" placeholder="sk_live_... or sk_test_..." autocomplete="off">
-        </div>
-        <button class="btn btn-primary" onclick="WPA_saveStripeKey()">Save Stripe Key</button>
-        <button class="btn btn-secondary" style="margin-left:8px" onclick="var el=document.getElementById('main-stripe-key');el.type=el.type==='password'?'text':'password'">Show/Hide</button>
-      </div>
-    </div>
-
-    <!-- ── MESSAGING SECTION ── -->
-    <div class="settings-sec" id="settings-sec-messaging" style="display:none">
-      <div class="sc">
-        <h3>SMS — Flowroute</h3>
-        <p class="scd">Used for SMS notifications across all modules (tech dispatch, booking confirmations, rent reminders). Credentials are stored in the server config.</p>
-        <div id="main-sms-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:460px">
-          <div class="form-group"><label>Access Key</label><input type="password" id="main-flowroute-access" placeholder="Flowroute access key" autocomplete="off"></div>
-          <div class="form-group"><label>Secret Key</label><input type="password" id="main-flowroute-secret" placeholder="Flowroute secret key" autocomplete="off"></div>
-        </div>
-        <div class="form-group" style="max-width:460px"><label>FROM Number</label><input type="text" id="main-flowroute-from" placeholder="+1XXXXXXXXXX"></div>
-        <div class="form-group" style="max-width:460px"><label>Admin Notify Number</label><input type="text" id="main-flowroute-admin" placeholder="+1XXXXXXXXXX"></div>
-        <button class="btn btn-primary" onclick="WPA_saveMsgSettings('sms')">Save SMS Settings</button>
-        <button class="btn btn-secondary" style="margin-left:8px" onclick="WPA_testSend('sms')">Send Test SMS</button>
-      </div>
-      <div class="sc">
-        <h3>WhatsApp — Meta Business</h3>
-        <p class="scd">Used for WhatsApp notifications via Meta Graph API. Get credentials from your Meta Business dashboard.</p>
-        <div id="main-wa-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
-        <div class="form-group" style="max-width:460px"><label>Phone Number ID</label><input type="text" id="main-wa-phone-id" placeholder="e.g. 1234567890123456" autocomplete="off"></div>
-        <div class="form-group" style="max-width:460px"><label>Access Token</label><input type="password" id="main-wa-token" placeholder="EAAx..." autocomplete="off"></div>
-        <button class="btn btn-primary" onclick="WPA_saveMsgSettings('whatsapp')">Save WhatsApp Settings</button>
-        <button class="btn btn-secondary" style="margin-left:8px" onclick="WPA_testSend('whatsapp')">Send Test WhatsApp</button>
-        <button class="btn btn-secondary" style="margin-left:8px" onclick="var el=document.getElementById('main-wa-token');el.type=el.type==='password'?'text':'password'">Show/Hide</button>
-      </div>
-      <div class="sc">
-        <h3>Email — SMTP</h3>
-        <p class="scd">Used for email notifications (booking confirmations, rent reminders, maintenance updates). Verify your FROM domain has SPF/DKIM records.</p>
-        <div id="main-email-status" style="margin-bottom:12px;font-size:13px;font-weight:600"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:460px">
-          <div class="form-group"><label>SMTP Host</label><input type="text" id="main-smtp-host" placeholder="smtp.example.com" autocomplete="off"></div>
-          <div class="form-group"><label>SMTP Port</label><input type="number" id="main-smtp-port" placeholder="587" autocomplete="off"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:460px">
-          <div class="form-group"><label>Username</label><input type="text" id="main-smtp-user" placeholder="user@example.com" autocomplete="off"></div>
-          <div class="form-group"><label>Password</label><input type="password" id="main-smtp-pass" placeholder="password" autocomplete="off"></div>
-        </div>
-        <div class="form-group" style="max-width:460px"><label>FROM Address</label><input type="email" id="main-smtp-from" placeholder="general@willowpa.com" autocomplete="off"></div>
-        <div class="form-group" style="max-width:460px"><label>FROM Name</label><input type="text" id="main-smtp-name" placeholder="Willow Property Management" autocomplete="off"></div>
-        <button class="btn btn-primary" onclick="WPA_saveMsgSettings('email')">Save Email Settings</button>
-        <button class="btn btn-secondary" style="margin-left:8px" onclick="WPA_testSend('email')">Send Test Email</button>
-      </div>
+    <!-- ── CREDENTIALS SECTION (centralized) ── -->
+    <div class="settings-sec" id="settings-sec-credentials" style="display:none">
+      <p class="scd" style="margin-bottom:16px;">All API keys, payment credentials, and messaging configs in one place. Click a card to edit. Stored securely in Supabase.</p>
+      <div id="credCardsBox"></div>
     </div>
 
     <!-- ── THEME SECTION ── -->
@@ -2401,6 +2330,43 @@
           <tbody id="pkBookingsBody"></tbody>
         </table>
       </div>
+      <!-- Booking Edit Form -->
+      <div id="pkBookingEditForm" style="display:none;margin-top:16px">
+        <div class="dash-panel" style="border-left:4px solid var(--accent)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h3 id="pkBkEditTitle" style="border:none;padding:0;margin:0">Edit Booking</h3>
+            <button onclick="document.getElementById('pkBookingEditForm').style.display='none'" class="btn-subtle" style="padding:4px 10px;font-size:11px">Close</button>
+          </div>
+          <input type="hidden" id="pkBkEditId">
+          <input type="hidden" id="pkBkEditBuildingId">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Building</label><input type="text" id="pkBkEditBuilding" class="pk-admin-input" readonly style="opacity:.7"></div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Unit</label><input type="text" id="pkBkEditUnit" class="pk-admin-input"></div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Guest Name</label><input type="text" id="pkBkEditName" class="pk-admin-input"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div>
+              <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Rate Plan</label>
+              <select id="pkBkEditRatePlan" class="pk-admin-input" onchange="WPA_pkBkPlanChanged()">
+                <option value="">— Select —</option>
+              </select>
+            </div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Start Date</label><input type="date" id="pkBkEditStart" class="pk-admin-input" onchange="WPA_pkBkRecalc()"></div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">End Date</label><input type="date" id="pkBkEditEnd" class="pk-admin-input" onchange="WPA_pkBkRecalc()"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Car Brand</label><input type="text" id="pkBkEditCarBrand" class="pk-admin-input"></div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Car Color</label><input type="text" id="pkBkEditCarColor" class="pk-admin-input"></div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">License Plate</label><input type="text" id="pkBkEditPlate" class="pk-admin-input"></div>
+            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Amount ($)</label><input type="number" step="0.01" id="pkBkEditAmount" class="pk-admin-input"></div>
+          </div>
+          <div id="pkBkEditPriceNote" style="font-size:11px;color:var(--accent);margin-bottom:12px"></div>
+          <div style="display:flex;gap:8px">
+            <button onclick="WPA_pkSaveBookingEdit()" class="btn-backup">Save Changes</button>
+            <button onclick="document.getElementById('pkBookingEditForm').style.display='none'" class="btn-subtle">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Buildings Management (sub-tab) -->
@@ -2417,11 +2383,10 @@
           </div>
           <div style="margin-bottom:12px;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px">
             <label style="font-size:11px;color:var(--text3);display:block;margin-bottom:8px;font-weight:600">Stripe Payment Account</label>
-            <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:8px">
-              <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Account Name</label><input type="text" id="pkBldStripeAcct" class="pk-admin-input" placeholder="e.g. Parking Elkins"></div>
-              <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Publishable Key</label><input type="text" id="pkBldStripePK" class="pk-admin-input" placeholder="pk_live_..."></div>
-            </div>
-            <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px">Secret Key</label><input type="password" id="pkBldStripeSK" class="pk-admin-input" placeholder="sk_live_..."></div>
+            <select id="pkBldStripeCredId" class="pk-admin-input" style="width:100%;">
+              <option value="">— None (no payments) —</option>
+            </select>
+            <p style="font-size:10px;color:var(--muted);margin-top:6px;">Manage Stripe accounts in Settings → Credentials</p>
           </div>
           <div style="display:flex;gap:8px">
             <button onclick="WPA_pkSaveBuilding()" class="btn-backup">Save Building</button>
