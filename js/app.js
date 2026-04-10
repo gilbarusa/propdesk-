@@ -10641,18 +10641,30 @@ function WPA_dlLoadReports() {
   });
 }
 
-// ── Community Updates & Kiosk Images ──
+// ── Community Updates & Kiosk Slides ──
 function WPA_dlLoadUpdates() {
   dlFetch('admin-community-updates').then(function(d) {
     if (!d.ok) return;
     var list = d.updates || [];
     var el = document.getElementById('dlUpdatesList');
     if (!el) return;
-    if (list.length === 0) { el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:10px">No community updates</div>'; return; }
+    if (list.length === 0) { el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:10px">No slides added yet</div>'; return; }
     el.innerHTML = list.map(function(u) {
-      var imgHtml = u.image_url ? '<div style="margin-top:6px"><img src="' + u.image_url + '" style="max-width:160px;max-height:100px;border-radius:4px;border:1px solid var(--border)"></div>' : '';
+      var mediaHtml = '';
+      if (u.image_url) {
+        var isPdf = u.image_url.toLowerCase().indexOf('.pdf') !== -1;
+        if (isPdf) {
+          mediaHtml = '<div style="margin-top:6px"><span style="font-size:11px;color:var(--primary)">PDF: ' + u.image_url.split('/').pop() + '</span></div>';
+        } else {
+          mediaHtml = '<div style="margin-top:6px"><img src="' + u.image_url + '" style="max-width:160px;max-height:100px;border-radius:4px;border:1px solid var(--border)"></div>';
+        }
+      }
       var bodyHtml = u.body ? '<div style="color:var(--text-dim);margin-top:4px;white-space:pre-line">' + u.body + '</div>' : '';
-      var typeLabel = u.image_url ? '<span style="font-size:10px;background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;margin-left:6px">Image</span>' : '';
+      var typeLabel = '';
+      if (u.image_url) {
+        var isPdf2 = u.image_url.toLowerCase().indexOf('.pdf') !== -1;
+        typeLabel = '<span style="font-size:10px;background:' + (isPdf2 ? '#fce4ec;color:#c62828' : '#e3f2fd;color:#1565c0') + ';padding:2px 6px;border-radius:4px;margin-left:6px">' + (isPdf2 ? 'PDF' : 'Image') + '</span>';
+      }
       return '<div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:12px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center">' +
           '<div><strong>' + u.title + '</strong>' + typeLabel + '</div>' +
@@ -10661,7 +10673,7 @@ function WPA_dlLoadUpdates() {
             '<a href="javascript:;" onclick="WPA_dlDeleteUpdate(\'' + u.id + '\')" style="font-size:11px;color:var(--red);margin-left:8px">Delete</a>' +
           '</div>' +
         '</div>' +
-        bodyHtml + imgHtml +
+        bodyHtml + mediaHtml +
       '</div>';
     }).join('');
   });
@@ -10670,44 +10682,75 @@ function WPA_dlLoadUpdates() {
 function WPA_dlSaveUpdate() {
   var title = document.getElementById('dlUpdateTitle').value.trim();
   var body = document.getElementById('dlUpdateBody').value.trim();
-  var fileInput = document.getElementById('dlUpdateImage');
+  var fileInput = document.getElementById('dlUpdateFile');
   if (!title) { alert('Enter a title'); return; }
 
-  // Check if there's an image to upload
+  // Check if there's a file to upload first
   if (fileInput && fileInput.files && fileInput.files[0]) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var imageUrl = e.target.result; // base64 data URL
-      dlFetch('admin-community-updates', 'POST', { title: title, body: body, image_url: imageUrl }).then(function(d) {
-        if (d.ok) {
-          document.getElementById('dlUpdateTitle').value = '';
-          document.getElementById('dlUpdateBody').value = '';
-          fileInput.value = '';
-          var preview = document.getElementById('dlImagePreview');
-          if (preview) preview.style.display = 'none';
-          WPA_dlLoadUpdates();
-        }
+    // Upload file first, then create the community update with the URL
+    var fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    fetch(DL_API + '?action=admin-upload-file', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + DL_ADMIN_TOKEN },
+      body: fd
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.error) { alert('Upload failed: ' + d.error); return; }
+      // Now create the community update with the uploaded URL
+      dlFetch('admin-community-updates', 'POST', { title: title, body: body, image_url: d.url }).then(function(r) {
+        if (r.ok) { WPA_dlClearUpdateForm(); WPA_dlLoadUpdates(); }
       });
-    };
-    reader.readAsDataURL(fileInput.files[0]);
+    }).catch(function(e) { alert('Upload error: ' + e.message); });
   } else {
+    // Text-only slide
     dlFetch('admin-community-updates', 'POST', { title: title, body: body }).then(function(d) {
-      if (d.ok) { document.getElementById('dlUpdateTitle').value = ''; document.getElementById('dlUpdateBody').value = ''; WPA_dlLoadUpdates(); }
+      if (d.ok) { WPA_dlClearUpdateForm(); WPA_dlLoadUpdates(); }
     });
   }
 }
 
-// Image preview handler
+function WPA_dlClearUpdateForm() {
+  document.getElementById('dlUpdateTitle').value = '';
+  document.getElementById('dlUpdateBody').value = '';
+  var fileInput = document.getElementById('dlUpdateFile');
+  if (fileInput) fileInput.value = '';
+  WPA_dlClearFilePreview();
+}
+
+function WPA_dlClearFilePreview() {
+  var fileInput = document.getElementById('dlUpdateFile');
+  if (fileInput) fileInput.value = '';
+  var prev = document.getElementById('dlFilePreview');
+  if (prev) prev.style.display = 'none';
+  var img = document.getElementById('dlFilePreviewImg');
+  if (img) { img.style.display = 'none'; img.src = ''; }
+  var pdfName = document.getElementById('dlFilePdfName');
+  if (pdfName) pdfName.style.display = 'none';
+}
+
+// File preview handler
 (function() {
   document.addEventListener('change', function(e) {
-    if (e.target.id === 'dlUpdateImage' && e.target.files && e.target.files[0]) {
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        var prev = document.getElementById('dlImagePreview');
-        var img = document.getElementById('dlImagePreviewImg');
-        if (prev && img) { img.src = ev.target.result; prev.style.display = 'block'; }
-      };
-      reader.readAsDataURL(e.target.files[0]);
+    if (e.target.id === 'dlUpdateFile' && e.target.files && e.target.files[0]) {
+      var file = e.target.files[0];
+      var prev = document.getElementById('dlFilePreview');
+      var img = document.getElementById('dlFilePreviewImg');
+      var pdfName = document.getElementById('dlFilePdfName');
+      if (!prev) return;
+
+      if (file.type === 'application/pdf') {
+        if (img) img.style.display = 'none';
+        if (pdfName) { pdfName.textContent = file.name; pdfName.style.display = 'inline'; }
+        prev.style.display = 'inline-flex';
+      } else {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          if (img) { img.src = ev.target.result; img.style.display = 'inline'; }
+          if (pdfName) pdfName.style.display = 'none';
+          prev.style.display = 'inline-flex';
+        };
+        reader.readAsDataURL(file);
+      }
     }
   });
 })();
