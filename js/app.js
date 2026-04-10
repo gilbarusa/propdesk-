@@ -10390,7 +10390,7 @@ function updateDashWorkOrders() {
 // ══════════════════════════════════════════════════════
 //  DELIVERY / MAILROOM ADMIN MODULE
 // ══════════════════════════════════════════════════════
-var DL_API = 'https://app.willowpa.com/portal/delivery/api.php';
+var DL_API = (typeof CONFIG !== 'undefined' && CONFIG.DL_API) || 'https://app.willowpa.com/portal/delivery/api.php';
 var DL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
 var _dlPackages = [];
 var _dlTenants = [];
