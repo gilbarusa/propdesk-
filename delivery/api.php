@@ -343,7 +343,26 @@ case 'community-updates': {
     ok(['updates' => $r['data'] ?? []]);
 }
 
-// ── Kiosk images (placeholder) ──
+// ── Kiosk packages (public — no admin auth) ──
+case 'kiosk-packages': {
+    $bid = getBuildingId();
+    $filter = "status=eq.pending&order=created_at.desc&limit=100";
+    if ($bid) $filter .= "&building_id=eq.$bid";
+
+    $r = supabase('dl_packages', "select=*&$filter");
+    $packages = $r['data'] ?? [];
+
+    // Add has_phone flag
+    foreach ($packages as &$pkg) {
+        $tFilter = "unit=eq." . $pkg['unit'] . "&sms_opt=eq.true";
+        if ($bid) $tFilter .= "&building_id=eq.$bid";
+        $t = supabase('dl_tenants', "select=id&$tFilter&limit=1");
+        $pkg['has_phone'] = !empty($t['data']);
+    }
+    ok(['packages' => $packages]);
+}
+
+// ── Kiosk images (legacy placeholder) ──
 case 'kiosk-images': {
     ok(['images' => [], 'building' => BUILDING_NAME]);
 }
@@ -651,19 +670,54 @@ case 'admin-community-updates': {
     $id = $input['id'] ?? '';
     if ($id) {
         $body = ['updated_at' => now()];
-        if (isset($input['title']))  $body['title'] = $input['title'];
-        if (isset($input['body']))   $body['body'] = $input['body'];
-        if (isset($input['active'])) $body['active'] = !empty($input['active']);
+        if (isset($input['title']))     $body['title'] = $input['title'];
+        if (isset($input['body']))      $body['body'] = $input['body'];
+        if (isset($input['image_url'])) $body['image_url'] = $input['image_url'];
+        if (isset($input['active']))    $body['active'] = !empty($input['active']);
         supabase('dl_community_updates', "id=eq.$id", 'PATCH', $body);
     } else {
         $body = [
-            'title'  => $input['title'] ?? '',
-            'body'   => $input['body'] ?? '',
-            'active' => true
+            'title'     => $input['title'] ?? '',
+            'body'      => $input['body'] ?? '',
+            'image_url' => $input['image_url'] ?? null,
+            'active'    => true
         ];
         if ($bid) $body['building_id'] = $bid;
         supabase('dl_community_updates', '', 'POST', $body);
     }
+    ok();
+}
+
+case 'admin-upload-file': {
+    requireAdmin();
+    if (empty($_FILES['file'])) err('No file uploaded');
+    $file = $_FILES['file'];
+    $allowed = ['jpg','jpeg','png','gif','webp','pdf'];
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowed)) err('File type not allowed. Use: ' . implode(', ', $allowed));
+    if ($file['size'] > 10 * 1024 * 1024) err('File too large (max 10MB)');
+
+    $uploadDir = __DIR__ . '/uploads';
+    if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+    $filename = date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
+    $dest = $uploadDir . '/' . $filename;
+    if (!move_uploaded_file($file['tmp_name'], $dest)) err('Upload failed');
+
+    // Build public URL relative to api.php
+    $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http') . '://' . $_SERVER['HTTP_HOST'];
+    $dirPath = dirname($_SERVER['SCRIPT_NAME']);
+    $publicUrl = $baseUrl . $dirPath . '/uploads/' . $filename;
+
+    ok(['url' => $publicUrl, 'filename' => $filename, 'type' => $ext]);
+}
+
+case 'admin-delete-file': {
+    requireAdmin();
+    $filename = basename($input['filename'] ?? '');
+    if (!$filename) err('Filename required');
+    $path = __DIR__ . '/uploads/' . $filename;
+    if (file_exists($path)) unlink($path);
     ok();
 }
 
