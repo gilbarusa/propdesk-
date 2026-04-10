@@ -2598,18 +2598,21 @@
     <div id="dlKioskSection" style="display:none">
       <div class="dash-section-label">Kiosk Settings</div>
 
-      <!-- Community Updates & Kiosk Images -->
-      <h4 style="margin:0 0 10px;font-size:13px;color:var(--text-dim)">Community Updates &amp; Kiosk Images</h4>
-      <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Add text updates or images. These rotate on the kiosk screen every 15 seconds.</p>
-      <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
-        <input type="text" id="dlUpdateTitle" placeholder="Title" style="flex:1;min-width:160px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
-        <textarea id="dlUpdateBody" placeholder="Body text (optional if image)" rows="2" style="flex:2;min-width:160px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
-        <div style="display:flex;flex-direction:column;gap:4px">
-          <label style="font-size:11px;color:var(--text-dim)">Image (optional)</label>
-          <input type="file" id="dlUpdateImage" accept="image/*" style="font-size:11px;width:180px">
-          <div id="dlImagePreview" style="display:none;margin-top:4px"><img id="dlImagePreviewImg" style="max-width:120px;max-height:80px;border-radius:4px;border:1px solid var(--border)"><a href="javascript:;" onclick="document.getElementById('dlUpdateImage').value='';document.getElementById('dlImagePreview').style.display='none'" style="font-size:10px;color:var(--red);margin-left:6px">Remove</a></div>
+      <!-- Community Updates & Kiosk Slides -->
+      <h4 style="margin:0 0 10px;font-size:13px;color:var(--text-dim)">Kiosk Display — Community Updates &amp; Images</h4>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Add text updates, images, or PDFs. These rotate on the kiosk screen every 15 seconds.</p>
+      <div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:14px;background:#fafafa">
+        <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:flex-end">
+          <input type="text" id="dlUpdateTitle" placeholder="Title (required)" style="flex:1;min-width:200px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
+          <textarea id="dlUpdateBody" placeholder="Body text (optional — leave blank for image-only slides)" rows="2" style="flex:2;min-width:200px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
         </div>
-        <button onclick="WPA_dlSaveUpdate()" class="btn-action" style="padding:8px 16px;font-size:12px">+ Add</button>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <label style="font-size:12px;font-weight:600;color:var(--text)">Upload Image/PDF:</label>
+          <input type="file" id="dlUpdateFile" accept="image/*,.pdf" style="font-size:12px">
+          <div id="dlFilePreview" style="display:none"><img id="dlFilePreviewImg" style="max-width:100px;max-height:60px;border-radius:4px;border:1px solid var(--border)"><span id="dlFilePdfName" style="font-size:11px;color:var(--primary);display:none"></span><a href="javascript:;" onclick="WPA_dlClearFilePreview()" style="font-size:10px;color:var(--red);margin-left:6px">Remove</a></div>
+          <div style="flex:1"></div>
+          <button onclick="WPA_dlSaveUpdate()" class="btn-action" style="padding:8px 20px;font-size:12px">+ Add Slide</button>
+        </div>
       </div>
       <div id="dlUpdatesList"></div>
     </div>
