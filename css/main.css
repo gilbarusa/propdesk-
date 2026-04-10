@@ -1452,11 +1452,7 @@ textarea{resize:vertical;min-height:72px;}
 .stats-toggle-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent);}
 .collapsible-summary.open .stats-toggle-btn{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);}
 
-/* MTM collection stats collapsible */
-.collapsible-mtm{max-height:32px;overflow:hidden;transition:max-height .35s ease;position:relative;cursor:pointer;}
-.collapsible-mtm::after{content:'▾';position:absolute;right:14px;top:8px;font-size:12px;color:var(--text3);transition:opacity .2s;}
-.collapsible-mtm:hover{max-height:800px;overflow:visible;}
-.collapsible-mtm:hover::after{opacity:0;}
+/* MTM collection stats — now uses collapsible-summary click toggle */
 
 /* Messaging modal */
 .msg-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;display:flex;align-items:center;justify-content:center;}
