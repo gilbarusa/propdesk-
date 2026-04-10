@@ -1440,14 +1440,16 @@ textarea{resize:vertical;min-height:72px;}
 .dl-status-collected{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:#d4edda;color:#155724;}
 .kpi-card.kv-red{border-left:4px solid var(--red);}
 
-/* ── Collapsible summary sections — collapsed by default, expand on hover ── */
-.collapsible-summary{position:relative;margin-bottom:16px;}
-.collapsible-summary .summary-content{display:none;border-radius:14px;padding:20px 16px;background:var(--surface);border:1px solid var(--border);}
-.collapsible-summary.open .summary-content{display:block;}
+/* ── Collapsible summary sections — collapsed by default, toggle on click ── */
+.collapsible-summary{position:relative;margin-bottom:16px;overflow:visible;}
+.collapsible-summary:hover .summary-content{display:none;}
+.collapsible-summary .summary-content{display:none;border-radius:14px;padding:20px 16px;background:var(--surface);border:1px solid var(--border);margin-top:10px;}
+.collapsible-summary.open .summary-content{display:block !important;}
+.collapsible-summary.open:hover .summary-content{display:block !important;}
 .collapsible-summary .dash-kpi-hero{margin-bottom:0;}
 .collapsible-summary .summary-title{display:none;}
-.stats-toggle-btn{padding:6px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:.5px;transition:all .15s;}
-.stats-toggle-btn:hover{background:var(--surface2);border-color:var(--accent);}
+.stats-toggle-btn{background:var(--surface);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s;}
+.stats-toggle-btn:hover{background:var(--surface2);border-color:var(--accent);color:var(--accent);}
 .collapsible-summary.open .stats-toggle-btn{background:var(--accent-bg);border-color:var(--accent);color:var(--accent);}
 
 /* MTM collection stats collapsible */
