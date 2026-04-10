@@ -10390,7 +10390,7 @@ function updateDashWorkOrders() {
 // ══════════════════════════════════════════════════════
 //  DELIVERY / MAILROOM ADMIN MODULE
 // ══════════════════════════════════════════════════════
-var DL_API = 'https://delivery.willowpa.com/api.php';
+var DL_API = 'https://app.willowpa.com/portal/delivery/api.php';
 var DL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
 var _dlPackages = [];
 var _dlTenants = [];
@@ -10478,7 +10478,7 @@ function WPA_dlRenderPackages(list) {
     return;
   }
   tbody.innerHTML = list.map(function(p) {
-    var statusClass = p.status === 'Pending' ? 'dl-status-pending' : 'dl-status-collected';
+    var statusClass = p.status === 'pending' ? 'dl-status-pending' : 'dl-status-collected';
     return '<tr>' +
       '<td><input type="checkbox" class="dl-pkg-check" value="' + p.unit + '"></td>' +
       '<td><strong>' + p.unit + '</strong></td>' +
@@ -10486,9 +10486,9 @@ function WPA_dlRenderPackages(list) {
       '<td>' + (p.courier || '—') + '</td>' +
       '<td>' + (p.has_phone ? '<span style="color:var(--green)">Y</span>' : '<span style="color:var(--text-dim)">N</span>') + '</td>' +
       '<td><span class="' + statusClass + '">' + p.status + '</span></td>' +
-      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(p.created) + '</td>' +
-      '<td style="font-size:11px;color:var(--text-dim)">' + (p.collected ? DL_fmtTime(p.collected) : '—') + '</td>' +
-      '<td>' + (p.status === 'Pending' ? '<a href="javascript:;" onclick="WPA_dlConfirmPickup(\'' + p.unit + '\')" style="color:var(--green);font-size:11px">✓ Collect</a>' : '') + '</td>' +
+      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(p.created_at) + '</td>' +
+      '<td style="font-size:11px;color:var(--text-dim)">' + (p.collected_at ? DL_fmtTime(p.collected_at) : '—') + '</td>' +
+      '<td>' + (p.status === 'pending' ? '<a href="javascript:;" onclick="WPA_dlConfirmPickup(\'' + p.unit + '\')" style="color:var(--green);font-size:11px">✓ Collect</a>' : '') + '</td>' +
     '</tr>';
   }).join('');
 }
@@ -10552,7 +10552,7 @@ function WPA_dlRenderTenants(list) {
       '<td><strong>' + t.unit + '</strong></td>' +
       '<td><input type="text" class="pk-admin-input dl-tenant-phone" data-unit="' + t.unit + '" value="' + (t.phone || '') + '" style="width:120px"></td>' +
       '<td>' + (t.sms_opt ? '<span style="color:var(--green)">Y</span>' : '<span style="color:var(--red)">N</span>') + '</td>' +
-      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(t.created) + '</td>' +
+      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(t.created_at) + '</td>' +
       '<td>' +
         '<a href="javascript:;" onclick="WPA_dlUpdateTenant(\'' + t.unit + '\')" style="color:var(--accent);font-size:11px">Save</a> ' +
         '<a href="javascript:;" onclick="WPA_dlDeleteTenant(\'' + t.unit + '\')" style="color:var(--red);font-size:11px;margin-left:6px">Del</a>' +
@@ -10631,17 +10631,17 @@ function WPA_dlLoadReports() {
     }
     if (type === 'signup') {
       tbody.innerHTML = data.map(function(r) {
-        return '<tr><td>' + r.unit + '</td><td>' + (r.phone || '') + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.modified) + '</td></tr>';
+        return '<tr><td>' + r.unit + '</td><td>' + (r.phone || '') + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.created_at) + '</td></tr>';
       }).join('');
     } else {
       tbody.innerHTML = data.map(function(r) {
-        return '<tr><td>' + r.unit + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.timestamp) + '</td><td>' + r.log + '</td></tr>';
+        return '<tr><td>' + r.unit + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.created_at) + '</td><td>' + r.log + '</td></tr>';
       }).join('');
     }
   });
 }
 
-// ── Community Updates ──
+// ── Community Updates & Kiosk Images ──
 function WPA_dlLoadUpdates() {
   dlFetch('admin-community-updates').then(function(d) {
     if (!d.ok) return;
@@ -10650,15 +10650,18 @@ function WPA_dlLoadUpdates() {
     if (!el) return;
     if (list.length === 0) { el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:10px">No community updates</div>'; return; }
     el.innerHTML = list.map(function(u) {
+      var imgHtml = u.image_url ? '<div style="margin-top:6px"><img src="' + u.image_url + '" style="max-width:160px;max-height:100px;border-radius:4px;border:1px solid var(--border)"></div>' : '';
+      var bodyHtml = u.body ? '<div style="color:var(--text-dim);margin-top:4px;white-space:pre-line">' + u.body + '</div>' : '';
+      var typeLabel = u.image_url ? '<span style="font-size:10px;background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;margin-left:6px">Image</span>' : '';
       return '<div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:12px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center">' +
-          '<strong>' + u.title + '</strong>' +
+          '<div><strong>' + u.title + '</strong>' + typeLabel + '</div>' +
           '<div>' +
             '<a href="javascript:;" onclick="WPA_dlToggleUpdate(\'' + u.id + '\',' + !u.active + ')" style="font-size:11px;color:' + (u.active ? 'var(--green)' : 'var(--text-dim)') + '">' + (u.active ? 'Active' : 'Inactive') + '</a> ' +
             '<a href="javascript:;" onclick="WPA_dlDeleteUpdate(\'' + u.id + '\')" style="font-size:11px;color:var(--red);margin-left:8px">Delete</a>' +
           '</div>' +
         '</div>' +
-        '<div style="color:var(--text-dim);margin-top:4px;white-space:pre-line">' + u.body + '</div>' +
+        bodyHtml + imgHtml +
       '</div>';
     }).join('');
   });
@@ -10667,11 +10670,47 @@ function WPA_dlLoadUpdates() {
 function WPA_dlSaveUpdate() {
   var title = document.getElementById('dlUpdateTitle').value.trim();
   var body = document.getElementById('dlUpdateBody').value.trim();
+  var fileInput = document.getElementById('dlUpdateImage');
   if (!title) { alert('Enter a title'); return; }
-  dlFetch('admin-community-updates', 'POST', { title: title, body: body }).then(function(d) {
-    if (d.ok) { document.getElementById('dlUpdateTitle').value = ''; document.getElementById('dlUpdateBody').value = ''; WPA_dlLoadUpdates(); }
-  });
+
+  // Check if there's an image to upload
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var imageUrl = e.target.result; // base64 data URL
+      dlFetch('admin-community-updates', 'POST', { title: title, body: body, image_url: imageUrl }).then(function(d) {
+        if (d.ok) {
+          document.getElementById('dlUpdateTitle').value = '';
+          document.getElementById('dlUpdateBody').value = '';
+          fileInput.value = '';
+          var preview = document.getElementById('dlImagePreview');
+          if (preview) preview.style.display = 'none';
+          WPA_dlLoadUpdates();
+        }
+      });
+    };
+    reader.readAsDataURL(fileInput.files[0]);
+  } else {
+    dlFetch('admin-community-updates', 'POST', { title: title, body: body }).then(function(d) {
+      if (d.ok) { document.getElementById('dlUpdateTitle').value = ''; document.getElementById('dlUpdateBody').value = ''; WPA_dlLoadUpdates(); }
+    });
+  }
 }
+
+// Image preview handler
+(function() {
+  document.addEventListener('change', function(e) {
+    if (e.target.id === 'dlUpdateImage' && e.target.files && e.target.files[0]) {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var prev = document.getElementById('dlImagePreview');
+        var img = document.getElementById('dlImagePreviewImg');
+        if (prev && img) { img.src = ev.target.result; prev.style.display = 'block'; }
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  });
+})();
 
 function WPA_dlToggleUpdate(id, active) {
   dlFetch('admin-community-updates', 'POST', { id: id, active: active }).then(function(d) { if (d.ok) WPA_dlLoadUpdates(); });
@@ -10682,43 +10721,10 @@ function WPA_dlDeleteUpdate(id) {
   dlFetch('admin-community-updates', 'DELETE', { id: id }).then(function(d) { if (d.ok) WPA_dlLoadUpdates(); });
 }
 
-// ── Kiosk Images ──
+// ── Kiosk Images (now handled via community updates with image_url) ──
 function WPA_dlLoadImages() {
-  dlFetch('kiosk-images').then(function(d) {
-    if (!d.ok) return;
-    var images = d.images || [];
-    var el = document.getElementById('dlImagesList');
-    if (!el) return;
-    if (images.length === 0) { el.innerHTML = '<div style="color:var(--text-dim);font-size:12px">No images uploaded</div>'; return; }
-    el.innerHTML = images.map(function(img) {
-      var url = DL_API.replace('api.php', 'uploads/' + img.filename);
-      return '<div style="border:1px solid var(--border);border-radius:8px;padding:8px;width:180px">' +
-        (img.ext === 'pdf' ? '<div style="font-size:11px;padding:20px 0;text-align:center">PDF: ' + img.filename + '</div>' : '<img src="' + url + '" style="width:100%;border-radius:4px;margin-bottom:4px">') +
-        '<a href="javascript:;" onclick="WPA_dlDeleteImage(\'' + img.filename + '\')" style="font-size:11px;color:var(--red)">Delete</a>' +
-      '</div>';
-    }).join('');
-  });
-}
-
-function WPA_dlUploadImage() {
-  var input = document.getElementById('dlImageUpload');
-  if (!input.files || !input.files[0]) return;
-  var fd = new FormData();
-  fd.append('file', input.files[0]);
-  fetch(DL_API + '?action=admin-upload-image', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + DL_ADMIN_TOKEN },
-    body: fd
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.error) { alert(d.error); return; }
-    input.value = '';
-    WPA_dlLoadImages();
-  });
-}
-
-function WPA_dlDeleteImage(filename) {
-  if (!confirm('Delete this image?')) return;
-  dlFetch('admin-delete-image', 'POST', { filename: filename }).then(function(d) { if (d.ok) WPA_dlLoadImages(); });
+  // Images are now managed through community updates
+  // This function kept for backward compatibility
 }
 
 // ── Send Reminders ──
