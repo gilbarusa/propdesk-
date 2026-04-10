@@ -2284,6 +2284,23 @@ function FT_sendMessage(opts){
 // Send via preferred channel for a job (auto-detects SMS/WhatsApp/Email)
 function FT_notify(job, msg, extraOpts){
   if(!job) return Promise.resolve({ok:false});
+  var pref = (job.clientPreferredComm||'').toLowerCase();
+
+  // Handle 'both' — send SMS and email
+  if(pref === 'both'){
+    var promises = [];
+    if(job.clientPhone){
+      promises.push(FT_sendMessage({to:job.clientPhone, msg:msg, channel:'sms', jobId:job.id}));
+    }
+    if(job.clientEmail){
+      var emailOpts = {to:job.clientEmail, toEmail:job.clientEmail, msg:msg, channel:'email', jobId:job.id,
+        subject: (extraOpts&&extraOpts.subject) ? extraOpts.subject : 'WillowPA Maintenance Update'};
+      if(extraOpts){ for(var k in extraOpts) emailOpts[k]=extraOpts[k]; }
+      promises.push(FT_sendMessage(emailOpts));
+    }
+    return Promise.all(promises).then(function(results){ return results[0] || {ok:true}; });
+  }
+
   var channel = getContactChannel(job);
   var to = channel==='email' ? (job.clientEmail||'') : (job.clientPhone||'');
   if(!to) return Promise.resolve({ok:false,error:'No contact info for '+channel});
@@ -3191,10 +3208,10 @@ function saveIncomingLink() {
   FT_state.jobs.push(job);
   FT_save();
 
-  // Update Supabase status
+  // Update Supabase status + link back to work order
   if (typeof sb !== 'undefined') {
     sb.from('maintenance_requests')
-      .update({ status: 'assigned', assigned_to: techId ? getTech(techId).name : 'Unassigned', updated_at: new Date().toISOString() })
+      .update({ status: 'assigned', assigned_to: techId ? getTech(techId).name : 'Unassigned', work_order_id: job.woNum, updated_at: new Date().toISOString() })
       .eq('id', reqId)
       .then(function() { loadIncomingRequests(); });
   }
