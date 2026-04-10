@@ -1843,23 +1843,31 @@ function WPA_loadDetailParking(r) {
   var nameEnc = encodeURIComponent((r.name || '').trim());
   var aptEnc = encodeURIComponent((r.apt || '').trim());
 
+  var buildingsP = pkSB('parking_buildings', 'select=id,name&active=eq.true');
   var plansP = pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
   var bookingsP = pkSB('parking_bookings', 'select=*&or=(unit.eq.' + aptEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5');
 
-  Promise.all([plansP, bookingsP]).then(function(results) {
-    var plans = results[0] || [];
-    var bookings = results[1] || [];
+  Promise.all([buildingsP, plansP, bookingsP]).then(function(results) {
+    var buildings = results[0] || [];
+    var plans = results[1] || [];
+    var bookings = results[2] || [];
+    var bldMap = {};
+    buildings.forEach(function(b) { bldMap[b.id] = b.name; });
     var html = '';
 
     // Always show plan selector
     var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
+    var hasSelection = !!currentPlanId;
     html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
     html += '<span style="font-size:11px;color:var(--text2);font-weight:600;">Plan:</span>';
     html += '<select id="dPkPlanAssign" onchange="WPA_assignDetailPlan(this)" data-name="' + _esc(r.name || '') + '" data-unit="' + _esc(r.apt || '') + '" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;">';
-    html += '<option value="">— No plan —</option>';
     plans.forEach(function(p) {
-      var sel = (p.id === currentPlanId) ? ' selected' : '';
-      html += '<option value="' + p.id + '"' + sel + '>' + _esc(p.name) + (p.is_default ? ' ★' : '') + '</option>';
+      var bldName = bldMap[p.building_id] || '';
+      var label = _esc(p.name) + (bldName ? ' (' + _esc(bldName) + ')' : '') + (p.is_default ? ' ★' : '');
+      var sel = '';
+      if (p.id === currentPlanId) { sel = ' selected'; }
+      else if (!hasSelection && p.is_default) { sel = ' selected'; hasSelection = true; }
+      html += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
     });
     html += '</select></div>';
 
@@ -2861,24 +2869,32 @@ function WPA_loadTenantParking(t) {
   var nameEnc = encodeURIComponent((t.name || '').trim());
   var unitEnc = encodeURIComponent((t.unitNum || '').trim());
 
-  // Load plans + bookings in parallel
+  // Load buildings + plans + bookings in parallel
+  var buildingsP = pkSB('parking_buildings', 'select=id,name&active=eq.true');
   var plansP = pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
   var bookingsP = pkSB('parking_bookings', 'select=*&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5');
 
-  Promise.all([plansP, bookingsP]).then(function(results) {
-    var plans = results[0] || [];
-    var bookings = results[1] || [];
+  Promise.all([buildingsP, plansP, bookingsP]).then(function(results) {
+    var buildings = results[0] || [];
+    var plans = results[1] || [];
+    var bookings = results[2] || [];
+    var bldMap = {};
+    buildings.forEach(function(b) { bldMap[b.id] = b.name; });
     var html = '';
 
     // Always show a plan selector
     var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
+    var hasSelection = !!currentPlanId;
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
     html += '<span style="font-size:12px;color:var(--text2);font-weight:600;">Assigned Plan:</span>';
     html += '<select id="tntPkPlanAssign" onchange="WPA_assignTenantPlan(this)" data-tenant-name="' + _esc(t.name || '') + '" data-tenant-unit="' + _esc(t.unitNum || '') + '" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;">';
-    html += '<option value="">— No plan —</option>';
     plans.forEach(function(p) {
-      var sel = (p.id === currentPlanId) ? ' selected' : '';
-      html += '<option value="' + p.id + '"' + sel + '>' + _esc(p.name) + (p.is_default ? ' (default)' : '') + '</option>';
+      var bldName = bldMap[p.building_id] || '';
+      var label = _esc(p.name) + (bldName ? ' (' + _esc(bldName) + ')' : '') + (p.is_default ? ' ★' : '');
+      var sel = '';
+      if (p.id === currentPlanId) { sel = ' selected'; }
+      else if (!hasSelection && p.is_default) { sel = ' selected'; hasSelection = true; }
+      html += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
     });
     html += '</select></div>';
 

@@ -2842,13 +2842,19 @@ async function WPA_populatePipelineParkingPlans() {
   var selects = document.querySelectorAll('.pk-card-plan');
   if (!selects.length) return;
   try {
-    // Load all active rate plans across all buildings
-    var plans = await pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
+    // Load buildings, plans, and active bookings in parallel
+    var [buildings, plans, bookings] = await Promise.all([
+      pkSB('parking_buildings', 'select=id,name&active=eq.true'),
+      pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc'),
+      pkSB('parking_bookings', 'select=id,guest_name,unit,rate_plan_id,rate_plan_name,building_id&status=eq.active')
+    ]);
+    if (!buildings) buildings = [];
     if (!plans) plans = [];
-
-    // Load all active parking bookings to match guests
-    var bookings = await pkSB('parking_bookings', 'select=id,guest_name,unit,rate_plan_id,rate_plan_name,building_id&status=eq.active');
     if (!bookings) bookings = [];
+
+    // Build a building name lookup
+    var bldMap = {};
+    buildings.forEach(function(b) { bldMap[b.id] = b.name; });
 
     selects.forEach(function(sel) {
       var unit = sel.getAttribute('data-unit') || '';
@@ -2859,14 +2865,28 @@ async function WPA_populatePipelineParkingPlans() {
         return (unit && b.unit === unit) || (guest && b.guest_name && b.guest_name.toLowerCase().includes(guest.toLowerCase().split(' ')[0]));
       });
 
-      sel.innerHTML = '<option value="">— No plan —</option>';
+      sel.innerHTML = '';
+      var hasSelected = false;
+
       plans.forEach(function(p) {
         var opt = document.createElement('option');
         opt.value = p.id;
-        opt.textContent = p.name + (p.is_default ? ' ★' : '');
-        if (match && match.rate_plan_id === p.id) opt.selected = true;
+        var bldName = bldMap[p.building_id] || '';
+        opt.textContent = p.name + (bldName ? ' (' + bldName + ')' : '') + (p.is_default ? ' ★' : '');
+        // If guest has a booking with this plan, select it
+        if (match && match.rate_plan_id === p.id) { opt.selected = true; hasSelected = true; }
         sel.appendChild(opt);
       });
+
+      // Auto-select the first default plan if nothing was matched
+      if (!hasSelected) {
+        var defaultPlan = plans.find(function(p) { return p.is_default; });
+        if (defaultPlan) {
+          for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === defaultPlan.id) { sel.selectedIndex = i; break; }
+          }
+        }
+      }
 
       // Store the matched booking id on the select for the change handler
       if (match) sel.setAttribute('data-pk-booking-id', match.id);
