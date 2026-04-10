@@ -1023,6 +1023,12 @@ function renderBookingCard(booking) {
           <div style="display:flex;gap:10px;margin-top:3px;align-items:center;">
             ${contactBits.join('')}
             <a href="#" onclick="event.stopPropagation();openInboxThread('${_escHtml(booking.guest_name).replace(/'/g,"\\'")}')" style="color:var(--accent);text-decoration:none;font-size:11px;font-weight:600;" title="Send message">💬 Message</a>
+            <span onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:3px;">
+              <span style="font-size:11px;">🅿️</span>
+              <select class="pk-card-plan" data-booking-id="${booking.id}" data-unit="${_escHtml(booking.unit_apt || booking.unit_name || '')}" data-guest="${_escHtml(booking.guest_name || '')}" onchange="WPA_pipelinePlanChange(this)" style="font-size:10px;padding:1px 4px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text2);cursor:pointer;font-family:inherit;max-width:120px;">
+                <option value="">Plan…</option>
+              </select>
+            </span>
           </div>
         </div>
 
@@ -2812,6 +2818,9 @@ async function renderPipeline() {
   // Attach event listeners
   attachPipelineEventListeners();
 
+  // Populate parking plan dropdowns on pipeline cards
+  WPA_populatePipelineParkingPlans();
+
   // Log some debug info
   console.log('Pipeline rendered', {
     bookings: pipelineState.bookings.length,
@@ -2820,6 +2829,96 @@ async function renderPipeline() {
     currentTab: pipelineState.currentTab
   });
 }
+
+// ============================================================================
+// PARKING PLAN ON PIPELINE CARDS
+// ============================================================================
+
+/**
+ * After pipeline renders, populate all 🅿️ plan dropdowns on cards.
+ * Loads all rate plans once, then for each card checks if guest has a parking booking.
+ */
+async function WPA_populatePipelineParkingPlans() {
+  var selects = document.querySelectorAll('.pk-card-plan');
+  if (!selects.length) return;
+  try {
+    // Load all active rate plans across all buildings
+    var plans = await pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
+    if (!plans) plans = [];
+
+    // Load all active parking bookings to match guests
+    var bookings = await pkSB('parking_bookings', 'select=id,guest_name,unit,rate_plan_id,rate_plan_name,building_id&status=eq.active');
+    if (!bookings) bookings = [];
+
+    selects.forEach(function(sel) {
+      var unit = sel.getAttribute('data-unit') || '';
+      var guest = sel.getAttribute('data-guest') || '';
+
+      // Find existing parking booking for this guest/unit
+      var match = bookings.find(function(b) {
+        return (unit && b.unit === unit) || (guest && b.guest_name && b.guest_name.toLowerCase().includes(guest.toLowerCase().split(' ')[0]));
+      });
+
+      sel.innerHTML = '<option value="">— No plan —</option>';
+      plans.forEach(function(p) {
+        var opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name + (p.is_default ? ' ★' : '');
+        if (match && match.rate_plan_id === p.id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+
+      // Store the matched booking id on the select for the change handler
+      if (match) sel.setAttribute('data-pk-booking-id', match.id);
+    });
+  } catch(e) { console.warn('Parking plans load failed:', e); }
+}
+
+/**
+ * When user changes plan on a pipeline card
+ */
+window.WPA_pipelinePlanChange = function(sel) {
+  var planId = sel.value;
+  var pkBookingId = sel.getAttribute('data-pk-booking-id');
+  var guest = sel.getAttribute('data-guest') || '';
+  var unit = sel.getAttribute('data-unit') || '';
+
+  if (!planId) return; // selected "No plan"
+
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' ★', '');
+
+  if (pkBookingId) {
+    // Update existing parking booking's plan
+    pkSB('parking_rate_plans', 'select=*&id=eq.' + planId).then(function(plans) {
+      if (!plans || !plans.length) return;
+      var plan = plans[0];
+      return pkSB('parking_bookings', 'select=*&id=eq.' + pkBookingId).then(function(bks) {
+        if (!bks || !bks.length) return;
+        var bk = bks[0];
+        var start = new Date(bk.start_date + 'T00:00:00');
+        var end = new Date(bk.end_date + 'T00:00:00');
+        var days = Math.max(1, Math.round((end - start) / 86400000));
+        var billableDays = Math.max(0, days - (plan.free_days || 0));
+        var amount = billableDays * (plan.per_day || 0);
+        if (plan.minimum_cost && amount < plan.minimum_cost) amount = plan.minimum_cost;
+        var pkgs = plan.packages || [];
+        pkgs.sort(function(a, b) { return b.days - a.days; });
+        for (var i = 0; i < pkgs.length; i++) {
+          if (days >= pkgs[i].days && pkgs[i].price < amount) { amount = pkgs[i].price; break; }
+        }
+        amount = Math.round(amount * 100) / 100;
+        return pkSB('parking_bookings', 'id=eq.' + pkBookingId, 'PATCH', {
+          rate_plan_id: planId, rate_plan_name: planName, amount: amount, plan: planName
+        });
+      });
+    }).then(function() {
+      if (typeof toast === 'function') toast('Parking plan → ' + planName, 'success');
+    }).catch(function(e) { alert('Failed: ' + e.message); });
+  } else {
+    // No existing booking — just show confirmation for now
+    if (typeof toast === 'function') toast('Plan set to ' + planName + ' (no active booking yet)', 'info');
+  }
+};
 
 // ============================================================================
 // INITIALIZATION & EXPORTS

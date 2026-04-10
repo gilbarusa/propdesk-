@@ -1829,60 +1829,71 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
   btns.push(`<button class="btn btn-secondary btn-sm" onclick="goToFTPropertyDetail('${(r.apt||'').replace(/'/g,"\\'")}')" style="width:100%;margin-top:4px;justify-content:center;font-weight:600;background:linear-gradient(135deg,rgba(79,196,207,.12),rgba(124,58,237,.08));border-color:rgba(79,196,207,.3)">🔧 Service History &amp; Appliances</button>`);
-  document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
+  document.getElementById('dActions').innerHTML=btns.join('');WPA_loadDetailParking(r);document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
 
-/* ── Parking section on tenant detail card ── */
+/* ── Parking section on short-term detail card ── */
 function WPA_loadDetailParking(r) {
   var box = document.getElementById('dParking');
   var rows = document.getElementById('dParkingRows');
   if (!box || !rows) return;
-  box.style.display = 'none';
-  rows.innerHTML = '';
+  box.style.display = '';
+  rows.innerHTML = '<div style="color:var(--text3);font-size:11px;">Loading…</div>';
 
-  // Search parking_bookings by unit (apt) or guest name
   var nameEnc = encodeURIComponent((r.name || '').trim());
   var aptEnc = encodeURIComponent((r.apt || '').trim());
-  var q = 'select=*&or=(unit.eq.' + aptEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5';
-  pkSB('parking_bookings', q).then(function(bookings) {
-    if (!bookings || !bookings.length) return;
-    box.style.display = '';
 
-    // For each booking, show a row with plan switcher
+  var plansP = pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
+  var bookingsP = pkSB('parking_bookings', 'select=*&or=(unit.eq.' + aptEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5');
+
+  Promise.all([plansP, bookingsP]).then(function(results) {
+    var plans = results[0] || [];
+    var bookings = results[1] || [];
     var html = '';
-    bookings.forEach(function(bk) {
-      var planLabel = bk.rate_plan_name || bk.plan || 'Default';
-      var dates = (bk.start_date || '?') + ' → ' + (bk.end_date || '?');
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;">';
-      html += '<div style="flex:1;font-size:12px;">';
-      html += '<strong>' + _esc(bk.vehicle || '') + '</strong> <span style="color:var(--muted);font-size:11px;">' + _esc(bk.plate || '') + '</span>';
-      html += '<div style="font-size:10px;color:var(--text3);margin-top:2px;">' + dates + ' · $' + parseFloat(bk.amount || 0).toFixed(2) + '</div>';
-      html += '</div>';
-      html += '<div style="display:flex;align-items:center;gap:4px;">';
-      html += '<select id="dPkPlan_' + bk.id + '" onchange="WPA_switchBookingPlan(\'' + bk.id + '\',\'' + (bk.building_id || '') + '\')" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;" title="Switch rate plan">';
-      html += '<option value="">— ' + _esc(planLabel) + ' —</option>';
-      html += '</select>';
-      html += '</div></div>';
 
-      // Load plan options for this building
-      if (bk.building_id) {
-        pkSB('parking_rate_plans', 'select=id,name,is_default&building_id=eq.' + bk.building_id + '&active=eq.true&order=is_default.desc,name.asc').then(function(plans) {
-          var sel = document.getElementById('dPkPlan_' + bk.id);
-          if (!sel) return;
-          sel.innerHTML = '';
-          plans.forEach(function(p) {
-            var opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name + (p.is_default ? ' (default)' : '');
-            if (bk.rate_plan_id && p.id === bk.rate_plan_id) opt.selected = true;
-            else if (!bk.rate_plan_id && p.is_default) opt.selected = true;
-            sel.appendChild(opt);
-          });
-        });
-      }
+    // Always show plan selector
+    var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+    html += '<span style="font-size:11px;color:var(--text2);font-weight:600;">Plan:</span>';
+    html += '<select id="dPkPlanAssign" onchange="WPA_assignDetailPlan(this)" data-name="' + _esc(r.name || '') + '" data-unit="' + _esc(r.apt || '') + '" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;">';
+    html += '<option value="">— No plan —</option>';
+    plans.forEach(function(p) {
+      var sel = (p.id === currentPlanId) ? ' selected' : '';
+      html += '<option value="' + p.id + '"' + sel + '>' + _esc(p.name) + (p.is_default ? ' ★' : '') + '</option>';
     });
+    html += '</select></div>';
+
+    if (bookings.length) {
+      bookings.forEach(function(bk) {
+        var planLabel = bk.rate_plan_name || bk.plan || 'Default';
+        var dates = (bk.start_date || '?') + ' → ' + (bk.end_date || '?');
+        html += '<div style="font-size:11px;color:var(--text3);padding:4px 0;">';
+        html += _esc(bk.vehicle || '') + ' ' + _esc(bk.plate || '') + ' · ' + dates + ' · $' + parseFloat(bk.amount || 0).toFixed(2) + ' · <em>' + _esc(planLabel) + '</em>';
+        html += '</div>';
+      });
+    }
     rows.innerHTML = html;
-  }).catch(function() { /* silent */ });
+  }).catch(function() { rows.innerHTML = ''; });
+}
+
+/* Assign plan from short-term detail */
+function WPA_assignDetailPlan(sel) {
+  var planId = sel.value;
+  if (!planId) return;
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' ★', '');
+  var name = sel.getAttribute('data-name') || '';
+  var unit = sel.getAttribute('data-unit') || '';
+  var nameEnc = encodeURIComponent(name.trim());
+  var unitEnc = encodeURIComponent(unit.trim());
+  pkSB('parking_bookings', 'select=id&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&limit=1').then(function(bks) {
+    if (bks && bks.length) {
+      return pkSB('parking_bookings', 'id=eq.' + bks[0].id, 'PATCH', {
+        rate_plan_id: planId, rate_plan_name: planName, plan: planName
+      }).then(function() { toast('Parking plan → ' + planName, 'success'); });
+    } else {
+      toast('Plan set to ' + planName + ' (no active booking)', 'info');
+    }
+  }).catch(function(e) { alert('Failed: ' + e.message); });
 }
 
 /* ── Switch plan on a parking booking from detail card ── */
@@ -2844,51 +2855,75 @@ function WPA_loadTenantParking(t) {
   var sec = document.getElementById('tntParkingSection');
   var rows = document.getElementById('tntParkingRows');
   if (!sec || !rows) return;
-  sec.style.display = 'none';
-  rows.innerHTML = '';
+  sec.style.display = '';
+  rows.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">Loading…</div>';
 
   var nameEnc = encodeURIComponent((t.name || '').trim());
   var unitEnc = encodeURIComponent((t.unitNum || '').trim());
-  var q = 'select=*&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5';
-  pkSB('parking_bookings', q).then(function(bookings) {
-    if (!bookings || !bookings.length) {
-      rows.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px 0;">No active parking bookings.</div>';
-      sec.style.display = '';
-      return;
-    }
-    sec.style.display = '';
-    var html = '';
-    bookings.forEach(function(bk) {
-      var planLabel = bk.rate_plan_name || bk.plan || 'Default';
-      var dates = (bk.start_date || '?') + ' → ' + (bk.end_date || 'ongoing');
-      html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;">';
-      html += '<div style="flex:1;font-size:12px;">';
-      html += '<strong>' + _esc(bk.vehicle || 'Vehicle') + '</strong> <span style="color:var(--muted);font-size:11px;">' + _esc(bk.plate || '') + '</span>';
-      html += '<div style="font-size:11px;color:var(--text3);margin-top:3px;">' + dates + ' · <strong>$' + parseFloat(bk.amount || 0).toFixed(2) + '</strong></div>';
-      html += '</div>';
-      html += '<select id="tntPkPlan_' + bk.id + '" onchange="WPA_switchTenantBookingPlan(\'' + bk.id + '\',\'' + (bk.building_id || '') + '\')" style="font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;" title="Switch rate plan">';
-      html += '<option value="">— ' + _esc(planLabel) + ' —</option>';
-      html += '</select>';
-      html += '</div>';
 
-      if (bk.building_id) {
-        pkSB('parking_rate_plans', 'select=id,name,is_default&building_id=eq.' + bk.building_id + '&active=eq.true&order=is_default.desc,name.asc').then(function(plans) {
-          var sel = document.getElementById('tntPkPlan_' + bk.id);
-          if (!sel) return;
-          sel.innerHTML = '';
-          plans.forEach(function(p) {
-            var opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name + (p.is_default ? ' (default)' : '');
-            if (bk.rate_plan_id && p.id === bk.rate_plan_id) opt.selected = true;
-            else if (!bk.rate_plan_id && p.is_default) opt.selected = true;
-            sel.appendChild(opt);
-          });
-        });
-      }
+  // Load plans + bookings in parallel
+  var plansP = pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
+  var bookingsP = pkSB('parking_bookings', 'select=*&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5');
+
+  Promise.all([plansP, bookingsP]).then(function(results) {
+    var plans = results[0] || [];
+    var bookings = results[1] || [];
+    var html = '';
+
+    // Always show a plan selector
+    var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+    html += '<span style="font-size:12px;color:var(--text2);font-weight:600;">Assigned Plan:</span>';
+    html += '<select id="tntPkPlanAssign" onchange="WPA_assignTenantPlan(this)" data-tenant-name="' + _esc(t.name || '') + '" data-tenant-unit="' + _esc(t.unitNum || '') + '" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;">';
+    html += '<option value="">— No plan —</option>';
+    plans.forEach(function(p) {
+      var sel = (p.id === currentPlanId) ? ' selected' : '';
+      html += '<option value="' + p.id + '"' + sel + '>' + _esc(p.name) + (p.is_default ? ' (default)' : '') + '</option>';
     });
+    html += '</select></div>';
+
+    // Show existing bookings if any
+    if (bookings.length) {
+      bookings.forEach(function(bk) {
+        var planLabel = bk.rate_plan_name || bk.plan || 'Default';
+        var dates = (bk.start_date || '?') + ' → ' + (bk.end_date || 'ongoing');
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;">';
+        html += '<div style="flex:1;">';
+        html += '<strong>' + _esc(bk.vehicle || 'Vehicle') + '</strong> <span style="color:var(--muted);font-size:11px;">' + _esc(bk.plate || '') + '</span>';
+        html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + dates + ' · $' + parseFloat(bk.amount || 0).toFixed(2) + ' · <em>' + _esc(planLabel) + '</em></div>';
+        html += '</div></div>';
+      });
+    } else {
+      html += '<div style="color:var(--text3);font-size:11px;">No active parking bookings.</div>';
+    }
     rows.innerHTML = html;
-  }).catch(function() { sec.style.display = 'none'; });
+  }).catch(function() {
+    rows.innerHTML = '<div style="color:var(--text3);font-size:12px;">Could not load parking data.</div>';
+  });
+}
+
+/* Assign a plan from the tenant detail dropdown (no booking required) */
+function WPA_assignTenantPlan(sel) {
+  var planId = sel.value;
+  var tenantName = sel.getAttribute('data-tenant-name') || '';
+  var tenantUnit = sel.getAttribute('data-tenant-unit') || '';
+  if (!planId) return;
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' (default)', '');
+
+  // If tenant has an active parking booking, update it
+  var nameEnc = encodeURIComponent(tenantName.trim());
+  var unitEnc = encodeURIComponent(tenantUnit.trim());
+  pkSB('parking_bookings', 'select=id&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&limit=1').then(function(bks) {
+    if (bks && bks.length) {
+      return pkSB('parking_bookings', 'id=eq.' + bks[0].id, 'PATCH', {
+        rate_plan_id: planId, rate_plan_name: planName, plan: planName
+      }).then(function() {
+        toast('Parking plan → ' + planName, 'success');
+      });
+    } else {
+      toast('Plan set to ' + planName + ' (no active booking yet)', 'info');
+    }
+  }).catch(function(e) { alert('Failed: ' + e.message); });
 }
 
 function WPA_switchTenantBookingPlan(bookingId, buildingId) {
