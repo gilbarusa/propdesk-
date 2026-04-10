@@ -1940,145 +1940,175 @@ function WPA_notifyMaintenanceComplete(tenant, issueDesc){
   WPA_notify(tenant, msg, {subject:'Maintenance Complete — WillowPA'});
 }
 // ═══════════════════════════════════════════════════════════════
-// MAIN SETTINGS — Section Toggle, API Keys, Messaging Config
+// MAIN SETTINGS — Section Toggle, Centralized Credentials
 // ═══════════════════════════════════════════════════════════════
 
+var WPA_credCache = {};   // in-memory cache of credentials keyed by id
+
 function showSettingsSection(secId) {
-  // Hide all settings sections
-  document.querySelectorAll('.settings-sec').forEach(s => s.style.display = 'none');
-  // Show target
-  const target = document.getElementById('settings-sec-' + secId);
+  document.querySelectorAll('.settings-sec').forEach(function(s) { s.style.display = 'none'; });
+  var target = document.getElementById('settings-sec-' + secId);
   if (target) target.style.display = '';
-  // Populate fields when opening
-  if (secId === 'api-keys') WPA_renderApiKeyStatus();
-  if (secId === 'messaging') WPA_renderMsgStatus();
+  if (secId === 'credentials') WPA_loadCredentials();
 }
 
-// API Keys — These write to FT_state (shared server-side state)
-function WPA_saveApiKey() {
-  const k = (document.getElementById('main-api-key') || {}).value || '';
-  if (typeof setApiKey === 'function') setApiKey(k);
-  WPA_renderApiKeyStatus();
-  toast(k ? 'API key saved' : 'API key cleared', k ? 'success' : '');
-}
-function WPA_saveStripeKey() {
-  const k = (document.getElementById('main-stripe-key') || {}).value || '';
-  if (typeof setStripeKey === 'function') setStripeKey(k);
-  WPA_renderApiKeyStatus();
-  toast(k ? 'Stripe key saved' : 'Stripe key cleared', k ? 'success' : '');
-}
-function WPA_renderApiKeyStatus() {
-  // Anthropic
-  const key = typeof getApiKey === 'function' ? getApiKey() : '';
-  const inp = document.getElementById('main-api-key');
-  const st = document.getElementById('main-api-status');
-  if (inp) inp.value = key;
-  if (st) {
-    if (key) { st.textContent = 'Configured (' + key.length + ' chars)'; st.style.color = 'var(--success)'; }
-    else { st.textContent = 'Not configured — AI features disabled'; st.style.color = 'var(--accent3)'; }
-  }
-  // Also update old FT settings page if it exists
-  if (typeof renderSettingsPage === 'function') renderSettingsPage();
-  // Stripe
-  const sk = typeof getStripeKey === 'function' ? getStripeKey() : '';
-  const sInp = document.getElementById('main-stripe-key');
-  const sSt = document.getElementById('main-stripe-status');
-  if (sInp) sInp.value = sk;
-  if (sSt) {
-    if (sk) { sSt.textContent = 'Configured (' + (sk.startsWith('sk_test') ? 'TEST' : 'LIVE') + ')'; sSt.style.color = sk.startsWith('sk_test') ? 'var(--accent)' : 'var(--success)'; }
-    else { sSt.textContent = 'Not configured — manual payment links only'; sSt.style.color = 'var(--accent3)'; }
-  }
+/* ── Load all credentials from Supabase ── */
+function WPA_loadCredentials() {
+  var box = document.getElementById('credCardsBox');
+  if (!box) return;
+  box.innerHTML = '<p style="color:var(--muted);font-size:13px;">Loading credentials…</p>';
+  pkSB('app_credentials', 'select=*&order=service.asc,label.asc').then(function(rows) {
+    WPA_credCache = {};
+    rows.forEach(function(r) { WPA_credCache[r.id] = r; });
+    WPA_renderCredCards(rows);
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed to load: ' + _esc(e.message) + '</p>';
+  });
 }
 
-// Messaging settings — stored in FT_state._msgConfig
+/* ── Render credential cards ── */
+function WPA_renderCredCards(rows) {
+  var box = document.getElementById('credCardsBox');
+  if (!box) return;
+
+  var icons = { stripe:'💳', sms:'📱', whatsapp:'💬', gmail:'📧', ai:'🤖', supabase:'🗄️' };
+  var html = '';
+  rows.forEach(function(r) {
+    var creds = r.credentials || {};
+    var keys = Object.keys(creds);
+    var filled = keys.filter(function(k) { return creds[k] && creds[k].length > 0; }).length;
+    var total = keys.length;
+    var statusColor = filled === total && total > 0 ? 'var(--success)' : filled > 0 ? 'var(--accent)' : 'var(--accent3)';
+    var statusText = filled === total && total > 0 ? 'Configured' : filled > 0 ? 'Partial (' + filled + '/' + total + ')' : 'Not configured';
+
+    html += '<div class="sc" style="cursor:pointer;position:relative;" onclick="WPA_editCredential(\'' + r.id + '\')">';
+    html += '<div style="display:flex;align-items:center;gap:10px;">';
+    html += '<span style="font-size:24px;">' + (icons[r.service] || '🔑') + '</span>';
+    html += '<div><h3 style="margin:0;">' + _esc(r.label) + '</h3>';
+    html += '<span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">' + _esc(r.service) + '</span></div>';
+    html += '<span style="margin-left:auto;font-size:12px;font-weight:600;color:' + statusColor + ';">' + statusText + '</span>';
+    html += '</div></div>';
+  });
+
+  html += '<div style="margin-top:16px;"><button class="btn btn-secondary" onclick="WPA_addCredential()">+ Add New Credential</button></div>';
+  box.innerHTML = html;
+}
+
+/* ── Edit a credential ── */
+function WPA_editCredential(credId) {
+  var r = WPA_credCache[credId];
+  if (!r) return;
+
+  var creds = r.credentials || {};
+  var keys = Object.keys(creds);
+
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+  html += '<h3 style="margin:0;">' + _esc(r.label) + '</h3>';
+  html += '<button class="btn btn-sm" style="background:#fdf1f0;color:#b83228;border:1px solid #eebfba;" onclick="WPA_deleteCredential(\'' + credId + '\')">Delete</button>';
+  html += '</div>';
+  html += '<div class="form-group" style="max-width:460px"><label>Label</label><input type="text" id="credEditLabel" value="' + _esc(r.label) + '"></div>';
+  html += '<div class="form-group" style="max-width:460px"><label>Service</label><input type="text" id="credEditService" value="' + _esc(r.service) + '" readonly style="background:var(--surface2);"></div>';
+  html += '<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">';
+  html += '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Credential Fields</p>';
+
+  keys.forEach(function(k) {
+    var val = creds[k] || '';
+    var isSecret = k.toLowerCase().indexOf('secret') >= 0 || k.toLowerCase().indexOf('key') >= 0 || k.toLowerCase().indexOf('password') >= 0 || k.toLowerCase().indexOf('token') >= 0;
+    html += '<div class="form-group" style="max-width:460px">';
+    html += '<label>' + _esc(k.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); })) + '</label>';
+    html += '<div style="display:flex;gap:6px;">';
+    html += '<input type="' + (isSecret ? 'password' : 'text') + '" id="credF_' + _esc(k) + '" value="' + _esc(val) + '" style="flex:1;" autocomplete="off">';
+    if (isSecret) html += '<button type="button" class="btn btn-sm btn-secondary" onclick="var e=document.getElementById(\'credF_' + _esc(k) + '\');e.type=e.type===\'password\'?\'text\':\'password\';" style="white-space:nowrap;">👁</button>';
+    html += '</div></div>';
+  });
+
+  html += '<div style="margin-top:8px;">';
+  html += '<div class="form-group" style="max-width:460px"><label>Add New Field</label><div style="display:flex;gap:6px;"><input type="text" id="credNewFieldName" placeholder="field_name" style="flex:1;"><button class="btn btn-sm btn-secondary" onclick="WPA_addCredField()">Add</button></div></div>';
+  html += '</div>';
+
+  html += '<div style="margin-top:16px;display:flex;gap:8px;">';
+  html += '<button class="btn btn-primary" onclick="WPA_saveCredential(\'' + credId + '\')">Save Changes</button>';
+  html += '<button class="btn btn-secondary" onclick="WPA_loadCredentials()">Cancel</button>';
+  html += '</div>';
+
+  document.getElementById('credCardsBox').innerHTML = html;
+}
+
+/* ── Add new field to current credential ── */
+function WPA_addCredField() {
+  var nameEl = document.getElementById('credNewFieldName');
+  if (!nameEl) return;
+  var name = nameEl.value.trim().replace(/\s+/g, '_').toLowerCase();
+  if (!name) { toast('Enter a field name', ''); return; }
+  // Insert new field before the "Add New Field" section
+  var container = nameEl.closest('.form-group').parentElement;
+  var div = document.createElement('div');
+  div.className = 'form-group';
+  div.style.maxWidth = '460px';
+  div.innerHTML = '<label>' + _esc(name.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); })) + '</label><input type="text" id="credF_' + _esc(name) + '" value="" autocomplete="off">';
+  container.parentElement.insertBefore(div, container);
+  nameEl.value = '';
+  toast('Field added', 'success');
+}
+
+/* ── Save credential back to Supabase ── */
+function WPA_saveCredential(credId) {
+  var r = WPA_credCache[credId];
+  if (!r) return;
+  var label = (document.getElementById('credEditLabel') || {}).value || r.label;
+  // Collect all credF_ inputs
+  var creds = {};
+  document.querySelectorAll('[id^="credF_"]').forEach(function(inp) {
+    var key = inp.id.replace('credF_', '');
+    creds[key] = inp.value;
+  });
+  pkSB('app_credentials', 'id=eq.' + credId, 'PATCH', { label: label, credentials: creds, updated_at: new Date().toISOString() }).then(function() {
+    toast('Credentials saved', 'success');
+    WPA_loadCredentials();
+  }).catch(function(e) { alert('Save failed: ' + e.message); });
+}
+
+/* ── Delete credential ── */
+function WPA_deleteCredential(credId) {
+  if (!confirm('Delete this credential entry? This cannot be undone.')) return;
+  pkSB('app_credentials', 'id=eq.' + credId, 'DELETE').then(function() {
+    toast('Deleted', 'success');
+    WPA_loadCredentials();
+  }).catch(function(e) { alert('Delete failed: ' + e.message); });
+}
+
+/* ── Add new credential ── */
+function WPA_addCredential() {
+  var label = prompt('Label (e.g. "Stripe - Company C"):');
+  if (!label) return;
+  var service = prompt('Service type (stripe, sms, whatsapp, gmail, ai, supabase, other):');
+  if (!service) return;
+  var id = 'cred_' + service.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now().toString(36);
+  pkSB('app_credentials', '', 'POST', {
+    id: id,
+    service: service.toLowerCase(),
+    label: label,
+    credentials: {},
+    active: true
+  }).then(function() {
+    toast('Credential added', 'success');
+    WPA_loadCredentials();
+  }).catch(function(e) { alert('Failed: ' + e.message); });
+}
+
+/* ── Helper: get a credential's fields by ID (used by other modules) ── */
+function WPA_getCredential(credId) {
+  var r = WPA_credCache[credId];
+  return r ? r.credentials || {} : {};
+}
+
+/* ── Legacy compatibility — still used by FT_state ── */
 function WPA_getMsgConfig() {
   if (typeof FT_state !== 'undefined' && FT_state) return FT_state._msgConfig || {};
   return {};
 }
-function WPA_setMsgConfig(cfg) {
-  if (typeof FT_state !== 'undefined' && FT_state) {
-    FT_state._msgConfig = Object.assign(FT_state._msgConfig || {}, cfg);
-    if (typeof FT_save === 'function') FT_save();
-  }
-}
-function WPA_saveMsgSettings(channel) {
-  if (channel === 'sms') {
-    WPA_setMsgConfig({
-      flowrouteAccess: (document.getElementById('main-flowroute-access') || {}).value || '',
-      flowrouteSecret: (document.getElementById('main-flowroute-secret') || {}).value || '',
-      flowrouteFrom: (document.getElementById('main-flowroute-from') || {}).value || '',
-      flowrouteAdmin: (document.getElementById('main-flowroute-admin') || {}).value || ''
-    });
-    toast('SMS settings saved', 'success');
-  } else if (channel === 'whatsapp') {
-    WPA_setMsgConfig({
-      waPhoneId: (document.getElementById('main-wa-phone-id') || {}).value || '',
-      waToken: (document.getElementById('main-wa-token') || {}).value || ''
-    });
-    toast('WhatsApp settings saved', 'success');
-  } else if (channel === 'email') {
-    WPA_setMsgConfig({
-      smtpHost: (document.getElementById('main-smtp-host') || {}).value || '',
-      smtpPort: (document.getElementById('main-smtp-port') || {}).value || '',
-      smtpUser: (document.getElementById('main-smtp-user') || {}).value || '',
-      smtpPass: (document.getElementById('main-smtp-pass') || {}).value || '',
-      smtpFrom: (document.getElementById('main-smtp-from') || {}).value || '',
-      smtpName: (document.getElementById('main-smtp-name') || {}).value || ''
-    });
-    toast('Email settings saved', 'success');
-  }
-  WPA_renderMsgStatus();
-}
-function WPA_renderMsgStatus() {
-  const cfg = WPA_getMsgConfig();
-  // SMS
-  const smsEl = document.getElementById('main-sms-status');
-  if (smsEl) {
-    if (cfg.flowrouteAccess && cfg.flowrouteFrom) { smsEl.textContent = 'Configured — FROM: ' + cfg.flowrouteFrom; smsEl.style.color = 'var(--success)'; }
-    else { smsEl.textContent = 'Not configured — using server config.php defaults'; smsEl.style.color = 'var(--accent)'; }
-  }
-  // Fill fields
-  if (cfg.flowrouteAccess) { const el = document.getElementById('main-flowroute-access'); if (el) el.value = cfg.flowrouteAccess; }
-  if (cfg.flowrouteSecret) { const el = document.getElementById('main-flowroute-secret'); if (el) el.value = cfg.flowrouteSecret; }
-  if (cfg.flowrouteFrom)   { const el = document.getElementById('main-flowroute-from'); if (el) el.value = cfg.flowrouteFrom; }
-  if (cfg.flowrouteAdmin)  { const el = document.getElementById('main-flowroute-admin'); if (el) el.value = cfg.flowrouteAdmin; }
-  // WhatsApp
-  const waEl = document.getElementById('main-wa-status');
-  if (waEl) {
-    if (cfg.waPhoneId && cfg.waToken) { waEl.textContent = 'Configured — Phone ID: ' + cfg.waPhoneId; waEl.style.color = 'var(--success)'; }
-    else { waEl.textContent = 'Not configured — using server config.php defaults'; waEl.style.color = 'var(--accent)'; }
-  }
-  if (cfg.waPhoneId) { const el = document.getElementById('main-wa-phone-id'); if (el) el.value = cfg.waPhoneId; }
-  if (cfg.waToken)   { const el = document.getElementById('main-wa-token'); if (el) el.value = cfg.waToken; }
-  // Email
-  const emEl = document.getElementById('main-email-status');
-  if (emEl) {
-    if (cfg.smtpHost && cfg.smtpFrom) { emEl.textContent = 'Configured — FROM: ' + cfg.smtpFrom; emEl.style.color = 'var(--success)'; }
-    else { emEl.textContent = 'Not configured — using server config.php defaults'; emEl.style.color = 'var(--accent)'; }
-  }
-  if (cfg.smtpHost) { const el = document.getElementById('main-smtp-host'); if (el) el.value = cfg.smtpHost; }
-  if (cfg.smtpPort) { const el = document.getElementById('main-smtp-port'); if (el) el.value = cfg.smtpPort; }
-  if (cfg.smtpUser) { const el = document.getElementById('main-smtp-user'); if (el) el.value = cfg.smtpUser; }
-  if (cfg.smtpPass) { const el = document.getElementById('main-smtp-pass'); if (el) el.value = cfg.smtpPass; }
-  if (cfg.smtpFrom) { const el = document.getElementById('main-smtp-from'); if (el) el.value = cfg.smtpFrom; }
-  if (cfg.smtpName) { const el = document.getElementById('main-smtp-name'); if (el) el.value = cfg.smtpName; }
-}
-function WPA_testSend(channel) {
-  const cfg = WPA_getMsgConfig();
-  if (channel === 'sms') {
-    const to = cfg.flowrouteAdmin || prompt('Enter phone number to test (+1XXXXXXXXXX):');
-    if (!to) return;
-    WPA_sms(to, 'PropDesk test SMS — if you received this, SMS is working!');
-  } else if (channel === 'whatsapp') {
-    const to = prompt('Enter WhatsApp number to test (+1XXXXXXXXXX):');
-    if (!to) return;
-    WPA_whatsapp(to, 'PropDesk test WhatsApp — if you received this, WhatsApp is working!');
-  } else if (channel === 'email') {
-    const to = prompt('Enter email address to test:');
-    if (!to) return;
-    WPA_email(to, 'PropDesk Test Email', 'This is a test email from PropDesk. If you received this, email is configured correctly.');
-  }
-}
+function WPA_renderApiKeyStatus() { /* legacy stub */ }
+function WPA_renderMsgStatus() { /* legacy stub */ }
 
 // Update automation badge with pending reminders count
 function updateAutomationBadge(){const pending=data.filter(r=>!r.archived&&r.due&&new Date(r.due)<=new Date()).length;const badge=document.getElementById('automationBadge');if(!badge)return;if(pending>0){badge.textContent=pending;badge.classList.remove('hidden');}else{badge.classList.add('hidden');}}
@@ -2118,7 +2148,7 @@ const MODULE_SUB_TABS = {
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
   'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
-  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'API Keys', page:'settings', settingsSec:'api-keys'}, {label:'Messaging', page:'settings', settingsSec:'messaging'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
+  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
 
 let currentModule = 'dashboard';
@@ -7140,17 +7170,137 @@ function WPA_pkFilterBookings() {
       '<td>' + _esc(b.guest_name || '—') + '</td>' +
       '<td>' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + '</td>' +
       '<td><strong>' + _esc(b.license_plate||'') + '</strong></td>' +
-      '<td>' + _esc(b.plan||'') + '</td>' +
+      '<td>' + _esc(b.plan||'') + (b.rate_plan_name ? '<br><span style="font-size:10px;color:var(--text3)">' + _esc(b.rate_plan_name) + '</span>' : '') + '</td>' +
       '<td style="font-size:11px">' + (b.start_date||'') + '<br>to ' + (b.end_date||'') + '</td>' +
       '<td>$' + parseFloat(b.amount||0).toFixed(2) + '</td>' +
-      '<td><span style="color:var(--accent);font-size:11px">' + b.id + '</span></td>' +
+      '<td style="white-space:nowrap">' +
+        '<button onclick="WPA_pkEditBooking(\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px;margin-right:4px">Edit</button>' +
+        '<button onclick="WPA_pkShowReceipt(\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px">Receipt</button>' +
+      '</td>' +
       '</tr>';
   }).join('');
 }
 
+// ── Booking Edit ──
+var _pkEditRatePlans = []; // rate plans for the building being edited
+
+function WPA_pkEditBooking(bookingId) {
+  var b = _pkBookings.find(function(x) { return x.id === bookingId; });
+  if (!b) return;
+  document.getElementById('pkBookingEditForm').style.display = 'block';
+  document.getElementById('pkBkEditId').value = b.id;
+  document.getElementById('pkBkEditBuildingId').value = b.building_id || '';
+  document.getElementById('pkBkEditBuilding').value = b.building_name || '';
+  document.getElementById('pkBkEditUnit').value = b.unit || '';
+  document.getElementById('pkBkEditName').value = b.guest_name || '';
+  document.getElementById('pkBkEditStart').value = b.start_date || '';
+  document.getElementById('pkBkEditEnd').value = b.end_date || '';
+  document.getElementById('pkBkEditCarBrand').value = b.car_brand || '';
+  document.getElementById('pkBkEditCarColor').value = b.car_color || '';
+  document.getElementById('pkBkEditPlate').value = b.license_plate || '';
+  document.getElementById('pkBkEditAmount').value = b.amount || 0;
+  document.getElementById('pkBkEditTitle').textContent = 'Edit Booking — ' + (b.license_plate || b.id);
+  document.getElementById('pkBkEditPriceNote').textContent = '';
+
+  // Load rate plans for this building
+  var sel = document.getElementById('pkBkEditRatePlan');
+  sel.innerHTML = '<option value="">Loading...</option>';
+  pkSB('parking_rate_plans', 'select=*&building_id=eq.' + (b.building_id||'') + '&active=eq.true&order=is_default.desc,name.asc').then(function(plans) {
+    _pkEditRatePlans = Array.isArray(plans) ? plans : [];
+    sel.innerHTML = '<option value="">— Keep current —</option>';
+    _pkEditRatePlans.forEach(function(rp) {
+      var label = rp.name + ' ($' + parseFloat(rp.per_day||0).toFixed(2) + '/day';
+      if (rp.free_days > 0) label += ', ' + rp.free_days + ' free';
+      label += ')';
+      if (rp.is_default) label += ' ★';
+      var opt = document.createElement('option');
+      opt.value = rp.id;
+      opt.textContent = label;
+      // Select if booking already has this rate plan
+      if (b.rate_plan_id && b.rate_plan_id === rp.id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+
+  // Scroll to the form
+  document.getElementById('pkBookingEditForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function WPA_pkBkPlanChanged() {
+  var rpId = document.getElementById('pkBkEditRatePlan').value;
+  if (!rpId) { document.getElementById('pkBkEditPriceNote').textContent = ''; return; }
+  WPA_pkBkRecalc();
+}
+
+function WPA_pkBkRecalc() {
+  var rpId = document.getElementById('pkBkEditRatePlan').value;
+  if (!rpId) return;
+  var rp = _pkEditRatePlans.find(function(x) { return x.id === rpId; });
+  if (!rp) return;
+  var start = document.getElementById('pkBkEditStart').value;
+  var end = document.getElementById('pkBkEditEnd').value;
+  if (!start || !end) return;
+
+  var days = Math.round((new Date(end) - new Date(start)) / 86400000);
+  if (days <= 0) return;
+
+  var billableDays = Math.max(0, days - (rp.free_days || 0));
+  var cost = billableDays * parseFloat(rp.per_day || 0);
+  if (rp.minimum_cost && cost > 0) cost = Math.max(cost, parseFloat(rp.minimum_cost));
+
+  // Check if a bulk package is a better fit
+  var pkgs = rp.packages || [];
+  var bestPkg = null;
+  pkgs.forEach(function(pk) {
+    if (pk.days <= days && (!bestPkg || pk.days > bestPkg.days)) bestPkg = pk;
+  });
+
+  var note = rp.name + ': ' + days + ' days';
+  if (rp.free_days > 0) note += ' (' + rp.free_days + ' free, ' + billableDays + ' billable)';
+  note += ' = $' + cost.toFixed(2);
+  if (bestPkg) note += ' | Package option: ' + bestPkg.name + ' = $' + parseFloat(bestPkg.price).toFixed(2);
+
+  document.getElementById('pkBkEditPriceNote').textContent = note;
+  document.getElementById('pkBkEditAmount').value = cost.toFixed(2);
+}
+
+function WPA_pkSaveBookingEdit() {
+  var id = document.getElementById('pkBkEditId').value;
+  if (!id) return;
+  var rpId = document.getElementById('pkBkEditRatePlan').value;
+  var rp = rpId ? _pkEditRatePlans.find(function(x) { return x.id === rpId; }) : null;
+
+  var body = {
+    unit: document.getElementById('pkBkEditUnit').value.trim(),
+    guest_name: document.getElementById('pkBkEditName').value.trim(),
+    start_date: document.getElementById('pkBkEditStart').value,
+    end_date: document.getElementById('pkBkEditEnd').value,
+    car_brand: document.getElementById('pkBkEditCarBrand').value.trim(),
+    car_color: document.getElementById('pkBkEditCarColor').value.trim(),
+    license_plate: document.getElementById('pkBkEditPlate').value.trim(),
+    amount: parseFloat(document.getElementById('pkBkEditAmount').value) || 0
+  };
+  if (rp) {
+    body.rate_plan_id = rp.id;
+    body.rate_plan_name = rp.name;
+  }
+
+  pkSB('parking_bookings', 'id=eq.' + id, 'PATCH', body).then(function() {
+    document.getElementById('pkBookingEditForm').style.display = 'none';
+    toast('Booking updated', 'success');
+    WPA_pkLoadBookings();
+  }).catch(function(e) { alert('Save failed: ' + (e.message || e)); });
+}
+
 // ── Buildings ──
 function WPA_pkLoadBuildings() {
-  pkSB('parking_buildings', 'select=*&order=name.asc').then(function(rows) {
+  // Load credentials cache first (for stripe labels on building cards)
+  var credP = Object.keys(WPA_credCache).length === 0
+    ? pkSB('app_credentials', 'select=*&order=service.asc').then(function(rows) { rows.forEach(function(r) { WPA_credCache[r.id] = r; }); })
+    : Promise.resolve();
+  credP.then(function() {
+    return pkSB('parking_buildings', 'select=*&order=name.asc');
+  }).then(function(rows) {
     if (!Array.isArray(rows)) return;
     _pkBuildings = rows;
     WPA_pkRenderBuildings();
@@ -7176,7 +7326,8 @@ function WPA_pkRenderBuildings() {
   Promise.all(_pkBuildings.map(function(b) { return WPA_pkLoadRatePlans(b.id); })).then(function() {
     el.innerHTML = _pkBuildings.map(function(b) {
       var rps = _pkRatePlans[b.id] || [];
-      var stripeTag = b.stripe_account_name ? '<span style="display:inline-block;background:var(--green-bg,#e8f5e9);border:1px solid var(--green,#4caf50);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--green,#4caf50)">Stripe: ' + _esc(b.stripe_account_name) + '</span>' : '<span style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:#e65100">No Stripe</span>';
+      var stripeCred = b.stripe_cred_id && WPA_credCache[b.stripe_cred_id] ? WPA_credCache[b.stripe_cred_id] : null;
+      var stripeTag = stripeCred ? '<span style="display:inline-block;background:var(--green-bg,#e8f5e9);border:1px solid var(--green,#4caf50);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--green,#4caf50)">💳 ' + _esc(stripeCred.label) + '</span>' : '<span style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:#e65100">No Stripe</span>';
 
       // Rate plans section
       var rpHtml = '';
@@ -7230,10 +7381,9 @@ function WPA_pkShowBuildingForm() {
   document.getElementById('pkBldId').value = '';
   document.getElementById('pkBldName').value = '';
   document.getElementById('pkBldAddr').value = '';
-  document.getElementById('pkBldStripeAcct').value = '';
-  document.getElementById('pkBldStripePK').value = '';
-  document.getElementById('pkBldStripeSK').value = '';
+  document.getElementById('pkBldStripeCredId').value = '';
   document.getElementById('pkBldFormTitle').textContent = 'Add Building';
+  WPA_pkLoadStripeOptions();
 }
 
 function WPA_pkEditBuilding(id) {
@@ -7244,20 +7394,31 @@ function WPA_pkEditBuilding(id) {
   document.getElementById('pkBldId').value = b.id;
   document.getElementById('pkBldName').value = b.name;
   document.getElementById('pkBldAddr').value = b.address || '';
-  document.getElementById('pkBldStripeAcct').value = b.stripe_account_name || '';
-  document.getElementById('pkBldStripePK').value = b.stripe_publishable_key || '';
-  document.getElementById('pkBldStripeSK').value = b.stripe_secret_key || '';
   document.getElementById('pkBldFormTitle').textContent = 'Edit Building';
+  WPA_pkLoadStripeOptions(b.stripe_cred_id || '');
+}
+
+function WPA_pkLoadStripeOptions(selectedId) {
+  var sel = document.getElementById('pkBldStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None (no payments) —</option>';
+  pkSB('app_credentials', 'select=id,label&service=eq.stripe&active=eq.true').then(function(rows) {
+    rows.forEach(function(r) {
+      var opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.label;
+      if (selectedId && r.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
 }
 
 function WPA_pkSaveBuilding() {
   var name = document.getElementById('pkBldName').value.trim();
   if (!name) { alert('Building name is required'); return; }
   var id = document.getElementById('pkBldId').value;
-  var stripeAcct = document.getElementById('pkBldStripeAcct').value.trim();
-  var stripePK = document.getElementById('pkBldStripePK').value.trim();
-  var stripeSK = document.getElementById('pkBldStripeSK').value.trim();
-  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), stripe_account_name: stripeAcct, stripe_publishable_key: stripePK, stripe_secret_key: stripeSK, active: true, updated: new Date().toISOString() };
+  var stripeCredId = document.getElementById('pkBldStripeCredId').value || null;
+  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), stripe_cred_id: stripeCredId, active: true, updated: new Date().toISOString() };
 
   if (id) {
     pkSB('parking_buildings', 'id=eq.' + id, 'PATCH', body).then(function() {
@@ -7485,11 +7646,12 @@ function WPA_pkSearchReceipt() {
       return;
     }
     el.innerHTML = results.map(function(b) {
-      return '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface2)">' +
+      return '<div onclick="WPA_pkShowReceipt(\'' + _esc(b.id) + '\')" style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface2);cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.15)\'" onmouseout="this.style.boxShadow=\'none\'">' +
         '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
           '<div><strong>' + _esc(b.building_name||'') + ' #' + _esc(b.unit||'') + '</strong>' +
             (b.guest_name ? ' — ' + _esc(b.guest_name) : '') +
           '</div>' +
+          '<span style="font-size:10px;color:var(--accent)">Click to view / print</span>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--text2)">' +
           '<span style="margin-right:12px">' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + ' <strong>' + _esc(b.license_plate||'') + '</strong></span>' +
@@ -7500,6 +7662,49 @@ function WPA_pkSearchReceipt() {
       '</div>';
     }).join('');
   });
+}
+
+function WPA_pkShowReceipt(bookingId) {
+  var b = _pkBookings.find(function(x) { return x.id === bookingId; });
+  if (!b) {
+    // Try loading from Supabase if not in cache
+    pkSB('parking_bookings', 'select=*&id=eq.' + bookingId).then(function(rows) {
+      if (Array.isArray(rows) && rows[0]) WPA_pkPrintReceipt(rows[0]);
+      else alert('Booking not found');
+    });
+    return;
+  }
+  WPA_pkPrintReceipt(b);
+}
+
+function WPA_pkPrintReceipt(b) {
+  var qrData = JSON.stringify({ id: b.id, plate: b.license_plate, unit: b.unit, building: b.building_name, start: b.start_date, end: b.end_date });
+  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrData);
+
+  var html = '<div style="max-width:400px;margin:0 auto;text-align:center;font-family:sans-serif;padding:20px">' +
+    '<h2 style="margin:0 0 4px">Parking Permit</h2>' +
+    '<div style="font-size:12px;color:#666;margin-bottom:16px">Willow Property Management</div>' +
+    '<img src="' + qrUrl + '" style="width:200px;height:200px;margin:12px auto;display:block" />' +
+    '<div style="text-align:left;border-top:2px solid #333;padding-top:12px;margin-top:12px">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">' +
+        '<div><strong>Building:</strong><br>' + _esc(b.building_name||'') + '</div>' +
+        '<div><strong>Unit:</strong><br>' + _esc(b.unit||'') + '</div>' +
+        '<div><strong>Name:</strong><br>' + _esc(b.guest_name||'') + '</div>' +
+        '<div><strong>Plate:</strong><br><span style="font-size:18px;font-weight:700">' + _esc(b.license_plate||'') + '</span></div>' +
+        '<div><strong>Vehicle:</strong><br>' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + '</div>' +
+        '<div><strong>Amount:</strong><br>$' + parseFloat(b.amount||0).toFixed(2) + '</div>' +
+        '<div><strong>Start:</strong><br>' + (b.start_date||'') + '</div>' +
+        '<div><strong>End:</strong><br>' + (b.end_date||'') + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="font-size:10px;color:#999;margin-top:12px;border-top:1px solid #ddd;padding-top:8px">ID: ' + b.id + '</div>' +
+  '</div>';
+
+  var win = window.open('', '_blank', 'width=450,height=650');
+  win.document.write('<html><head><title>Parking Receipt — ' + _esc(b.license_plate||'') + '</title></head><body>' + html +
+    '<div style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:10px 30px;font-size:14px;cursor:pointer;background:#333;color:#fff;border:none;border-radius:6px">Print</button></div>' +
+    '</body></html>');
+  win.document.close();
 }
 
 // Load parking stats when module loads
