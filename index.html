@@ -2529,8 +2529,8 @@
       <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
         <input type="text" id="dlSearchPkg" placeholder="Search unit..." oninput="WPA_dlFilterPackages()" style="flex:1;min-width:150px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
         <select id="dlFilterStatus" onchange="WPA_dlFilterPackages()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
-          <option value="Pending" selected>Pending</option>
-          <option value="Collected">Collected</option>
+          <option value="pending" selected>Pending</option>
+          <option value="collected">Collected</option>
           <option value="all">All</option>
         </select>
       </div>
@@ -2598,21 +2598,20 @@
     <div id="dlKioskSection" style="display:none">
       <div class="dash-section-label">Kiosk Settings</div>
 
-      <!-- Community Updates -->
-      <h4 style="margin:0 0 10px;font-size:13px;color:var(--text-dim)">Community Updates</h4>
+      <!-- Community Updates & Kiosk Images -->
+      <h4 style="margin:0 0 10px;font-size:13px;color:var(--text-dim)">Community Updates &amp; Kiosk Images</h4>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:10px">Add text updates or images. These rotate on the kiosk screen every 15 seconds.</p>
       <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
-        <input type="text" id="dlUpdateTitle" placeholder="Title" style="flex:1;min-width:200px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
-        <textarea id="dlUpdateBody" placeholder="Body text..." rows="2" style="flex:2;min-width:200px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
-        <button onclick="WPA_dlSaveUpdate()" class="btn-action" style="padding:8px 16px;font-size:12px">+ Add Update</button>
+        <input type="text" id="dlUpdateTitle" placeholder="Title" style="flex:1;min-width:160px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
+        <textarea id="dlUpdateBody" placeholder="Body text (optional if image)" rows="2" style="flex:2;min-width:160px;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;resize:vertical"></textarea>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:var(--text-dim)">Image (optional)</label>
+          <input type="file" id="dlUpdateImage" accept="image/*" style="font-size:11px;width:180px">
+          <div id="dlImagePreview" style="display:none;margin-top:4px"><img id="dlImagePreviewImg" style="max-width:120px;max-height:80px;border-radius:4px;border:1px solid var(--border)"><a href="javascript:;" onclick="document.getElementById('dlUpdateImage').value='';document.getElementById('dlImagePreview').style.display='none'" style="font-size:10px;color:var(--red);margin-left:6px">Remove</a></div>
+        </div>
+        <button onclick="WPA_dlSaveUpdate()" class="btn-action" style="padding:8px 16px;font-size:12px">+ Add</button>
       </div>
       <div id="dlUpdatesList"></div>
-
-      <!-- Rotating Images -->
-      <h4 style="margin:20px 0 10px;font-size:13px;color:var(--text-dim)">Rotating Images</h4>
-      <div style="margin-bottom:14px">
-        <input type="file" id="dlImageUpload" accept="image/*,.pdf" onchange="WPA_dlUploadImage()" style="font-size:12px">
-      </div>
-      <div id="dlImagesList" style="display:flex;flex-wrap:wrap;gap:12px"></div>
     </div>
   </div>
 </div>
