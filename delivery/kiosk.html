@@ -9,35 +9,54 @@
     *{margin:0;padding:0;box-sizing:border-box}
     :root{--primary:#3d4b7a;--primary-dark:#2c3664;--accent:#4a7fff;--green:#28a745;--red:#dc3545;--orange:#fd7e14;--bg:#f4f5f7;--surface:#fff;--border:#ddd;--text:#333;--text-dim:#888;--radius:10px}
     body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
-    .header{background:#fff;padding:12px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+
+    /* Header */
+    .header{background:#fff;padding:10px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
     .header-logo{font-weight:700;font-size:18px;color:var(--primary)}
     .header-logo small{font-weight:400;font-size:12px;color:var(--text-dim);display:block}
-    .btn-home{padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);font-size:14px;cursor:pointer;font-family:inherit}
+    .btn-home{padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);font-size:13px;cursor:pointer;font-family:inherit}
     .btn-home:hover{background:var(--primary-dark)}
+
+    /* Main layout: community left, panel right */
     .layout{display:flex;flex:1;overflow:hidden}
-    .sidebar{width:340px;display:flex;flex-direction:column;border-right:1px solid var(--border)}
-    .nav{background:var(--primary)}
-    .nav-item{display:block;padding:16px 24px;color:#fff;cursor:pointer;font-size:16px;border-bottom:1px solid rgba(255,255,255,.1);transition:background .15s}
+
+    /* LEFT: Community / digital signage area */
+    .community-display{flex:1;position:relative;overflow:hidden;background:#1a1a2e;display:flex;align-items:center;justify-content:center}
+    .community-display .slide{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 1s ease}
+    .community-display .slide.active{opacity:1}
+    .community-display .slide img{max-width:100%;max-height:100%;object-fit:contain}
+    .community-display .slide iframe,.community-display .slide object{width:100%;height:100%;border:none}
+    .community-display .slide .text-slide{padding:40px;color:#fff;text-align:center;max-width:600px}
+    .community-display .slide .text-slide h2{font-size:32px;margin-bottom:16px;font-weight:700}
+    .community-display .slide .text-slide p{font-size:18px;line-height:1.6;white-space:pre-line}
+    .community-display .slide-dots{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:10}
+    .community-display .slide-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.3);cursor:pointer}
+    .community-display .slide-dot.active{background:#fff}
+    .community-default{color:rgba(255,255,255,.5);text-align:center;font-size:20px}
+    .community-default h2{font-size:28px;margin-bottom:12px;color:rgba(255,255,255,.7)}
+
+    /* RIGHT: Panel with nav + content — 50% of screen */
+    .right-panel{width:50%;display:flex;flex-direction:column;border-left:1px solid var(--border);background:#fff}
+    .building-name{text-align:center;padding:10px;font-family:Georgia,serif;font-style:italic;font-size:14px;color:var(--primary);background:#f8f9fa;border-bottom:1px solid var(--border)}
+
+    /* Nav buttons */
+    .nav{background:var(--primary);display:flex;flex-wrap:wrap}
+    .nav-item{flex:1 1 50%;padding:14px 12px;color:#fff;cursor:pointer;font-size:14px;border-bottom:1px solid rgba(255,255,255,.1);border-right:1px solid rgba(255,255,255,.1);transition:background .15s;text-align:center}
     .nav-item:hover,.nav-item.active{background:rgba(255,255,255,.15)}
     .nav-item.admin-item{background:#222;color:#ccc}
     .nav-item.admin-item:hover{background:#333}
-    .nav-sub{font-size:12px;color:rgba(255,255,255,.6);margin-top:2px}
-    .rotating{flex:1;overflow:hidden;position:relative;background:#f8f9fa}
-    .rotating img,.rotating .update-card{position:absolute;top:0;left:0;width:100%;opacity:0;transition:opacity 1s}
-    .rotating img.active,.rotating .update-card.active{opacity:1;position:relative}
-    .rotating img{height:100%;object-fit:contain}
-    .update-card{padding:30px;font-size:14px}
-    .update-card h3{margin-bottom:8px;font-size:16px}
-    .building-name{text-align:center;padding:12px;font-family:Georgia,serif;font-style:italic;font-size:15px;color:var(--primary);background:#f8f9fa;border-bottom:1px solid var(--border)}
-    .content{flex:1;display:flex;flex-direction:column;overflow:auto;padding:0}
-    .screen{display:none;padding:30px 40px;flex:1}
+    .nav-sub{font-size:10px;color:rgba(255,255,255,.6);margin-top:2px}
+
+    /* Content area */
+    .panel-content{flex:1;overflow:auto;padding:0}
+    .screen{display:none;padding:20px}
     .screen.active{display:block}
-    .screen h2{font-size:22px;margin-bottom:20px;color:var(--primary)}
-    .form-group{margin-bottom:16px}
-    .form-group b{display:block;margin-bottom:6px;font-size:14px}
-    .form-input{width:100%;padding:14px;border:1px solid var(--border);border-radius:var(--radius);font-size:16px;font-family:inherit}
+    .screen h2{font-size:18px;margin-bottom:14px;color:var(--primary)}
+    .form-group{margin-bottom:12px}
+    .form-group b{display:block;margin-bottom:4px;font-size:13px}
+    .form-input{width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius);font-size:15px;font-family:inherit}
     .form-input:focus{outline:none;border-color:var(--accent)}
-    .btn{padding:14px 28px;border:none;border-radius:var(--radius);font-size:16px;font-family:inherit;cursor:pointer;transition:all .15s}
+    .btn{padding:12px 24px;border:none;border-radius:var(--radius);font-size:15px;font-family:inherit;cursor:pointer;transition:all .15s}
     .btn-primary{background:var(--primary);color:#fff}
     .btn-primary:hover{background:var(--primary-dark)}
     .btn-secondary{background:#e9ecef;color:var(--text)}
@@ -45,36 +64,36 @@
     .btn-success{background:var(--green);color:#fff}
     .btn-success:hover{opacity:.9}
     .btn-danger{background:var(--red);color:#fff}
-    .courier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
-    .courier-box{border:2px solid var(--border);border-radius:var(--radius);padding:20px 10px;text-align:center;cursor:pointer;transition:all .15s;font-size:18px;font-weight:600}
+    .courier-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+    .courier-box{border:2px solid var(--border);border-radius:var(--radius);padding:14px 6px;text-align:center;cursor:pointer;transition:all .15s;font-size:14px;font-weight:600}
     .courier-box:hover{border-color:var(--accent)}
     .courier-box.selected{border-color:var(--accent);background:rgba(74,127,255,.08)}
-    .courier-box .courier-label{display:block;font-size:13px;color:var(--text-dim);margin-top:4px;font-weight:400}
-    .mode-toggle{display:flex;gap:10px;margin-bottom:20px}
-    .mode-btn{padding:10px 20px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);cursor:pointer;font-size:14px;font-family:inherit;transition:all .15s}
+    .courier-box .courier-label{display:block;font-size:11px;color:var(--text-dim);margin-top:2px;font-weight:400}
+    .mode-toggle{display:flex;gap:8px;margin-bottom:14px}
+    .mode-btn{padding:8px 14px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);cursor:pointer;font-size:13px;font-family:inherit;transition:all .15s}
     .mode-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
     .bulk-table{width:100%;border-collapse:collapse}
-    .bulk-table th{text-align:left;padding:10px;font-size:13px;border-bottom:2px solid var(--border)}
-    .bulk-table td{padding:6px}
-    .bulk-table input,.bulk-table select{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit}
+    .bulk-table th{text-align:left;padding:8px;font-size:12px;border-bottom:2px solid var(--border)}
+    .bulk-table td{padding:4px}
+    .bulk-table input,.bulk-table select{width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit}
     .pkg-table{width:100%;border-collapse:collapse}
-    .pkg-table th{text-align:left;padding:10px;font-size:13px;font-weight:600;border-bottom:2px solid var(--border)}
-    .pkg-table td{padding:10px;border-bottom:1px solid #f0f0f0;font-size:14px}
-    .consent-box{padding:14px;background:#f8f9fa;border-radius:var(--radius);font-size:12px;line-height:1.5;margin:12px 0}
-    .consent-box label{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
+    .pkg-table th{text-align:left;padding:8px;font-size:12px;font-weight:600;border-bottom:2px solid var(--border)}
+    .pkg-table td{padding:8px;border-bottom:1px solid #f0f0f0;font-size:13px}
+    .consent-box{padding:10px;background:#f8f9fa;border-radius:var(--radius);font-size:11px;line-height:1.5;margin:10px 0}
+    .consent-box label{display:flex;gap:6px;align-items:flex-start;cursor:pointer}
     .consent-box input[type="checkbox"]{margin-top:3px}
-    .footer{text-align:center;padding:12px;font-size:12px;color:var(--text-dim);border-top:1px solid var(--border);background:#fff}
+    .footer{text-align:center;padding:8px;font-size:11px;color:var(--text-dim);border-top:1px solid var(--border);background:#fff}
     .toast{position:fixed;top:20px;right:20px;padding:14px 24px;border-radius:var(--radius);color:#fff;font-size:14px;z-index:9999;transform:translateX(120%);transition:transform .3s}
     .toast.show{transform:translateX(0)}
     .toast.success{background:var(--green)}
     .toast.error{background:var(--red)}
 
     /* Admin section */
-    .admin-screen{display:none;padding:30px 40px}
+    .admin-screen{display:none;padding:20px}
     .admin-screen.active{display:block}
     .admin-menu{list-style:none;padding:0}
-    .admin-menu li{margin-bottom:10px}
-    .admin-menu a{display:block;padding:14px 20px;border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--text);font-size:15px;transition:background .15s}
+    .admin-menu li{margin-bottom:8px}
+    .admin-menu a{display:block;padding:12px 14px;border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--text);font-size:14px;transition:background .15s}
     .admin-menu a:hover{background:var(--bg)}
   </style>
 </head>
@@ -88,142 +107,146 @@
   </div>
 
   <div class="layout">
-    <!-- Sidebar: Nav + Rotating Content -->
-    <div class="sidebar">
-      <div class="nav">
-        <div class="nav-item" onclick="showScreen('signup')">👤 Sign-up</div>
-        <div class="nav-item" onclick="showScreen('notice')">📦 Delivery Notice<div class="nav-sub">(UPS, Fedex, Amazon, USPS ETC)</div></div>
-        <div class="nav-item" onclick="showScreen('confirm')">✓ Confirm Collecting</div>
-        <div class="nav-item admin-item" onclick="showScreen('admin')">🔒 Admin Login</div>
-      </div>
-      <div class="building-name" id="buildingName">Chelbourne Plaza Condominium Association</div>
-      <div class="rotating" id="rotatingArea">
-        <div class="update-card active" id="defaultSlide">
-          <h3>Welcome</h3>
-          <p>Package delivery notification system<br>Contact: 267-865-0001</p>
+    <!-- LEFT: Community images / digital signage -->
+    <div class="community-display" id="communityDisplay">
+      <div class="slide active" id="defaultSlide">
+        <div class="community-default">
+          <h2>Welcome</h2>
+          <p>Package Delivery Notification System</p>
         </div>
       </div>
+      <div class="slide-dots" id="slideDots"></div>
     </div>
 
-    <!-- Main Content -->
-    <div class="content">
-
-      <!-- HOME: Currently Packages Waiting -->
-      <div class="screen active" id="screen-home">
-        <h2>Currently Packages Waiting</h2>
-        <table class="pkg-table">
-          <thead><tr><th>Unit</th><th>#packg</th><th>SMS Opt</th><th>Time</th></tr></thead>
-          <tbody id="homePkgList"></tbody>
-        </table>
+    <!-- RIGHT: Nav + Content Panel -->
+    <div class="right-panel">
+      <div class="building-name" id="buildingName">Chelbourne Plaza Condominium Association</div>
+      <div class="nav">
+        <div class="nav-item" onclick="showScreen('signup')">👤 Sign-up</div>
+        <div class="nav-item" onclick="showScreen('notice')">📦 Delivery<div class="nav-sub">(UPS, FedEx, Amazon)</div></div>
+        <div class="nav-item" onclick="showScreen('confirm')">✓ Confirm</div>
+        <div class="nav-item admin-item" onclick="showScreen('admin')">🔒 Admin</div>
       </div>
 
-      <!-- SIGNUP -->
-      <div class="screen" id="screen-signup">
-        <h2>Signup for SMS Notifications</h2>
-        <div class="form-group"><b>Unit #</b><input type="text" class="form-input" id="signupUnit" maxlength="16" inputmode="numeric"></div>
-        <div class="form-group"><b>SMS Number</b><input type="text" class="form-input" id="signupPhone" maxlength="10" inputmode="numeric"></div>
-        <div class="consent-box">
-          <label>
-            <input type="checkbox" id="signupConsent">
-            Disclaimer: By providing my contact information, I give my express written consent to receive SMS messages and emails for service updates, notifications, and promotional content. Message and data rates may apply. Message frequency may vary. Reply STOP to unsubscribe or HELP for assistance. See our Privacy Policy at <a href="https://delivery.chelbourne.com/sms" target="_blank">delivery.chelbourne.com/sms</a>.
-          </label>
-        </div>
-        <div class="form-group"><button class="btn btn-primary" onclick="doSignup()">Accept</button></div>
-      </div>
+      <div class="panel-content">
 
-      <!-- COURIER NOTICE -->
-      <div class="screen" id="screen-notice">
-        <h2>Courier Notice</h2>
-        <div class="mode-toggle">
-          <button class="mode-btn active" onclick="setNoticeMode('single',this)">Single Notice</button>
-          <button class="mode-btn" onclick="setNoticeMode('bulk',this)">Bulk Notice</button>
-        </div>
-
-        <!-- Single Mode -->
-        <div id="singleMode">
-          <div class="courier-grid">
-            <div class="courier-box" onclick="selectCourier(this,'Amazon')"><div style="font-size:28px">📦</div>Amazon</div>
-            <div class="courier-box" onclick="selectCourier(this,'UPS')"><div style="font-size:28px">📤</div>UPS</div>
-            <div class="courier-box" onclick="selectCourier(this,'FedEx')"><div style="font-size:28px">✈️</div>FedEx</div>
-            <div class="courier-box" onclick="selectCourier(this,'USPS')"><div style="font-size:28px">📬</div>USPS</div>
-            <div class="courier-box" onclick="selectCourier(this,'Food')"><div style="font-size:28px">🍔</div>Food</div>
-            <div class="courier-box" onclick="selectCourier(this,'Other')"><div style="font-size:28px">📋</div>Other</div>
-          </div>
-          <div class="form-group"><b>Unit #</b><input type="text" class="form-input" id="noticeUnit" maxlength="16" inputmode="numeric"></div>
-          <div class="form-group"><b>Number of Packages</b><input type="number" class="form-input" id="noticeCount" value="1" min="1" inputmode="numeric"></div>
-          <div class="form-group"><button class="btn btn-primary" onclick="doSingleNotice()">Confirm</button></div>
-        </div>
-
-        <!-- Bulk Mode -->
-        <div id="bulkMode" style="display:none">
-          <h3 style="margin-bottom:14px">Bulk Courier Notice</h3>
-          <table class="bulk-table">
-            <thead><tr><th>Unit Number</th><th>Packages</th><th>Courier</th></tr></thead>
-            <tbody id="bulkRows"></tbody>
+        <!-- HOME: Currently Packages Waiting -->
+        <div class="screen active" id="screen-home">
+          <h2>Currently Packages Waiting</h2>
+          <table class="pkg-table">
+            <thead><tr><th>Unit</th><th>#</th><th>SMS</th><th>Time</th><th></th></tr></thead>
+            <tbody id="homePkgList"></tbody>
           </table>
-          <div class="form-group" style="margin-top:16px">
-            <button class="btn btn-primary" onclick="doBulkNotice()">Send Bulk Notice</button>
+        </div>
+
+        <!-- SIGNUP -->
+        <div class="screen" id="screen-signup">
+          <h2>Signup for SMS Notifications</h2>
+          <div class="form-group"><b>Unit #</b><input type="text" class="form-input" id="signupUnit" maxlength="16" inputmode="numeric"></div>
+          <div class="form-group"><b>SMS Number</b><input type="text" class="form-input" id="signupPhone" maxlength="10" inputmode="numeric"></div>
+          <div class="consent-box">
+            <label>
+              <input type="checkbox" id="signupConsent">
+              By providing my contact information, I consent to receive SMS messages for service updates and notifications. Message and data rates may apply. Reply STOP to unsubscribe or HELP for assistance.
+            </label>
+          </div>
+          <div class="form-group"><button class="btn btn-primary" onclick="doSignup()">Accept</button></div>
+        </div>
+
+        <!-- COURIER NOTICE -->
+        <div class="screen" id="screen-notice">
+          <h2>Courier Notice</h2>
+          <div class="mode-toggle">
+            <button class="mode-btn active" onclick="setNoticeMode('single',this)">Single</button>
+            <button class="mode-btn" onclick="setNoticeMode('bulk',this)">Bulk</button>
+          </div>
+
+          <!-- Single Mode -->
+          <div id="singleMode">
+            <div class="courier-grid">
+              <div class="courier-box" onclick="selectCourier(this,'Amazon')"><div style="font-size:22px">📦</div>Amazon</div>
+              <div class="courier-box" onclick="selectCourier(this,'UPS')"><div style="font-size:22px">📤</div>UPS</div>
+              <div class="courier-box" onclick="selectCourier(this,'FedEx')"><div style="font-size:22px">✈️</div>FedEx</div>
+              <div class="courier-box" onclick="selectCourier(this,'USPS')"><div style="font-size:22px">📬</div>USPS</div>
+              <div class="courier-box" onclick="selectCourier(this,'Food')"><div style="font-size:22px">🍔</div>Food</div>
+              <div class="courier-box" onclick="selectCourier(this,'Other')"><div style="font-size:22px">📋</div>Other</div>
+            </div>
+            <div class="form-group"><b>Unit #</b><input type="text" class="form-input" id="noticeUnit" maxlength="16" inputmode="numeric"></div>
+            <div class="form-group"><b># of Packages</b><input type="number" class="form-input" id="noticeCount" value="1" min="1" inputmode="numeric"></div>
+            <div class="form-group"><button class="btn btn-primary" onclick="doSingleNotice()">Confirm</button></div>
+          </div>
+
+          <!-- Bulk Mode -->
+          <div id="bulkMode" style="display:none">
+            <h3 style="margin-bottom:10px;font-size:15px">Bulk Courier Notice</h3>
+            <table class="bulk-table">
+              <thead><tr><th>Unit</th><th>#</th><th>Courier</th></tr></thead>
+              <tbody id="bulkRows"></tbody>
+            </table>
+            <div class="form-group" style="margin-top:12px">
+              <button class="btn btn-primary" onclick="doBulkNotice()">Send Bulk Notice</button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- CONFIRM COLLECTING -->
-      <div class="screen" id="screen-confirm">
-        <h2>Confirm Collecting</h2>
-        <div class="form-group"><b>Unit #</b><input type="text" class="form-input" id="confirmUnit" maxlength="16" inputmode="numeric"></div>
-        <div id="confirmInfo" style="margin-bottom:16px"></div>
-        <div class="form-group"><button class="btn btn-success" onclick="doConfirm()">Confirm</button></div>
-      </div>
-
-      <!-- ADMIN -->
-      <div class="screen" id="screen-admin">
-        <div id="adminLoginView">
-          <h2>Admin Area</h2>
-          <div class="form-group"><b>Password</b><input type="password" class="form-input" id="adminPass" autocomplete="off"></div>
-          <div class="form-group"><button class="btn btn-primary" onclick="doAdminLogin()">Login</button></div>
+        <!-- CONFIRM COLLECTING -->
+        <div class="screen" id="screen-confirm">
+          <h2>Confirm Collecting</h2>
+          <div class="form-group"><b>Unit #</b><input type="text" class="form-input" id="confirmUnit" maxlength="16" inputmode="numeric"></div>
+          <div id="confirmInfo" style="margin-bottom:12px"></div>
+          <div class="form-group"><button class="btn btn-success" onclick="doConfirm()">Confirm</button></div>
         </div>
-        <div id="adminMenuView" style="display:none">
-          <h2>Admin Area</h2>
-          <ul class="admin-menu">
-            <li><a href="javascript:;" onclick="showAdminSec('report')">Report Log</a></li>
-            <li><a href="javascript:;" onclick="showAdminSec('signup-report')">Signup Report</a></li>
-            <li><a href="javascript:;" onclick="showAdminSec('edit-units')">Add / Edit / Delete</a></li>
-            <li><a href="javascript:;" onclick="showAdminSec('edit-pkg')">Edit Packages</a></li>
-          </ul>
+
+        <!-- ADMIN -->
+        <div class="screen" id="screen-admin">
+          <div id="adminLoginView">
+            <h2>Admin Area</h2>
+            <div class="form-group"><b>Password</b><input type="password" class="form-input" id="adminPass" autocomplete="off"></div>
+            <div class="form-group"><button class="btn btn-primary" onclick="doAdminLogin()">Login</button></div>
+          </div>
+          <div id="adminMenuView" style="display:none">
+            <h2>Admin Area</h2>
+            <ul class="admin-menu">
+              <li><a href="javascript:;" onclick="showAdminSec('report')">Report Log</a></li>
+              <li><a href="javascript:;" onclick="showAdminSec('signup-report')">Signup Report</a></li>
+              <li><a href="javascript:;" onclick="showAdminSec('edit-units')">Add / Edit / Delete</a></li>
+              <li><a href="javascript:;" onclick="showAdminSec('edit-pkg')">Edit Packages</a></li>
+            </ul>
+          </div>
         </div>
-      </div>
 
-      <!-- ADMIN SUB-SCREENS -->
-      <div class="admin-screen" id="admin-report">
-        <h2>Report!</h2>
-        <div style="display:flex;gap:10px;margin-bottom:16px"><b>Date Range</b><input type="date" class="form-input" id="rptFrom" style="width:auto" onchange="loadAdminReport()"><input type="date" class="form-input" id="rptTo" style="width:auto" onchange="loadAdminReport()"></div>
-        <table class="pkg-table"><thead><tr><th>Unit</th><th>Date Time</th><th>Log</th></tr></thead><tbody id="rptBody"></tbody></table>
-        <div style="margin-top:14px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
-      </div>
+        <!-- ADMIN SUB-SCREENS -->
+        <div class="admin-screen" id="admin-report">
+          <h2>Report!</h2>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><b>Range</b><input type="date" class="form-input" id="rptFrom" style="width:auto;padding:8px" onchange="loadAdminReport()"><input type="date" class="form-input" id="rptTo" style="width:auto;padding:8px" onchange="loadAdminReport()"></div>
+          <table class="pkg-table"><thead><tr><th>Unit</th><th>Date</th><th>Log</th></tr></thead><tbody id="rptBody"></tbody></table>
+          <div style="margin-top:10px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
+        </div>
 
-      <div class="admin-screen" id="admin-signup-report">
-        <h2>Signup Report!</h2>
-        <div style="display:flex;gap:10px;margin-bottom:16px"><b>Date Range</b><input type="date" class="form-input" id="sigFrom" style="width:auto" onchange="loadSignupReport()"><input type="date" class="form-input" id="sigTo" style="width:auto" onchange="loadSignupReport()"></div>
-        <table class="pkg-table"><thead><tr><th>Unit</th><th>Phone Number</th></tr></thead><tbody id="sigBody"></tbody></table>
-        <div style="margin-top:14px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
-      </div>
+        <div class="admin-screen" id="admin-signup-report">
+          <h2>Signup Report!</h2>
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><b>Range</b><input type="date" class="form-input" id="sigFrom" style="width:auto;padding:8px" onchange="loadSignupReport()"><input type="date" class="form-input" id="sigTo" style="width:auto;padding:8px" onchange="loadSignupReport()"></div>
+          <table class="pkg-table"><thead><tr><th>Unit</th><th>Phone</th></tr></thead><tbody id="sigBody"></tbody></table>
+          <div style="margin-top:10px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
+        </div>
 
-      <div class="admin-screen" id="admin-edit-units">
-        <h2>Add / Edit / Delete</h2>
-        <button class="btn btn-secondary" onclick="loadAllUnits()" style="margin-bottom:14px">Show All Units</button>
-        <div class="form-group"><b>Unit</b><input type="text" class="form-input" id="editUnit" maxlength="16" inputmode="numeric" onchange="searchUnit()"></div>
-        <div id="editUnitResult"></div>
-        <div id="allUnitsContainer"></div>
-        <div style="margin-top:14px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
-      </div>
+        <div class="admin-screen" id="admin-edit-units">
+          <h2>Add / Edit / Delete</h2>
+          <button class="btn btn-secondary" onclick="loadAllUnits()" style="margin-bottom:10px;font-size:13px">Show All Units</button>
+          <div class="form-group"><b>Unit</b><input type="text" class="form-input" id="editUnit" maxlength="16" inputmode="numeric" onchange="searchUnit()"></div>
+          <div id="editUnitResult"></div>
+          <div id="allUnitsContainer"></div>
+          <div style="margin-top:10px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
+        </div>
 
-      <div class="admin-screen" id="admin-edit-pkg">
-        <h2>Delete Packages!</h2>
-        <table class="pkg-table"><thead><tr><th><input type="checkbox" id="pkgCheckAll" onchange="document.querySelectorAll('.pkg-del-check').forEach(c=>c.checked=this.checked)"></th><th>Unit</th><th>#packg</th><th>SMS Opt</th><th>Time</th></tr></thead><tbody id="pkgDelBody"></tbody></table>
-        <div style="margin-top:14px"><button class="btn btn-danger" onclick="doDeletePkgs()">DELETE</button></div>
-        <div style="margin-top:14px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
-      </div>
+        <div class="admin-screen" id="admin-edit-pkg">
+          <h2>Delete Packages!</h2>
+          <table class="pkg-table"><thead><tr><th><input type="checkbox" id="pkgCheckAll" onchange="document.querySelectorAll('.pkg-del-check').forEach(c=>c.checked=this.checked)"></th><th>Unit</th><th>#</th><th>SMS</th><th>Time</th></tr></thead><tbody id="pkgDelBody"></tbody></table>
+          <div style="margin-top:10px"><button class="btn btn-danger" onclick="doDeletePkgs()">DELETE</button></div>
+          <div style="margin-top:10px"><a href="javascript:;" onclick="showAdminSec('menu')">Back</a></div>
+        </div>
 
+      </div>
     </div>
   </div>
 
@@ -238,6 +261,9 @@ var API = 'api.php';
 var adminToken = '';
 var selectedCourier = '';
 var lastActivity = Date.now();
+var slideTimer = null;
+var slideIndex = 0;
+var slides = [];
 
 // ── Activity tracking → auto-timeout ──
 ['click','keydown','touchstart','mousemove'].forEach(function(e) {
@@ -305,19 +331,127 @@ function apiFetch(action, method, body) {
   return fetch(API + '?action=' + action, opts).then(function(r) { return r.json(); });
 }
 
-// ── HOME: Load pending packages ──
+// ── HOME: Load pending packages (public endpoint, no admin auth needed) ──
 function loadDashboard() {
-  apiFetch('admin-packages&status=pending').then(function(d) {
+  apiFetch('kiosk-packages').then(function(d) {
     if (!d.ok) return;
     var tbody = document.getElementById('homePkgList');
-    if (d.packages.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-dim)">No packages waiting</td></tr>';
+    if (!d.packages || d.packages.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:16px;text-align:center;color:var(--text-dim)">No packages waiting</td></tr>';
       return;
     }
-    tbody.innerHTML = d.packages.map(function(p) {
-      return '<tr><td><strong>' + p.unit + '</strong></td><td>' + p.count + '</td><td>' + (p.has_phone ? 'Y' : 'N') + '</td><td style="font-size:12px;color:var(--text-dim)">' + fmtTime(p.created_at) + '</td></tr>';
+    // Group by unit — combine multiple entries into one row with total count
+    var grouped = {};
+    d.packages.forEach(function(p) {
+      if (!grouped[p.unit]) {
+        grouped[p.unit] = { unit: p.unit, count: 0, has_phone: p.has_phone, created_at: p.created_at };
+      }
+      grouped[p.unit].count += (parseInt(p.count) || 1);
+      // Keep the most recent timestamp
+      if (p.created_at > grouped[p.unit].created_at) grouped[p.unit].created_at = p.created_at;
+    });
+    var rows = Object.keys(grouped).map(function(unit) { return grouped[unit]; });
+    tbody.innerHTML = rows.map(function(p) {
+      return '<tr><td><strong>' + p.unit + '</strong></td><td>' + p.count + '</td><td>' + (p.has_phone ? 'Y' : 'N') + '</td><td style="font-size:11px;color:var(--text-dim)">' + fmtTime(p.created_at) + '</td><td><button onclick="quickConfirm(\'' + p.unit + '\')" style="padding:6px 14px;background:#28a745;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit">Confirm</button></td></tr>';
     }).join('');
+  }).catch(function() {});
+}
+
+// ── Quick confirm from home screen ──
+function quickConfirm(unit) {
+  if (!confirm('Confirm pickup for Unit ' + unit + '?')) return;
+  apiFetch('confirm-pickup','POST',{unit:unit}).then(function(d) {
+    if (d.error) { showToast('error', d.error); return; }
+    if (d.collected > 0) {
+      showToast('success', d.collected + ' package(s) confirmed for Unit ' + unit);
+    } else {
+      showToast('error', 'No pending packages for Unit ' + unit);
+    }
+    loadDashboard();
   });
+}
+
+// ── Community slides: images + text updates, 15s rotation ──
+function loadCommunitySlides() {
+  apiFetch('community-updates').then(function(d) {
+    if (!d.ok || !d.updates || d.updates.length === 0) return;
+
+    var display = document.getElementById('communityDisplay');
+    var dotsContainer = document.getElementById('slideDots');
+
+    // Remove default slide
+    var def = document.getElementById('defaultSlide');
+    if (def) def.remove();
+
+    slides = [];
+    d.updates.forEach(function(u) {
+      var el = document.createElement('div');
+      el.className = 'slide';
+
+      if (u.image_url) {
+        var isPdf = u.image_url.toLowerCase().indexOf('.pdf') !== -1;
+        if (isPdf) {
+          el.innerHTML = '<object data="' + u.image_url + '" type="application/pdf" style="width:100%;height:100%"><iframe src="' + u.image_url + '" style="width:100%;height:100%;border:none"></iframe></object>';
+        } else {
+          el.innerHTML = '<img src="' + u.image_url + '" alt="' + (u.title || '') + '">';
+        }
+      } else {
+        // Text slide
+        el.innerHTML = '<div class="text-slide"><h2>' + (u.title || '') + '</h2><p>' + (u.body || '') + '</p></div>';
+      }
+      display.insertBefore(el, dotsContainer);
+      slides.push(el);
+    });
+
+    // Make first active
+    if (slides.length > 0) {
+      slides[0].classList.add('active');
+    }
+
+    // Build dots
+    if (slides.length > 1) {
+      dotsContainer.innerHTML = '';
+      slides.forEach(function(_, i) {
+        var dot = document.createElement('div');
+        dot.className = 'slide-dot' + (i === 0 ? ' active' : '');
+        dot.onclick = function() { goToSlide(i); };
+        dotsContainer.appendChild(dot);
+      });
+      // Start 15-second rotation
+      startSlideTimer();
+    }
+  }).catch(function() {});
+}
+
+function startSlideTimer() {
+  if (slideTimer) clearInterval(slideTimer);
+  slideTimer = setInterval(function() {
+    nextSlide();
+  }, 15000);
+}
+
+function nextSlide() {
+  if (slides.length <= 1) return;
+  slides[slideIndex].classList.remove('active');
+  var dots = document.querySelectorAll('.slide-dot');
+  if (dots[slideIndex]) dots[slideIndex].classList.remove('active');
+
+  slideIndex = (slideIndex + 1) % slides.length;
+
+  slides[slideIndex].classList.add('active');
+  if (dots[slideIndex]) dots[slideIndex].classList.add('active');
+}
+
+function goToSlide(i) {
+  if (i === slideIndex) return;
+  slides[slideIndex].classList.remove('active');
+  var dots = document.querySelectorAll('.slide-dot');
+  if (dots[slideIndex]) dots[slideIndex].classList.remove('active');
+
+  slideIndex = i;
+  slides[slideIndex].classList.add('active');
+  if (dots[slideIndex]) dots[slideIndex].classList.add('active');
+  startSlideTimer(); // Reset timer
 }
 
 // ── SIGNUP ──
@@ -423,7 +557,7 @@ function loadAdminReport() {
   apiFetch('admin-reports&date_from=' + from + '&date_to=' + to + '&type=report').then(function(d) {
     if (!d.ok) return;
     document.getElementById('rptBody').innerHTML = (d.data || []).map(function(r) {
-      return '<tr><td>' + r.unit + '</td><td style="font-size:12px;color:var(--text-dim)">' + fmtTime(r.created_at) + '</td><td>' + r.log + '</td></tr>';
+      return '<tr><td>' + r.unit + '</td><td style="font-size:11px;color:var(--text-dim)">' + fmtTime(r.created_at) + '</td><td>' + r.log + '</td></tr>';
     }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-dim)">No records</td></tr>';
   });
 }
@@ -444,13 +578,12 @@ function searchUnit() {
   var unit = document.getElementById('editUnit').value.trim();
   if (!unit) { document.getElementById('editUnitResult').innerHTML = ''; return; }
   apiFetch('packages-by-unit&unit=' + unit).then(function(d) {
-    // Also check tenant
     apiFetch('tenant-preferences&unit=' + unit).then(function(tp) {
       var el = document.getElementById('editUnitResult');
       if (tp.ok && tp.preferences) {
-        el.innerHTML = '<hr><div style="margin-top:10px"><b>Phone:</b> <input type="text" class="form-input" id="editUnitPhone" value="' + (tp.preferences.phone || '') + '" style="width:200px;display:inline-block"><br><br><a href="javascript:;" onclick="saveEditUnit(\'edit\')">Edit</a> &nbsp; <a href="javascript:;" style="color:var(--red)" onclick="deleteEditUnit()">Delete</a></div>';
+        el.innerHTML = '<hr><div style="margin-top:8px"><b>Phone:</b> <input type="text" class="form-input" id="editUnitPhone" value="' + (tp.preferences.phone || '') + '" style="width:160px;display:inline-block;padding:8px"><br><br><a href="javascript:;" onclick="saveEditUnit(\'edit\')">Edit</a> &nbsp; <a href="javascript:;" style="color:var(--red)" onclick="deleteEditUnit()">Delete</a></div>';
       } else {
-        el.innerHTML = '<p style="margin-top:10px">No record found <a href="javascript:;" onclick="saveEditUnit(\'save\')">Add</a></p>';
+        el.innerHTML = '<p style="margin-top:8px">No record found <a href="javascript:;" onclick="saveEditUnit(\'save\')">Add</a></p>';
       }
     });
   });
@@ -480,12 +613,12 @@ function loadAllUnits() {
   apiFetch('admin-tenants').then(function(d) {
     if (!d.ok) return;
     var tenants = d.tenants || [];
-    var html = '<table class="pkg-table"><thead><tr><th><input type="checkbox" id="unitCheckAll" onchange="document.querySelectorAll(\'.unit-sel\').forEach(c=>c.checked=this.checked)"></th><th>Unit</th><th>Phone Number</th></tr></thead><tbody>';
+    var html = '<table class="pkg-table"><thead><tr><th><input type="checkbox" id="unitCheckAll" onchange="document.querySelectorAll(\'.unit-sel\').forEach(c=>c.checked=this.checked)"></th><th>Unit</th><th>Phone</th></tr></thead><tbody>';
     tenants.forEach(function(t) {
-      html += '<tr><td><input type="checkbox" class="unit-sel" value="' + t.unit + '"></td><td><strong>' + t.unit + '</strong></td><td><input type="text" class="form-input unit-phone-edit" data-unit="' + t.unit + '" value="' + (t.phone || '') + '" style="width:180px;padding:8px"></td></tr>';
+      html += '<tr><td><input type="checkbox" class="unit-sel" value="' + t.unit + '"></td><td><strong>' + t.unit + '</strong></td><td><input type="text" class="form-input unit-phone-edit" data-unit="' + t.unit + '" value="' + (t.phone || '') + '" style="width:140px;padding:6px"></td></tr>';
     });
     html += '</tbody></table>';
-    html += '<div style="margin-top:14px;display:flex;gap:10px"><button class="btn btn-secondary" onclick="updateSelectedUnits()">Update Selected Units</button><button class="btn btn-danger" onclick="deleteSelectedUnits()">Delete Selected Units</button></div>';
+    html += '<div style="margin-top:10px;display:flex;gap:8px"><button class="btn btn-secondary" style="font-size:12px" onclick="updateSelectedUnits()">Update Selected</button><button class="btn btn-danger" style="font-size:12px" onclick="deleteSelectedUnits()">Delete Selected</button></div>';
     document.getElementById('allUnitsContainer').innerHTML = html;
   });
 }
@@ -519,7 +652,7 @@ function loadPkgDelete() {
     if (!d.ok) return;
     var tbody = document.getElementById('pkgDelBody');
     tbody.innerHTML = (d.packages || []).map(function(p) {
-      return '<tr><td><input type="checkbox" class="pkg-del-check" value="' + p.unit + '"></td><td>' + p.unit + '</td><td>' + p.count + '</td><td>' + (p.has_phone ? 'Y' : 'N') + '</td><td style="font-size:12px">' + fmtTime(p.created_at) + '</td></tr>';
+      return '<tr><td><input type="checkbox" class="pkg-del-check" value="' + p.unit + '"></td><td>' + p.unit + '</td><td>' + p.count + '</td><td>' + (p.has_phone ? 'Y' : 'N') + '</td><td style="font-size:11px">' + fmtTime(p.created_at) + '</td></tr>';
     }).join('');
   });
 }
@@ -547,34 +680,18 @@ function fmtTime(ts) {
   // Build bulk rows
   var bulkHtml = '';
   for (var i = 0; i < 10; i++) {
-    bulkHtml += '<tr class="bulk-row"><td><input type="text" class="bulk-unit" placeholder="Unit #" maxlength="16" inputmode="numeric"></td><td><input type="number" class="bulk-count" placeholder="# Packages" min="1" inputmode="numeric"></td><td><select class="bulk-courier"><option value="">Select Courier</option><option>Amazon</option><option>UPS</option><option>FedEx</option><option>USPS</option><option>Food</option><option>Other</option></select></td></tr>';
+    bulkHtml += '<tr class="bulk-row"><td><input type="text" class="bulk-unit" placeholder="Unit" maxlength="16" inputmode="numeric"></td><td><input type="number" class="bulk-count" placeholder="#" min="1" inputmode="numeric"></td><td><select class="bulk-courier"><option value="">Courier</option><option>Amazon</option><option>UPS</option><option>FedEx</option><option>USPS</option><option>Food</option><option>Other</option></select></td></tr>';
   }
   document.getElementById('bulkRows').innerHTML = bulkHtml;
 
-  // Load community updates for rotating display
-  apiFetch('community-updates').then(function(d) {
-    if (!d.ok || !d.updates || d.updates.length === 0) return;
-    var area = document.getElementById('rotatingArea');
-    d.updates.forEach(function(u) {
-      var div = document.createElement('div');
-      div.className = 'update-card';
-      div.innerHTML = '<h3>' + u.title + '</h3><p style="white-space:pre-line">' + u.body + '</p>';
-      area.appendChild(div);
-    });
-    // Start rotation
-    var items = area.querySelectorAll('.update-card');
-    if (items.length > 1) {
-      var idx = 0;
-      setInterval(function() {
-        items[idx].classList.remove('active');
-        idx = (idx + 1) % items.length;
-        items[idx].classList.add('active');
-      }, 8000);
-    }
-  });
+  // Load community slides (images + text updates)
+  loadCommunitySlides();
 
-  // Load dashboard
+  // Load dashboard (public endpoint)
   loadDashboard();
+
+  // Auto-refresh packages every 30 seconds
+  setInterval(loadDashboard, 30000);
 })();
 </script>
 </body>
