@@ -31,9 +31,10 @@ var FT__theme = 'dark'; // theme managed by PropDesk
 })();
 
 //  HELPERS 
-function FT_save(){
+function FT_save(immediate){
   clearTimeout(FT__stateSaveTimer);
-  FT__stateSaveTimer = setTimeout(function(){
+  var _doSave = function(){
+    FT__savePending = false;
     fetch('https://tech.willowpa.com/state.php',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -42,11 +43,24 @@ function FT_save(){
     .then(function(r){ return r.json(); })
     .then(function(d){ if(!d.ok) console.warn('Save failed:',d); })
     .catch(function(e){ console.warn('Save error:',e); });
-  }, 600);
+  };
+  FT__savePending = true;
+  if(immediate){
+    _doSave();
+  } else {
+    FT__stateSaveTimer = setTimeout(_doSave, 300);
+  }
   var t=document.getElementById('ft-save-toast');
   if(t){ t.style.display='block'; clearTimeout(FT__toastTimer); FT__toastTimer=setTimeout(function(){ t.style.display='none'; },1800); }
   updateStorageBar();
 }
+var FT__savePending = false;
+// Flush pending save before page unload
+window.addEventListener('beforeunload', function(){
+  if(FT__savePending){
+    navigator.sendBeacon('https://tech.willowpa.com/state.php', JSON.stringify({state:FT_state}));
+  }
+});
 function FT_uid(){ return FT_state._nextId++; }
 var FT_COLORS=['#c47f00','#0a7c8e','#b02040','#1a7a4a','#7c3aed','#c2410c','#0369a1','#be185d'];
 function FT_esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -1139,7 +1153,7 @@ function markComplete(jobId){
   }
   // Always go to pending_approval first — admin approves via Approve button
   job.status='pending_approval'; job.completedDate=FT_today();
-  FT_save();
+  FT_save(true);
   refreshJobCard(jobId);
   renderAllJobs();
 }
@@ -1151,7 +1165,7 @@ function startJobTimer(jobId){
   if(job.timerStart){ alert('Timer already running.'); return; }
   job.timerStart=Date.now();
   job.status='in_progress';
-  FT_save();
+  FT_save(true);
   setTimeout(function(){ refreshJobCard(jobId); }, 50);
   FT__timerIntervals[jobId]=setInterval(function(){
     var el=document.getElementById('timer-'+jobId);
@@ -1172,7 +1186,7 @@ function pauseJobTimer(jobId){
   job.lastTimerDesc=desc;
   job.timerStart=null;
   job.status='in_progress';
-  FT_save();
+  FT_save(true);
   setTimeout(function(){ refreshJobCard(jobId); }, 50);
 }
 
@@ -1205,13 +1219,7 @@ function setJobStatus(jobId, status){
   }
   job.status=status;
   if(status==='open'||status==='waiting_parts') job.completedDate=null;
-  // Immediate save (bypass debounce) — status changes must persist
-  clearTimeout(FT__stateSaveTimer);
-  fetch('https://tech.willowpa.com/state.php',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({state:FT_state})
-  }).catch(function(e){ console.warn('Status save error:',e); });
+  FT_save(true);
   refreshJobCard(jobId);
 }
 
