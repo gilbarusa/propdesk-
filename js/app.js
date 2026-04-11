@@ -12001,13 +12001,13 @@ function WPA_hsRenderCatalog() {
         priceStr = '$' + Math.min.apply(null, prices).toFixed(2) + ' – $' + Math.max.apply(null, prices).toFixed(2);
       } else { priceStr = 'No variations'; }
     } else { priceStr = 'Request quote'; }
-    var durStr = svc.estimated_duration_min ? svc.estimated_duration_min + ' min' : '—';
+    var durStr = svc.estimated_duration_minutes ? svc.estimated_duration_minutes + ' min' : '—';
     var statusBadge = svc.is_active
       ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px">Active</span>'
       : '<span style="background:#fef2f2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:11px">Inactive</span>';
 
     html += '<tr style="border-bottom:1px solid var(--border)">';
-    html += '<td style="padding:8px;font-weight:500">' + _esc(svc.name) + '</td>';
+    html += '<td style="padding:8px;font-weight:500">' + _esc(svc.title) + '</td>';
     html += '<td style="padding:8px">' + _esc(scName) + '</td>';
     html += '<td style="padding:8px;text-transform:capitalize">' + _esc(svc.pricing_type) + '</td>';
     html += '<td style="padding:8px">' + priceStr + '</td>';
@@ -12205,27 +12205,27 @@ function _hsShowServiceForm(svc) {
     return '<option value="' + sc.id + '"' + sel + '>' + _esc(sc.name) + '</option>';
   }).join('');
   var body = ''
-    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Name</span><input id="hsFName" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.name || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Name</span><input id="hsFName" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.title || '') + '"></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Subcategory</span><select id="hsFSubcat" class="auth-inp" style="margin-top:4px">' + subcatOpts + '</select></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Pricing Type</span><select id="hsFPricing" class="auth-inp" style="margin-top:4px"><option value="fixed"' + (svc.pricing_type === 'fixed' ? ' selected' : '') + '>Fixed</option><option value="variation"' + (svc.pricing_type === 'variation' ? ' selected' : '') + '>Variation</option><option value="quote"' + (svc.pricing_type === 'quote' ? ' selected' : '') + '>Quote</option></select></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Base Price ($) — for fixed type</span><input id="hsFPrice" class="auth-inp" type="number" step="0.01" style="margin-top:4px" value="' + (svc.base_price || '') + '"></label>'
-    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration (minutes)</span><input id="hsFDuration" class="auth-inp" type="number" style="margin-top:4px" value="' + (svc.estimated_duration_min || '') + '"></label>'
-    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsFDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(svc.description || '') + '</textarea></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration (minutes)</span><input id="hsFDuration" class="auth-inp" type="number" style="margin-top:4px" value="' + (svc.estimated_duration_minutes || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsFDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(svc.short_description || '') + '</textarea></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsFIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.icon || '') + '"></label>'
     + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><input type="checkbox" id="hsFActive"' + (svc.is_active !== false ? ' checked' : '') + '> <span style="font-size:12px;font-weight:500">Active</span></label>';
 
   _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Service', body, function() {
     var name = document.getElementById('hsFName').value.trim();
     if (!name) { alert('Name is required'); return; }
-    var slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    var sCode = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
     var payload = {
-      name: name,
-      slug: slug,
+      title: name,
+      service_code: sCode,
       subcategory_id: document.getElementById('hsFSubcat').value,
       pricing_type: document.getElementById('hsFPricing').value,
       base_price: document.getElementById('hsFPricing').value === 'fixed' ? parseFloat(document.getElementById('hsFPrice').value) || 0 : null,
-      estimated_duration_min: parseInt(document.getElementById('hsFDuration').value) || null,
-      description: document.getElementById('hsFDesc').value.trim() || null,
+      estimated_duration_minutes: parseInt(document.getElementById('hsFDuration').value) || null,
+      short_description: document.getElementById('hsFDesc').value.trim() || null,
       icon: document.getElementById('hsFIcon').value.trim() || null,
       is_active: document.getElementById('hsFActive').checked
     };
