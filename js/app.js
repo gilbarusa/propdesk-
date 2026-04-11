@@ -2282,6 +2282,7 @@ const MODULE_SUB_TABS = {
   'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Completed', page:'techtrack', ftPage:'completed'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
   'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
+  'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
@@ -2309,6 +2310,7 @@ function switchModule(moduleId, tabEl) {
     else if (t.pkSec) args += ",null,null,null,'" + t.pkSec + "'";
     else if (t.dlSec) args += ",null,null,null,null,'" + t.dlSec + "'";
     else if (t.msgFilter) args += ",null,null,null,null,null,'" + t.msgFilter + "'";
+    else if (t.hsSec) args += ",null,null,null,null,null,null,'" + t.hsSec + "'";
     const badgeId = t.ftPage ? 'ft-sub-badge-' + t.ftPage : (t.page ? 'sub-badge-' + t.page : '');
     const badgeHtml = badgeId ? ` <span class="mod-badge" id="${badgeId}" style="display:none">0</span>` : '';
     return `<div class="sub-tab${i === 0 ? ' active' : ''}" onclick="showSubPage(${args})">${t.label}${badgeHtml}</div>`;
@@ -2316,12 +2318,12 @@ function switchModule(moduleId, tabEl) {
   // Show default page for this module
   if (tabs.length > 0) {
     const t0 = tabs[0];
-    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec, t0.msgFilter);
+    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec, t0.msgFilter, t0.hsSec);
   }
 }
 
 let _ftInitialized = false;
-function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter) {
+function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter, hsSec) {
   // Update sub-tab active state
   if (tabEl) {
     tabEl.parentElement.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
@@ -2341,6 +2343,11 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, 
   // ── Delivery section routing ──
   if (dlSec) {
     showDeliverySection(dlSec);
+  }
+
+  // ── Home Services section routing ──
+  if (hsSec) {
+    showHomeServicesSection(hsSec);
   }
 
   // ── Message Center routing ──
@@ -11908,5 +11915,472 @@ function _openDashMsgNavigation(msgId, source, bookingId){
     switchModule('techtrack');
     return;
   }
+}
+
+/* ═══════════════════════════════════════════
+   HOME SERVICES — Admin Module
+   ═══════════════════════════════════════════ */
+
+var _hsCatalogCache = [];
+var _hsSubcatCache = [];
+var _hsVariationCache = [];
+var _hsTimeWindowCache = [];
+var _hsCategoryCache = [];
+var _hsEditingItem = null;
+
+/* ── Section Routing ── */
+function showHomeServicesSection(sec) {
+  ['hsCatalogSection','hsSubcatsSection','hsBookingsSection','hsTimeWindowsSection'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  var map = { catalog:'hsCatalogSection', subcats:'hsSubcatsSection', bookings:'hsBookingsSection', timeWindows:'hsTimeWindowsSection' };
+  var target = document.getElementById(map[sec]);
+  if (target) target.style.display = '';
+  if (sec === 'catalog') WPA_hsLoadCatalog();
+  if (sec === 'subcats') WPA_hsLoadSubcats();
+  if (sec === 'bookings') WPA_hsLoadBookings();
+  if (sec === 'timeWindows') WPA_hsLoadTimeWindows();
+}
+
+/* ── Catalog: Load Services + Variations ── */
+function WPA_hsLoadCatalog() {
+  var grid = document.getElementById('hsCatalogGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="info-loading">Loading catalog…</div>';
+  Promise.all([
+    pkSB('hs_categories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_subcategories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_services', 'select=*&order=sort_order.asc'),
+    pkSB('hs_service_variations', 'select=*&order=sort_order.asc')
+  ]).then(function(res) {
+    _hsCategoryCache = res[0] || [];
+    _hsSubcatCache = res[1] || [];
+    _hsCatalogCache = res[2] || [];
+    _hsVariationCache = res[3] || [];
+    WPA_hsRenderCatalog();
+  }).catch(function(e) {
+    grid.innerHTML = '<p style="color:var(--accent3);">Failed to load catalog: ' + _esc(e.message) + '</p>';
+  });
+}
+
+function WPA_hsRenderCatalog() {
+  var grid = document.getElementById('hsCatalogGrid');
+  if (!grid) return;
+  if (!_hsCatalogCache.length) {
+    grid.innerHTML = '<p style="color:var(--muted);font-size:13px;">No services yet. Click "+ Add Service" to create one.</p>';
+    return;
+  }
+  // Group services by subcategory
+  var subcatMap = {};
+  _hsSubcatCache.forEach(function(sc) { subcatMap[sc.id] = sc; });
+  var catMap = {};
+  _hsCategoryCache.forEach(function(c) { catMap[c.id] = c; });
+  // Build variations lookup
+  var varMap = {};
+  _hsVariationCache.forEach(function(v) {
+    if (!varMap[v.service_id]) varMap[v.service_id] = [];
+    varMap[v.service_id].push(v);
+  });
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+  html += '<th style="padding:8px">Service</th><th style="padding:8px">Subcategory</th><th style="padding:8px">Type</th><th style="padding:8px">Price</th><th style="padding:8px">Duration</th><th style="padding:8px">Status</th><th style="padding:8px;width:80px">Actions</th>';
+  html += '</tr></thead><tbody>';
+
+  _hsCatalogCache.forEach(function(svc) {
+    var sc = subcatMap[svc.subcategory_id];
+    var scName = sc ? sc.name : '—';
+    var priceStr = '—';
+    if (svc.pricing_type === 'fixed') {
+      priceStr = '$' + (svc.base_price || 0).toFixed(2);
+    } else if (svc.pricing_type === 'variation') {
+      var vars = varMap[svc.id] || [];
+      if (vars.length) {
+        var prices = vars.map(function(v) { return v.price; });
+        priceStr = '$' + Math.min.apply(null, prices).toFixed(2) + ' – $' + Math.max.apply(null, prices).toFixed(2);
+      } else { priceStr = 'No variations'; }
+    } else { priceStr = 'Request quote'; }
+    var durStr = svc.estimated_duration_min ? svc.estimated_duration_min + ' min' : '—';
+    var statusBadge = svc.is_active
+      ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px">Active</span>'
+      : '<span style="background:#fef2f2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:11px">Inactive</span>';
+
+    html += '<tr style="border-bottom:1px solid var(--border)">';
+    html += '<td style="padding:8px;font-weight:500">' + _esc(svc.name) + '</td>';
+    html += '<td style="padding:8px">' + _esc(scName) + '</td>';
+    html += '<td style="padding:8px;text-transform:capitalize">' + _esc(svc.pricing_type) + '</td>';
+    html += '<td style="padding:8px">' + priceStr + '</td>';
+    html += '<td style="padding:8px">' + durStr + '</td>';
+    html += '<td style="padding:8px">' + statusBadge + '</td>';
+    html += '<td style="padding:8px">';
+    html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;margin-right:4px" onclick="WPA_hsEditService(\'' + svc.id + '\')">Edit</button>';
+    html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;color:var(--accent3)" onclick="WPA_hsDeleteService(\'' + svc.id + '\')">Del</button>';
+    html += '</td></tr>';
+
+    // Show variations inline if type=variation
+    if (svc.pricing_type === 'variation' && varMap[svc.id] && varMap[svc.id].length) {
+      varMap[svc.id].forEach(function(v) {
+        html += '<tr style="background:var(--bg2);border-bottom:1px solid var(--border)">';
+        html += '<td style="padding:4px 8px 4px 28px;font-size:12px;color:var(--muted)">↳ ' + _esc(v.label) + '</td>';
+        html += '<td style="padding:4px 8px"></td>';
+        html += '<td style="padding:4px 8px;font-size:12px;color:var(--muted)">variation</td>';
+        html += '<td style="padding:4px 8px;font-size:12px">$' + (v.price || 0).toFixed(2) + '</td>';
+        html += '<td style="padding:4px 8px;font-size:12px">' + (v.duration_override_min ? v.duration_override_min + ' min' : '—') + '</td>';
+        html += '<td style="padding:4px 8px"></td>';
+        html += '<td style="padding:4px 8px"><button class="btn-subtle" style="font-size:10px;padding:2px 6px" onclick="WPA_hsEditVariation(\'' + v.id + '\')">Edit</button></td>';
+        html += '</tr>';
+      });
+    }
+  });
+  html += '</tbody></table>';
+  grid.innerHTML = html;
+}
+
+/* ── Subcategories: Load & Render ── */
+function WPA_hsLoadSubcats() {
+  var box = document.getElementById('hsSubcatsList');
+  if (!box) return;
+  box.innerHTML = '<div class="info-loading">Loading subcategories…</div>';
+  Promise.all([
+    pkSB('hs_categories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_subcategories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_services', 'select=id,subcategory_id')
+  ]).then(function(res) {
+    _hsCategoryCache = res[0] || [];
+    _hsSubcatCache = res[1] || [];
+    var services = res[2] || [];
+    // Count services per subcat
+    var countMap = {};
+    services.forEach(function(s) {
+      countMap[s.subcategory_id] = (countMap[s.subcategory_id] || 0) + 1;
+    });
+    var catMap = {};
+    _hsCategoryCache.forEach(function(c) { catMap[c.id] = c; });
+
+    if (!_hsSubcatCache.length) {
+      box.innerHTML = '<p style="color:var(--muted);font-size:13px;">No subcategories yet.</p>';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+    html += '<th style="padding:8px">Icon</th><th style="padding:8px">Name</th><th style="padding:8px">Slug</th><th style="padding:8px">Category</th><th style="padding:8px">Services</th><th style="padding:8px">Order</th><th style="padding:8px;width:80px">Actions</th>';
+    html += '</tr></thead><tbody>';
+    _hsSubcatCache.forEach(function(sc) {
+      var cat = catMap[sc.category_id];
+      var catName = cat ? cat.name : '—';
+      var cnt = countMap[sc.id] || 0;
+      html += '<tr style="border-bottom:1px solid var(--border)">';
+      html += '<td style="padding:8px;font-size:20px">' + (sc.icon || '📦') + '</td>';
+      html += '<td style="padding:8px;font-weight:500">' + _esc(sc.name) + '</td>';
+      html += '<td style="padding:8px;font-family:monospace;font-size:12px;color:var(--muted)">' + _esc(sc.slug) + '</td>';
+      html += '<td style="padding:8px">' + _esc(catName) + '</td>';
+      html += '<td style="padding:8px">' + cnt + '</td>';
+      html += '<td style="padding:8px">' + (sc.sort_order || 0) + '</td>';
+      html += '<td style="padding:8px">';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;margin-right:4px" onclick="WPA_hsEditSubcat(\'' + sc.id + '\')">Edit</button>';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;color:var(--accent3)" onclick="WPA_hsDeleteSubcat(\'' + sc.id + '\')">Del</button>';
+      html += '</td></tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed: ' + _esc(e.message) + '</p>';
+  });
+}
+
+/* ── Bookings: Load & Render ── */
+function WPA_hsLoadBookings() {
+  var box = document.getElementById('hsBookingsList');
+  if (!box) return;
+  box.innerHTML = '<div class="info-loading">Loading bookings…</div>';
+  var filter = '';
+  var sel = document.getElementById('hsBookFilter');
+  var val = sel ? sel.value : 'all';
+  // Bookings come from maintenance_requests where source='home_services'
+  var query = 'select=*&source=eq.home_services&order=created_at.desc&limit=50';
+  if (val !== 'all') query += '&status=eq.' + val;
+
+  pkSB('maintenance_requests', query).then(function(rows) {
+    if (!rows || !rows.length) {
+      box.innerHTML = '<p style="color:var(--muted);font-size:13px;">No service bookings found.</p>';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+    html += '<th style="padding:8px">Date</th><th style="padding:8px">Service</th><th style="padding:8px">Unit</th><th style="padding:8px">Resident</th><th style="padding:8px">Status</th><th style="padding:8px">Notes</th>';
+    html += '</tr></thead><tbody>';
+    rows.forEach(function(b) {
+      var dt = b.created_at ? new Date(b.created_at).toLocaleDateString() : '—';
+      var statusColor = { new:'#2563eb', scheduled:'#d97706', complete:'#16a34a', cancelled:'#dc2626' };
+      var color = statusColor[b.status] || '#6b7280';
+      html += '<tr style="border-bottom:1px solid var(--border)">';
+      html += '<td style="padding:8px">' + dt + '</td>';
+      html += '<td style="padding:8px;font-weight:500">' + _esc(b.title || b.category || '—') + '</td>';
+      html += '<td style="padding:8px">' + _esc(b.unit || '—') + '</td>';
+      html += '<td style="padding:8px">' + _esc(b.submitted_by || '—') + '</td>';
+      html += '<td style="padding:8px"><span style="background:' + color + '15;color:' + color + ';padding:2px 8px;border-radius:10px;font-size:11px">' + _esc(b.status || 'new') + '</span></td>';
+      html += '<td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(b.notes || '—') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed: ' + _esc(e.message) + '</p>';
+  });
+}
+
+/* ── Time Windows: Load & Render ── */
+function WPA_hsLoadTimeWindows() {
+  var box = document.getElementById('hsTimeWindowsList');
+  if (!box) return;
+  box.innerHTML = '<div class="info-loading">Loading time windows…</div>';
+  pkSB('hs_time_windows', 'select=*&order=sort_order.asc').then(function(rows) {
+    _hsTimeWindowCache = rows || [];
+    if (!rows.length) {
+      box.innerHTML = '<p style="color:var(--muted);font-size:13px;">No time windows. Click "+ Add Window" to create one.</p>';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+    html += '<th style="padding:8px">Label</th><th style="padding:8px">Start</th><th style="padding:8px">End</th><th style="padding:8px">Order</th><th style="padding:8px;width:80px">Actions</th>';
+    html += '</tr></thead><tbody>';
+    rows.forEach(function(tw) {
+      html += '<tr style="border-bottom:1px solid var(--border)">';
+      html += '<td style="padding:8px;font-weight:500">' + _esc(tw.label) + '</td>';
+      html += '<td style="padding:8px">' + _esc(tw.start_time || '—') + '</td>';
+      html += '<td style="padding:8px">' + _esc(tw.end_time || '—') + '</td>';
+      html += '<td style="padding:8px">' + (tw.sort_order || 0) + '</td>';
+      html += '<td style="padding:8px">';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;margin-right:4px" onclick="WPA_hsEditTimeWindow(\'' + tw.id + '\')">Edit</button>';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;color:var(--accent3)" onclick="WPA_hsDeleteTimeWindow(\'' + tw.id + '\')">Del</button>';
+      html += '</td></tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed: ' + _esc(e.message) + '</p>';
+  });
+}
+
+/* ── Modal Helper ── */
+function _hsModal(title, bodyHtml, onSave) {
+  // Remove existing modal
+  var old = document.getElementById('hsModal');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'hsModal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--bg);border-radius:12px;padding:24px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);';
+  box.innerHTML = '<h3 style="margin:0 0 16px;font-size:16px">' + title + '</h3>' + bodyHtml
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">'
+    + '<button class="btn-subtle" onclick="document.getElementById(\'hsModal\').remove()">Cancel</button>'
+    + '<button class="btn-subtle" id="hsModalSave" style="background:var(--accent);color:#fff;padding:6px 18px">Save</button>'
+    + '</div>';
+  overlay.appendChild(box);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  document.getElementById('hsModalSave').addEventListener('click', function() {
+    if (onSave) onSave();
+  });
+}
+
+/* ── Add / Edit Service ── */
+function WPA_hsAddService() {
+  _hsEditingItem = null;
+  _hsShowServiceForm({});
+}
+
+function WPA_hsEditService(id) {
+  var svc = _hsCatalogCache.find(function(s) { return s.id === id; });
+  if (!svc) return;
+  _hsEditingItem = svc;
+  _hsShowServiceForm(svc);
+}
+
+function _hsShowServiceForm(svc) {
+  var subcatOpts = _hsSubcatCache.map(function(sc) {
+    var sel = svc.subcategory_id === sc.id ? ' selected' : '';
+    return '<option value="' + sc.id + '"' + sel + '>' + _esc(sc.name) + '</option>';
+  }).join('');
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Name</span><input id="hsFName" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.name || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Subcategory</span><select id="hsFSubcat" class="auth-inp" style="margin-top:4px">' + subcatOpts + '</select></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Pricing Type</span><select id="hsFPricing" class="auth-inp" style="margin-top:4px"><option value="fixed"' + (svc.pricing_type === 'fixed' ? ' selected' : '') + '>Fixed</option><option value="variation"' + (svc.pricing_type === 'variation' ? ' selected' : '') + '>Variation</option><option value="quote"' + (svc.pricing_type === 'quote' ? ' selected' : '') + '>Quote</option></select></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Base Price ($) — for fixed type</span><input id="hsFPrice" class="auth-inp" type="number" step="0.01" style="margin-top:4px" value="' + (svc.base_price || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration (minutes)</span><input id="hsFDuration" class="auth-inp" type="number" style="margin-top:4px" value="' + (svc.estimated_duration_min || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsFDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(svc.description || '') + '</textarea></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsFIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.icon || '') + '"></label>'
+    + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><input type="checkbox" id="hsFActive"' + (svc.is_active !== false ? ' checked' : '') + '> <span style="font-size:12px;font-weight:500">Active</span></label>';
+
+  _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Service', body, function() {
+    var name = document.getElementById('hsFName').value.trim();
+    if (!name) { alert('Name is required'); return; }
+    var slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    var payload = {
+      name: name,
+      slug: slug,
+      subcategory_id: document.getElementById('hsFSubcat').value,
+      pricing_type: document.getElementById('hsFPricing').value,
+      base_price: document.getElementById('hsFPricing').value === 'fixed' ? parseFloat(document.getElementById('hsFPrice').value) || 0 : null,
+      estimated_duration_min: parseInt(document.getElementById('hsFDuration').value) || null,
+      description: document.getElementById('hsFDesc').value.trim() || null,
+      icon: document.getElementById('hsFIcon').value.trim() || null,
+      is_active: document.getElementById('hsFActive').checked
+    };
+    // Need category_id from subcategory
+    var sc = _hsSubcatCache.find(function(s) { return s.id === payload.subcategory_id; });
+    if (sc) payload.category_id = sc.category_id;
+
+    if (_hsEditingItem) {
+      pkSB('hs_services', 'id=eq.' + _hsEditingItem.id, 'PATCH', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadCatalog();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    } else {
+      pkSB('hs_services', '', 'POST', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadCatalog();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    }
+  });
+}
+
+function WPA_hsDeleteService(id) {
+  if (!confirm('Delete this service? This cannot be undone.')) return;
+  pkSB('hs_services', 'id=eq.' + id, 'DELETE').then(function() {
+    WPA_hsLoadCatalog();
+  }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+/* ── Edit Variation ── */
+function WPA_hsEditVariation(id) {
+  var v = _hsVariationCache.find(function(x) { return x.id === id; });
+  if (!v) return;
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Label</span><input id="hsVLabel" class="auth-inp" style="margin-top:4px" value="' + _esc(v.label || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Price ($)</span><input id="hsVPrice" class="auth-inp" type="number" step="0.01" style="margin-top:4px" value="' + (v.price || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration Override (minutes)</span><input id="hsVDur" class="auth-inp" type="number" style="margin-top:4px" value="' + (v.duration_override_min || '') + '"></label>';
+
+  _hsModal('Edit Variation', body, function() {
+    var payload = {
+      label: document.getElementById('hsVLabel').value.trim(),
+      price: parseFloat(document.getElementById('hsVPrice').value) || 0,
+      duration_override_min: parseInt(document.getElementById('hsVDur').value) || null
+    };
+    pkSB('hs_service_variations', 'id=eq.' + v.id, 'PATCH', payload).then(function() {
+      document.getElementById('hsModal').remove();
+      WPA_hsLoadCatalog();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+  });
+}
+
+/* ── Add / Edit Subcategory ── */
+function WPA_hsAddSubcat() {
+  _hsEditingItem = null;
+  _hsShowSubcatForm({});
+}
+
+function WPA_hsEditSubcat(id) {
+  var sc = _hsSubcatCache.find(function(s) { return s.id === id; });
+  if (!sc) return;
+  _hsEditingItem = sc;
+  _hsShowSubcatForm(sc);
+}
+
+function _hsShowSubcatForm(sc) {
+  var catOpts = _hsCategoryCache.map(function(c) {
+    var sel = sc.category_id === c.id ? ' selected' : '';
+    return '<option value="' + c.id + '"' + sel + '>' + _esc(c.name) + '</option>';
+  }).join('');
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Name</span><input id="hsSCName" class="auth-inp" style="margin-top:4px" value="' + _esc(sc.name || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Category</span><select id="hsSCCat" class="auth-inp" style="margin-top:4px">' + catOpts + '</select></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsSCIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(sc.icon || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsSCDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(sc.description || '') + '</textarea></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Sort Order</span><input id="hsSCOrder" class="auth-inp" type="number" style="margin-top:4px" value="' + (sc.sort_order || 0) + '"></label>';
+
+  _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Subcategory', body, function() {
+    var name = document.getElementById('hsSCName').value.trim();
+    if (!name) { alert('Name is required'); return; }
+    var slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    var payload = {
+      name: name,
+      slug: slug,
+      category_id: document.getElementById('hsSCCat').value,
+      icon: document.getElementById('hsSCIcon').value.trim() || null,
+      description: document.getElementById('hsSCDesc').value.trim() || null,
+      sort_order: parseInt(document.getElementById('hsSCOrder').value) || 0
+    };
+    if (_hsEditingItem) {
+      pkSB('hs_subcategories', 'id=eq.' + _hsEditingItem.id, 'PATCH', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadSubcats();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    } else {
+      pkSB('hs_subcategories', '', 'POST', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadSubcats();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    }
+  });
+}
+
+function WPA_hsDeleteSubcat(id) {
+  if (!confirm('Delete this subcategory? Services under it will lose their subcategory.')) return;
+  pkSB('hs_subcategories', 'id=eq.' + id, 'DELETE').then(function() {
+    WPA_hsLoadSubcats();
+  }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+/* ── Add / Edit Time Window ── */
+function WPA_hsAddTimeWindow() {
+  _hsEditingItem = null;
+  _hsShowTimeWindowForm({});
+}
+
+function WPA_hsEditTimeWindow(id) {
+  var tw = _hsTimeWindowCache.find(function(t) { return t.id === id; });
+  if (!tw) return;
+  _hsEditingItem = tw;
+  _hsShowTimeWindowForm(tw);
+}
+
+function _hsShowTimeWindowForm(tw) {
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Label</span><input id="hsTWLabel" class="auth-inp" style="margin-top:4px" value="' + _esc(tw.label || '') + '" placeholder="e.g. Morning"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Start Time</span><input id="hsTWStart" class="auth-inp" type="time" style="margin-top:4px" value="' + (tw.start_time || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">End Time</span><input id="hsTWEnd" class="auth-inp" type="time" style="margin-top:4px" value="' + (tw.end_time || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Sort Order</span><input id="hsTWOrder" class="auth-inp" type="number" style="margin-top:4px" value="' + (tw.sort_order || 0) + '"></label>';
+
+  _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Time Window', body, function() {
+    var label = document.getElementById('hsTWLabel').value.trim();
+    if (!label) { alert('Label is required'); return; }
+    var payload = {
+      label: label,
+      start_time: document.getElementById('hsTWStart').value || null,
+      end_time: document.getElementById('hsTWEnd').value || null,
+      sort_order: parseInt(document.getElementById('hsTWOrder').value) || 0
+    };
+    if (_hsEditingItem) {
+      pkSB('hs_time_windows', 'id=eq.' + _hsEditingItem.id, 'PATCH', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadTimeWindows();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    } else {
+      pkSB('hs_time_windows', '', 'POST', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadTimeWindows();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    }
+  });
+}
+
+function WPA_hsDeleteTimeWindow(id) {
+  if (!confirm('Delete this time window?')) return;
+  pkSB('hs_time_windows', 'id=eq.' + id, 'DELETE').then(function() {
+    WPA_hsLoadTimeWindows();
+  }).catch(function(e) { alert('Error: ' + e.message); });
 }
 
