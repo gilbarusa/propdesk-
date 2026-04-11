@@ -44,10 +44,13 @@ function FT_save(immediate){
     .then(function(d){ if(!d.ok) console.warn('Save failed:',d); })
     .catch(function(e){ console.warn('Save error:',e); });
   };
-  FT__savePending = true;
   if(immediate){
-    _doSave();
+    // sendBeacon survives page refresh/navigation — fetch does not
+    var blob = new Blob([JSON.stringify({state:FT_state})], {type:'application/json'});
+    navigator.sendBeacon('https://tech.willowpa.com/state.php', blob);
+    FT__savePending = false;
   } else {
+    FT__savePending = true;
     FT__stateSaveTimer = setTimeout(_doSave, 300);
   }
   var t=document.getElementById('ft-save-toast');
@@ -55,10 +58,11 @@ function FT_save(immediate){
   updateStorageBar();
 }
 var FT__savePending = false;
-// Flush pending save before page unload
+// Flush pending debounced save before page unload
 window.addEventListener('beforeunload', function(){
   if(FT__savePending){
-    navigator.sendBeacon('https://tech.willowpa.com/state.php', JSON.stringify({state:FT_state}));
+    var blob = new Blob([JSON.stringify({state:FT_state})], {type:'application/json'});
+    navigator.sendBeacon('https://tech.willowpa.com/state.php', blob);
   }
 });
 function FT_uid(){ return FT_state._nextId++; }
