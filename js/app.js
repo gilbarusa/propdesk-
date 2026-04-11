@@ -12000,6 +12000,9 @@ function WPA_hsRenderCatalog() {
         var prices = vars.map(function(v) { return v.price; });
         priceStr = '$' + Math.min.apply(null, prices).toFixed(2) + ' – $' + Math.max.apply(null, prices).toFixed(2);
       } else { priceStr = 'No variations'; }
+    } else if (svc.pricing_type === 'configurable' && svc.pricing_config) {
+      var cfg = svc.pricing_config;
+      priceStr = 'From $' + (cfg.base_price || 0) + ' (+$' + (cfg.per_extra_bedroom || 0) + '/BR, +$' + (cfg.per_extra_bathroom || 0) + '/Bath)';
     } else { priceStr = 'Request quote'; }
     var durStr = svc.estimated_duration_minutes ? svc.estimated_duration_minutes + ' min' : '—';
     var statusBadge = svc.is_active
@@ -12207,8 +12210,20 @@ function _hsShowServiceForm(svc) {
   var body = ''
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Name</span><input id="hsFName" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.title || '') + '"></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Subcategory</span><select id="hsFSubcat" class="auth-inp" style="margin-top:4px">' + subcatOpts + '</select></label>'
-    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Pricing Type</span><select id="hsFPricing" class="auth-inp" style="margin-top:4px"><option value="fixed"' + (svc.pricing_type === 'fixed' ? ' selected' : '') + '>Fixed</option><option value="variation"' + (svc.pricing_type === 'variation' ? ' selected' : '') + '>Variation</option><option value="quote"' + (svc.pricing_type === 'quote' ? ' selected' : '') + '>Quote</option></select></label>'
-    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Base Price ($) — for fixed type</span><input id="hsFPrice" class="auth-inp" type="number" step="0.01" style="margin-top:4px" value="' + (svc.base_price || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Pricing Type</span><select id="hsFPricing" class="auth-inp" style="margin-top:4px" onchange="WPA_hsTogglePricingFields()"><option value="fixed"' + (svc.pricing_type === 'fixed' ? ' selected' : '') + '>Fixed</option><option value="variation"' + (svc.pricing_type === 'variation' ? ' selected' : '') + '>Variation</option><option value="quote"' + (svc.pricing_type === 'quote' ? ' selected' : '') + '>Quote</option><option value="configurable"' + (svc.pricing_type === 'configurable' ? ' selected' : '') + '>Configurable (BR/Bath)</option></select></label>'
+    + '<div id="hsFFixedFields"' + (svc.pricing_type !== 'fixed' && svc.pricing_type ? ' style="display:none"' : '') + '><label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Base Price ($)</span><input id="hsFPrice" class="auth-inp" type="number" step="0.01" style="margin-top:4px" value="' + (svc.base_price || '') + '"></label></div>'
+    + '<div id="hsFConfigFields"' + (svc.pricing_type !== 'configurable' ? ' style="display:none"' : '') + '>'
+    + '<div style="background:#f8f8f8;border-radius:8px;padding:12px;margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:600;margin-bottom:8px">Configurable Pricing Setup</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    + '<label style="display:block"><span style="font-size:11px">Base Price ($)</span><input id="hsCfgBase" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.base_price) || 150) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Base Bedrooms</span><input id="hsCfgBaseBR" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.base_bedrooms) || 1) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Per Extra BR ($)</span><input id="hsCfgPerBR" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.per_extra_bedroom) || 50) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Base Bathrooms</span><input id="hsCfgBaseBA" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.base_bathrooms) || 1) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Per Extra Bath ($)</span><input id="hsCfgPerBA" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.per_extra_bathroom) || 50) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Max Bedrooms</span><input id="hsCfgMaxBR" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.max_bedrooms) || 5) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Max Bathrooms</span><input id="hsCfgMaxBA" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.max_bathrooms) || 4) + '"></label>'
+    + '</div></div></div>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration (minutes)</span><input id="hsFDuration" class="auth-inp" type="number" style="margin-top:4px" value="' + (svc.estimated_duration_minutes || '') + '"></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsFDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(svc.short_description || '') + '</textarea></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsFIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.icon || '') + '"></label>'
@@ -12218,16 +12233,26 @@ function _hsShowServiceForm(svc) {
     var name = document.getElementById('hsFName').value.trim();
     if (!name) { alert('Name is required'); return; }
     var sCode = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    var pType = document.getElementById('hsFPricing').value;
     var payload = {
       title: name,
       service_code: sCode,
       subcategory_id: document.getElementById('hsFSubcat').value,
-      pricing_type: document.getElementById('hsFPricing').value,
-      base_price: document.getElementById('hsFPricing').value === 'fixed' ? parseFloat(document.getElementById('hsFPrice').value) || 0 : null,
+      pricing_type: pType,
+      base_price: pType === 'fixed' ? parseFloat(document.getElementById('hsFPrice').value) || 0 : null,
       estimated_duration_minutes: parseInt(document.getElementById('hsFDuration').value) || null,
       short_description: document.getElementById('hsFDesc').value.trim() || null,
       icon: document.getElementById('hsFIcon').value.trim() || null,
-      is_active: document.getElementById('hsFActive').checked
+      is_active: document.getElementById('hsFActive').checked,
+      pricing_config: pType === 'configurable' ? {
+        base_price: parseFloat(document.getElementById('hsCfgBase').value) || 150,
+        base_bedrooms: parseInt(document.getElementById('hsCfgBaseBR').value) || 1,
+        base_bathrooms: parseInt(document.getElementById('hsCfgBaseBA').value) || 1,
+        per_extra_bedroom: parseFloat(document.getElementById('hsCfgPerBR').value) || 50,
+        per_extra_bathroom: parseFloat(document.getElementById('hsCfgPerBA').value) || 50,
+        max_bedrooms: parseInt(document.getElementById('hsCfgMaxBR').value) || 5,
+        max_bathrooms: parseInt(document.getElementById('hsCfgMaxBA').value) || 4
+      } : null
     };
     // Need category_id from subcategory
     var sc = _hsSubcatCache.find(function(s) { return s.id === payload.subcategory_id; });
@@ -12245,6 +12270,14 @@ function _hsShowServiceForm(svc) {
       }).catch(function(e) { alert('Error: ' + e.message); });
     }
   });
+}
+
+function WPA_hsTogglePricingFields() {
+  var pt = document.getElementById('hsFPricing').value;
+  var ff = document.getElementById('hsFFixedFields');
+  var cf = document.getElementById('hsFConfigFields');
+  if (ff) ff.style.display = pt === 'fixed' ? '' : 'none';
+  if (cf) cf.style.display = pt === 'configurable' ? '' : 'none';
 }
 
 function WPA_hsDeleteService(id) {
