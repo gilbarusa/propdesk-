@@ -3115,10 +3115,10 @@ function renderIncomingList() {
   // Compute dashboard stats
   var newCount = FT_incomingRequests.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
   var linkedCount = FT_incomingRequests.filter(function(r) { return r.status !== 'submitted' && r.status !== 'open'; }).length;
-  var paidTotal = 0, unpaidCount = 0;
+  var pricedTotal = 0, noPriceCount = 0;
   FT_incomingRequests.forEach(function(r) {
     var amt = parseFloat(r.price_total);
-    if (amt > 0) paidTotal += amt; else unpaidCount++;
+    if (amt > 0) pricedTotal += amt; else noPriceCount++;
   });
 
   // Stats bar
@@ -3126,8 +3126,8 @@ function renderIncomingList() {
     + _incStat(FT_incomingRequests.length, 'Total', 'var(--fg)')
     + _incStat(newCount, 'New', '#e11d48')
     + _incStat(linkedCount, 'Linked', '#2563eb')
-    + _incStat('$' + paidTotal.toFixed(0), 'Paid', '#16a34a')
-    + _incStat(unpaidCount, 'Unpaid', '#dc2626')
+    + _incStat('$' + pricedTotal.toFixed(0), 'Quoted', '#2563eb')
+    + _incStat(noPriceCount, 'No Price', '#9ca3af')
     + '</div>';
 
   if (!filtered.length) {
@@ -3149,12 +3149,12 @@ function renderIncomingList() {
     var st = req.status || 'submitted';
     var sStyle = 'background:' + (sBgs[st]||'#f3f4f6') + ';color:' + (sColors[st]||'#6b7280') + ';border:1px solid ' + (sBrds[st]||'#e5e7eb');
 
-    // Payment badge
+    // Payment badge — shows price amount (not paid status, that's in payment_requests)
     var priceAmt = parseFloat(req.price_total);
-    var isPaid = priceAmt > 0;
-    var paidBadge = isPaid
-      ? '<span style="background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #bbf7d0">💰 $' + priceAmt.toFixed(0) + '</span>'
-      : '<span style="background:#fef2f2;color:#dc2626;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #fecaca">Unpaid</span>';
+    var hasPrice = priceAmt > 0;
+    var paidBadge = hasPrice
+      ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #bfdbfe">$' + priceAmt.toFixed(0) + '</span>'
+      : '<span style="background:#f3f4f6;color:#9ca3af;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #e5e7eb">No price</span>';
 
     // Source badge
     var srcBadge = req.source === 'home_services'
@@ -3223,8 +3223,8 @@ function openIncomingLink(reqId) {
   var displayAddr = resolveIncomingAddress(req);
   var priceAmt = parseFloat(req.price_total);
   var paidLabel = priceAmt > 0
-    ? '<span style="color:#16a34a;font-weight:600">💰 Paid $' + priceAmt.toFixed(2) + '</span>'
-    : '<span style="color:#dc2626;font-weight:600">Unpaid</span>';
+    ? '<span style="color:#1d4ed8;font-weight:600">$' + priceAmt.toFixed(2) + '</span>'
+    : '<span style="color:#9ca3af;font-weight:600">No price set</span>';
 
   // Build summary as a clean data grid
   var sumRows = '';
@@ -3241,17 +3241,19 @@ function openIncomingLink(reqId) {
 
   document.getElementById('il-req-summary').innerHTML = sumRows;
 
-  // Populate units dropdown from PropDesk data + auto-select matching unit
+  // Populate units dropdown from PropDesk properties + auto-select matching unit
   var unitSel = document.getElementById('il-unit');
   unitSel.innerHTML = '<option value="">Select unit...</option>';
   var reqUnit = (req.unit || '').replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
-  if (typeof allUnits !== 'undefined' && Array.isArray(allUnits)) {
-    allUnits.forEach(function(u) {
+  if (FT_pdProperties && FT_pdProperties.length) {
+    FT_pdProperties.forEach(function(u) {
       var opt = document.createElement('option');
-      opt.value = u.id;
-      opt.textContent = (u.apt || u.name || 'Unit ' + u.id) + (u.owner ? ' — ' + u.owner : '');
-      // Auto-select if apt matches the request unit
-      if (reqUnit && u.apt && u.apt.replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase() === reqUnit) {
+      opt.value = u.apt || u.id;
+      opt.textContent = (u.apt || 'Unit ?') + ' — ' + (u.name || u.address || '');
+      // Auto-select: match by apt number or by name containing the unit string
+      var uApt = (u.apt || '').replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
+      var uName = (u.name || '').toLowerCase();
+      if (reqUnit && (uApt === reqUnit || uName.indexOf(reqUnit) !== -1 || reqUnit.indexOf(uApt) !== -1 || reqUnit.indexOf(uName) !== -1)) {
         opt.selected = true;
       }
       unitSel.appendChild(opt);
