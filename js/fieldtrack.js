@@ -1205,7 +1205,13 @@ function setJobStatus(jobId, status){
   }
   job.status=status;
   if(status==='open'||status==='waiting_parts') job.completedDate=null;
-  FT_save();
+  // Immediate save (bypass debounce) — status changes must persist
+  clearTimeout(FT__stateSaveTimer);
+  fetch('https://tech.willowpa.com/state.php',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({state:FT_state})
+  }).catch(function(e){ console.warn('Status save error:',e); });
   refreshJobCard(jobId);
 }
 
@@ -3229,12 +3235,26 @@ function renderIncomingList() {
           + (req.waiver_agreed ? '<span style="font-size:10px;color:#166534;background:rgba(22,163,74,.06);padding:2px 6px;border-radius:3px">✅ Waiver</span>' : '')
           + (req.sms_consent ? '<span style="font-size:10px;color:var(--accent);background:rgba(196,127,0,.06);padding:2px 6px;border-radius:3px">📱 SMS</span>' : '')
         + '</div>'
-        + (isNew
-          ? '<button class="btn btn-primary btn-sm" style="font-size:12px;padding:4px 12px" onclick="openIncomingLink(\'' + FT_esc(req.id) + '\')">🔗 Create WO</button>'
-          : '<span style="font-size:11px;color:var(--muted)">' + (req.work_order_id ? 'WO# ' + FT_esc(String(req.work_order_id)) : '') + '</span>')
+        + '<div style="display:flex;gap:6px;align-items:center">'
+          + '<button class="btn btn-danger btn-sm" style="font-size:11px;padding:3px 8px;opacity:0.7" onclick="event.stopPropagation();deleteIncomingRequest(\'' + FT_esc(req.id) + '\')">&#x1F5D1;</button>'
+          + (isNew
+            ? '<button class="btn btn-primary btn-sm" style="font-size:12px;padding:4px 12px" onclick="openIncomingLink(\'' + FT_esc(req.id) + '\')">🔗 Create WO</button>'
+            : '<span style="font-size:11px;color:var(--muted)">' + (req.work_order_id ? 'WO# ' + FT_esc(String(req.work_order_id)) : '') + '</span>')
+        + '</div>'
       + '</div>'
       + '</div>';
   }).join('') + '</div>';
+}
+
+function deleteIncomingRequest(reqId) {
+  if (!confirm('Delete this incoming request? This cannot be undone.')) return;
+  if (typeof sb === 'undefined') { alert('No database connection.'); return; }
+  sb.from('maintenance_requests').delete().eq('id', reqId).then(function(res) {
+    if (res.error) { alert('Delete failed: ' + (res.error.message || 'Unknown error')); return; }
+    // Remove from local array and refresh
+    FT_incomingRequests = FT_incomingRequests.filter(function(r) { return r.id !== reqId; });
+    renderIncomingList();
+  });
 }
 
 /* Helper: stat card for dashboard */
