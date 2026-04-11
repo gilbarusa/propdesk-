@@ -3260,6 +3260,40 @@ function openIncomingLink(reqId) {
     });
   }
 
+  // When unit changes, try to auto-match property
+  unitSel.onchange = function() {
+    var selApt = unitSel.value;
+    if (!selApt || !FT_state.properties.length) return;
+    // Try to find TechTrack property linked to this PropDesk apt
+    var match = FT_state.properties.find(function(p) {
+      return p.pdApt && p.pdApt.toLowerCase() === selApt.toLowerCase();
+    });
+    // Try address bridge
+    if (!match && FT_pdProperties && FT_pdProperties.length) {
+      var pdp = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === selApt.toLowerCase(); });
+      if (pdp && pdp.address) {
+        var pdAddr = pdp.address.toLowerCase().replace(/[.,]/g, '').trim();
+        match = FT_state.properties.find(function(p) {
+          var ftAddr = (p.address || '').toLowerCase().replace(/[.,]/g, '').trim();
+          return ftAddr && pdAddr && (ftAddr.indexOf(pdAddr) !== -1 || pdAddr.indexOf(ftAddr) !== -1);
+        });
+      }
+      // If still no match, put the unit name in search
+      if (!match) {
+        document.getElementById('il-prop-search').value = selApt;
+        document.getElementById('il-prop-id').value = '';
+        if (selEl) selEl.style.display = 'none';
+        if (typeof ilPropSearch === 'function') ilPropSearch();
+        return;
+      }
+    }
+    if (match) {
+      document.getElementById('il-prop-id').value = match.id;
+      document.getElementById('il-prop-search').value = match.name || propFullAddr(match);
+      if (selEl) { selEl.textContent = '✅ ' + (match.name || '') + ' — ' + propFullAddr(match); selEl.style.display = 'block'; }
+    }
+  };
+
   // Pre-fill title with category + short description
   document.getElementById('il-title').value = (req.category || 'General') + ': ' + (req.description || '').substring(0, 60);
   document.getElementById('il-notes').value = req.description || '';
@@ -3305,8 +3339,13 @@ function openIncomingLink(reqId) {
     document.getElementById('il-prop-id').value = autoMatch.id;
     document.getElementById('il-prop-search').value = autoMatch.name || propFullAddr(autoMatch);
     if (selEl) { selEl.textContent = '✅ ' + (autoMatch.name || '') + ' — ' + propFullAddr(autoMatch); selEl.style.display = 'block'; }
-  } else if (displayAddr) {
-    document.getElementById('il-prop-search').value = displayAddr;
+  } else {
+    // Pre-fill search with best available info and trigger autocomplete
+    var searchHint = displayAddr || req.unit || req.address || '';
+    if (searchHint) {
+      document.getElementById('il-prop-search').value = searchHint;
+      if (typeof ilPropSearch === 'function') ilPropSearch();
+    }
   }
 
   // Populate techs
