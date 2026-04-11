@@ -755,12 +755,10 @@ function buildJobBody(job, editable, st){
     h+='</div>';
     h+='</div>';
   }
-  // Delete job — admin only
-  if(FT_isAdmin()){
-    h+='<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">';
-    h+='<button class="btn btn-danger btn-sm" onclick="deleteJob('+job.id+')">&#x1F5D1; Delete Job</button>';
-    h+='</div>';
-  }
+  // Delete job
+  h+='<div style="margin-top:12px;border-top:1px solid var(--border);padding-top:8px">';
+  h+='<button class="btn btn-danger btn-sm" onclick="deleteJob('+job.id+')">&#x1F5D1; Delete Job</button>';
+  h+='</div>';
   return h;
 }
 
@@ -3457,14 +3455,36 @@ function saveIncomingLink() {
   if (!title) { alert('Enter a job title.'); return; }
 
   // If no TechTrack property but we have a unit, auto-create a TechTrack property from PropDesk data
-  if (!propId && unitApt && FT_pdProperties && FT_pdProperties.length) {
-    var pdp = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === unitApt.toLowerCase(); });
+  if (!propId && unitApt) {
+    var pdp = null;
+    if (FT_pdProperties && FT_pdProperties.length) {
+      // Try matching by apt name (direct)
+      pdp = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === unitApt.toLowerCase(); });
+      // Try matching by property_uid — find unit first, then find property with same property_uid
+      if (!pdp) {
+        var unitEntry = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === unitApt.toLowerCase() && p.property_uid; });
+        if (unitEntry && unitEntry.property_uid) {
+          pdp = FT_pdProperties.find(function(p) { return p.property_uid === unitEntry.property_uid && p.address; });
+        }
+      }
+      // Try fuzzy match on name words
+      if (!pdp) {
+        var uLow = unitApt.toLowerCase();
+        pdp = FT_pdProperties.find(function(p) {
+          var pApt = (p.apt || '').toLowerCase();
+          return pApt.indexOf(uLow) !== -1 || uLow.indexOf(pApt) !== -1;
+        });
+      }
+    }
+    // Also try to get address from the request itself
+    var propAddr = (pdp && pdp.address) ? pdp.address : (req.address || '');
+    var propCity = (pdp && pdp.city) ? pdp.city : '';
     var newProp = {
       id: FT_uid(),
       name: unitApt,
-      address: pdp ? (pdp.address || '') : '',
+      address: propAddr,
       unit: unitApt,
-      city: pdp ? (pdp.city || '') : '',
+      city: propCity,
       ownerId: null,
       pdApt: unitApt,
       notes: 'Auto-created from incoming request'
