@@ -12230,8 +12230,8 @@ function _hsShowServiceForm(svc) {
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsFIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.icon || '') + '"></label>'
     + '<div style="background:#eff6ff;border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid #bfdbfe">'
     + '<div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#1e40af">💳 Stripe Payment</div>'
-    + '<label style="display:block;margin-bottom:8px"><span style="font-size:11px">Stripe Account ID</span><input id="hsFStripeAcct" class="auth-inp" style="margin-top:2px" placeholder="acct_..." value="' + _esc((svc.stripe_account_id) || '') + '"></label>'
-    + '<p style="font-size:10px;color:#6b7280;margin:0">Connect a Stripe account for this service. Leave blank to use the default company Stripe account.</p>'
+    + '<label style="display:block;margin-bottom:8px"><span style="font-size:11px">Stripe Account</span><select id="hsFStripeCredId" class="auth-inp" style="margin-top:2px"><option value="">— Use default —</option></select></label>'
+    + '<p style="font-size:10px;color:#6b7280;margin:0">Select a Stripe account for this service. "Use default" falls back to the global setting.</p>'
     + '</div>'
     + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><input type="checkbox" id="hsFActive"' + (svc.is_active !== false ? ' checked' : '') + '> <span style="font-size:12px;font-weight:500">Active</span></label>';
 
@@ -12249,7 +12249,7 @@ function _hsShowServiceForm(svc) {
       estimated_duration_minutes: parseInt(document.getElementById('hsFDuration').value) || null,
       short_description: document.getElementById('hsFDesc').value.trim() || null,
       icon: document.getElementById('hsFIcon').value.trim() || null,
-      stripe_account_id: document.getElementById('hsFStripeAcct').value.trim() || null,
+      stripe_cred_id: document.getElementById('hsFStripeCredId').value || null,
       is_active: document.getElementById('hsFActive').checked,
       pricing_config: pType === 'configurable' ? {
         base_price: parseFloat(document.getElementById('hsCfgBase').value) || 150,
@@ -12276,6 +12276,24 @@ function _hsShowServiceForm(svc) {
         WPA_hsLoadCatalog();
       }).catch(function(e) { alert('Error: ' + e.message); });
     }
+  });
+
+  // Populate Stripe credential dropdown after modal is in DOM
+  WPA_hsLoadStripeCredOptions(svc.stripe_cred_id || '');
+}
+
+function WPA_hsLoadStripeCredOptions(selectedId) {
+  var sel = document.getElementById('hsFStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Use default —</option>';
+  pkSB('app_credentials', 'select=id,label&service=eq.stripe&active=eq.true').then(function(rows) {
+    (rows || []).forEach(function(r) {
+      var opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = '💳 ' + r.label;
+      if (selectedId && r.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
   });
 }
 
@@ -12435,7 +12453,7 @@ function WPA_hsLoadSettings() {
     (rows || []).forEach(function(r) { settings[r.key] = r.value; });
 
     var surPct = settings.weekend_evening_surcharge_pct || 20;
-    var defStripe = settings.default_stripe_account || '';
+    var defStripe = settings.default_stripe_cred_id || '';
 
     cont.innerHTML = ''
       + '<div style="display:grid;gap:20px;max-width:500px">'
@@ -12450,26 +12468,44 @@ function WPA_hsLoadSettings() {
 
       + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px">'
       + '<div style="font-weight:600;font-size:14px;margin-bottom:12px">💳 Default Stripe Account</div>'
-      + '<label style="display:block;margin-bottom:8px"><span style="font-size:12px;font-weight:500">Stripe Account ID</span>'
-      + '<input id="hsSetStripeAcct" class="auth-inp" style="margin-top:4px" placeholder="acct_..." value="' + _esc(defStripe) + '">'
+      + '<label style="display:block;margin-bottom:8px"><span style="font-size:12px;font-weight:500">Stripe Account</span>'
+      + '<select id="hsSetStripeCredId" class="auth-inp" style="margin-top:4px"><option value="">— None —</option></select>'
       + '</label>'
       + '<p style="font-size:11px;color:#6b7280;margin:0">Default Stripe account for payment processing. Individual services can override this in their own settings.</p>'
       + '</div>'
 
       + '<button class="btn-subtle" style="background:#c47f00;color:#fff;padding:10px 24px;border-radius:8px;font-weight:600;justify-self:start" onclick="WPA_hsSaveSettings()">Save Settings</button>'
       + '</div>';
+
+    // Populate Stripe dropdown in settings
+    WPA_hsLoadStripeCredOptions_settings(defStripe);
   }).catch(function(e) {
     cont.innerHTML = '<p style="color:#ef4444">Failed to load settings. The hs_settings table may not exist yet.</p>'
       + '<button class="btn-subtle" onclick="WPA_hsCreateSettingsTable()">Create Settings Table</button>';
   });
 }
 
+function WPA_hsLoadStripeCredOptions_settings(selectedId) {
+  var sel = document.getElementById('hsSetStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None —</option>';
+  pkSB('app_credentials', 'service=eq.stripe&active=eq.true&select=id,label,account_id', 'GET').then(function(rows) {
+    (rows || []).forEach(function(c) {
+      var o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.label || c.account_id || ('Cred #' + c.id);
+      if (String(c.id) === String(selectedId)) o.selected = true;
+      sel.appendChild(o);
+    });
+  });
+}
+
 function WPA_hsSaveSettings() {
   var pct = document.getElementById('hsSetSurchargePct').value;
-  var stripe = document.getElementById('hsSetStripeAcct').value.trim();
+  var stripe = document.getElementById('hsSetStripeCredId').value || '';
   var saves = [
     _hsUpsertSetting('weekend_evening_surcharge_pct', pct),
-    _hsUpsertSetting('default_stripe_account', stripe)
+    _hsUpsertSetting('default_stripe_cred_id', stripe)
   ];
   Promise.all(saves).then(function() {
     alert('Settings saved!');
