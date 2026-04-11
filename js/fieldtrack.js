@@ -3027,7 +3027,7 @@ var FT_initPromise = null;
 function FT_init(startPage){
   var _pg = startPage || 'dashboard';
   // Load FieldTrack state AND PropDesk data in parallel
-  var pFT = fetch('https://tech.willowpa.com/state.php')
+  var pFT = fetch('https://tech.willowpa.com/state.php?_=' + Date.now())
     .then(function(r){ return r.json(); })
     .then(function(d){
       var s = (d && d.state) ? d.state : d;
