@@ -2978,31 +2978,63 @@
 
 <!-- Incoming Request → WO Modal -->
 <div class="modal-overlay" id="ft-modal-incoming-link">
-  <div class="modal">
+  <div class="modal" style="max-width:520px">
     <button class="modal-close" onclick="FT_closeModal('ft-modal-incoming-link')">✕</button>
-    <div class="modal-title">🔗 Create Work Order from Request</div>
-    <input type="hidden" id="il-req-id">
-    <div id="il-req-summary" style="background:rgba(196,127,0,.08);border:1px solid rgba(196,127,0,.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--accent);margin-bottom:14px"></div>
-    <div class="form-group">
-      <label>Link to Unit (PropDesk) *</label>
-      <select id="il-unit"><option value="">Select unit...</option></select>
-    </div>
-    <div class="form-group">
-      <label>Property (TechTrack) *</label>
-      <div class="autocomplete-wrap">
-        <input type="text" id="il-prop-search" placeholder="Type address or property name..." oninput="ilPropSearch()" autocomplete="off">
-        <div class="ac-list" id="il-ac-list"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <div style="width:38px;height:38px;border-radius:10px;background:rgba(196,127,0,.12);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📋</div>
+      <div>
+        <div style="font-family:var(--fd);font-size:17px;font-weight:700;color:var(--fg)">Create Work Order</div>
+        <div style="font-size:11px;color:var(--muted);font-family:var(--fm);letter-spacing:.3px">From incoming service request</div>
       </div>
-      <input type="hidden" id="il-prop-id">
-      <div id="il-prop-selected" style="margin-top:6px;font-size:12px;color:var(--accent);display:none"></div>
     </div>
-    <div class="form-group"><label>Assign to Technician</label><select id="il-tech"><option value="">Unassigned</option></select></div>
-    <div class="form-group"><label>Job Title</label><input type="text" id="il-title" placeholder="Brief description..."></div>
-    <div class="form-group"><label>Job Notes</label><textarea id="il-notes" rows="3" placeholder="Notes for the technician..."></textarea></div>
-    <div class="alert alert-info" style="font-size:12px">Creates a Work Order. If technician is selected, SMS will be sent. Otherwise WO stays unassigned.</div>
+    <input type="hidden" id="il-req-id">
+    <div id="il-req-summary" style="background:rgba(196,127,0,.05);border:1px solid rgba(196,127,0,.15);border-radius:10px;padding:14px 16px;font-size:13px;color:var(--fg);margin-bottom:18px"></div>
+
+    <!-- Location section -->
+    <div style="font-family:var(--fm);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+      <span style="width:18px;height:1px;background:var(--border);display:inline-block"></span>Location
+      <span style="flex:1;height:1px;background:var(--border);display:inline-block"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div class="form-group" style="margin-bottom:0">
+        <label>Unit (PropDesk) *</label>
+        <select id="il-unit"><option value="">Select unit...</option></select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Property (TechTrack) *</label>
+        <div class="autocomplete-wrap">
+          <input type="text" id="il-prop-search" placeholder="Search address..." oninput="ilPropSearch()" autocomplete="off">
+          <div class="ac-list" id="il-ac-list"></div>
+        </div>
+        <input type="hidden" id="il-prop-id">
+        <div id="il-prop-selected" style="margin-top:4px;font-size:11px;color:var(--accent);display:none"></div>
+      </div>
+    </div>
+
+    <!-- Assignment section -->
+    <div style="font-family:var(--fm);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+      <span style="width:18px;height:1px;background:var(--border);display:inline-block"></span>Assignment
+      <span style="flex:1;height:1px;background:var(--border);display:inline-block"></span>
+    </div>
+    <div class="form-group">
+      <label>Technician</label>
+      <select id="il-tech"><option value="">Unassigned</option></select>
+    </div>
+
+    <!-- Job details section -->
+    <div style="font-family:var(--fm);font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+      <span style="width:18px;height:1px;background:var(--border);display:inline-block"></span>Job Details
+      <span style="flex:1;height:1px;background:var(--border);display:inline-block"></span>
+    </div>
+    <div class="form-group"><label>Title</label><input type="text" id="il-title" placeholder="Brief description..."></div>
+    <div class="form-group"><label>Notes for Technician</label><textarea id="il-notes" rows="3" placeholder="Additional instructions..."></textarea></div>
+
+    <div style="background:rgba(79,196,207,.06);border:1px solid rgba(79,196,207,.15);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--accent2);margin-bottom:4px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px">💡</span> SMS will be sent to the technician and client when a work order is created.
+    </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="FT_closeModal('ft-modal-incoming-link')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveIncomingLink()">Create Work Order</button>
+      <button class="btn btn-primary" onclick="saveIncomingLink()">✅ Create Work Order</button>
     </div>
   </div>
 </div>
