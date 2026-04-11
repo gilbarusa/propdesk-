@@ -101,6 +101,7 @@
   <div class="module-tab" data-module="techtrack" onclick="switchModule('techtrack',this)"><span class="mod-icon">🔧</span> TechTrack <span class="mod-badge" id="techtrackBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="expenses" onclick="switchModule('expenses',this)"><span class="mod-icon">💰</span> Expenses</div>
   <div class="module-tab" data-module="parking" onclick="switchModule('parking',this)"><span class="mod-icon">🚗</span> Parking</div>
+  <div class="module-tab" data-module="home-services" onclick="switchModule('home-services',this)"><span class="mod-icon">🧹</span> Home Services</div>
   <div class="module-tab" data-module="mailroom" onclick="switchModule('mailroom',this)"><span class="mod-icon">📦</span> Mailroom <span class="mod-badge" id="mailroomBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="messages" onclick="switchModule('messages',this)"><span class="mod-icon">💬</span> Messages <span class="mod-badge" id="msgCenterBadge" style="display:none">0</span></div>
   <div style="flex:1"></div>
@@ -2306,6 +2307,64 @@
   </div>
 </div>
 
+<!-- ═══ HOME SERVICES MODULE ═══ -->
+<div class="page" id="page-home-services">
+  <div class="dash-wrap">
+    <div class="dash-header">
+      <div><div class="dash-title">🧹 Home Services</div><div class="dash-subtitle">Manage service catalog, bookings, and subcategories</div></div>
+    </div>
+
+    <!-- ── Catalog Section ── -->
+    <div id="hsCatalogSection">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:16px;font-weight:600">Service Catalog</h3>
+        <button class="btn-subtle" onclick="WPA_hsAddService()">+ Add Service</button>
+      </div>
+      <div id="hsCatalogGrid" style="display:grid;gap:12px">
+        <div class="info-loading">Loading catalog...</div>
+      </div>
+    </div>
+
+    <!-- ── Subcategories Section ── -->
+    <div id="hsSubcatsSection" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:16px;font-weight:600">Subcategories</h3>
+        <button class="btn-subtle" onclick="WPA_hsAddSubcat()">+ Add Subcategory</button>
+      </div>
+      <div id="hsSubcatsList">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── Bookings Section ── -->
+    <div id="hsBookingsSection" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:16px;font-weight:600">Service Bookings</h3>
+        <select id="hsBookFilter" onchange="WPA_hsLoadBookings()" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:13px">
+          <option value="all">All</option>
+          <option value="new">New</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="complete">Complete</option>
+        </select>
+      </div>
+      <div id="hsBookingsList">
+        <div class="info-loading">Loading bookings...</div>
+      </div>
+    </div>
+
+    <!-- ── Time Windows Section ── -->
+    <div id="hsTimeWindowsSection" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0;font-size:16px;font-weight:600">Time Windows</h3>
+        <button class="btn-subtle" onclick="WPA_hsAddTimeWindow()">+ Add Window</button>
+      </div>
+      <div id="hsTimeWindowsList">
+        <div class="info-loading">Loading...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ PARKING MODULE ═══ -->
 <div class="page" id="page-parking">
   <div class="dash-wrap">
@@ -3086,7 +3145,7 @@
 <script src="js/config.js"></script>
 <script src="js/ft-db.js"></script>
 <script src="js/fieldtrack.js"></script>
-<script src="js/app.js?v=20260408b"></script>
+<script src="js/app.js?v=20260410c"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
