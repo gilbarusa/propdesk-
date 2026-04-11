@@ -3276,22 +3276,35 @@ function openIncomingLink(reqId) {
   document.getElementById('il-prop-id').value = '';
   var selEl = document.getElementById('il-prop-selected'); if (selEl) selEl.style.display = 'none';
 
-  // Auto-match property from unit or address
+  // Auto-match property: try direct match first, then bridge via PropDesk address
+  var autoMatch = null;
   if (req.unit && FT_state.properties.length) {
     var uKey = req.unit.replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
-    var autoMatch = FT_state.properties.find(function(p) {
+    // 1) Direct match by pdApt, unit, or name
+    autoMatch = FT_state.properties.find(function(p) {
       if (p.pdApt && p.pdApt.toLowerCase() === uKey) return true;
       if (p.unit && p.unit.replace(/^(apt|unit|suite|#)\s*/i,'').trim().toLowerCase() === uKey) return true;
       if (p.name && p.name.toLowerCase().indexOf(uKey) !== -1) return true;
       return false;
     });
-    if (autoMatch) {
-      document.getElementById('il-prop-id').value = autoMatch.id;
-      document.getElementById('il-prop-search').value = autoMatch.name || propFullAddr(autoMatch);
-      if (selEl) { selEl.textContent = '✅ ' + (autoMatch.name || '') + ' — ' + propFullAddr(autoMatch); selEl.style.display = 'block'; }
-    } else if (displayAddr) {
-      document.getElementById('il-prop-search').value = displayAddr;
+    // 2) Bridge: look up unit in PropDesk properties to get address, then match TechTrack by address
+    if (!autoMatch && FT_pdProperties && FT_pdProperties.length) {
+      var pdMatch = FT_pdProperties.find(function(pd) {
+        return pd.apt && pd.apt.toLowerCase() === uKey;
+      });
+      if (pdMatch && pdMatch.address) {
+        var pdAddr = pdMatch.address.toLowerCase().replace(/[.,]/g, '').trim();
+        autoMatch = FT_state.properties.find(function(p) {
+          var ftAddr = (p.address || '').toLowerCase().replace(/[.,]/g, '').trim();
+          return ftAddr && pdAddr && ftAddr.indexOf(pdAddr) !== -1 || pdAddr.indexOf(ftAddr) !== -1;
+        });
+      }
     }
+  }
+  if (autoMatch) {
+    document.getElementById('il-prop-id').value = autoMatch.id;
+    document.getElementById('il-prop-search').value = autoMatch.name || propFullAddr(autoMatch);
+    if (selEl) { selEl.textContent = '✅ ' + (autoMatch.name || '') + ' — ' + propFullAddr(autoMatch); selEl.style.display = 'block'; }
   } else if (displayAddr) {
     document.getElementById('il-prop-search').value = displayAddr;
   }
