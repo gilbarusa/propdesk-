@@ -3537,7 +3537,7 @@ function saveIncomingLink() {
       client_name: req.name || '',
       client_email: req.email || '',
       client_phone: req.phone || '',
-      unit: req.unit || '',
+      unit: (req.unit || '').replace(/\s+/g, ' ').trim(),
       property: req.property || '',
       description: title,
       amount: chargeAmt,
