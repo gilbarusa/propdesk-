@@ -2978,18 +2978,18 @@
 
 <!-- Incoming Request → WO Modal -->
 <div class="modal-overlay" id="ft-modal-incoming-link">
-  <div class="modal" style="max-width:480px;padding:0;overflow:hidden">
+  <div class="modal" style="max-width:480px;padding:0;overflow:hidden;max-height:90vh;display:flex;flex-direction:column">
     <button class="modal-close" onclick="FT_closeModal('ft-modal-incoming-link')" style="top:14px;right:14px;z-index:2">✕</button>
     <input type="hidden" id="il-req-id">
 
     <!-- Header band -->
-    <div style="background:linear-gradient(135deg,rgba(196,127,0,.1),rgba(196,127,0,.04));padding:20px 22px 16px;border-bottom:1px solid var(--border)">
+    <div style="background:linear-gradient(135deg,rgba(196,127,0,.1),rgba(196,127,0,.04));padding:20px 22px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
       <div style="font-family:var(--fd);font-size:16px;font-weight:700;color:var(--fg);margin-bottom:12px">New Work Order</div>
       <div id="il-req-summary"></div>
     </div>
 
-    <!-- Form body -->
-    <div style="padding:18px 22px 6px">
+    <!-- Form body (scrollable) -->
+    <div style="padding:18px 22px 6px;overflow-y:auto;flex:1">
       <div class="form-group">
         <label>Unit (PropDesk) *</label>
         <select id="il-unit"><option value="">Select unit...</option></select>
@@ -3020,7 +3020,7 @@
     </div>
 
     <!-- Footer -->
-    <div style="padding:0 22px 20px;display:flex;align-items:center;gap:12px">
+    <div style="padding:12px 22px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;border-top:1px solid var(--border)">
       <div style="flex:1;font-size:10px;color:var(--muted);line-height:1.4">SMS sent to tech &amp; client on creation</div>
       <button class="btn btn-secondary btn-sm" onclick="FT_closeModal('ft-modal-incoming-link')">Cancel</button>
       <button class="btn btn-primary btn-sm" onclick="saveIncomingLink()">Create WO</button>
