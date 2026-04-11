@@ -12489,11 +12489,11 @@ function WPA_hsLoadStripeCredOptions_settings(selectedId) {
   var sel = document.getElementById('hsSetStripeCredId');
   if (!sel) return;
   sel.innerHTML = '<option value="">— None —</option>';
-  pkSB('app_credentials', 'service=eq.stripe&active=eq.true&select=id,label,account_id', 'GET').then(function(rows) {
+  pkSB('app_credentials', 'service=eq.stripe&active=eq.true&select=id,label', 'GET').then(function(rows) {
     (rows || []).forEach(function(c) {
       var o = document.createElement('option');
       o.value = c.id;
-      o.textContent = c.label || c.account_id || ('Cred #' + c.id);
+      o.textContent = c.label || ('Cred #' + c.id);
       if (String(c.id) === String(selectedId)) o.selected = true;
       sel.appendChild(o);
     });
