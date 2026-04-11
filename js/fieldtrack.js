@@ -389,6 +389,30 @@ function renderJobDetail(jobId){
   if(empty) empty.style.display='none';
   if(content){ content.style.display='block'; content.innerHTML=buildJobDetailPanel(job); }
   loadThumbs(job);
+  // Async: if no servicePrice on job, check Supabase payment_requests by WO number
+  if(!job.servicePrice && job.woNum && typeof sb!=='undefined'){
+    sb.from('payment_requests').select('amount,status').eq('work_order_id',String(job.woNum)).then(function(res){
+      if(res.data && res.data.length>0){
+        var pr=res.data[0];
+        var amt=parseFloat(pr.amount||0);
+        if(amt>0){
+          // Cache it on job for next render
+          job.servicePrice=amt;
+          FT_save();
+          var slot=document.getElementById('svcPriceSlot-'+job.id);
+          if(slot){
+            var statusBadge=pr.status==='paid'
+              ?'<span style="font-size:11px;background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:4px;margin-left:8px">PAID</span>'
+              :'<span style="font-size:11px;background:#fef2f2;color:#dc2626;padding:2px 8px;border-radius:4px;margin-left:8px">PENDING</span>';
+            slot.innerHTML='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
+              +'<span style="font-size:13px;color:#1e40af;font-weight:600">&#x1F4CB; Agreed Service Price'+statusBadge+'</span>'
+              +'<span style="font-size:16px;font-weight:700;color:#1d4ed8">'+fmt$(amt)+'</span>'
+              +'</div>';
+          }
+        }
+      }
+    });
+  }
 }
 
 //  FULL JOB DETAIL (right panel) — wraps buildJobBody with header
@@ -652,6 +676,15 @@ function buildJobBody(job, editable, st){
   var tH=jobTotalHours(job), tL=tH*rate, tE=jobTotalExp(job);
   h+='<div class="jc-section jc-section-billing">';
   h+='<div class="jc-section-label">&#x1F4B0; Billing Summary</div>';
+  // Show agreed service price if set on job, or placeholder for Supabase lookup
+  if(job.servicePrice && job.servicePrice>0){
+    h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-size:13px;color:#1e40af;font-weight:600">&#x1F4CB; Agreed Service Price</span>'
+      +'<span style="font-size:16px;font-weight:700;color:#1d4ed8">'+fmt$(job.servicePrice)+'</span>'
+      +'</div>';
+  } else {
+    h+='<div id="svcPriceSlot-'+job.id+'"></div>';
+  }
   h+='<div class="jc-billing-grid">';
   h+='<div class="jc-billing-row"><span>Hours</span><strong>'+tH.toFixed(2)+'h</strong></div>';
   if(FT_isAdmin()){
@@ -3493,6 +3526,9 @@ function saveIncomingLink() {
     propId = newProp.id;
   }
 
+  // Get charge amount from form
+  var chargeAmt = parseFloat((document.getElementById('il-amount') || {}).value);
+
   // Create work order
   var job = {
     id: FT_uid(),
@@ -3510,7 +3546,8 @@ function saveIncomingLink() {
     clientEmail: req.email || '',
     clientPreferredComm: req.preferred_comm || 'sms',
     hours: [], expenses: [], photos: [],
-    sourceRequestId: reqId
+    sourceRequestId: reqId,
+    servicePrice: chargeAmt > 0 ? chargeAmt : null
   };
 
   FT_state.jobs.push(job);
@@ -3525,7 +3562,6 @@ function saveIncomingLink() {
   }
 
   // Create payment request if amount is set
-  var chargeAmt = parseFloat((document.getElementById('il-amount') || {}).value);
   if (chargeAmt > 0 && typeof sb !== 'undefined') {
     var payId = 'pay_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
     sb.from('payment_requests').insert([{
