@@ -3079,6 +3079,28 @@ function filterIncoming(filter) {
   renderIncomingList();
 }
 
+/* Resolve best address for an incoming request:
+   1) Try matching unit against FT_pdProperties (PropDesk Supabase)
+   2) Try matching unit against FT_state.properties (TechTrack local)
+   3) Fallback to whatever address was submitted with the request */
+function resolveIncomingAddress(req) {
+  if (req.unit) {
+    var uKey = req.unit.replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
+    if (uKey && FT_pdProperties.length) {
+      var pd = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === uKey; });
+      if (pd && pd.address) return [pd.address, pd.city].filter(Boolean).join(', ');
+    }
+    if (uKey && FT_state.properties.length) {
+      var ft = FT_state.properties.find(function(p) {
+        return (p.unit && p.unit.replace(/^(apt|unit|suite|#)\s*/i,'').trim().toLowerCase() === uKey)
+            || (p.name && p.name.toLowerCase().indexOf(uKey) !== -1);
+      });
+      if (ft) return propFullAddr(ft);
+    }
+  }
+  return req.address || '';
+}
+
 function renderIncomingList() {
   var el = document.getElementById('incoming-list');
   if (!el) return;
@@ -3090,45 +3112,105 @@ function renderIncomingList() {
     filtered = filtered.filter(function(r) { return r.status === 'assigned' || r.status === 'scheduled' || r.status === 'in-progress' || r.status === 'completed'; });
   }
 
+  // Compute dashboard stats
   var newCount = FT_incomingRequests.filter(function(r) { return r.status === 'submitted' || r.status === 'open'; }).length;
   var linkedCount = FT_incomingRequests.filter(function(r) { return r.status !== 'submitted' && r.status !== 'open'; }).length;
+  var paidTotal = 0, unpaidCount = 0;
+  FT_incomingRequests.forEach(function(r) {
+    var amt = parseFloat(r.price_total);
+    if (amt > 0) paidTotal += amt; else unpaidCount++;
+  });
+
+  // Stats bar
+  var stats = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px">'
+    + _incStat(FT_incomingRequests.length, 'Total', 'var(--fg)')
+    + _incStat(newCount, 'New', '#e11d48')
+    + _incStat(linkedCount, 'Linked', '#2563eb')
+    + _incStat('$' + paidTotal.toFixed(0), 'Paid', '#16a34a')
+    + _incStat(unpaidCount, 'Unpaid', '#dc2626')
+    + '</div>';
 
   if (!filtered.length) {
-    el.innerHTML = '<div class="empty-FT_state"><span class="emoji">📭</span>No ' + FT_incomingFilter + ' requests.</div>';
+    el.innerHTML = stats + '<div class="empty-FT_state"><span class="emoji">📭</span>No ' + FT_incomingFilter + ' requests.</div>';
     return;
   }
 
-  el.innerHTML = filtered.map(function(req) {
+  el.innerHTML = stats + '<div style="display:flex;flex-direction:column;gap:8px">' + filtered.map(function(req) {
     var isNew = req.status === 'submitted' || req.status === 'open';
-    var catIcon = { Plumbing: '🚰', Electrical: '⚡', 'HVAC / Heating': '🌡', Appliance: '🏠', 'Lock / Key': '🔑', 'Pest Control': '🐛', 'Water Damage': '💧', General: '🔧' }[req.category] || '🔧';
-    var sc = isNew ? 'tag-pink' : 'tag-blue';
-    var dateStr = req.created_at ? req.created_at.slice(0, 10) : '';
-    var urgBadge = req.urgency === 'urgent' ? '<span class="tag tag-red" style="margin-left:6px">URGENT</span>' : '';
+    var catIcons = { Plumbing:'🚰', Electrical:'⚡', 'HVAC / Heating':'🌡', Appliance:'🏠', 'Lock / Key':'🔑', 'Pest Control':'🐛', 'Water Damage':'💧', General:'🔧', Housekeeping:'🧹', 'Deep Cleaning':'🧹', Cleaning:'🧹' };
+    var catIcon = catIcons[req.category] || '🔧';
+    var dateStr = req.created_at ? new Date(req.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    var urgBadge = req.urgency === 'urgent' ? ' <span style="background:#fef2f2;color:#dc2626;font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.3px">Urgent</span>' : '';
 
-    return '<div class="card" style="margin-bottom:12px">'
-      + '<div class="flex flex-wrap" style="justify-content:space-between;margin-bottom:10px">'
-      + '<div><div style="font-size:15px;font-weight:600">' + catIcon + ' ' + FT_esc(req.name || '?') + urgBadge + '</div>'
-      + '<div style="font-size:12px;color:var(--muted);font-family:var(--fm)">'
-      + FT_esc(req.phone || '') + ' &bull; ' + FT_esc(req.email || '') + ' &bull; ' + dateStr
-      + '</div></div>'
-      + '<span class="tag ' + sc + '">' + FT_esc(req.status || 'submitted') + '</span></div>'
-      + (req.unit ? '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">🏢 Unit: ' + FT_esc(req.unit) + (req.property ? ' &bull; ' + FT_esc(req.property) : '') + '</div>' : '')
-      + (req.address ? '<div style="font-size:12px;color:var(--muted);margin-bottom:6px">📍 ' + FT_esc(req.address) + '</div>' : '')
-      + (req.preferred_block ? '<div style="background:rgba(196,127,0,.1);border:1px solid rgba(196,127,0,.25);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--accent);margin-bottom:8px">📅 ' + FT_esc(req.preferred_block) + '</div>' : '')
-      + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'
-      + (req.no_access_needed ? '<span style="background:rgba(26,122,74,.08);border:1px solid rgba(26,122,74,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#166534">🔑 No access needed</span>' : '')
-      + (req.permission_to_enter ? '<span style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#1e40af">🚪 Permission to enter</span>' : '')
-      + (req.waiver_agreed ? '<span style="background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#166534">✅ Waiver signed</span>' : '')
-      + (req.sms_consent ? '<span style="background:rgba(196,127,0,.08);border:1px solid rgba(196,127,0,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:var(--accent)">📱 SMS consent</span>' : '')
-      + (req.user_type === 'resident' ? '<span style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:6px;padding:3px 8px;font-size:11px;color:#1d4ed8">👤 Resident</span>' : '<span style="background:rgba(156,163,175,.1);border:1px solid rgba(156,163,175,.3);border-radius:6px;padding:3px 8px;font-size:11px;color:#6b7280">👥 Guest</span>')
+    // Status chip
+    var sColors = { submitted:'#be185d', open:'#be185d', assigned:'#1d4ed8', scheduled:'#166534', 'in-progress':'#92400e', completed:'#166534' };
+    var sBgs    = { submitted:'#fdf2f8', open:'#fdf2f8', assigned:'#eff6ff', scheduled:'#f0fdf4', 'in-progress':'#fffbeb', completed:'#f0fdf4' };
+    var sBrds   = { submitted:'#fbcfe8', open:'#fbcfe8', assigned:'#bfdbfe', scheduled:'#bbf7d0', 'in-progress':'#fde68a', completed:'#bbf7d0' };
+    var st = req.status || 'submitted';
+    var sStyle = 'background:' + (sBgs[st]||'#f3f4f6') + ';color:' + (sColors[st]||'#6b7280') + ';border:1px solid ' + (sBrds[st]||'#e5e7eb');
+
+    // Payment badge
+    var priceAmt = parseFloat(req.price_total);
+    var isPaid = priceAmt > 0;
+    var paidBadge = isPaid
+      ? '<span style="background:#f0fdf4;color:#16a34a;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #bbf7d0">💰 $' + priceAmt.toFixed(0) + '</span>'
+      : '<span style="background:#fef2f2;color:#dc2626;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;border:1px solid #fecaca">Unpaid</span>';
+
+    // Source badge
+    var srcBadge = req.source === 'home_services'
+      ? '<span style="background:#fefce8;color:#a16207;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #fde68a">Home Services</span>'
+      : (req.user_type === 'resident'
+        ? '<span style="background:#eff6ff;color:#1d4ed8;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #bfdbfe">Resident</span>'
+        : '<span style="background:#f3f4f6;color:#6b7280;font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid #e5e7eb">Guest</span>');
+
+    // Resolve address with property lookup + fallback
+    var displayAddr = resolveIncomingAddress(req);
+
+    // --- Compact card ---
+    return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:14px 16px' + (isNew ? ';border-left:3px solid #e11d48' : '') + '">'
+      // Header row
+      + '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">'
+        + '<div style="flex:1;min-width:0">'
+          + '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">'
+            + '<span style="font-size:15px;font-weight:600;color:var(--fg)">' + catIcon + ' ' + FT_esc(req.name || '?') + '</span>'
+            + urgBadge + paidBadge + srcBadge
+          + '</div>'
+          + '<div style="font-size:11px;color:var(--muted);margin-top:3px">'
+            + FT_esc(req.phone || '') + (req.email ? ' · ' + FT_esc(req.email) : '') + ' · ' + dateStr
+          + '</div>'
+        + '</div>'
+        + '<span style="' + sStyle + ';font-size:10px;font-weight:600;padding:3px 8px;border-radius:5px;white-space:nowrap;text-transform:uppercase;letter-spacing:.3px">' + FT_esc(st) + '</span>'
       + '</div>'
-      + '<div style="font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5">' + FT_esc(req.description || '') + '</div>'
-      + (req.photo ? '<img src="' + req.photo + '" style="max-width:140px;border-radius:8px;margin-bottom:10px;display:block" alt="Photo" onerror="this.style.display=\'none\'">' : '')
-      + '<div style="display:flex;flex-wrap:wrap;gap:8px">'
-      + (isNew ? '<button class="btn btn-primary btn-sm" onclick="openIncomingLink(\'' + FT_esc(req.id) + '\')">🔗 Create Work Order</button>' : '')
+      // Location + schedule row
+      + '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">'
+        + (req.unit ? '<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:5px;border:1px solid var(--border)">🏢 ' + FT_esc(req.unit) + (req.property ? ' · ' + FT_esc(req.property) : '') + '</span>' : '')
+        + (displayAddr ? '<span style="font-size:11px;color:var(--muted);background:var(--bg);padding:3px 8px;border-radius:5px;border:1px solid var(--border)">📍 ' + FT_esc(displayAddr) + '</span>' : '')
+        + (req.preferred_block ? '<span style="font-size:11px;color:var(--accent);background:rgba(196,127,0,.08);padding:3px 8px;border-radius:5px;border:1px solid rgba(196,127,0,.2)">📅 ' + FT_esc(req.preferred_block) + '</span>' : '')
+      + '</div>'
+      // Description (2-line clamp)
+      + (req.description ? '<div style="font-size:12px;color:var(--muted);line-height:1.4;margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + FT_esc(req.description) + '</div>' : '')
+      // Photo thumbnail
+      + (req.photo ? '<img src="' + req.photo + '" style="max-width:100px;border-radius:6px;margin-bottom:8px;display:block" alt="Photo" onerror="this.style.display=\'none\'">' : '')
+      // Footer: mini badges + action
+      + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">'
+        + '<div style="display:flex;gap:4px;flex-wrap:wrap">'
+          + (req.permission_to_enter ? '<span style="font-size:10px;color:#166534;background:rgba(22,163,74,.06);padding:2px 6px;border-radius:3px">🚪 Entry OK</span>' : '')
+          + (req.waiver_agreed ? '<span style="font-size:10px;color:#166534;background:rgba(22,163,74,.06);padding:2px 6px;border-radius:3px">✅ Waiver</span>' : '')
+          + (req.sms_consent ? '<span style="font-size:10px;color:var(--accent);background:rgba(196,127,0,.06);padding:2px 6px;border-radius:3px">📱 SMS</span>' : '')
+        + '</div>'
+        + (isNew
+          ? '<button class="btn btn-primary btn-sm" style="font-size:12px;padding:4px 12px" onclick="openIncomingLink(\'' + FT_esc(req.id) + '\')">🔗 Create WO</button>'
+          : '<span style="font-size:11px;color:var(--muted)">' + (req.work_order_id ? 'WO# ' + FT_esc(String(req.work_order_id)) : '') + '</span>')
       + '</div>'
       + '</div>';
-  }).join('');
+  }).join('') + '</div>';
+}
+
+/* Helper: stat card for dashboard */
+function _incStat(val, label, color) {
+  return '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;text-align:center">'
+    + '<div style="font-size:22px;font-weight:700;color:' + color + '">' + val + '</div>'
+    + '<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">' + label + '</div></div>';
 }
 
 function openIncomingLink(reqId) {
@@ -3136,10 +3218,22 @@ function openIncomingLink(reqId) {
   if (!req) { alert('Request not found.'); return; }
 
   document.getElementById('il-req-id').value = reqId;
+
+  // Resolve address for display
+  var displayAddr = resolveIncomingAddress(req);
+  var priceAmt = parseFloat(req.price_total);
+  var paidLabel = priceAmt > 0
+    ? '<span style="color:#16a34a;font-weight:600">💰 Paid $' + priceAmt.toFixed(2) + '</span>'
+    : '<span style="color:#dc2626;font-weight:600">Unpaid</span>';
+
   document.getElementById('il-req-summary').innerHTML =
-    '<strong>' + FT_esc(req.name) + '</strong> &bull; ' + FT_esc(req.phone || '') + '<br>'
-    + FT_esc(req.category || 'General') + ': ' + FT_esc((req.description || '').substring(0, 100))
-    + (req.preferred_block ? '<br>📅 ' + FT_esc(req.preferred_block) : '');
+    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
+    + '<strong>' + FT_esc(req.name) + '</strong> ' + paidLabel + '</div>'
+    + '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">' + FT_esc(req.phone || '') + (req.email ? ' · ' + FT_esc(req.email) : '') + '</div>'
+    + '<div style="font-size:12px;margin-bottom:4px">' + FT_esc(req.category || 'General') + ': ' + FT_esc((req.description || '').substring(0, 120)) + '</div>'
+    + (req.unit ? '<div style="font-size:12px;color:var(--muted)">🏢 ' + FT_esc(req.unit) + (req.property ? ' · ' + FT_esc(req.property) : '') + '</div>' : '')
+    + (displayAddr ? '<div style="font-size:12px;color:var(--muted)">📍 ' + FT_esc(displayAddr) + '</div>' : '')
+    + (req.preferred_block ? '<div style="font-size:12px;color:var(--accent);margin-top:4px">📅 ' + FT_esc(req.preferred_block) + '</div>' : '');
 
   // Populate units dropdown from PropDesk data
   var unitSel = document.getElementById('il-unit');
@@ -3157,10 +3251,30 @@ function openIncomingLink(reqId) {
   document.getElementById('il-title').value = (req.category || 'General') + ': ' + (req.description || '').substring(0, 60);
   document.getElementById('il-notes').value = req.description || '';
 
-  // Populate property search
+  // Populate property search — try to auto-match from request data
   document.getElementById('il-prop-search').value = '';
   document.getElementById('il-prop-id').value = '';
-  var sel = document.getElementById('il-prop-selected'); if (sel) sel.style.display = 'none';
+  var selEl = document.getElementById('il-prop-selected'); if (selEl) selEl.style.display = 'none';
+
+  // Auto-match property from unit or address
+  if (req.unit && FT_state.properties.length) {
+    var uKey = req.unit.replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
+    var autoMatch = FT_state.properties.find(function(p) {
+      if (p.pdApt && p.pdApt.toLowerCase() === uKey) return true;
+      if (p.unit && p.unit.replace(/^(apt|unit|suite|#)\s*/i,'').trim().toLowerCase() === uKey) return true;
+      if (p.name && p.name.toLowerCase().indexOf(uKey) !== -1) return true;
+      return false;
+    });
+    if (autoMatch) {
+      document.getElementById('il-prop-id').value = autoMatch.id;
+      document.getElementById('il-prop-search').value = autoMatch.name || propFullAddr(autoMatch);
+      if (selEl) { selEl.textContent = '✅ ' + (autoMatch.name || '') + ' — ' + propFullAddr(autoMatch); selEl.style.display = 'block'; }
+    } else if (displayAddr) {
+      document.getElementById('il-prop-search').value = displayAddr;
+    }
+  } else if (displayAddr) {
+    document.getElementById('il-prop-search').value = displayAddr;
+  }
 
   // Populate techs
   populateSelect(document.getElementById('il-tech'),
