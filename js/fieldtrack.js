@@ -3260,17 +3260,43 @@ function openIncomingLink(reqId) {
     });
   }
 
-  // When unit changes, try to auto-match property
+  // When unit changes, try to auto-match property (same flexible matching as auto-match above)
   unitSel.onchange = function() {
     var selApt = unitSel.value;
     if (!selApt || !FT_state.properties.length) return;
-    // Try to find TechTrack property linked to this PropDesk apt
+    var sKey = selApt.replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
+    var sWords = sKey.split(/\s+/);
+
+    // 1) Exact match by pdApt, unit, or name
     var match = FT_state.properties.find(function(p) {
-      return p.pdApt && p.pdApt.toLowerCase() === selApt.toLowerCase();
+      if (p.pdApt && p.pdApt.toLowerCase() === sKey) return true;
+      if (p.unit && p.unit.replace(/^(apt|unit|suite|#)\s*/i,'').trim().toLowerCase() === sKey) return true;
+      if (p.name && p.name.toLowerCase() === sKey) return true;
+      return false;
     });
-    // Try address bridge
+    // 2) Substring match
+    if (!match) {
+      match = FT_state.properties.find(function(p) {
+        var pn = (p.name || '').toLowerCase();
+        if (!pn) return false;
+        return pn.indexOf(sKey) !== -1 || (sKey.indexOf(pn) !== -1 && pn.length > 2);
+      });
+    }
+    // 3) Word match
+    if (!match && sWords.length > 1) {
+      match = FT_state.properties.find(function(p) {
+        var pn = (p.name || '').toLowerCase();
+        if (!pn) return false;
+        var textWords = sWords.filter(function(w) { return !/^\d+$/.test(w); });
+        if (textWords.length && textWords.every(function(w) { return pn.indexOf(w) !== -1; })) return true;
+        var pnWords = pn.split(/\s+/);
+        if (pnWords.length && pnWords.every(function(w) { return sKey.indexOf(w) !== -1; })) return true;
+        return false;
+      });
+    }
+    // 4) Address bridge
     if (!match && FT_pdProperties && FT_pdProperties.length) {
-      var pdp = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === selApt.toLowerCase(); });
+      var pdp = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === sKey; });
       if (pdp && pdp.address) {
         var pdAddr = pdp.address.toLowerCase().replace(/[.,]/g, '').trim();
         match = FT_state.properties.find(function(p) {
@@ -3278,19 +3304,23 @@ function openIncomingLink(reqId) {
           return ftAddr && pdAddr && (ftAddr.indexOf(pdAddr) !== -1 || pdAddr.indexOf(ftAddr) !== -1);
         });
       }
-      // If still no match, put the unit name in search
-      if (!match) {
-        document.getElementById('il-prop-search').value = selApt;
-        document.getElementById('il-prop-id').value = '';
-        if (selEl) selEl.style.display = 'none';
-        if (typeof ilPropSearch === 'function') ilPropSearch();
-        return;
-      }
     }
+    // 5) addrMatch fallback
+    if (!match) {
+      var candidates = FT_state.properties.filter(function(p) { return addrMatch(p, sKey); });
+      if (candidates.length >= 1) match = candidates[0];
+    }
+
     if (match) {
       document.getElementById('il-prop-id').value = match.id;
       document.getElementById('il-prop-search').value = match.name || propFullAddr(match);
       if (selEl) { selEl.textContent = '✅ ' + (match.name || '') + ' — ' + propFullAddr(match); selEl.style.display = 'block'; }
+    } else {
+      // No match — put the unit name in search for manual selection
+      document.getElementById('il-prop-search').value = selApt;
+      document.getElementById('il-prop-id').value = '';
+      if (selEl) selEl.style.display = 'none';
+      if (typeof ilPropSearch === 'function') ilPropSearch();
     }
   };
 
@@ -3310,18 +3340,52 @@ function openIncomingLink(reqId) {
   document.getElementById('il-prop-id').value = '';
   var selEl = document.getElementById('il-prop-selected'); if (selEl) selEl.style.display = 'none';
 
-  // Auto-match property: try direct match first, then bridge via PropDesk address
+  // Auto-match property: flexible matching with debug logging
   var autoMatch = null;
   if (req.unit && FT_state.properties.length) {
     var uKey = req.unit.replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
-    // 1) Direct match by pdApt, unit, or name
+    var uWords = uKey.split(/\s+/);
+    console.log('[PropMatch] Searching for unit: "' + req.unit + '" → uKey: "' + uKey + '", words:', uWords);
+    console.log('[PropMatch] TechTrack properties:', FT_state.properties.map(function(p) { return {id:p.id, name:p.name, unit:p.unit, pdApt:p.pdApt, address:p.address}; }));
+
+    // 1) Direct match by pdApt, unit, or name (exact)
     autoMatch = FT_state.properties.find(function(p) {
       if (p.pdApt && p.pdApt.toLowerCase() === uKey) return true;
       if (p.unit && p.unit.replace(/^(apt|unit|suite|#)\s*/i,'').trim().toLowerCase() === uKey) return true;
-      if (p.name && p.name.toLowerCase().indexOf(uKey) !== -1) return true;
+      if (p.name && p.name.toLowerCase() === uKey) return true;
       return false;
     });
-    // 2) Bridge: look up unit in PropDesk properties to get address, then match TechTrack by address
+    if (autoMatch) console.log('[PropMatch] Exact match found:', autoMatch.name);
+
+    // 2) Substring match: uKey in name, OR name in uKey
+    if (!autoMatch) {
+      autoMatch = FT_state.properties.find(function(p) {
+        var pn = (p.name || '').toLowerCase();
+        if (!pn) return false;
+        if (pn.indexOf(uKey) !== -1) return true;
+        if (uKey.indexOf(pn) !== -1 && pn.length > 2) return true;
+        return false;
+      });
+      if (autoMatch) console.log('[PropMatch] Substring match found:', autoMatch.name);
+    }
+
+    // 3) Word match: all significant words of uKey appear in property name (or vice versa)
+    if (!autoMatch && uWords.length > 1) {
+      autoMatch = FT_state.properties.find(function(p) {
+        var pn = (p.name || '').toLowerCase();
+        if (!pn) return false;
+        // Check if all non-numeric words from uKey appear in property name
+        var textWords = uWords.filter(function(w) { return !/^\d+$/.test(w); });
+        if (textWords.length && textWords.every(function(w) { return pn.indexOf(w) !== -1; })) return true;
+        // Check if all words of property name appear in uKey
+        var pnWords = pn.split(/\s+/);
+        if (pnWords.length && pnWords.every(function(w) { return uKey.indexOf(w) !== -1; })) return true;
+        return false;
+      });
+      if (autoMatch) console.log('[PropMatch] Word match found:', autoMatch.name);
+    }
+
+    // 4) Bridge: look up unit in PropDesk properties to get address, then match TechTrack by address
     if (!autoMatch && FT_pdProperties && FT_pdProperties.length) {
       var pdMatch = FT_pdProperties.find(function(pd) {
         return pd.apt && pd.apt.toLowerCase() === uKey;
@@ -3330,10 +3394,30 @@ function openIncomingLink(reqId) {
         var pdAddr = pdMatch.address.toLowerCase().replace(/[.,]/g, '').trim();
         autoMatch = FT_state.properties.find(function(p) {
           var ftAddr = (p.address || '').toLowerCase().replace(/[.,]/g, '').trim();
-          return ftAddr && pdAddr && ftAddr.indexOf(pdAddr) !== -1 || pdAddr.indexOf(ftAddr) !== -1;
+          return ftAddr && pdAddr && (ftAddr.indexOf(pdAddr) !== -1 || pdAddr.indexOf(ftAddr) !== -1);
         });
+        if (autoMatch) console.log('[PropMatch] Address bridge match found:', autoMatch.name);
       }
     }
+
+    // 5) Last resort: use addrMatch (the same search the autocomplete uses)
+    if (!autoMatch) {
+      var candidates = FT_state.properties.filter(function(p) { return addrMatch(p, uKey); });
+      if (candidates.length === 1) {
+        autoMatch = candidates[0];
+        console.log('[PropMatch] addrMatch single result:', autoMatch.name);
+      } else if (candidates.length > 1) {
+        console.log('[PropMatch] addrMatch returned ' + candidates.length + ' results, trying word filter');
+        // Try narrowing with first word
+        var firstWord = uWords[0];
+        var narrowed = candidates.filter(function(p) { return (p.name||'').toLowerCase().indexOf(firstWord) !== -1; });
+        if (narrowed.length === 1) autoMatch = narrowed[0];
+        else if (narrowed.length > 1) autoMatch = narrowed[0]; // best guess
+        if (autoMatch) console.log('[PropMatch] Narrowed match:', autoMatch.name);
+      }
+    }
+
+    if (!autoMatch) console.log('[PropMatch] No match found for "' + uKey + '"');
   }
   if (autoMatch) {
     document.getElementById('il-prop-id').value = autoMatch.id;
@@ -3364,12 +3448,30 @@ function saveIncomingLink() {
   if (!req) { alert('Request not found.'); return; }
 
   var propId = +document.getElementById('il-prop-id').value;
+  var unitApt = document.getElementById('il-unit').value || '';
   var techId = +document.getElementById('il-tech').value || null;
   var title = (document.getElementById('il-title').value || '').trim();
   var notes = document.getElementById('il-notes').value || '';
 
-  if (!propId) { alert('Select a property.'); return; }
+  if (!propId && !unitApt) { alert('Select a unit or property.'); return; }
   if (!title) { alert('Enter a job title.'); return; }
+
+  // If no TechTrack property but we have a unit, auto-create a TechTrack property from PropDesk data
+  if (!propId && unitApt && FT_pdProperties && FT_pdProperties.length) {
+    var pdp = FT_pdProperties.find(function(p) { return p.apt && p.apt.toLowerCase() === unitApt.toLowerCase(); });
+    var newProp = {
+      id: FT_uid(),
+      name: unitApt,
+      address: pdp ? (pdp.address || '') : '',
+      unit: unitApt,
+      city: pdp ? (pdp.city || '') : '',
+      ownerId: null,
+      pdApt: unitApt,
+      notes: 'Auto-created from incoming request'
+    };
+    FT_state.properties.push(newProp);
+    propId = newProp.id;
+  }
 
   // Create work order
   var job = {
