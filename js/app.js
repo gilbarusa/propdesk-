@@ -2282,7 +2282,7 @@ const MODULE_SUB_TABS = {
   'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Completed', page:'techtrack', ftPage:'completed'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
   'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
-  'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}],
+  'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
@@ -11930,17 +11930,18 @@ var _hsEditingItem = null;
 
 /* ── Section Routing ── */
 function showHomeServicesSection(sec) {
-  ['hsCatalogSection','hsSubcatsSection','hsBookingsSection','hsTimeWindowsSection'].forEach(function(id) {
+  ['hsCatalogSection','hsSubcatsSection','hsBookingsSection','hsTimeWindowsSection','hsSettingsSection'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-  var map = { catalog:'hsCatalogSection', subcats:'hsSubcatsSection', bookings:'hsBookingsSection', timeWindows:'hsTimeWindowsSection' };
+  var map = { catalog:'hsCatalogSection', subcats:'hsSubcatsSection', bookings:'hsBookingsSection', timeWindows:'hsTimeWindowsSection', settings:'hsSettingsSection' };
   var target = document.getElementById(map[sec]);
   if (target) target.style.display = '';
   if (sec === 'catalog') WPA_hsLoadCatalog();
   if (sec === 'subcats') WPA_hsLoadSubcats();
   if (sec === 'bookings') WPA_hsLoadBookings();
   if (sec === 'timeWindows') WPA_hsLoadTimeWindows();
+  if (sec === 'settings') WPA_hsLoadSettings();
 }
 
 /* ── Catalog: Load Services + Variations ── */
@@ -12227,6 +12228,11 @@ function _hsShowServiceForm(svc) {
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration (minutes)</span><input id="hsFDuration" class="auth-inp" type="number" style="margin-top:4px" value="' + (svc.estimated_duration_minutes || '') + '"></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsFDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(svc.short_description || '') + '</textarea></label>'
     + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsFIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.icon || '') + '"></label>'
+    + '<div style="background:#eff6ff;border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid #bfdbfe">'
+    + '<div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#1e40af">💳 Stripe Payment</div>'
+    + '<label style="display:block;margin-bottom:8px"><span style="font-size:11px">Stripe Account ID</span><input id="hsFStripeAcct" class="auth-inp" style="margin-top:2px" placeholder="acct_..." value="' + _esc((svc.stripe_account_id) || '') + '"></label>'
+    + '<p style="font-size:10px;color:#6b7280;margin:0">Connect a Stripe account for this service. Leave blank to use the default company Stripe account.</p>'
+    + '</div>'
     + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><input type="checkbox" id="hsFActive"' + (svc.is_active !== false ? ' checked' : '') + '> <span style="font-size:12px;font-weight:500">Active</span></label>';
 
   _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Service', body, function() {
@@ -12243,6 +12249,7 @@ function _hsShowServiceForm(svc) {
       estimated_duration_minutes: parseInt(document.getElementById('hsFDuration').value) || null,
       short_description: document.getElementById('hsFDesc').value.trim() || null,
       icon: document.getElementById('hsFIcon').value.trim() || null,
+      stripe_account_id: document.getElementById('hsFStripeAcct').value.trim() || null,
       is_active: document.getElementById('hsFActive').checked,
       pricing_config: pType === 'configurable' ? {
         base_price: parseFloat(document.getElementById('hsCfgBase').value) || 150,
@@ -12415,5 +12422,71 @@ function WPA_hsDeleteTimeWindow(id) {
   pkSB('hs_time_windows', 'id=eq.' + id, 'DELETE').then(function() {
     WPA_hsLoadTimeWindows();
   }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+/* ── Settings ── */
+function WPA_hsLoadSettings() {
+  var cont = document.getElementById('hsSettingsContent');
+  if (!cont) return;
+  cont.innerHTML = '<div class="info-loading">Loading...</div>';
+
+  pkSB('hs_settings', 'select=*', 'GET').then(function(rows) {
+    var settings = {};
+    (rows || []).forEach(function(r) { settings[r.key] = r.value; });
+
+    var surPct = settings.weekend_evening_surcharge_pct || 20;
+    var defStripe = settings.default_stripe_account || '';
+
+    cont.innerHTML = ''
+      + '<div style="display:grid;gap:20px;max-width:500px">'
+
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px">'
+      + '<div style="font-weight:600;font-size:14px;margin-bottom:12px">⚡ Weekend / Evening Surcharge</div>'
+      + '<label style="display:block;margin-bottom:8px"><span style="font-size:12px;font-weight:500">Surcharge Percentage (%)</span>'
+      + '<input id="hsSetSurchargePct" class="auth-inp" type="number" step="1" min="0" max="100" style="margin-top:4px;max-width:120px" value="' + surPct + '">'
+      + '</label>'
+      + '<p style="font-size:11px;color:#6b7280;margin:0">Applied when a customer selects a weekend date (Sat/Sun) or evening time window (after 5:00 PM). Set to 0 to disable.</p>'
+      + '</div>'
+
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px">'
+      + '<div style="font-weight:600;font-size:14px;margin-bottom:12px">💳 Default Stripe Account</div>'
+      + '<label style="display:block;margin-bottom:8px"><span style="font-size:12px;font-weight:500">Stripe Account ID</span>'
+      + '<input id="hsSetStripeAcct" class="auth-inp" style="margin-top:4px" placeholder="acct_..." value="' + _esc(defStripe) + '">'
+      + '</label>'
+      + '<p style="font-size:11px;color:#6b7280;margin:0">Default Stripe account for payment processing. Individual services can override this in their own settings.</p>'
+      + '</div>'
+
+      + '<button class="btn-subtle" style="background:#c47f00;color:#fff;padding:10px 24px;border-radius:8px;font-weight:600;justify-self:start" onclick="WPA_hsSaveSettings()">Save Settings</button>'
+      + '</div>';
+  }).catch(function(e) {
+    cont.innerHTML = '<p style="color:#ef4444">Failed to load settings. The hs_settings table may not exist yet.</p>'
+      + '<button class="btn-subtle" onclick="WPA_hsCreateSettingsTable()">Create Settings Table</button>';
+  });
+}
+
+function WPA_hsSaveSettings() {
+  var pct = document.getElementById('hsSetSurchargePct').value;
+  var stripe = document.getElementById('hsSetStripeAcct').value.trim();
+  var saves = [
+    _hsUpsertSetting('weekend_evening_surcharge_pct', pct),
+    _hsUpsertSetting('default_stripe_account', stripe)
+  ];
+  Promise.all(saves).then(function() {
+    alert('Settings saved!');
+  }).catch(function(e) { alert('Error saving: ' + e.message); });
+}
+
+function _hsUpsertSetting(key, value) {
+  return pkSB('hs_settings', 'key=eq.' + key, 'GET').then(function(rows) {
+    if (rows && rows.length > 0) {
+      return pkSB('hs_settings', 'key=eq.' + key, 'PATCH', { value: String(value) });
+    } else {
+      return pkSB('hs_settings', '', 'POST', { key: key, value: String(value) });
+    }
+  });
+}
+
+function WPA_hsCreateSettingsTable() {
+  alert('Please create the hs_settings table in Supabase SQL Editor:\\n\\nCREATE TABLE hs_settings (\\n  key TEXT PRIMARY KEY,\\n  value TEXT,\\n  updated_at TIMESTAMPTZ DEFAULT now()\\n);\\n\\nINSERT INTO hs_settings (key, value) VALUES\\n(\\\'weekend_evening_surcharge_pct\\\', \\\'20\\\'),\\n(\\\'default_stripe_account\\\', \\\'\\\');');
 }
 
