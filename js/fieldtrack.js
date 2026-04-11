@@ -3226,23 +3226,34 @@ function openIncomingLink(reqId) {
     ? '<span style="color:#16a34a;font-weight:600">💰 Paid $' + priceAmt.toFixed(2) + '</span>'
     : '<span style="color:#dc2626;font-weight:600">Unpaid</span>';
 
-  document.getElementById('il-req-summary').innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
-    + '<strong>' + FT_esc(req.name) + '</strong> ' + paidLabel + '</div>'
-    + '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">' + FT_esc(req.phone || '') + (req.email ? ' · ' + FT_esc(req.email) : '') + '</div>'
-    + '<div style="font-size:12px;margin-bottom:4px">' + FT_esc(req.category || 'General') + ': ' + FT_esc((req.description || '').substring(0, 120)) + '</div>'
-    + (req.unit ? '<div style="font-size:12px;color:var(--muted)">🏢 ' + FT_esc(req.unit) + (req.property ? ' · ' + FT_esc(req.property) : '') + '</div>' : '')
-    + (displayAddr ? '<div style="font-size:12px;color:var(--muted)">📍 ' + FT_esc(displayAddr) + '</div>' : '')
-    + (req.preferred_block ? '<div style="font-size:12px;color:var(--accent);margin-top:4px">📅 ' + FT_esc(req.preferred_block) + '</div>' : '');
+  // Build summary as a clean data grid
+  var sumRows = '';
+  var _r = function(label, val) { return val ? '<div style="display:flex;gap:8px;margin-bottom:5px"><span style="font-size:11px;color:var(--muted);min-width:62px;text-align:right;flex-shrink:0">' + label + '</span><span style="font-size:13px;color:var(--fg)">' + val + '</span></div>' : ''; };
 
-  // Populate units dropdown from PropDesk data
+  sumRows += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    + '<span style="font-size:15px;font-weight:700;color:var(--fg)">' + FT_esc(req.name || '?') + '</span>' + paidLabel + '</div>';
+  sumRows += _r('Contact', FT_esc(req.phone || '') + (req.email ? ' · ' + FT_esc(req.email) : ''));
+  sumRows += _r('Service', FT_esc(req.category || 'General'));
+  if (req.unit) sumRows += _r('Unit', FT_esc(req.unit) + (req.property ? ' · ' + FT_esc(req.property) : ''));
+  if (displayAddr) sumRows += _r('Address', FT_esc(displayAddr));
+  if (req.preferred_block) sumRows += _r('Schedule', FT_esc(req.preferred_block));
+  if (req.description) sumRows += _r('Notes', '<span style="font-size:12px;color:var(--muted)">' + FT_esc((req.description || '').substring(0, 100)) + '</span>');
+
+  document.getElementById('il-req-summary').innerHTML = sumRows;
+
+  // Populate units dropdown from PropDesk data + auto-select matching unit
   var unitSel = document.getElementById('il-unit');
   unitSel.innerHTML = '<option value="">Select unit...</option>';
+  var reqUnit = (req.unit || '').replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase();
   if (typeof allUnits !== 'undefined' && Array.isArray(allUnits)) {
     allUnits.forEach(function(u) {
       var opt = document.createElement('option');
       opt.value = u.id;
       opt.textContent = (u.apt || u.name || 'Unit ' + u.id) + (u.owner ? ' — ' + u.owner : '');
+      // Auto-select if apt matches the request unit
+      if (reqUnit && u.apt && u.apt.replace(/^(apt|unit|suite|#)\s*/i, '').trim().toLowerCase() === reqUnit) {
+        opt.selected = true;
+      }
       unitSel.appendChild(opt);
     });
   }
@@ -3250,6 +3261,13 @@ function openIncomingLink(reqId) {
   // Pre-fill title with category + short description
   document.getElementById('il-title').value = (req.category || 'General') + ': ' + (req.description || '').substring(0, 60);
   document.getElementById('il-notes').value = req.description || '';
+
+  // Pre-fill amount from booking price
+  var amtField = document.getElementById('il-amount');
+  if (amtField) {
+    var bookingPrice = parseFloat(req.price_total);
+    amtField.value = bookingPrice > 0 ? bookingPrice.toFixed(2) : '';
+  }
 
   // Populate property search — try to auto-match from request data
   document.getElementById('il-prop-search').value = '';
@@ -3330,6 +3348,30 @@ function saveIncomingLink() {
       .then(function() { loadIncomingRequests(); });
   }
 
+  // Create payment request if amount is set
+  var chargeAmt = parseFloat((document.getElementById('il-amount') || {}).value);
+  if (chargeAmt > 0 && typeof sb !== 'undefined') {
+    var payId = 'pay_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+    sb.from('payment_requests').insert([{
+      id: payId,
+      type: 'service',
+      source_id: reqId,
+      source_type: 'maintenance_request',
+      work_order_id: String(job.woNum),
+      client_name: req.name || '',
+      client_email: req.email || '',
+      client_phone: req.phone || '',
+      unit: req.unit || '',
+      property: req.property || '',
+      description: title,
+      amount: chargeAmt,
+      status: 'pending',
+      created_by: 'admin'
+    }]).then(function(res) {
+      if (res.error) console.error('Payment request error:', res.error);
+    });
+  }
+
   // Notify tech
   if (techId) {
     var tech = getTech(techId);
@@ -3340,11 +3382,13 @@ function saveIncomingLink() {
   // Notify client
   if (req.phone || req.email) {
     var _tmpJob = { clientPhone: req.phone, clientEmail: req.email, clientPreferredComm: req.preferred_comm || 'sms' };
-    FT_notify(_tmpJob, 'WillowPA Maintenance: Your service request has been received and a work order (' + job.woNum + ') has been created.' + (job.block ? ' Scheduled: ' + job.block : ' We will contact you to confirm.'), { subject: 'Work Order Created — WillowPA' });
+    var payNote = chargeAmt > 0 ? ' A payment request of $' + chargeAmt.toFixed(2) + ' has been added to your Payments tab.' : '';
+    FT_notify(_tmpJob, 'WillowPA Maintenance: Your service request has been received and a work order (' + job.woNum + ') has been created.' + (job.block ? ' Scheduled: ' + job.block : ' We will contact you to confirm.') + payNote, { subject: 'Work Order Created — WillowPA' });
   }
 
   FT_closeModal('ft-modal-incoming-link');
   var msg = techId ? job.woNum + ' assigned to ' + getTech(techId).name + '!' : job.woNum + ' created (unassigned).';
+  if (chargeAmt > 0) msg += ' Payment request: $' + chargeAmt.toFixed(2);
   alert('[OK] ' + msg);
 }
 
