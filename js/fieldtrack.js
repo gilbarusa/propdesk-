@@ -118,13 +118,26 @@ function setApiKey(k){
   FT_save();
 }
 
-//  STRIPE KEY (stored server-side in FT_state)
+//  STRIPE KEY — reads from Supabase app_credentials (PropDesk Settings → Credentials)
+var _cachedStripeKey = '';
 function getStripeKey(){
-  return FT_state._stripeKey || '';
+  return _cachedStripeKey || FT_state._stripeKey || '';
 }
 function setStripeKey(k){
   FT_state._stripeKey=k.trim();
+  _cachedStripeKey=k.trim();
   FT_save();
+}
+function FT_loadStripeKey(){
+  if(typeof sb==='undefined'||!sb) return;
+  sb.from('app_credentials').select('credentials').eq('service','stripe').then(function(res){
+    var rows=res.data||[];
+    for(var i=0;i<rows.length;i++){
+      var c=rows[i].credentials||{};
+      var sk=c.secret_key||c.sk||c.stripe_secret_key||c.api_key||'';
+      if(sk){ _cachedStripeKey=sk; return; }
+    }
+  });
 }
 
 //  THEME
@@ -3097,6 +3110,7 @@ function FT_init(startPage){
     })
     .catch(function(e){ console.error('FT_init fetch error:',e); });
   var pPD = FT_loadPropDeskData().catch(function(e){ console.warn('PropDesk data load:',e); });
+  FT_loadStripeKey();
   FT_initPromise = Promise.all([pFT, pPD]).then(function(){
     FT_autoMatch();
     // Backfill WO numbers on existing jobs that don't have one
