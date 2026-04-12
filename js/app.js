@@ -2146,7 +2146,7 @@ function WPA_portalFilterUsers() {
       actions = `<button onclick="WPA_portalApprove('${u.id}',false)" class="btn-subtle" style="color:var(--red);font-size:11px;padding:4px 8px">Revoke</button>`;
     }
     return `<tr>
-      <td>${u.name || '—'}</td>
+      <td><a href="#" onclick="WPA_portalUserDetail('${u.id}');return false" style="color:var(--accent);text-decoration:underline;cursor:pointer">${u.name || '—'}</a></td>
       <td><code style="font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:4px">${u.username || '—'}</code></td>
       <td>${u.address || '—'}</td>
       <td>${u.unit || '—'}</td>
@@ -2170,6 +2170,86 @@ async function WPA_portalApprove(userId, approve) {
     if (data.error) { alert('Error: ' + data.error); return; }
     WPA_portalRefresh();
   } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ── Portal User Detail View ──
+async function WPA_portalUserDetail(userId) {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-user-detail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN },
+      body: JSON.stringify({ user_id: userId })
+    });
+    const data = await res.json();
+    if (data.error) { alert('Error: ' + data.error); return; }
+
+    const p = data.profile;
+    const mRequests = data.maintenance_requests || [];
+    const pBookings = data.parking_bookings || [];
+
+    // Build maintenance table
+    let maintHTML = '';
+    if (mRequests.length > 0) {
+      maintHTML = `<table class="table" style="font-size:12px;margin-top:8px">
+        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
+        <tbody>${mRequests.map(r => `<tr>
+          <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
+          <td>${r.category || '—'}</td>
+          <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description || '—'}</td>
+          <td>${r.status || '—'}</td>
+        </tr>`).join('')}</tbody></table>`;
+    } else {
+      maintHTML = '<p style="color:var(--muted);font-size:12px;margin-top:8px">No maintenance requests found</p>';
+    }
+
+    // Build parking table
+    let parkHTML = '';
+    if (pBookings.length > 0) {
+      parkHTML = `<table class="table" style="font-size:12px;margin-top:8px">
+        <thead><tr><th>Date</th><th>Building</th><th>Vehicle</th><th>Plate</th><th>Status</th></tr></thead>
+        <tbody>${pBookings.map(b => `<tr>
+          <td>${b.start_date || '—'}</td>
+          <td>${b.building_name || '—'}</td>
+          <td>${[b.car_color, b.car_brand, b.car_model].filter(Boolean).join(' ') || '—'}</td>
+          <td>${b.license_plate || '—'}</td>
+          <td>${b.status || '—'}</td>
+        </tr>`).join('')}</tbody></table>`;
+    } else {
+      parkHTML = '<p style="color:var(--muted);font-size:12px;margin-top:8px">No parking bookings found</p>';
+    }
+
+    // Show modal
+    const modal = document.createElement('div');
+    modal.id = 'portalUserDetailModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+    modal.innerHTML = `<div style="background:var(--bg);border-radius:12px;padding:24px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0">Customer Detail</h3>
+        <button onclick="document.getElementById('portalUserDetailModal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text)">&times;</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:13px;margin-bottom:20px;padding:12px;background:var(--bg2);border-radius:8px">
+        <div><strong>Name:</strong> ${p.name || '—'}</div>
+        <div><strong>Username:</strong> <code>${p.username || '—'}</code></div>
+        <div><strong>Address:</strong> ${p.address || '—'}</div>
+        <div><strong>Unit:</strong> ${p.unit || '—'}</div>
+        <div><strong>Phone:</strong> ${p.phone || '—'}</div>
+        <div><strong>Email:</strong> ${p.email || '—'}</div>
+        <div><strong>Type:</strong> ${p.user_type || '—'}</div>
+        <div><strong>Status:</strong> ${p.status || '—'}</div>
+        <div><strong>Registered:</strong> ${p.created_at ? new Date(p.created_at).toLocaleDateString() : (p.created ? new Date(p.created).toLocaleDateString() : '—')}</div>
+        <div><strong>Approved:</strong> ${p.approved_at ? new Date(p.approved_at).toLocaleDateString() : '—'}</div>
+      </div>
+
+      <h4 style="margin:16px 0 4px">Maintenance Requests (${mRequests.length})</h4>
+      ${maintHTML}
+
+      <h4 style="margin:16px 0 4px">Parking Bookings (${pBookings.length})</h4>
+      ${parkHTML}
+    </div>`;
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  } catch (e) { alert('Error loading user detail: ' + e.message); }
 }
 
 // ═══════════════════════════════════════════════════════════════
