@@ -1047,25 +1047,26 @@ function FT_sendInvoice(jobId){
   (job.lineItems||[]).forEach(function(it){ itemLines.push(it.desc+': '+fmt$(it.amount)); });
   var description='WO '+(job.woNum||'#'+job.id)+' — '+(prop?prop.name:'Property')+'\n'+itemLines.join('\n');
   var unit=(prop?prop.name:'');
+  var woNum=job.woNum||'';
   if(typeof sb==='undefined'){ alert('Supabase not configured.'); return; }
-  sb.from('payment_requests').select('id,amount,status,description').eq('unit',unit).eq('status','pending')
-  .then(function(res){
-    var existing=(res.data||[]).find(function(pr){ return pr.description && pr.description.indexOf('WO '+(job.woNum||'#'+job.id))>=0; });
+  // Search by work_order_id first (reliable), fallback to unit+description match
+  var query=woNum ? sb.from('payment_requests').select('id,amount,status,description,work_order_id,source_id').eq('work_order_id',woNum).eq('status','pending')
+                  : sb.from('payment_requests').select('id,amount,status,description,work_order_id,source_id').eq('unit',unit).eq('status','pending');
+  query.then(function(res){
+    var rows=res.data||[];
+    // If multiple pending for same WO, find the one matching this specific job's source_id or pick the most recent
+    var existing=rows.length===1?rows[0]:rows.find(function(pr){ return pr.source_id===job.sourceId; })||rows[0]||null;
     if(existing){
-      var diff=Math.round((total - existing.amount)*100)/100;
-      if(diff>0){
-        if(!confirm('An unpaid invoice exists for this WO ('+fmt$(existing.amount)+').\nIssue supplemental invoice for the difference: '+fmt$(diff)+'?')) return;
-        var diffDesc='WO '+(job.woNum||'#'+job.id)+' — Additional charges\n'+itemLines.join('\n');
-        sb.from('payment_requests').insert([{id:crypto.randomUUID(), unit:unit, amount:diff, status:'pending', description:diffDesc, created_at:new Date().toISOString()}])
-        .then(function(ins){
-          if(ins.error){ alert('Error: '+(ins.error.message||'')); return; }
-          alert('Supplemental invoice created: '+fmt$(diff)+' (total now '+fmt$(total)+')');
+      if(Math.abs(existing.amount - total)<0.01){
+        alert('Invoice already exists for '+fmt$(total)+'. No changes needed.');
+      } else {
+        if(!confirm('An unpaid invoice exists for this WO ('+fmt$(existing.amount)+').\nUpdate amount to '+fmt$(total)+'?')) return;
+        sb.from('payment_requests').update({amount:total, description:description, updated_at:new Date().toISOString()}).eq('id',existing.id)
+        .then(function(upd){
+          if(upd.error){ alert('Error: '+(upd.error.message||'')); return; }
+          alert('Invoice updated to '+fmt$(total));
           if(!job.paymentLink) createStripePaymentLink(jobId);
         });
-      } else if(diff<0){
-        alert('Existing invoice ('+fmt$(existing.amount)+') is already higher than new total ('+fmt$(total)+'). No changes made.');
-      } else {
-        alert('Invoice already exists for '+fmt$(total)+'. No changes needed.');
       }
     } else {
       sb.from('payment_requests').insert([{id:crypto.randomUUID(), unit:unit, amount:total, status:'pending', description:description, created_at:new Date().toISOString()}])
