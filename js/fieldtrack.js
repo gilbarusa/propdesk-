@@ -1031,7 +1031,7 @@ function FT_sendInvoice(jobId){
         if(!job.paymentLink) createStripePaymentLink(jobId);
       });
     } else {
-      sb.from('payment_requests').insert([{unit:unit, amount:total, status:'pending', description:description, wo_number:job.woNum||'', job_id:job.id, created_at:new Date().toISOString()}])
+      sb.from('payment_requests').insert([{unit:unit, amount:total, status:'pending', description:description, wo_number:job.woNum||'', created_at:new Date().toISOString()}])
       .then(function(ins){
         if(ins.error){ alert('Error: '+(ins.error.message||'')); return; }
         alert('Invoice created: '+fmt$(total)+' for '+(prop?prop.name:'this property'));
