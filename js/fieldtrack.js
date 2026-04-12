@@ -975,32 +975,17 @@ function _doCreateStripeLink(jobId, sk){
   var billAmt=job.billingAmount!=null?job.billingAmount:(svcPrice+tL+tE+liTotal);
   if(!billAmt||billAmt<=0){ alert('Billing amount must be greater than $0.'); return; }
   var amtCents=Math.round(billAmt*100);
-  var desc='WO '+(job.woNum||'#'+job.id)+': '+(job.title||'Maintenance')+' â€” '+(prop?prop.name:'Property');
-  var btn=event.target; btn.disabled=true; btn.textContent='Creating...';
-  // Step 1: Create a Stripe Price (one-time)
-  var priceBody='currency=usd&unit_amount='+amtCents+'&product_data[name]='+encodeURIComponent(desc);
-  fetch('https://api.stripe.com/v1/prices',{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+sk,'Content-Type':'application/x-www-form-urlencoded'},
-    body:priceBody
-  }).then(function(r){ return r.json(); }).then(function(price){
-    if(price.error){ throw new Error(price.error.message); }
-    // Step 2: Create Payment Link with that price
-    return fetch('https://api.stripe.com/v1/payment_links',{
-      method:'POST',
-      headers:{'Authorization':'Bearer '+sk,'Content-Type':'application/x-www-form-urlencoded'},
-      body:'line_items[0][price]='+price.id+'&line_items[0][quantity]=1'
-    });
-  }).then(function(r){ return r.json(); }).then(function(pl){
-    if(pl.error){ throw new Error(pl.error.message); }
-    job.paymentLink=pl.url;
-    job.stripePaymentLinkId=pl.id;
-    FT_save(); refreshJobCard(jobId);
-    alert('Stripe payment link created!\n'+pl.url);
-  }).catch(function(e){
-    btn.disabled=false; btn.textContent='âš¡ Create Stripe Link';
-    alert('Stripe error: '+e.message);
-  });
+  var desc='WO '+(job.woNum||'#'+job.id)+': '+(job.title||'Maintenance')+' — '+(prop?prop.name:'Property');
+  var prId=job.sourceRequestId||job.sourceId||'';
+  // Build pay.php URL (tip-enabled payment page on app.willowpa.com)
+  var payUrl='https://app.willowpa.com/portal/pay.php'
+    +'?amount='+amtCents
+    +'&desc='+encodeURIComponent(desc)
+    +'&wo='+encodeURIComponent(job.woNum||'')
+    +'&pr='+encodeURIComponent(prId);
+  job.paymentLink=payUrl;
+  FT_save(); refreshJobCard(jobId);
+  alert('Payment link created!\n'+payUrl);
 }
 function saveBillingAmount(jobId){
   var job=getJob(jobId); if(!job) return;
