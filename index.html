@@ -1309,10 +1309,10 @@
       <button class="stats-toggle-btn" onclick="this.parentElement.classList.toggle('open')">Stats</button>
       <div class="summary-content">
         <div class="dash-kpi-hero" id="portalKpis">
-          <div class="kpi-card kv-orange"><div class="kpi-label">Pending</div><div class="kpi-value" id="portal-stat-pending">0</div><div class="kpi-sub">awaiting approval</div></div>
-          <div class="kpi-card kv-green"><div class="kpi-label">Approved</div><div class="kpi-value" id="portal-stat-approved">0</div><div class="kpi-sub">active users</div></div>
-          <div class="kpi-card kv-red"><div class="kpi-label">Denied</div><div class="kpi-value" id="portal-stat-denied">0</div><div class="kpi-sub">rejected</div></div>
-          <div class="kpi-card kv-blue"><div class="kpi-label">Total</div><div class="kpi-value" id="portal-stat-total">0</div><div class="kpi-sub">all registrations</div></div>
+          <div class="kpi-card kv-orange" style="cursor:pointer" onclick="document.getElementById('portalFilterStatus').value='pending';WPA_portalFilterUsers()"><div class="kpi-label">Pending</div><div class="kpi-value" id="portal-stat-pending">0</div><div class="kpi-sub">awaiting approval</div></div>
+          <div class="kpi-card kv-green" style="cursor:pointer" onclick="document.getElementById('portalFilterStatus').value='approved';WPA_portalFilterUsers()"><div class="kpi-label">Approved</div><div class="kpi-value" id="portal-stat-approved">0</div><div class="kpi-sub">active users</div></div>
+          <div class="kpi-card kv-red" style="cursor:pointer" onclick="document.getElementById('portalFilterStatus').value='denied';WPA_portalFilterUsers()"><div class="kpi-label">Denied</div><div class="kpi-value" id="portal-stat-denied">0</div><div class="kpi-sub">rejected</div></div>
+          <div class="kpi-card kv-blue" style="cursor:pointer" onclick="document.getElementById('portalFilterStatus').value='all';WPA_portalFilterUsers()"><div class="kpi-label">Total</div><div class="kpi-value" id="portal-stat-total">0</div><div class="kpi-sub">all registrations</div></div>
         </div>
       </div>
     </div>
@@ -1321,8 +1321,8 @@
     <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <input type="text" id="portalSearchUser" placeholder="Search name, phone, address..." oninput="WPA_portalFilterUsers()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
       <select id="portalFilterStatus" onchange="WPA_portalFilterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
-        <option value="all">All Status</option>
-        <option value="pending" selected>Pending</option>
+        <option value="all" selected>All Status</option>
+        <option value="pending">Pending</option>
         <option value="approved">Approved</option>
         <option value="denied">Denied</option>
       </select>
