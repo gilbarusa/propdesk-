@@ -770,8 +770,8 @@ function buildJobBody(job, editable, st){
     h+='<div class="jc-billing-row"><span>Expenses</span><strong>'+fmt$(tE)+'</strong></div>';
   }
   h+='</div></div>';
-  // On My Way — tech only, open/in_progress jobs with contact info
-  if(!FT_isAdmin() && (job.status==='open'||job.status==='in_progress') && (job.clientPhone||job.clientEmail)){
+  // On My Way — open/in_progress jobs with contact info (admin + tech)
+  if((job.status==='open'||job.status==='in_progress') && (job.clientPhone||job.clientEmail)){
     h+='<div style="margin-top:10px;padding:10px;background:rgba(196,127,0,.08);border:1px solid rgba(196,127,0,.2);border-radius:8px">';
     h+='<div style="font-size:12px;font-weight:600;color:var(--accent);margin-bottom:8px">&#x1F697; On My Way</div>';
     h+='<div class="flex flex-wrap" style="gap:6px">';
