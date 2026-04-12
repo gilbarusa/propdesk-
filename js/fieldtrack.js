@@ -46,7 +46,8 @@ function FT_save(immediate){
   };
   if(immediate){
     // sendBeacon survives page refresh/navigation — fetch does not
-    var blob = new Blob([JSON.stringify({state:FT_state})], {type:'application/json'});
+    // Use text/plain to avoid CORS preflight on cross-origin beacon
+    var blob = new Blob([JSON.stringify({state:FT_state})], {type:'text/plain'});
     navigator.sendBeacon('https://tech.willowpa.com/state.php', blob);
     FT__savePending = false;
   } else {
@@ -61,7 +62,7 @@ var FT__savePending = false;
 // Flush pending debounced save before page unload
 window.addEventListener('beforeunload', function(){
   if(FT__savePending){
-    var blob = new Blob([JSON.stringify({state:FT_state})], {type:'application/json'});
+    var blob = new Blob([JSON.stringify({state:FT_state})], {type:'text/plain'});
     navigator.sendBeacon('https://tech.willowpa.com/state.php', blob);
   }
 });
