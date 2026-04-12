@@ -3267,6 +3267,7 @@ function openIncomingLink(reqId) {
   document.getElementById('il-req-summary').innerHTML =
     '<strong>' + FT_esc(req.name) + '</strong> &bull; ' + FT_esc(req.phone || '') + '<br>'
     + FT_esc(req.category || 'General') + ': ' + FT_esc((req.description || '').substring(0, 100))
+    + (req.address ? '<br>📍 ' + FT_esc(req.address) + (req.unit ? ' (Unit ' + FT_esc(req.unit) + ')' : '') : '')
     + (req.preferred_block ? '<br>📅 ' + FT_esc(req.preferred_block) : '');
 
   // Populate units dropdown from PropDesk data
@@ -3281,14 +3282,39 @@ function openIncomingLink(reqId) {
     });
   }
 
-  // Pre-fill title with category + short description
-  document.getElementById('il-title').value = (req.category || 'General') + ': ' + (req.description || '').substring(0, 60);
-  document.getElementById('il-notes').value = req.description || '';
+  // Pre-fill title with category + short description + preferred block
+  var titleParts = [(req.category || 'General'), (req.description || '').substring(0, 60)];
+  var titleStr = titleParts.join(': ');
+  if (req.preferred_block) titleStr += ' — ' + req.preferred_block;
+  if (req.preferred_date) titleStr += ' on ' + req.preferred_date;
+  document.getElementById('il-title').value = titleStr;
+  document.getElementById('il-notes').value = (req.description || '')
+    + (req.address ? '\nAddress: ' + req.address : '')
+    + (req.unit ? '\nUnit: ' + req.unit : '');
 
-  // Populate property search
+  // Populate property search and auto-match from request address
   document.getElementById('il-prop-search').value = '';
   document.getElementById('il-prop-id').value = '';
   var sel = document.getElementById('il-prop-selected'); if (sel) sel.style.display = 'none';
+
+  // Try to auto-match property from the request address/unit
+  if (req.address && FT_state.properties && FT_state.properties.length) {
+    var addr = req.address.toLowerCase();
+    var matched = FT_state.properties.find(function(p) {
+      if (!p.address) return false;
+      // Exact address match or strong substring match
+      var pa = p.address.toLowerCase();
+      if (pa === addr) return true;
+      if (addr.indexOf(pa) >= 0 || pa.indexOf(addr) >= 0) return true;
+      // Try matching first significant part (street number + name)
+      var addrParts = addr.split(/[,\s]+/).slice(0, 3).join(' ');
+      var paParts = pa.split(/[,\s]+/).slice(0, 3).join(' ');
+      return addrParts === paParts;
+    });
+    if (matched) {
+      selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', matched.id);
+    }
+  }
 
   // Populate techs
   populateSelect(document.getElementById('il-tech'),
