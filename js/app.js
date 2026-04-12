@@ -2078,7 +2078,7 @@ function WPA_notifyMaintenanceComplete(tenant, issueDesc){
 // PORTAL USERS MODULE
 // ═══════════════════════════════════════════════════════════════
 
-var PORTAL_API = 'https://app.willowpa.com/portal/api/';
+var PORTAL_API = 'https://app.willowpa.com/api/';
 var PORTAL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
 var _portalUsers = [];
 
