@@ -3313,10 +3313,16 @@ function openIncomingLink(reqId) {
       selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', matched.id);
       propMatched = true;
     }
-    // If no match, pre-fill the search box with the address so user can see autocomplete
+    // If no address match, try to find the catch-all "USERS" property
     if (!propMatched) {
-      document.getElementById('il-prop-search').value = req.address;
-      ilPropSearch(); // trigger autocomplete dropdown
+      var usersProp = FT_state.properties.find(function(p) { return p.name === 'USERS'; });
+      if (usersProp) {
+        selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', usersProp.id);
+        propMatched = true;
+      } else {
+        document.getElementById('il-prop-search').value = req.address;
+        ilPropSearch();
+      }
     }
   }
 
