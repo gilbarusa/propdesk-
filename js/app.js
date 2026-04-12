@@ -6466,7 +6466,8 @@ function renderPropertyList(props) {
     const addrLine = [rawAddr, p.city, p.state].filter(Boolean).join(', ');
     const settingsHref = p.property_uid ? `property-settings.html?uid=${p.property_uid}` : `property-settings.html?apt=${encodeURIComponent(p.apt || p.name)}`;
 
-    return `<div class="prop-row" onclick="window.location='${settingsHref}'">
+    const propAddr = (p.address || p.name || '').replace(/'/g, "\\'");
+    return `<div class="prop-row" onclick="openPropertyDetail('${propAddr}')">
       <div class="prop-thumb">${thumbHtml}</div>
       <div class="prop-info">
         <div class="prop-name">${p.name || p.apt || '—'}</div>
@@ -6576,8 +6577,352 @@ async function saveProperty() {
 
 async function syncPropertiesFromHostfully() {
   toast('To sync: enter your Hostfully API key in Settings → Integrations (coming soon)', 'info');
-  // Future: GET https://platform.hostfully.com/api/v3/properties with X-HOSTFULLY-APIKEY header
-  // then upsert each property into Supabase `properties` table
+}
+
+
+// ══════════════════════════════════════════════════════
+//  PROPERTY DETAIL VIEW (LT / ST toggle)
+// ══════════════════════════════════════════════════════
+
+let _pdCurrentProperty = null;  // property address string
+let _pdCurrentView = 'lt';      // 'lt' or 'st'
+
+function openPropertyDetail(propertyName) {
+  _pdCurrentProperty = propertyName;
+  // Hide all pages, show property detail
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  const page = document.getElementById('page-property-detail');
+  page.style.display = 'block';
+
+  // Determine if this property is predominantly LT or ST
+  const propUnits = data.filter(u => u.owner === propertyName || (u.note && u.note.includes(propertyName)));
+  const ltTenants = INNAGO_TENANTS.filter(t => t.property === propertyName);
+  const hasLT = ltTenants.length > 0;
+  const hasST = propUnits.some(u => u.type === 'short-stay');
+
+  // Set header
+  document.getElementById('pdTitle').textContent = propertyName;
+  const propData = propertiesData.find(p => p.name === propertyName || p.address === propertyName || p.apt === propertyName);
+  const addr = propData ? [propData.city, propData.state].filter(Boolean).join(', ') : '';
+  document.getElementById('pdSubtitle').textContent = addr || 'Property Details';
+
+  // Settings link
+  const settingsLink = document.getElementById('pdSettingsLink');
+  if (propData && propData.property_uid) {
+    settingsLink.href = 'property-settings.html?uid=' + propData.property_uid;
+  } else {
+    settingsLink.href = 'property-settings.html?apt=' + encodeURIComponent(propertyName);
+  }
+
+  // Auto-select view based on property type
+  _pdCurrentView = hasLT ? 'lt' : 'st';
+  document.querySelectorAll('.pd-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === _pdCurrentView));
+  document.getElementById('pdLTView').style.display = _pdCurrentView === 'lt' ? 'block' : 'none';
+  document.getElementById('pdSTView').style.display = _pdCurrentView === 'st' ? 'block' : 'none';
+
+  if (_pdCurrentView === 'lt') {
+    renderPDLongTerm(propertyName);
+  }
+}
+
+function closePropertyDetail() {
+  document.getElementById('page-property-detail').style.display = 'none';
+  closePDUnitPanel();
+  // Re-show the properties page
+  document.getElementById('page-properties').style.display = 'block';
+}
+
+function switchPropertyView(view, btn) {
+  _pdCurrentView = view;
+  document.querySelectorAll('.pd-toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pdLTView').style.display = view === 'lt' ? 'block' : 'none';
+  document.getElementById('pdSTView').style.display = view === 'st' ? 'block' : 'none';
+  if (view === 'lt') renderPDLongTerm(_pdCurrentProperty);
+}
+
+function renderPDLongTerm(propertyName) {
+  // Get property-specific data
+  const tenants = INNAGO_TENANTS.filter(t => t.property === propertyName);
+  const leases = INNAGO_LEASES.filter(l => l.property === propertyName);
+  const rent = INNAGO_RENT.filter(r => r.property === propertyName);
+
+  // Unique units from leases
+  const unitNames = [...new Set(leases.map(l => l.unit))];
+  const activeTenants = tenants.filter(t => t.status === 'Active');
+
+  // ── Stats Row ──
+  document.getElementById('pdTotalUnits').textContent = unitNames.length || leases.length;
+  document.getElementById('pdOccupied').textContent = activeTenants.length > 0 ? unitNames.length : 0;
+  const vacancy = unitNames.length > 0 ? Math.round((1 - unitNames.length / Math.max(unitNames.length, unitNames.length)) * 100) : 0;
+  document.getElementById('pdVacancy').textContent = vacancy + '%';
+  const now = new Date();
+  const d90 = new Date(now.getTime() + 90 * 86400000);
+  const expiring = leases.filter(l => l.type === 'fixed' && new Date(l.end) <= d90 && new Date(l.end) >= now);
+  document.getElementById('pdExpiring').textContent = expiring.length;
+
+  // ── Collection Donut ──
+  const totalAmount = rent.reduce((s, r) => s + r.amount, 0);
+  const collected = rent.reduce((s, r) => s + r.paid, 0);
+  const processing = rent.reduce((s, r) => s + r.processing, 0);
+  const overdue = rent.filter(r => r.status === 'overdue').reduce((s, r) => s + r.balance, 0);
+  const comingDue = rent.filter(r => r.status === 'pending').reduce((s, r) => s + r.balance, 0);
+
+  drawPDDonut(collected, processing, overdue, comingDue, totalAmount);
+
+  document.getElementById('pdDonutAmount').textContent = '$' + collected.toLocaleString();
+
+  // Legend
+  const legendData = [
+    { color: '#4caf50', label: 'Collected', val: collected },
+    { color: '#9c27b0', label: 'Processing', val: processing },
+    { color: '#f44336', label: 'Overdue', val: overdue },
+    { color: '#ff9800', label: 'Coming Due', val: comingDue }
+  ];
+  document.getElementById('pdLegend').innerHTML = legendData.map(d =>
+    `<div class="pd-legend-item"><div class="pd-legend-dot" style="background:${d.color}"></div><span class="pd-legend-text">${d.label}</span><span class="pd-legend-val">$${d.val.toLocaleString()}</span></div>`
+  ).join('');
+
+  // ── Lease Snapshot ──
+  const activeL = leases.filter(l => l.status === 'Active').length;
+  const futureT = tenants.filter(t => t.status === 'Future').length;
+  const mtmL = leases.filter(l => l.type === 'mtm').length;
+  const fixedL = leases.filter(l => l.type === 'fixed').length;
+  document.getElementById('pdLeaseActive').textContent = activeL;
+  document.getElementById('pdLeaseFuture').textContent = futureT;
+  document.getElementById('pdLeaseMTM').textContent = mtmL;
+  document.getElementById('pdLeaseFixed').textContent = fixedL;
+  document.getElementById('pdLeaseExpiring').textContent = expiring.length;
+
+  // ── Units Table ──
+  renderPDUnitsTable(propertyName);
+}
+
+// Store for filtering
+let _pdUnitsData = [];
+
+function renderPDUnitsTable(propertyName) {
+  const leases = INNAGO_LEASES.filter(l => l.property === propertyName);
+  const rent = INNAGO_RENT.filter(r => r.property === propertyName);
+
+  // Build unit rows from leases
+  _pdUnitsData = leases.map(l => {
+    const r = rent.find(rv => rv.unit === l.unit);
+    const tenantNames = l.tenants;
+    const tenantList = tenantNames.split(',').map(n => n.trim());
+    const tenantObjs = tenantList.map(name => INNAGO_TENANTS.find(t => t.name === name || t.name.includes(name.split(' ')[0]))).filter(Boolean);
+    return {
+      unit: l.unit,
+      tenants: tenantNames,
+      tenantObjs,
+      leaseType: l.type,
+      leaseStart: l.start,
+      leaseEnd: l.end,
+      totalRent: r ? r.amount : tenantObjs.reduce((s, t) => s + t.rent, 0),
+      status: r ? r.status : 'pending',
+      paid: r ? r.paid : 0,
+      balance: r ? r.balance : 0,
+      lease: l,
+      rentRecord: r
+    };
+  });
+
+  filterPropertyUnits();
+}
+
+function filterPropertyUnits() {
+  const q = (document.getElementById('pdUnitSearch')?.value || '').toLowerCase();
+  const filtered = q ? _pdUnitsData.filter(u => u.unit.toLowerCase().includes(q) || u.tenants.toLowerCase().includes(q)) : _pdUnitsData;
+
+  const tbody = document.getElementById('pdUnitsBody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px;font-style:italic;">No units found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((u, idx) => {
+    const statusCls = 'pd-badge-' + u.status;
+    const statusLabel = u.status.charAt(0).toUpperCase() + u.status.slice(1);
+    const leaseTypeCls = u.leaseType === 'mtm' ? 'pd-badge-mtm' : 'pd-badge-fixed';
+    const leaseTypeLabel = u.leaseType === 'mtm' ? 'M-to-M' : 'Fixed';
+    const tenantCount = u.tenantObjs.length;
+    const tenantSub = tenantCount > 1 ? tenantCount + ' tenants' : '';
+
+    return `<tr onclick="openPDUnitDetail(${_pdUnitsData.indexOf(u)})">
+      <td><strong>${u.unit}</strong></td>
+      <td>
+        <div class="pd-unit-tenant-names">${u.tenants}</div>
+        ${tenantSub ? `<div class="pd-unit-tenant-sub">${tenantSub}</div>` : ''}
+      </td>
+      <td><span class="pd-unit-badge ${leaseTypeCls}">${leaseTypeLabel}</span></td>
+      <td>${u.leaseEnd}</td>
+      <td><strong>$${u.totalRent.toLocaleString()}</strong></td>
+      <td><span class="pd-unit-badge ${statusCls}">${statusLabel}</span></td>
+      <td class="pd-unit-expand">›</td>
+    </tr>`;
+  }).join('');
+}
+
+function openPDUnitDetail(idx) {
+  const u = _pdUnitsData[idx];
+  if (!u) return;
+
+  const panel = document.getElementById('pdUnitPanel');
+  panel.classList.add('open');
+
+  // Title
+  document.getElementById('pdUnitPanelTitle').textContent = _pdCurrentProperty + ' — Unit ' + u.unit;
+
+  // ── Lease Info ──
+  const leaseInfo = document.getElementById('pdUpLeaseInfo');
+  const startDate = new Date(u.leaseStart);
+  const endDate = u.leaseEnd === 'M to M' ? null : new Date(u.leaseEnd);
+  const now = new Date();
+  let daysLeft = '';
+  let termPct = 0;
+  if (endDate) {
+    const totalDays = Math.ceil((endDate - startDate) / 86400000);
+    const elapsed = Math.ceil((now - startDate) / 86400000);
+    const remaining = Math.max(0, totalDays - elapsed);
+    daysLeft = remaining + ' days left';
+    termPct = totalDays > 0 ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : 0;
+  } else {
+    daysLeft = 'Month-to-Month (ongoing)';
+    termPct = 100;
+  }
+
+  leaseInfo.innerHTML = `
+    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Lease Type</span><span class="pd-up-lease-val">${u.leaseType === 'mtm' ? 'Month-to-Month' : 'Fixed Term'}</span></div>
+    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Start</span><span class="pd-up-lease-val">${u.leaseStart}</span></div>
+    <div class="pd-up-lease-row"><span class="pd-up-lease-label">End</span><span class="pd-up-lease-val">${u.leaseEnd}</span></div>
+    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Monthly Rent</span><span class="pd-up-lease-val">$${u.totalRent.toLocaleString()}</span></div>
+    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Status</span><span class="pd-up-lease-val">${daysLeft}</span></div>
+    ${endDate ? `<div class="pd-up-lease-term-bar"><div class="pd-up-lease-term-fill" style="width:${termPct}%"></div></div>` : ''}
+  `;
+
+  // ── Tenants ──
+  const tenantsDiv = document.getElementById('pdUpTenants');
+  tenantsDiv.innerHTML = u.tenantObjs.map(t => {
+    const initials = t.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+    const phone = t.phone || '—';
+    const email = t.email || '—';
+    return `<div class="pd-up-tenant-card">
+      <div class="pd-up-tenant-avatar">${initials}</div>
+      <div class="pd-up-tenant-info">
+        <div class="pd-up-tenant-name">${t.name}</div>
+        <div class="pd-up-tenant-contact">${phone} · ${email}</div>
+      </div>
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;font-style:italic;">No tenant data</div>';
+
+  // ── Invoices ──
+  const invoicesDiv = document.getElementById('pdUpInvoices');
+  if (u.rentRecord) {
+    const r = u.rentRecord;
+    const statusCls = 'pd-badge-' + r.status;
+    const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
+    invoicesDiv.innerHTML = `
+      <div class="pd-up-invoice-row">
+        <div class="pd-up-inv-date">Apr 2026</div>
+        <div class="pd-up-inv-desc">Monthly Rent</div>
+        <div class="pd-up-inv-amount">$${r.amount.toLocaleString()}</div>
+        <div class="pd-up-inv-status"><span class="pd-unit-badge ${statusCls}">${statusLabel}</span></div>
+      </div>
+      ${r.paid > 0 ? `<div class="pd-up-invoice-row"><div class="pd-up-inv-date"></div><div class="pd-up-inv-desc" style="color:var(--green)">Paid</div><div class="pd-up-inv-amount" style="color:var(--green)">$${r.paid.toLocaleString()}</div><div class="pd-up-inv-status"></div></div>` : ''}
+      ${r.processing > 0 ? `<div class="pd-up-invoice-row"><div class="pd-up-inv-date"></div><div class="pd-up-inv-desc" style="color:var(--purple)">Processing</div><div class="pd-up-inv-amount" style="color:var(--purple)">$${r.processing.toLocaleString()}</div><div class="pd-up-inv-status"></div></div>` : ''}
+      ${r.balance > 0 ? `<div class="pd-up-invoice-row"><div class="pd-up-inv-date"></div><div class="pd-up-inv-desc" style="color:var(--red)">Balance Due</div><div class="pd-up-inv-amount" style="color:var(--red)">$${r.balance.toLocaleString()}</div><div class="pd-up-inv-status"></div></div>` : ''}
+    `;
+  } else {
+    invoicesDiv.innerHTML = '<div style="color:var(--text3);font-size:12px;font-style:italic;">No invoice data</div>';
+  }
+
+  // ── Actions ──
+  document.getElementById('pdUpActions').innerHTML = `
+    <button class="pd-up-action-btn" onclick="tenantActionFromPD('message',${idx})">💬 Message</button>
+    <button class="pd-up-action-btn" onclick="tenantActionFromPD('viewLease',${idx})">📄 View Lease</button>
+    <button class="pd-up-action-btn primary" onclick="tenantActionFromPD('collectRent',${idx})">💰 Collect Rent</button>
+  `;
+}
+
+function closePDUnitPanel() {
+  document.getElementById('pdUnitPanel').classList.remove('open');
+}
+
+function tenantActionFromPD(action, idx) {
+  const u = _pdUnitsData[idx];
+  if (!u) return;
+  if (action === 'message') {
+    const t = u.tenantObjs[0];
+    if (t) {
+      const tIdx = INNAGO_TENANTS.indexOf(t);
+      if (tIdx >= 0) {
+        closePDUnitPanel();
+        switchModule('mtm-lt');
+        setTimeout(() => {
+          const subTabs = document.querySelectorAll('#subNav .sub-tab');
+          if (subTabs[4]) subTabs[4].click(); // Messages sub-tab
+        }, 300);
+      }
+    }
+  } else if (action === 'viewLease') {
+    const leaseIdx = INNAGO_LEASES.indexOf(u.lease);
+    if (leaseIdx >= 0) {
+      closePDUnitPanel();
+      closePropertyDetail();
+      switchModule('mtm-lt');
+      setTimeout(() => {
+        const subTabs = document.querySelectorAll('#subNav .sub-tab');
+        if (subTabs[2]) subTabs[2].click(); // Leases sub-tab
+        setTimeout(() => openLeaseDetail(leaseIdx), 400);
+      }, 300);
+    }
+  } else if (action === 'collectRent') {
+    const rentIdx = u.rentRecord ? INNAGO_RENT.indexOf(u.rentRecord) : -1;
+    if (rentIdx >= 0) {
+      closePDUnitPanel();
+      closePropertyDetail();
+      switchModule('mtm-lt');
+      setTimeout(() => {
+        const subTabs = document.querySelectorAll('#subNav .sub-tab');
+        if (subTabs[3]) subTabs[3].click(); // Rent sub-tab
+        setTimeout(() => openRentDetail && openRentDetail(rentIdx), 400);
+      }, 300);
+    }
+  }
+}
+
+function drawPDDonut(collected, processing, overdue, comingDue, total) {
+  const canvas = document.getElementById('pdDonutCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2, R = 72, r = 48;
+  ctx.clearRect(0, 0, W, H);
+
+  if (total === 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.closePath();
+    ctx.fillStyle = '#e0ddd6'; ctx.fill();
+    return;
+  }
+
+  const segments = [
+    { val: collected,   color: '#4caf50' },
+    { val: processing,  color: '#9c27b0' },
+    { val: overdue,     color: '#f44336' },
+    { val: comingDue,   color: '#ff9800' }
+  ].filter(s => s.val > 0);
+
+  let startAngle = -Math.PI / 2;
+  segments.forEach(seg => {
+    const sweep = (seg.val / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, startAngle, startAngle + sweep);
+    ctx.arc(cx, cy, r, startAngle + sweep, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    startAngle += sweep;
+  });
 }
 
 
