@@ -978,7 +978,7 @@ function _doCreateStripeLink(jobId, sk){
   var desc='WO '+(job.woNum||'#'+job.id)+': '+(job.title||'Maintenance')+' — '+(prop?prop.name:'Property');
   var prId=job.sourceRequestId||job.sourceId||'';
   // Build pay.php URL (tip-enabled payment page on app.willowpa.com)
-  var payUrl='https://app.willowpa.com/portal/pay.php'
+  var payUrl='https://app.willowpa.com/pay.php'
     +'?amount='+amtCents
     +'&desc='+encodeURIComponent(desc)
     +'&wo='+encodeURIComponent(job.woNum||'')
