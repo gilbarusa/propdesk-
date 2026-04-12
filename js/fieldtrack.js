@@ -1054,8 +1054,9 @@ function FT_sendInvoice(jobId){
                   : sb.from('payment_requests').select('id,amount,status,description,work_order_id,source_id').eq('unit',unit).eq('status','pending');
   query.then(function(res){
     var rows=res.data||[];
-    // If multiple pending for same WO, find the one matching this specific job's source_id or pick the most recent
-    var existing=rows.length===1?rows[0]:rows.find(function(pr){ return pr.source_id===job.sourceId; })||rows[0]||null;
+    // If multiple pending for same WO, find the one matching this specific job's sourceRequestId
+    var srcId=job.sourceRequestId||job.sourceId||'';
+    var existing=rows.length===1?rows[0]:rows.find(function(pr){ return srcId && pr.source_id===srcId; })||null;
     if(existing){
       if(Math.abs(existing.amount - total)<0.01){
         alert('Invoice already exists for '+fmt$(total)+'. No changes needed.');
