@@ -947,7 +947,23 @@ function savePaymentLink(jobId){
 }
 function createStripePaymentLink(jobId){
   var sk=getStripeKey();
-  if(!sk){ alert('No Stripe API key configured. Go to Settings tab to add your Stripe Secret Key (sk_live_... or sk_test_...).'); return; }
+  if(sk){ _doCreateStripeLink(jobId, sk); return; }
+  // Try fetching from Supabase app_credentials
+  if(typeof sb!=='undefined'&&sb){
+    sb.from('app_credentials').select('credentials').eq('service','stripe').then(function(res){
+      var rows=res.data||[];
+      for(var i=0;i<rows.length;i++){
+        var c=rows[i].credentials||{};
+        var k=c.secret_key||c.sk||c.stripe_secret_key||c.api_key||'';
+        if(k){ _cachedStripeKey=k; _doCreateStripeLink(jobId, k); return; }
+      }
+      alert('No Stripe API key found. Go to Settings → Credentials and make sure your Stripe credential has a secret_key field.');
+    });
+    return;
+  }
+  alert('No Stripe API key configured. Go to Settings tab to add your Stripe Secret Key (sk_live_... or sk_test_...).');
+}
+function _doCreateStripeLink(jobId, sk){
   var job=getJob(jobId); if(!job) return;
   var prop=getProp(job.propId);
   var tech=getTech(job.techId);
