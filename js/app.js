@@ -2075,6 +2075,104 @@ function WPA_notifyMaintenanceComplete(tenant, issueDesc){
   WPA_notify(tenant, msg, {subject:'Maintenance Complete — WillowPA'});
 }
 // ═══════════════════════════════════════════════════════════════
+// PORTAL USERS MODULE
+// ═══════════════════════════════════════════════════════════════
+
+var PORTAL_API = 'https://app.willowpa.com/portal/api/';
+var PORTAL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
+var _portalUsers = [];
+
+async function WPA_portalRefresh() {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-users', {
+      headers: { 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN }
+    });
+    const data = await res.json();
+    if (data.error) { console.error('Portal users error:', data.error); return; }
+    _portalUsers = data.users || [];
+    WPA_portalRenderStats();
+    WPA_portalFilterUsers();
+    // Update badge
+    const pending = _portalUsers.filter(u => u.status === 'pending').length;
+    const badge = document.getElementById('portalBadge');
+    if (badge) {
+      badge.textContent = pending;
+      badge.style.display = pending > 0 ? '' : 'none';
+    }
+  } catch (e) { console.error('Portal fetch error:', e); }
+}
+
+function WPA_portalRenderStats() {
+  const pending = _portalUsers.filter(u => u.status === 'pending').length;
+  const approved = _portalUsers.filter(u => u.status === 'approved').length;
+  const denied = _portalUsers.filter(u => u.status === 'denied').length;
+  document.getElementById('portal-stat-pending').textContent = pending;
+  document.getElementById('portal-stat-approved').textContent = approved;
+  document.getElementById('portal-stat-denied').textContent = denied;
+  document.getElementById('portal-stat-total').textContent = _portalUsers.length;
+}
+
+function WPA_portalFilterUsers() {
+  const q = (document.getElementById('portalSearchUser').value || '').toLowerCase();
+  const statusFilter = document.getElementById('portalFilterStatus').value;
+  const filtered = _portalUsers.filter(u => {
+    if (statusFilter !== 'all' && u.status !== statusFilter) return false;
+    if (q) {
+      const hay = [u.name, u.username, u.address, u.unit, u.phone, u.email].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const tbody = document.getElementById('portalUsersBody');
+  const noEl = document.getElementById('portalNoUsers');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    noEl.style.display = '';
+    return;
+  }
+  noEl.style.display = 'none';
+  tbody.innerHTML = filtered.map(u => {
+    const statusColors = { pending: 'background:rgba(255,142,83,.15);color:#d97706', approved: 'background:rgba(76,175,130,.15);color:#256645', denied: 'background:rgba(239,68,68,.15);color:#dc2626' };
+    const statusStyle = statusColors[u.status] || '';
+    const statusLabel = u.status.charAt(0).toUpperCase() + u.status.slice(1);
+    const created = u.created ? new Date(u.created).toLocaleDateString() : '—';
+    let actions = '';
+    if (u.status === 'pending') {
+      actions = `<button onclick="WPA_portalApprove('${u.id}',true)" class="btn-subtle" style="color:var(--green);font-size:11px;padding:4px 8px">✓ Approve</button>` +
+                `<button onclick="WPA_portalApprove('${u.id}',false)" class="btn-subtle" style="color:var(--red);font-size:11px;padding:4px 8px">✗ Deny</button>`;
+    } else if (u.status === 'denied') {
+      actions = `<button onclick="WPA_portalApprove('${u.id}',true)" class="btn-subtle" style="color:var(--green);font-size:11px;padding:4px 8px">✓ Approve</button>`;
+    } else if (u.status === 'approved') {
+      actions = `<button onclick="WPA_portalApprove('${u.id}',false)" class="btn-subtle" style="color:var(--red);font-size:11px;padding:4px 8px">Revoke</button>`;
+    }
+    return `<tr>
+      <td>${u.name || '—'}</td>
+      <td><code style="font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:4px">${u.username || '—'}</code></td>
+      <td>${u.address || '—'}</td>
+      <td>${u.unit || '—'}</td>
+      <td>${u.phone || '—'}</td>
+      <td>${u.email || '—'}</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:4px;${statusStyle}">${statusLabel}</span></td>
+      <td>${created}</td>
+      <td style="white-space:nowrap">${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function WPA_portalApprove(userId, approve) {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-approve-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN },
+      body: JSON.stringify({ user_id: userId, approve: approve })
+    });
+    const data = await res.json();
+    if (data.error) { alert('Error: ' + data.error); return; }
+    WPA_portalRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN SETTINGS — Section Toggle, Centralized Credentials
 // ═══════════════════════════════════════════════════════════════
 
@@ -2284,6 +2382,7 @@ const MODULE_SUB_TABS = {
   'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
   'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
+  'portal':      [{label:'Users',       page:'portal-users'}, {label:'Settings', page:'portal-settings'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
 
@@ -2348,6 +2447,11 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, 
   // ── Home Services section routing ──
   if (hsSec) {
     showHomeServicesSection(hsSec);
+  }
+
+  // ── Portal Users routing ──
+  if (pageId === 'portal-users') {
+    WPA_portalRefresh();
   }
 
   // ── Message Center routing ──
@@ -2472,6 +2576,25 @@ function initModuleNav() {
   switchModule('dashboard', document.querySelector('#moduleBar [data-module="dashboard"]'));
   // Update MTM stats from current data
   updateMTMStats();
+  // Fetch portal badge count (non-blocking)
+  WPA_portalBadgeRefresh();
+}
+async function WPA_portalBadgeRefresh() {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-users', {
+      headers: { 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN }
+    });
+    const data = await res.json();
+    if (data.users) {
+      _portalUsers = data.users;
+      const pending = data.users.filter(u => u.status === 'pending').length;
+      const badge = document.getElementById('portalBadge');
+      if (badge) {
+        badge.textContent = pending;
+        badge.style.display = pending > 0 ? '' : 'none';
+      }
+    }
+  } catch(e) { /* silent */ }
 }
 function updateMTMStats() {
   const data = window.DATA || [];
