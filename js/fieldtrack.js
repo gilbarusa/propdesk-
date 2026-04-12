@@ -711,7 +711,8 @@ function buildJobBody(job, editable, st){
       h+='<div class="jc-billing-row"><span>Additional Charges</span><strong>'+fmt$(_liTotal)+'</strong></div>';
     }
     // Grand total = labor + expenses + line items (or override)
-    var autoTotal = tL + tE + _liTotal;
+    var svcPrice = parseFloat(job.servicePrice)||0;
+    var autoTotal = svcPrice + tL + tE + _liTotal;
     var billAmt = job.billingAmount!=null ? job.billingAmount : autoTotal;
     h+='<div class="jc-billing-total"><span>Total</span><strong style="font-size:18px">'+fmt$(billAmt)+'</strong></div>';
     // Editable billing override
@@ -941,7 +942,8 @@ function createStripePaymentLink(jobId){
   if(prop) rate=prop.rateType==='tech'&&tech?+tech.rate:(prop.defaultRate?+prop.defaultRate:(tech?+tech.rate:0));
   var tL=tH*rate, tE=jobTotalExp(job);
   var liTotal=0; (job.lineItems||[]).forEach(function(it){ liTotal+=parseFloat(it.amount)||0; });
-  var billAmt=job.billingAmount!=null?job.billingAmount:(tL+tE+liTotal);
+  var svcPrice=parseFloat(job.servicePrice)||0;
+  var billAmt=job.billingAmount!=null?job.billingAmount:(svcPrice+tL+tE+liTotal);
   if(!billAmt||billAmt<=0){ alert('Billing amount must be greater than $0.'); return; }
   var amtCents=Math.round(billAmt*100);
   var desc='WO '+(job.woNum||'#'+job.id)+': '+(job.title||'Maintenance')+' â€” '+(prop?prop.name:'Property');
@@ -1006,7 +1008,8 @@ function FT_sendInvoice(jobId){
   if(prop) rate=prop.rateType==='tech'&&tech?+tech.rate:(prop.defaultRate?+prop.defaultRate:(tech?+tech.rate:0));
   var tL=tH*rate, tE=jobTotalExp(job);
   var liTotal=0; (job.lineItems||[]).forEach(function(it){ liTotal+=parseFloat(it.amount)||0; });
-  var total=job.billingAmount!=null?job.billingAmount:(tL+tE+liTotal);
+  var svcPrice=parseFloat(job.servicePrice)||0;
+  var total=job.billingAmount!=null?job.billingAmount:(svcPrice+tL+tE+liTotal);
   if(!total||total<=0){ alert('Total must be greater than $0. Add charges or set a billing amount.'); return; }
   var itemLines=[];
   if(job.servicePrice>0) itemLines.push('Agreed Service: '+fmt$(job.servicePrice));
