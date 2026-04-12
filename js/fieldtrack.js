@@ -3345,11 +3345,13 @@ function saveIncomingLink() {
   var techId = +document.getElementById('il-tech').value || null;
   var title = (document.getElementById('il-title').value || '').trim();
   var notes = document.getElementById('il-notes').value || '';
+  var chargeAmount = parseFloat((document.getElementById('il-amount') || {}).value) || 0;
 
   if (!propId) { alert('Select a property.'); return; }
   if (!title) { alert('Enter a job title.'); return; }
 
   // Create work order
+  var prop = getProp(propId);
   var job = {
     id: FT_uid(),
     woNum: FT_nextWO(),
@@ -3365,19 +3367,40 @@ function saveIncomingLink() {
     clientPhone: req.phone || '',
     clientEmail: req.email || '',
     clientPreferredComm: req.preferred_comm || 'sms',
+    clientAddress: req.address || '',
     hours: [], expenses: [], photos: [],
-    sourceRequestId: reqId
+    sourceRequestId: reqId,
+    servicePrice: chargeAmount > 0 ? chargeAmount : null,
+    billingAmount: chargeAmount > 0 ? chargeAmount : null
   };
 
   FT_state.jobs.push(job);
   FT_save();
 
-  // Update Supabase status
+  // Update Supabase maintenance_requests status
   if (typeof sb !== 'undefined') {
     sb.from('maintenance_requests')
       .update({ status: 'assigned', assigned_to: techId ? getTech(techId).name : 'Unassigned', updated_at: new Date().toISOString() })
       .eq('id', reqId)
       .then(function() { loadIncomingRequests(); });
+
+    // Create payment request if amount was set
+    if (chargeAmount > 0) {
+      var payDesc = 'WO ' + job.woNum + ' — ' + (prop ? prop.name : 'Property') + '\n' + title;
+      sb.from('payment_requests').insert([{
+        id: crypto.randomUUID(),
+        unit: prop ? prop.name : '',
+        user_id: req.user_id || null,
+        amount: chargeAmount,
+        status: 'pending',
+        description: payDesc,
+        work_order_id: job.woNum,
+        source_id: reqId,
+        created_at: new Date().toISOString()
+      }]).then(function(ins) {
+        if (ins.error) { console.error('Payment request error:', ins.error); }
+      });
+    }
   }
 
   // Notify tech
