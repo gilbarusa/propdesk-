@@ -3282,12 +3282,9 @@ function openIncomingLink(reqId) {
     });
   }
 
-  // Pre-fill title with category + short description + preferred block
-  var titleParts = [(req.category || 'General'), (req.description || '').substring(0, 60)];
-  var titleStr = titleParts.join(': ');
-  if (req.preferred_block) titleStr += ' — ' + req.preferred_block;
-  if (req.preferred_date) titleStr += ' on ' + req.preferred_date;
-  document.getElementById('il-title').value = titleStr;
+  // Pre-fill title: category + description (strip date/block if already in description)
+  var desc = (req.description || '').substring(0, 60);
+  document.getElementById('il-title').value = (req.category || 'General') + ': ' + desc;
   document.getElementById('il-notes').value = (req.description || '')
     + (req.address ? '\nAddress: ' + req.address : '')
     + (req.unit ? '\nUnit: ' + req.unit : '');
@@ -3298,21 +3295,28 @@ function openIncomingLink(reqId) {
   var sel = document.getElementById('il-prop-selected'); if (sel) sel.style.display = 'none';
 
   // Try to auto-match property from the request address/unit
+  var propMatched = false;
   if (req.address && FT_state.properties && FT_state.properties.length) {
-    var addr = req.address.toLowerCase();
+    var addr = req.address.toLowerCase().replace(/[.,#]/g, '').trim();
     var matched = FT_state.properties.find(function(p) {
       if (!p.address) return false;
-      // Exact address match or strong substring match
-      var pa = p.address.toLowerCase();
+      var pa = p.address.toLowerCase().replace(/[.,#]/g, '').trim();
       if (pa === addr) return true;
       if (addr.indexOf(pa) >= 0 || pa.indexOf(addr) >= 0) return true;
-      // Try matching first significant part (street number + name)
-      var addrParts = addr.split(/[,\s]+/).slice(0, 3).join(' ');
-      var paParts = pa.split(/[,\s]+/).slice(0, 3).join(' ');
-      return addrParts === paParts;
+      // Match by street number + first word of street name
+      var aParts = addr.split(/\s+/);
+      var pParts = pa.split(/\s+/);
+      if (aParts.length >= 2 && pParts.length >= 2 && aParts[0] === pParts[0] && aParts[1] === pParts[1]) return true;
+      return false;
     });
     if (matched) {
       selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', matched.id);
+      propMatched = true;
+    }
+    // If no match, pre-fill the search box with the address so user can see autocomplete
+    if (!propMatched) {
+      document.getElementById('il-prop-search').value = req.address;
+      ilPropSearch(); // trigger autocomplete dropdown
     }
   }
 
