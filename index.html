@@ -1216,6 +1216,138 @@
   </div>
 </div>
 
+<!-- ═══ PROPERTY DETAIL PAGE (LT / ST switchable) ═══ -->
+<div class="page" id="page-property-detail" style="display:none;">
+  <div class="pd-wrap">
+    <!-- Header -->
+    <div class="pd-header">
+      <button class="pd-back-btn" onclick="closePropertyDetail()">← Back</button>
+      <div class="pd-header-info">
+        <div class="pd-title" id="pdTitle">—</div>
+        <div class="pd-subtitle" id="pdSubtitle">—</div>
+      </div>
+      <div class="pd-header-actions">
+        <div class="pd-view-toggle" id="pdViewToggle">
+          <button class="pd-toggle-btn active" data-view="lt" onclick="switchPropertyView('lt',this)">Long-Term</button>
+          <button class="pd-toggle-btn" data-view="st" onclick="switchPropertyView('st',this)">Short-Term</button>
+        </div>
+        <a href="#" class="pd-settings-link" id="pdSettingsLink" title="Property Settings">⚙</a>
+      </div>
+    </div>
+
+    <!-- ── LONG-TERM VIEW ── -->
+    <div class="pd-lt-view" id="pdLTView">
+      <!-- Top Stats Row -->
+      <div class="pd-stats-row">
+        <div class="pd-stat-card">
+          <div class="pd-stat-label">Total Units</div>
+          <div class="pd-stat-val" id="pdTotalUnits">0</div>
+        </div>
+        <div class="pd-stat-card">
+          <div class="pd-stat-label">Occupied</div>
+          <div class="pd-stat-val" id="pdOccupied">0</div>
+        </div>
+        <div class="pd-stat-card">
+          <div class="pd-stat-label">Vacancy</div>
+          <div class="pd-stat-val" id="pdVacancy">0%</div>
+        </div>
+        <div class="pd-stat-card">
+          <div class="pd-stat-label">Leases Expiring (90d)</div>
+          <div class="pd-stat-val" id="pdExpiring">0</div>
+        </div>
+      </div>
+
+      <!-- Collection + Lease Summary Row -->
+      <div class="pd-row-2col">
+        <!-- Collection Donut -->
+        <div class="pd-card pd-collection-card">
+          <h3 class="pd-card-title">Rent Collection</h3>
+          <div class="pd-collection-body">
+            <div class="pd-donut-wrap">
+              <canvas id="pdDonutCanvas" width="180" height="180"></canvas>
+              <div class="pd-donut-center" id="pdDonutCenter">
+                <div class="pd-donut-amount" id="pdDonutAmount">$0</div>
+                <div class="pd-donut-label">collected</div>
+              </div>
+            </div>
+            <div class="pd-legend" id="pdLegend"></div>
+          </div>
+        </div>
+        <!-- Lease Snapshot -->
+        <div class="pd-card pd-lease-card">
+          <h3 class="pd-card-title">Lease Snapshot</h3>
+          <div class="pd-lease-grid">
+            <div class="pd-lease-item"><span class="pd-lease-dot" style="background:#4caf50"></span><span class="pd-lease-label">Active</span><span class="pd-lease-count" id="pdLeaseActive">0</span></div>
+            <div class="pd-lease-item"><span class="pd-lease-dot" style="background:#2196f3"></span><span class="pd-lease-label">Future</span><span class="pd-lease-count" id="pdLeaseFuture">0</span></div>
+            <div class="pd-lease-item"><span class="pd-lease-dot" style="background:#ff9800"></span><span class="pd-lease-label">Month-to-Month</span><span class="pd-lease-count" id="pdLeaseMTM">0</span></div>
+            <div class="pd-lease-item"><span class="pd-lease-dot" style="background:#9c27b0"></span><span class="pd-lease-label">Fixed Term</span><span class="pd-lease-count" id="pdLeaseFixed">0</span></div>
+            <div class="pd-lease-item"><span class="pd-lease-dot" style="background:#f44336"></span><span class="pd-lease-label">Expiring Soon</span><span class="pd-lease-count" id="pdLeaseExpiring">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Units Table -->
+      <div class="pd-card pd-units-card">
+        <div class="pd-units-header">
+          <h3 class="pd-card-title">Units</h3>
+          <input type="text" class="pd-unit-search" id="pdUnitSearch" placeholder="Search units..." oninput="filterPropertyUnits()">
+        </div>
+        <table class="pd-units-table">
+          <thead>
+            <tr>
+              <th>Unit</th>
+              <th>Tenant(s)</th>
+              <th>Lease Type</th>
+              <th>Lease End</th>
+              <th>Rent</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="pdUnitsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── SHORT-TERM VIEW ── -->
+    <div class="pd-st-view" id="pdSTView" style="display:none;">
+      <div class="pd-card">
+        <h3 class="pd-card-title">Short-Term Dashboard</h3>
+        <div id="pdSTContent" style="padding:20px;color:var(--text3);text-align:center;">
+          Short-term property view — calendar, bookings, and pricing will appear here.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unit Detail Slide-over Panel -->
+  <div class="pd-unit-panel" id="pdUnitPanel">
+    <div class="pd-unit-panel-header">
+      <div class="pd-unit-panel-title" id="pdUnitPanelTitle">Unit Detail</div>
+      <button class="pd-unit-panel-close" onclick="closePDUnitPanel()">✕</button>
+    </div>
+    <div class="pd-unit-panel-body" id="pdUnitPanelBody">
+      <!-- Lease Info -->
+      <div class="pd-up-section">
+        <h4 class="pd-up-section-title">Lease</h4>
+        <div class="pd-up-lease-info" id="pdUpLeaseInfo"></div>
+      </div>
+      <!-- Tenants -->
+      <div class="pd-up-section">
+        <h4 class="pd-up-section-title">Tenants</h4>
+        <div class="pd-up-tenants" id="pdUpTenants"></div>
+      </div>
+      <!-- Invoices -->
+      <div class="pd-up-section">
+        <h4 class="pd-up-section-title">Invoices</h4>
+        <div class="pd-up-invoices" id="pdUpInvoices"></div>
+      </div>
+      <!-- Actions -->
+      <div class="pd-up-actions" id="pdUpActions"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ADD/EDIT PROPERTY MODAL -->
 <div class="modal-overlay" id="addPropertyModal">
   <div class="modal" style="max-width:560px;">
