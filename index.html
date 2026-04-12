@@ -104,6 +104,7 @@
   <div class="module-tab" data-module="home-services" onclick="switchModule('home-services',this)"><span class="mod-icon">🧹</span> Home Services</div>
   <div class="module-tab" data-module="mailroom" onclick="switchModule('mailroom',this)"><span class="mod-icon">📦</span> Mailroom <span class="mod-badge" id="mailroomBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="messages" onclick="switchModule('messages',this)"><span class="mod-icon">💬</span> Messages <span class="mod-badge" id="msgCenterBadge" style="display:none">0</span></div>
+  <div class="module-tab" data-module="portal" onclick="switchModule('portal',this)"><span class="mod-icon">👤</span> Portal <span class="mod-badge" id="portalBadge" style="display:none">0</span></div>
   <div style="flex:1"></div>
   <div class="module-tab" data-module="settings" onclick="switchModule('settings',this)"><span class="mod-icon">⚙</span></div>
 </nav>
@@ -1286,6 +1287,71 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('addPropertyModal')">Cancel</button>
       <button class="btn btn-primary" onclick="saveProperty()">💾 Save Property</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PORTAL USERS MODULE ═══ -->
+<div class="page" id="page-portal-users">
+  <div class="dash-wrap">
+    <div class="dash-header">
+      <div>
+        <div class="dash-title">👤 Portal Users</div>
+        <div class="dash-synced">Registered users from <a href="https://app.willowpa.com" target="_blank" style="color:var(--accent)">app.willowpa.com</a></div>
+      </div>
+      <div class="dash-header-actions">
+        <button onclick="WPA_portalRefresh()" class="btn-subtle">🔄 Refresh</button>
+      </div>
+    </div>
+
+    <!-- KPI Row -->
+    <div class="collapsible-summary open">
+      <button class="stats-toggle-btn" onclick="this.parentElement.classList.toggle('open')">Stats</button>
+      <div class="summary-content">
+        <div class="dash-kpi-hero" id="portalKpis">
+          <div class="kpi-card kv-orange"><div class="kpi-label">Pending</div><div class="kpi-value" id="portal-stat-pending">0</div><div class="kpi-sub">awaiting approval</div></div>
+          <div class="kpi-card kv-green"><div class="kpi-label">Approved</div><div class="kpi-value" id="portal-stat-approved">0</div><div class="kpi-sub">active users</div></div>
+          <div class="kpi-card kv-red"><div class="kpi-label">Denied</div><div class="kpi-value" id="portal-stat-denied">0</div><div class="kpi-sub">rejected</div></div>
+          <div class="kpi-card kv-blue"><div class="kpi-label">Total</div><div class="kpi-value" id="portal-stat-total">0</div><div class="kpi-sub">all registrations</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters -->
+    <div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+      <input type="text" id="portalSearchUser" placeholder="Search name, phone, address..." oninput="WPA_portalFilterUsers()" style="flex:1;min-width:200px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
+      <select id="portalFilterStatus" onchange="WPA_portalFilterUsers()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit">
+        <option value="all">All Status</option>
+        <option value="pending" selected>Pending</option>
+        <option value="approved">Approved</option>
+        <option value="denied">Denied</option>
+      </select>
+    </div>
+
+    <!-- Users Table -->
+    <div style="overflow-x:auto">
+      <table class="pk-table" id="portalUsersTable">
+        <thead><tr>
+          <th>Name</th><th>Access Code</th><th>Address</th><th>Unit</th><th>Phone</th><th>Email</th><th>Status</th><th>Registered</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="portalUsersBody"></tbody>
+      </table>
+    </div>
+    <div id="portalNoUsers" style="display:none;text-align:center;padding:40px;color:var(--text3)">No users found</div>
+  </div>
+</div>
+
+<!-- ═══ PORTAL SETTINGS ═══ -->
+<div class="page" id="page-portal-settings">
+  <div class="dash-wrap">
+    <div class="dash-header">
+      <div>
+        <div class="dash-title">⚙ Portal Settings</div>
+        <div class="dash-synced">Configuration for the client portal</div>
+      </div>
+    </div>
+    <div class="dash-panel">
+      <p style="color:var(--text3);font-size:13px">Portal settings coming soon. Will include: auto-approval rules, notification preferences, and portal branding.</p>
     </div>
   </div>
 </div>
