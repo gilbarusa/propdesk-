@@ -688,7 +688,7 @@ function buildJobBody(job, editable, st){
         h+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface2);border-radius:6px;margin-bottom:4px;font-size:13px">'
           +'<span style="flex:1;color:var(--text)">'+FT_esc(_item.desc||'Item')+'</span>'
           +'<strong style="margin:0 10px;white-space:nowrap">'+fmt$(parseFloat(_item.amount)||0)+'</strong>'
-          +'<button class="btn btn-danger btn-xs" style="padding:2px 6px;font-size:10px" onclick="removeLineItem('+job.id+','+_li+')">&times;</button>'
+          +'<button class="btn btn-danger btn-xs" style="padding:2px 6px;font-size:10px" onclick="FT_removeLineItem('+job.id+','+_li+')">&times;</button>'
           +'</div>';
       }
       h+='</div>';
@@ -696,7 +696,7 @@ function buildJobBody(job, editable, st){
     h+='<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:8px 10px;background:rgba(99,91,255,.04);border:1px dashed rgba(99,91,255,.2);border-radius:8px">'
       +'<input type="text" id="li-desc-'+job.id+'" placeholder="Description (e.g. Parts, Extra labor...)" style="flex:1;min-width:140px;font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:var(--fm)">'
       +'<input type="number" id="li-amt-'+job.id+'" placeholder="0.00" step="0.01" min="0" style="width:90px;font-size:12px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-family:var(--fm);text-align:right">'
-      +'<button class="btn btn-primary btn-xs" onclick="addLineItem('+job.id+')">+ Add</button>'
+      +'<button class="btn btn-primary btn-xs" onclick="FT_addLineItem('+job.id+')">+ Add</button>'
       +'</div>';
   }
   h+='<div class="jc-billing-grid">';
@@ -734,7 +734,7 @@ function buildJobBody(job, editable, st){
       if(job.completedDate) h+='<span style="font-size:11px;color:var(--accent3)">since '+FT_esc(job.completedDate)+'</span>';
       // Send Invoice button
       if(!job.isPaid){
-        h+='<button class="btn btn-sm" style="margin-left:8px;background:#635bff;color:#fff;font-weight:600" onclick="sendInvoice('+job.id+')">&#x1F4E8; Send Invoice</button>';
+        h+='<button class="btn btn-sm" style="margin-left:8px;background:#635bff;color:#fff;font-weight:600" onclick="FT_sendInvoice('+job.id+')">&#x1F4E8; Send Invoice</button>';
       }
     }
     h+='</div>';
@@ -978,7 +978,7 @@ function saveBillingAmount(jobId){
   job.billingAmount=isNaN(val)?null:Math.round(val*100)/100;
   FT_save(); refreshJobCard(jobId);
 }
-function addLineItem(jobId){
+function FT_addLineItem(jobId){
   var job=getJob(jobId); if(!job) return;
   var descEl=document.getElementById('li-desc-'+jobId);
   var amtEl=document.getElementById('li-amt-'+jobId);
@@ -991,14 +991,14 @@ function addLineItem(jobId){
   job.billingAmount=null;
   FT_save(); refreshJobCard(jobId);
 }
-function removeLineItem(jobId, idx){
+function FT_removeLineItem(jobId, idx){
   var job=getJob(jobId); if(!job||!job.lineItems) return;
   if(!confirm('Remove "'+FT_esc(job.lineItems[idx].desc)+'" ('+fmt$(job.lineItems[idx].amount)+')?')) return;
   job.lineItems.splice(idx,1);
   job.billingAmount=null;
   FT_save(); refreshJobCard(jobId);
 }
-function sendInvoice(jobId){
+function FT_sendInvoice(jobId){
   var job=getJob(jobId); if(!job) return;
   var prop=getProp(job.propId);
   var tech=getTech(job.techId);
