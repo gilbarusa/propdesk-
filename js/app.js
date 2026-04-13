@@ -2705,7 +2705,13 @@ function updateMTMStats() {
 //  MTM / LONG-TERM MODULE — REAL INNAGO DATA
 // ══════════════════════════════════════════════════════
 
-const INNAGO_TENANTS = [
+// NOTE: This INNAGO_TENANTS array is the BOOT FALLBACK only — on app load we
+// hydrate from Supabase public.tenants_lt via WPA_hydrateTenantsLT() (defined
+// just below this array). All 50+ INNAGO_TENANTS references then read fresh
+// data without further changes. The fallback ensures the app still renders if
+// Supabase is unreachable. Updates made via the admin UI must write back to
+// tenants_lt — not this array.
+let INNAGO_TENANTS = [
   {name:"Alena Larina",unit:"46 Township Line Road | 311",property:"46 Township Line Road",unitNum:"311",status:"Active",rent:915,roommates:1,email:"alena62022@gmail.com",phone:"(267) 504-6551",since:"Aug 19, 2023"},
   {name:"Anna Chubatiuk",unit:"46 Township Line Road | 232",property:"46 Township Line Road",unitNum:"232",status:"Active",rent:1150,roommates:1},
   {name:"Bhargavkumar Chaudhary",unit:"7845 Montgomery Avenue | Unit 1B",property:"7845 Montgomery Avenue",unitNum:"Unit 1B",status:"Active",rent:425,roommates:2},
@@ -2759,6 +2765,59 @@ const INNAGO_TENANTS = [
   {name:"Vladimir Fominykh",unit:"46 Township Line Road | 311",property:"46 Township Line Road",unitNum:"311",status:"Active",rent:915,roommates:1},
   {name:"Whitney Diane Rustin",unit:"7845 Montgomery Avenue | Unit 9 - CH",property:"7845 Montgomery Avenue",unitNum:"Unit 9-CH",status:"Active",rent:27000,roommates:0}
 ];
+
+// ─────────────────────────────────────────────────────────────────────
+// Hydrate INNAGO_TENANTS from Supabase public.tenants_lt on app boot.
+// Maps DB columns → existing in-memory shape so all 50+ call sites that
+// reference INNAGO_TENANTS (renderPDLongTerm, renderPDUnitsTable,
+// openPDUnitDetail, etc.) keep working without per-site edits.
+// ─────────────────────────────────────────────────────────────────────
+async function WPA_hydrateTenantsLT() {
+  try {
+    const r = await fetch(SUPA_URL + '/rest/v1/tenants_lt?select=*&order=name.asc', {
+      headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+    });
+    if (!r.ok) { console.warn('[tenants_lt] fetch failed', r.status); return; }
+    const rows = await r.json();
+    if (!Array.isArray(rows) || !rows.length) { console.warn('[tenants_lt] empty'); return; }
+    INNAGO_TENANTS = rows.map(t => ({
+      id:        t.id,
+      name:      t.name,
+      property:  t.property,
+      unitNum:   t.unit,
+      unit:      t.property + ' | ' + t.unit,   // legacy display string
+      status:    t.status   || 'Active',
+      rent:      Number(t.rent || 0),
+      roommates: Number(t.roommates || 0),
+      email:     t.email    || '',
+      phone:     t.phone    || '',
+      since:     t.since    || '',
+      address:   t.address  || '',
+      city:      t.city     || '',
+      state:     t.state    || '',
+      zip:       t.zip      || '',
+      insurance_status:        t.insurance_status        || '',
+      insurance_purchase_date: t.insurance_purchase_date || '',
+      enrolled_autopay:        !!t.enrolled_autopay,
+      notes:     t.notes    || '',
+      lease_start: t.lease_start || '',
+      lease_end:   t.lease_end   || '',
+      lease_type:  t.lease_type  || 'mtm'
+    }));
+    console.log('[tenants_lt] hydrated', INNAGO_TENANTS.length, 'tenants');
+    // Re-render the PD long-term view if it's currently open
+    try {
+      if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty &&
+          typeof renderPDLongTerm === 'function') {
+        renderPDLongTerm(_pdCurrentProperty);
+      }
+    } catch(e) { /* view not open yet */ }
+  } catch (e) {
+    console.warn('[tenants_lt] hydrate error', e);
+  }
+}
+// Kick off hydration ASAP (does not block initial render — fallback array shows first)
+WPA_hydrateTenantsLT();
 
 const INNAGO_LEASES = [
   {status:"Active",property:"46 Township Line Road",unit:"320",tenants:"Taron Stokes",start:"Apr 01, 2026",end:"M to M",type:"mtm"},
