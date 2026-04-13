@@ -6723,6 +6723,71 @@ function switchPropertyView(view, btn) {
   if (view === 'lt') renderPDLongTerm(_pdCurrentProperty);
 }
 
+/* ═══ APPLICATION MODAL ═══ */
+var _appScreeningLevel = 1;
+var _appUrls = {
+  1: 'https://my.innago.com/a/SiXD79tw4xR',
+  2: '',  // Coming soon — requires tenant screening API
+  3: ''   // Coming soon — requires tenant screening API
+};
+
+function openApplicationModal() {
+  _appScreeningLevel = 1;
+  document.getElementById('appModalOverlay').style.display = 'flex';
+  // Reset state
+  selectScreening(1);
+  switchAppTab('email', document.querySelector('.app-modal-tab'));
+  document.getElementById('appEmailInput').value = '';
+  document.getElementById('appUrlDisplay').value = _appUrls[1];
+}
+
+function closeApplicationModal() {
+  document.getElementById('appModalOverlay').style.display = 'none';
+}
+
+function switchAppTab(tab, btn) {
+  document.querySelectorAll('.app-modal-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('appEmailTab').style.display = tab === 'email' ? 'block' : 'none';
+  document.getElementById('appUrlTab').style.display = tab === 'url' ? 'block' : 'none';
+}
+
+function selectScreening(level) {
+  _appScreeningLevel = level;
+  [1,2,3].forEach(i => {
+    var el = document.getElementById('appOpt' + i);
+    if (i === level) { el.classList.add('selected'); el.querySelector('.app-radio').textContent = '◉'; }
+    else { el.classList.remove('selected'); el.querySelector('.app-radio').textContent = '○'; }
+  });
+  var url = _appUrls[level] || '';
+  document.getElementById('appUrlDisplay').value = url || 'Coming soon — screening API required';
+}
+
+function sendApplicationEmail() {
+  var email = document.getElementById('appEmailInput').value.trim();
+  if (!email) { alert('Please enter an email address.'); return; }
+  var url = _appUrls[_appScreeningLevel];
+  if (!url) { alert('This screening level is not yet available. Tenant screening API integration coming soon.'); return; }
+  var subject = encodeURIComponent('Rental Application — ' + (_pdCurrentProperty || 'Willow Property'));
+  var body = encodeURIComponent('Hello,\n\nPlease complete your rental application using the link below:\n\n' + url + '\n\nThank you,\nWillow Partnership LLC');
+  window.open('mailto:' + email + '?subject=' + subject + '&body=' + body, '_blank');
+  showToast('Opening email client for ' + email);
+}
+
+function copyApplicationUrl() {
+  var url = _appUrls[_appScreeningLevel];
+  if (!url) { alert('This screening level is not yet available. Tenant screening API integration coming soon.'); return; }
+  navigator.clipboard.writeText(url).then(function() {
+    showToast('Application URL copied to clipboard!');
+  }).catch(function() {
+    // Fallback
+    var inp = document.getElementById('appUrlDisplay');
+    inp.select();
+    document.execCommand('copy');
+    showToast('URL copied!');
+  });
+}
+
 function renderPDLongTerm(propertyName) {
   // Get property-specific data
   const tenants = INNAGO_TENANTS.filter(t => t.property === propertyName);
