@@ -6726,8 +6726,9 @@ function switchPropertyView(view, btn) {
 /* ═══ APPLICATION MODAL ═══ */
 var _appScreeningLevel = 1;
 var _appSending = false;
+var _appBaseUrl = (window.location.origin || 'https://app.willowpa.com') + '/apply/';
 var _appUrls = {
-  1: 'https://my.innago.com/a/SiXD79tw4xR',
+  1: _appBaseUrl,  // Basic application on our domain
   2: '',  // Coming soon — requires tenant screening API
   3: ''   // Coming soon — requires tenant screening API
 };
@@ -6737,17 +6738,28 @@ var _appScreeningNames = {
   3: 'Application + Criminal + Credit + Eviction'
 };
 
+function _getApplyUrl(level) {
+  var base = _appUrls[level || 1];
+  if (!base) return '';
+  var p = encodeURIComponent(_pdCurrentProperty || '');
+  var u = encodeURIComponent(_udCurrentUnit ? (_udCurrentUnit.unit || '') : '');
+  var qs = [];
+  if (p) qs.push('property=' + p);
+  if (u) qs.push('unit=' + u);
+  return base + (qs.length ? '?' + qs.join('&') : '');
+}
+
 function openApplicationModal() {
   _appScreeningLevel = 1;
   _appSending = false;
   document.getElementById('appModalOverlay').style.display = 'flex';
   // Set property name in modal header
-  document.getElementById('appModalProperty').textContent = _pdCurrentProperty || 'Property';
+  document.getElementById('appModalProperty').textContent = _pdCurrentProperty || 'All Properties';
   // Reset state
   selectScreening(1);
   switchAppTab('email', document.querySelector('.app-modal-tab'));
   document.getElementById('appEmailInput').value = '';
-  document.getElementById('appUrlDisplay').value = _appUrls[1];
+  document.getElementById('appUrlDisplay').value = _getApplyUrl(1);
   // Reset sent confirmation
   document.getElementById('appSentConfirm').style.display = 'none';
   document.getElementById('appEmailTab').style.display = 'block';
@@ -6775,7 +6787,7 @@ function selectScreening(level) {
     if (i === level) el.classList.add('selected');
     else el.classList.remove('selected');
   });
-  var url = _appUrls[level] || '';
+  var url = _getApplyUrl(level);
   document.getElementById('appUrlDisplay').value = url || 'Coming soon — screening API required';
   // Update URL hint
   var hint = document.getElementById('appUrlHint');
@@ -6834,8 +6846,10 @@ async function sendApplicationEmail() {
   if (!email) { showToast('Please enter an email address.'); return; }
   // Validate email format
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Please enter a valid email address.'); return; }
-  var url = _appUrls[_appScreeningLevel];
+  var url = _getApplyUrl(_appScreeningLevel);
   if (!url) { showToast('This screening level is not yet available.'); return; }
+  // Append email to URL so form pre-fills
+  var urlWithEmail = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'email=' + encodeURIComponent(email);
 
   _appSending = true;
   var btn = document.getElementById('appSendBtn');
@@ -6843,7 +6857,7 @@ async function sendApplicationEmail() {
   btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span> Sending...';
 
   var propertyName = _pdCurrentProperty || '';
-  var htmlBody = _buildApplicationEmailHTML(email, url, propertyName);
+  var htmlBody = _buildApplicationEmailHTML(email, urlWithEmail, propertyName);
   var subject = 'Willow Partnership LLC has requested your application';
 
   try {
@@ -6863,11 +6877,11 @@ async function sendApplicationEmail() {
       showToast('Application email sent to ' + email);
     } else {
       // Fallback to mailto
-      _appSendFallback(email, url, propertyName);
+      _appSendFallback(email, urlWithEmail, propertyName);
     }
   } catch(e) {
     // Fallback to mailto
-    _appSendFallback(email, url, propertyName);
+    _appSendFallback(email, urlWithEmail, propertyName);
   }
 
   _appSending = false;
@@ -6896,7 +6910,7 @@ function _appSendFallback(email, url, propertyName) {
 }
 
 function copyApplicationUrl() {
-  var url = _appUrls[_appScreeningLevel];
+  var url = _getApplyUrl(_appScreeningLevel);
   if (!url) { showToast('URL not available for this screening level yet.'); return; }
   navigator.clipboard.writeText(url).then(function() {
     showToast('Application URL copied to clipboard!');
