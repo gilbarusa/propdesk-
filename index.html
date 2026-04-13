@@ -1231,6 +1231,7 @@
           <button class="pd-toggle-btn active" data-view="lt" onclick="switchPropertyView('lt',this)">Long-Term</button>
           <button class="pd-toggle-btn" data-view="st" onclick="switchPropertyView('st',this)">Short-Term</button>
         </div>
+        <button class="pd-app-btn" onclick="openApplicationModal()" title="Send Application">📋 Send Application</button>
         <a href="#" class="pd-settings-link" id="pdSettingsLink" title="Property Settings">⚙</a>
       </div>
     </div>
@@ -1315,6 +1316,60 @@
         <h3 class="pd-card-title">Short-Term Dashboard</h3>
         <div id="pdSTContent" style="padding:20px;color:var(--text3);text-align:center;">
           Short-term property view — calendar, bookings, and pricing will appear here.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ APPLICATION MODAL ═══ -->
+  <div class="app-modal-overlay" id="appModalOverlay" style="display:none;" onclick="closeApplicationModal()">
+    <div class="app-modal" onclick="event.stopPropagation()">
+      <div class="app-modal-header">
+        <h3>How would you like to share your application?</h3>
+        <button class="app-modal-close" onclick="closeApplicationModal()">✕</button>
+      </div>
+
+      <!-- Tabs: Via Email / Via URL -->
+      <div class="app-modal-tabs">
+        <button class="app-modal-tab active" onclick="switchAppTab('email',this)">Via Email</button>
+        <button class="app-modal-tab" onclick="switchAppTab('url',this)">Via Url</button>
+      </div>
+
+      <!-- Screening Level -->
+      <div class="app-modal-body">
+        <div class="app-modal-section-title">SELECT LEVEL OF SCREENING</div>
+
+        <label class="app-screen-option selected" id="appOpt1" onclick="selectScreening(1)">
+          <span class="app-radio">◉</span>
+          <span class="app-screen-label">📋 Application Only</span>
+        </label>
+
+        <label class="app-screen-option" id="appOpt2" onclick="selectScreening(2)">
+          <span class="app-radio">○</span>
+          <span class="app-screen-icons">📋 Application &nbsp;+&nbsp; 🔍 Criminal &nbsp;+&nbsp; 💳 Credit</span>
+        </label>
+
+        <label class="app-screen-option" id="appOpt3" onclick="selectScreening(3)">
+          <span class="app-radio">○</span>
+          <span class="app-screen-icons">📋 Application &nbsp;+&nbsp; 🔍 Criminal &nbsp;+&nbsp; 💳 Credit &nbsp;+&nbsp; 🏠 Eviction</span>
+        </label>
+
+        <!-- Email Tab Content -->
+        <div id="appEmailTab">
+          <div class="app-modal-section-title" style="margin-top:18px;">SHARE VIA EMAIL</div>
+          <div style="display:flex;gap:8px;">
+            <input type="email" class="app-email-input" id="appEmailInput" placeholder="Type email">
+            <button class="app-send-btn" onclick="sendApplicationEmail()">Send</button>
+          </div>
+        </div>
+
+        <!-- URL Tab Content -->
+        <div id="appUrlTab" style="display:none;">
+          <div class="app-modal-section-title" style="margin-top:18px;">COPY APPLICATION URL</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" class="app-url-input" id="appUrlDisplay" readonly>
+            <button class="app-send-btn" onclick="copyApplicationUrl()">Copy</button>
+          </div>
         </div>
       </div>
     </div>
