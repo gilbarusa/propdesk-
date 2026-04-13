@@ -1320,31 +1320,165 @@
     </div>
   </div>
 
-  <!-- Unit Detail Slide-over Panel -->
-  <div class="pd-unit-panel" id="pdUnitPanel">
-    <div class="pd-unit-panel-header">
-      <div class="pd-unit-panel-title" id="pdUnitPanelTitle">Unit Detail</div>
-      <button class="pd-unit-panel-close" onclick="closePDUnitPanel()">✕</button>
+  <!-- ═══ UNIT DETAIL FULL PAGE ═══ -->
+  <div class="ud-page" id="udPage" style="display:none;">
+    <!-- Unit Header -->
+    <div class="ud-header">
+      <button class="ud-close-btn" onclick="closeUnitDetail()">✕</button>
+      <div class="ud-header-left">
+        <span class="ud-header-label">Unit Detail</span>
+      </div>
+      <div class="ud-header-right">
+        <span class="ud-header-ts" id="udHeaderTs">Last Updated: —</span>
+        <a href="#" class="ud-header-action" onclick="refreshUnitDetail();return false;">↻ Refresh</a>
+        <a href="#" class="ud-header-action" id="udEditBtn" onclick="editUnitDetail();return false;">✏ Edit</a>
+        <a href="#" class="ud-header-action" id="udNotesBtn" onclick="toggleUnitNotes();return false;">＋ Add Notes (<span id="udNoteCount">0</span>)</a>
+      </div>
     </div>
-    <div class="pd-unit-panel-body" id="pdUnitPanelBody">
-      <!-- Lease Info -->
-      <div class="pd-up-section">
-        <h4 class="pd-up-section-title">Lease</h4>
-        <div class="pd-up-lease-info" id="pdUpLeaseInfo"></div>
+
+    <!-- Property + Unit Info Bar -->
+    <div class="ud-info-bar">
+      <div class="ud-info-prop">
+        <div class="ud-prop-icon">🏠</div>
+        <div>
+          <div class="ud-prop-name" id="udPropName">—</div>
+          <div class="ud-prop-addr" id="udPropAddr">—</div>
+        </div>
       </div>
-      <!-- Tenants -->
-      <div class="pd-up-section">
-        <h4 class="pd-up-section-title">Tenants</h4>
-        <div class="pd-up-tenants" id="pdUpTenants"></div>
+      <div class="ud-info-stats">
+        <div class="ud-info-stat"><span class="ud-stat-icon">🏷</span><span id="udUnitNum">—</span></div>
+        <div class="ud-info-stat"><span class="ud-stat-icon">📐</span><span id="udSqft">—</span></div>
+        <div class="ud-info-stat"><span class="ud-stat-icon">🛏</span><span id="udBeds">—</span></div>
+        <div class="ud-info-stat"><span class="ud-stat-icon">🔧</span><span id="udServiceCount">0</span></div>
+        <div class="ud-info-stat"><span class="ud-stat-icon">📄</span><span id="udInvoiceCount">0</span></div>
       </div>
-      <!-- Invoices -->
-      <div class="pd-up-section">
-        <h4 class="pd-up-section-title">Invoices</h4>
-        <div class="pd-up-invoices" id="pdUpInvoices"></div>
-      </div>
-      <!-- Actions -->
-      <div class="pd-up-actions" id="pdUpActions"></div>
     </div>
+
+    <!-- Lease Row -->
+    <div class="ud-lease-row">
+      <div class="ud-lease-label">Lease</div>
+      <select class="ud-lease-select" id="udLeaseSelect" onchange="switchUnitLease()">
+        <option>Current Lease</option>
+      </select>
+      <div style="flex:1"></div>
+      <button class="ud-new-lease-btn" onclick="newUnitLease()">＋ New Lease</button>
+    </div>
+
+    <!-- Two-column: Lease Detail + Collection -->
+    <div class="ud-main-row">
+      <!-- Left: Lease Card -->
+      <div class="ud-card ud-lease-card">
+        <div class="ud-lease-days-row">
+          <span class="ud-lease-days-label">Days left</span>
+          <span class="ud-lease-days-val" id="udDaysLeft">—</span>
+        </div>
+        <div class="ud-lease-bar-wrap">
+          <div class="ud-lease-bar-elapsed" id="udLeaseBarElapsed"></div>
+          <div class="ud-lease-bar-remaining" id="udLeaseBarRemaining"></div>
+        </div>
+        <div class="ud-lease-dates">
+          <div><span class="ud-lease-date-label">Start</span><br><strong id="udLeaseStart">—</strong></div>
+          <div style="text-align:right;"><span class="ud-lease-date-label">End</span><br><strong id="udLeaseEnd">—</strong></div>
+        </div>
+        <div class="ud-lease-mtm-row">
+          <label class="ud-toggle">
+            <input type="checkbox" id="udMTMToggle" onchange="toggleMTM()">
+            <span class="ud-toggle-slider"></span>
+          </label>
+          <span class="ud-mtm-label">Switch to Month-to-Month at the end of the lease.</span>
+        </div>
+        <a href="#" class="ud-view-lease-link" id="udViewLeaseLink" onclick="viewUnitLeaseDoc();return false;">View Lease Document</a>
+      </div>
+
+      <!-- Right: Collection Card -->
+      <div class="ud-card ud-collection-card">
+        <div class="ud-collection-header">
+          <span class="ud-collection-title">Collection</span>
+          <select class="ud-collection-month" id="udCollMonth">
+            <option>Apr 2026</option>
+            <option>Mar 2026</option>
+            <option>Feb 2026</option>
+          </select>
+        </div>
+        <div class="ud-collection-body">
+          <div class="ud-coll-donut-wrap">
+            <canvas id="udCollDonut" width="140" height="140"></canvas>
+            <div class="ud-coll-donut-center">
+              <div class="ud-coll-donut-label">Total</div>
+              <div class="ud-coll-donut-amount" id="udCollTotal">$0</div>
+            </div>
+          </div>
+          <div class="ud-coll-legend">
+            <div class="ud-coll-legend-row"><span class="ud-coll-dot" style="background:#4caf50"></span>Collected<span class="ud-coll-val" id="udCollCollected">$0</span></div>
+            <div class="ud-coll-legend-row"><span class="ud-coll-dot" style="background:#ff9800"></span>Processing<span class="ud-coll-val" id="udCollProcessing">$0</span></div>
+            <div class="ud-coll-legend-row"><span class="ud-coll-dot" style="background:#f44336"></span>Outstanding<span class="ud-coll-val" id="udCollOutstanding">$0</span></div>
+            <div class="ud-coll-legend-row"><span class="ud-coll-dot" style="background:#2196f3"></span>Coming Due<span class="ud-coll-val" id="udCollComingDue">$0</span></div>
+          </div>
+        </div>
+        <a href="#" class="ud-view-invoices-link" onclick="scrollToInvoices();return false;">View Invoice History</a>
+      </div>
+    </div>
+
+    <!-- Two-column: Tenants + Invoices -->
+    <div class="ud-main-row">
+      <!-- Left: Tenants -->
+      <div class="ud-card ud-tenants-card">
+        <div class="ud-card-header">
+          <span class="ud-card-title">Tenants <span class="ud-badge" id="udTenantCount">0</span></span>
+          <a href="#" class="ud-card-link" onclick="viewAllTenants();return false;">View All Tenants</a>
+        </div>
+        <div class="ud-tenants-list" id="udTenantsList"></div>
+      </div>
+
+      <!-- Right: Invoices -->
+      <div class="ud-card ud-invoices-card" id="udInvoicesCard">
+        <div class="ud-inv-tabs">
+          <button class="ud-inv-tab active" onclick="switchInvTab('upcoming',this)">Upcoming Invoices</button>
+          <button class="ud-inv-tab" onclick="switchInvTab('past',this)">Past and Overdue Invoices</button>
+          <div style="flex:1"></div>
+          <a href="#" class="ud-card-link" onclick="viewAllInvoices();return false;">View All</a>
+        </div>
+        <table class="ud-inv-table">
+          <thead>
+            <tr><th>Invoice ID</th><th>Due Date</th><th style="text-align:right;">Amount Due</th></tr>
+          </thead>
+          <tbody id="udInvBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Two-column: Service Orders + Documents & Notes -->
+    <div class="ud-main-row">
+      <!-- Left: Service Orders -->
+      <div class="ud-card">
+        <div class="ud-card-header">
+          <span class="ud-card-title">Service Orders</span>
+          <a href="#" class="ud-card-link" onclick="newServiceOrder();return false;">＋ New Request</a>
+        </div>
+        <table class="ud-inv-table">
+          <thead>
+            <tr><th>WO #</th><th>Description</th><th>Date</th><th>Status</th></tr>
+          </thead>
+          <tbody id="udServiceBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Right: Documents & Notes -->
+      <div class="ud-card">
+        <div class="ud-card-header">
+          <span class="ud-card-title">Documents & Notes</span>
+          <a href="#" class="ud-card-link" onclick="addUnitDocument();return false;">＋ Upload</a>
+        </div>
+        <div class="ud-docs-list" id="udDocsList"></div>
+        <div class="ud-notes-section">
+          <h4 class="ud-notes-title">Notes</h4>
+          <div id="udNotesList"></div>
+          <textarea class="ud-note-input" id="udNoteInput" placeholder="Add a note…" rows="2"></textarea>
+          <button class="ud-note-save-btn" onclick="saveUnitNote()">Save Note</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
