@@ -7479,17 +7479,17 @@ function renderUDServiceOrders(u) {
   const tbody = document.getElementById('udServiceBody');
   // Check fieldtrack jobs for this unit
   if (typeof FT_getJobs === 'function') {
-    const jobs = FT_getJobs().filter(j => j.address && j.address.includes(u.unit));
+    const jobs = FT_getJobs().filter(j => j.address && j.address.toLowerCase().includes(u.unit.toLowerCase()));
     document.getElementById('udServiceCount').textContent = jobs.length;
     if (jobs.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No service orders</td></tr>';
       return;
     }
     tbody.innerHTML = jobs.slice(0, 5).map(j => `<tr>
-      <td><a href="#" class="ud-inv-link" onclick="openWOFromUnit('${j.woNumber}');return false;">${j.woNumber || '—'}</a></td>
-      <td>${j.description || j.title || '—'}</td>
-      <td>${j.created ? new Date(j.created).toLocaleDateString() : '—'}</td>
-      <td><span class="pd-unit-badge pd-badge-${j.status === 'completed' ? 'paid' : 'pending'}">${j.status || '—'}</span></td>
+      <td><a href="#" class="ud-inv-link" onclick="openWOFromUnit('${j.woNum}');return false;">${j.woNum || '—'}</a></td>
+      <td>${j.title || j.notes || '—'}</td>
+      <td>${j.date ? new Date(j.date).toLocaleDateString() : '—'}</td>
+      <td><span class="pd-unit-badge pd-badge-${j.status === 'complete' ? 'paid' : 'pending'}">${j.status || '—'}</span></td>
     </tr>`).join('');
   } else {
     document.getElementById('udServiceCount').textContent = '0';

@@ -67,6 +67,25 @@ function FT_uid(){ return FT_state._nextId++; }
 var FT_COLORS=['#c47f00','#0a7c8e','#b02040','#1a7a4a','#7c3aed','#c2410c','#0369a1','#be185d'];
 function FT_esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function FT_nextWO(){ var max=0; FT_state.jobs.forEach(function(j){ if(j.woNum){ var n=parseInt(j.woNum.replace(/\D/g,'')); if(n>max) max=n; } }); return 'WO-'+String(max+1).padStart(4,'0'); }
+
+/* ── Bridge API for PropDesk app.js ── */
+function FT_getJobs(){
+  return FT_state.jobs.map(function(j){
+    var p=getProp(j.propId);
+    return {
+      id:j.id, woNum:j.woNum, propId:j.propId,
+      address: p ? propFullAddr(p) : '',
+      title: j.title||'', notes: j.notes||'',
+      date: j.date, status: j.status,
+      techId: j.techId, block: j.block||'',
+      hours: j.hours||[], expenses: j.expenses||[], photos: j.photos||[]
+    };
+  });
+}
+function FT_openJob(woNum){
+  var job=FT_state.jobs.find(function(j){ return j.woNum===woNum; });
+  if(job){ selectJob(job.id); }
+}
 function fmt$(n){ return '$'+Number(n||0).toFixed(2); }
 function fmtH(n){ return Number(n||0).toFixed(2)+'h'; }
 function FT_today(){ return new Date().toISOString().slice(0,10); }
@@ -1047,7 +1066,7 @@ function FT_sendInvoice(jobId){
         alert('Invoice already exists for '+fmt$(total)+'. No changes needed.');
       } else {
         if(!confirm('An unpaid invoice exists for this WO ('+fmt$(existing.amount)+').\nUpdate amount to '+fmt$(total)+'?')) return;
-        sb.from('payment_requests').update({amount:total, description:description, updated_at:new Date().toISOString()}).eq('id',existing.id)
+        sb.from('payment_requests').update({amount:total, description:description, user_id:job.clientUserId||existing.user_id||null, work_order_id:woNum||existing.work_order_id||null, updated_at:new Date().toISOString()}).eq('id',existing.id)
         .then(function(upd){
           if(upd.error){ alert('Error: '+(upd.error.message||'')); return; }
           alert('Invoice updated to '+fmt$(total));
@@ -1055,7 +1074,7 @@ function FT_sendInvoice(jobId){
         });
       }
     } else {
-      sb.from('payment_requests').insert([{id:crypto.randomUUID(), unit:unit, amount:total, status:'pending', description:description, created_at:new Date().toISOString()}])
+      sb.from('payment_requests').insert([{id:crypto.randomUUID(), unit:unit, user_id:job.clientUserId||null, work_order_id:woNum||null, source_id:srcId||null, amount:total, status:'pending', description:description, created_at:new Date().toISOString()}])
       .then(function(ins){
         if(ins.error){ alert('Error: '+(ins.error.message||'')); return; }
         alert('Invoice created: '+fmt$(total)+' for '+(prop?prop.name:'this property'));
@@ -3368,6 +3387,7 @@ function saveIncomingLink() {
     clientEmail: req.email || '',
     clientPreferredComm: req.preferred_comm || 'sms',
     clientAddress: req.address || '',
+    clientUserId: req.user_id || null,
     hours: [], expenses: [], photos: [],
     sourceRequestId: reqId,
     servicePrice: chargeAmount > 0 ? chargeAmount : null,
