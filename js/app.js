@@ -2471,9 +2471,10 @@ let currentPropertyFilter = 'all';
 
 function switchModule(moduleId, tabEl) {
   currentModule = moduleId;
-  // Hide property detail pages if open
-  var pdPage = document.getElementById('page-property-detail'); if(pdPage) pdPage.style.display = 'none';
+  // Hide property detail pages if open + clear inline styles so class system works
+  var pdPage = document.getElementById('page-property-detail'); if(pdPage){ pdPage.style.display = ''; pdPage.classList.remove('active'); }
   var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display = ''; });
   // Update module tabs
   document.querySelectorAll('#moduleBar .module-tab').forEach(t => t.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
@@ -2506,9 +2507,10 @@ function switchModule(moduleId, tabEl) {
 
 let _ftInitialized = false;
 function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter, hsSec) {
-  // Hide property detail pages if open
-  var pdPage = document.getElementById('page-property-detail'); if(pdPage) pdPage.style.display = 'none';
+  // Hide property detail pages if open + clear inline styles so class system works
+  var pdPage = document.getElementById('page-property-detail'); if(pdPage){ pdPage.style.display = ''; pdPage.classList.remove('active'); }
   var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display = ''; });
   // Update sub-tab active state
   if (tabEl) {
     tabEl.parentElement.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
@@ -6642,8 +6644,9 @@ function openPropertyDetail(propertyName) {
   _pdCurrentProperty = innagoName;
 
   // Hide all pages, show property detail
-  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
   const page = document.getElementById('page-property-detail');
+  page.classList.add('active');
   page.style.display = 'block';
 
   // Determine if this property is predominantly LT or ST
@@ -6667,20 +6670,27 @@ function openPropertyDetail(propertyName) {
     settingsLink.href = 'property-settings.html?apt=' + encodeURIComponent(propertyName);
   }
 
-  // Auto-select view based on property type
-  _pdCurrentView = hasLT ? 'lt' : 'st';
-  document.querySelectorAll('.pd-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === _pdCurrentView));
-  document.getElementById('pdLTView').style.display = _pdCurrentView === 'lt' ? 'block' : 'none';
-  document.getElementById('pdSTView').style.display = _pdCurrentView === 'st' ? 'block' : 'none';
+  // Build settings URL for ST redirect
+  var _pdSettingsUrl = settingsLink.href;
 
-  if (_pdCurrentView === 'lt') {
-    renderPDLongTerm(innagoName);
-    // If user clicked a specific unit (not a building), auto-open that unit's detail
-    if (aptNum && aptNum !== innagoName) {
-      const unitIdx = _pdUnitsData.findIndex(u => u.unit === aptNum || u.unit === String(aptNum));
-      if (unitIdx >= 0) {
-        setTimeout(() => openPDUnitDetail(unitIdx), 100);
-      }
+  // If no LT data at all, go straight to property-settings.html (original ST behavior)
+  if (!hasLT) {
+    window.location.href = _pdSettingsUrl;
+    return;
+  }
+
+  // Has LT data — show LT view by default
+  _pdCurrentView = 'lt';
+  document.querySelectorAll('.pd-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'lt'));
+  document.getElementById('pdLTView').style.display = 'block';
+  document.getElementById('pdSTView').style.display = 'none';
+
+  renderPDLongTerm(innagoName);
+  // If user clicked a specific unit (not a building), auto-open that unit's detail
+  if (aptNum && aptNum !== innagoName) {
+    const unitIdx = _pdUnitsData.findIndex(u => u.unit === aptNum || u.unit === String(aptNum));
+    if (unitIdx >= 0) {
+      setTimeout(() => openPDUnitDetail(unitIdx), 100);
     }
   }
 }
@@ -6689,13 +6699,22 @@ function closePropertyDetail() {
   // Close unit detail if open
   const udPage = document.getElementById('udPage');
   if (udPage) udPage.style.display = 'none';
-  document.getElementById('page-property-detail').style.display = 'none';
+  const pdPage = document.getElementById('page-property-detail');
+  pdPage.style.display = '';
+  pdPage.classList.remove('active');
   _udCurrentUnit = null;
-  // Re-show the properties page
-  document.getElementById('page-properties').style.display = 'block';
+  // Re-show the properties page using class system
+  document.querySelectorAll('.page').forEach(p => { p.style.display = ''; });
+  const propPage = document.getElementById('page-properties');
+  if (propPage) propPage.classList.add('active');
 }
 
 function switchPropertyView(view, btn) {
+  if (view === 'st') {
+    // Redirect to property-settings.html for the ST view
+    var link = document.getElementById('pdSettingsLink');
+    if (link && link.href) { window.location.href = link.href; return; }
+  }
   _pdCurrentView = view;
   document.querySelectorAll('.pd-toggle-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
