@@ -6725,20 +6725,35 @@ function switchPropertyView(view, btn) {
 
 /* ═══ APPLICATION MODAL ═══ */
 var _appScreeningLevel = 1;
+var _appSending = false;
 var _appUrls = {
   1: 'https://my.innago.com/a/SiXD79tw4xR',
   2: '',  // Coming soon — requires tenant screening API
   3: ''   // Coming soon — requires tenant screening API
 };
+var _appScreeningNames = {
+  1: 'Application Only',
+  2: 'Application + Criminal + Credit',
+  3: 'Application + Criminal + Credit + Eviction'
+};
 
 function openApplicationModal() {
   _appScreeningLevel = 1;
+  _appSending = false;
   document.getElementById('appModalOverlay').style.display = 'flex';
+  // Set property name in modal header
+  document.getElementById('appModalProperty').textContent = _pdCurrentProperty || 'Property';
   // Reset state
   selectScreening(1);
   switchAppTab('email', document.querySelector('.app-modal-tab'));
   document.getElementById('appEmailInput').value = '';
   document.getElementById('appUrlDisplay').value = _appUrls[1];
+  // Reset sent confirmation
+  document.getElementById('appSentConfirm').style.display = 'none';
+  document.getElementById('appEmailTab').style.display = 'block';
+  // Reset send button
+  var btn = document.getElementById('appSendBtn');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send'; }
 }
 
 function closeApplicationModal() {
@@ -6746,41 +6761,154 @@ function closeApplicationModal() {
 }
 
 function switchAppTab(tab, btn) {
-  document.querySelectorAll('.app-modal-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.app-modal-tab').forEach(function(t) { t.classList.remove('active'); });
   btn.classList.add('active');
   document.getElementById('appEmailTab').style.display = tab === 'email' ? 'block' : 'none';
   document.getElementById('appUrlTab').style.display = tab === 'url' ? 'block' : 'none';
+  document.getElementById('appSentConfirm').style.display = 'none';
 }
 
 function selectScreening(level) {
   _appScreeningLevel = level;
-  [1,2,3].forEach(i => {
+  [1,2,3].forEach(function(i) {
     var el = document.getElementById('appOpt' + i);
-    if (i === level) { el.classList.add('selected'); el.querySelector('.app-radio').textContent = '◉'; }
-    else { el.classList.remove('selected'); el.querySelector('.app-radio').textContent = '○'; }
+    if (i === level) el.classList.add('selected');
+    else el.classList.remove('selected');
   });
   var url = _appUrls[level] || '';
   document.getElementById('appUrlDisplay').value = url || 'Coming soon — screening API required';
+  // Update URL hint
+  var hint = document.getElementById('appUrlHint');
+  if (hint) hint.textContent = url ? 'Share this link directly with prospective tenants' : 'URL not available yet for this screening level';
 }
 
-function sendApplicationEmail() {
+function _buildApplicationEmailHTML(applicantEmail, appUrl, propertyName) {
+  var screeningName = _appScreeningNames[_appScreeningLevel] || 'Application Only';
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+    + '<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0;">'
+    + '<tr><td align="center">'
+    + '<table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">'
+    // Header bar
+    + '<tr><td style="background:linear-gradient(135deg,#8B5A2B,#a0714a);padding:24px 32px;text-align:center;">'
+    + '<div style="font-size:24px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">W</div>'
+    + '<div style="font-size:18px;font-weight:600;color:#ffffff;margin-top:6px;">Willow Partnership LLC</div>'
+    + '</td></tr>'
+    // Body
+    + '<tr><td style="padding:32px 36px;">'
+    + '<h2 style="color:#333;font-size:20px;margin:0 0 6px;">Hi there,</h2>'
+    + '<p style="color:#555;font-size:15px;line-height:1.6;margin:16px 0;">'
+    + '<strong>Willow Partnership LLC</strong> has requested that you fill out a rental application as part of their screening process.'
+    + '</p>'
+    + (propertyName ? '<p style="color:#888;font-size:13px;margin:0 0 20px;">Property: <strong style="color:#555;">' + propertyName + '</strong></p>' : '')
+    + '<p style="color:#555;font-size:15px;line-height:1.6;margin:16px 0;">'
+    + 'Click the button below to begin your application:'
+    + '</p>'
+    // CTA Button
+    + '<table cellpadding="0" cellspacing="0" style="margin:24px auto;"><tr><td>'
+    + '<a href="' + appUrl + '" style="display:inline-block;background:#8B5A2B;color:#ffffff;font-size:16px;font-weight:600;padding:14px 40px;border-radius:8px;text-decoration:none;">Apply Now</a>'
+    + '</td></tr></table>'
+    // Screening info
+    + '<div style="background:#f9f6f2;border-radius:8px;padding:14px 18px;margin:20px 0;">'
+    + '<div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Screening Level</div>'
+    + '<div style="font-size:14px;font-weight:600;color:#8B5A2B;">' + screeningName + '</div>'
+    + '<div style="font-size:12px;color:#999;margin-top:2px;">Cost: <strong style="color:#4caf50;">$0.00</strong></div>'
+    + '</div>'
+    + '<p style="color:#888;font-size:13px;line-height:1.5;margin:20px 0 0;">'
+    + 'Your personal information will be shared safely and securely, only with the prospective landlord.'
+    + '</p>'
+    + '</td></tr>'
+    // Footer
+    + '<tr><td style="background:#f9f9f9;padding:20px 36px;border-top:1px solid #eee;text-align:center;">'
+    + '<div style="font-size:14px;font-weight:600;color:#333;">Willow Partnership LLC</div>'
+    + '<div style="font-size:13px;color:#888;margin-top:4px;">(267) 865-0001 &nbsp;|&nbsp; general@willowpa.com</div>'
+    + '</td></tr>'
+    + '</table>'
+    + '</td></tr></table>'
+    + '</body></html>';
+}
+
+async function sendApplicationEmail() {
+  if (_appSending) return;
   var email = document.getElementById('appEmailInput').value.trim();
-  if (!email) { alert('Please enter an email address.'); return; }
+  if (!email) { showToast('Please enter an email address.'); return; }
+  // Validate email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Please enter a valid email address.'); return; }
   var url = _appUrls[_appScreeningLevel];
-  if (!url) { alert('This screening level is not yet available. Tenant screening API integration coming soon.'); return; }
-  var subject = encodeURIComponent('Rental Application — ' + (_pdCurrentProperty || 'Willow Property'));
-  var body = encodeURIComponent('Hello,\n\nPlease complete your rental application using the link below:\n\n' + url + '\n\nThank you,\nWillow Partnership LLC');
+  if (!url) { showToast('This screening level is not yet available.'); return; }
+
+  _appSending = true;
+  var btn = document.getElementById('appSendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span> Sending...';
+
+  var propertyName = _pdCurrentProperty || '';
+  var htmlBody = _buildApplicationEmailHTML(email, url, propertyName);
+  var subject = 'Willow Partnership LLC has requested your application';
+
+  try {
+    // Try Supabase edge function or fallback
+    var payload = { to: email, subject: subject, html: htmlBody, from_name: 'Willow Partnership LLC' };
+    var resp = await fetch(SUPABASE_URL + '/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+      body: JSON.stringify(payload)
+    });
+
+    if (resp.ok) {
+      // Show success
+      document.getElementById('appEmailTab').style.display = 'none';
+      document.getElementById('appSentConfirm').style.display = 'block';
+      document.getElementById('appSentTo').textContent = 'Sent to ' + email;
+      showToast('Application email sent to ' + email);
+    } else {
+      // Fallback to mailto
+      _appSendFallback(email, url, propertyName);
+    }
+  } catch(e) {
+    // Fallback to mailto
+    _appSendFallback(email, url, propertyName);
+  }
+
+  _appSending = false;
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+}
+
+function _appSendFallback(email, url, propertyName) {
+  var subject = encodeURIComponent('Willow Partnership LLC has requested your application');
+  var body = encodeURIComponent(
+    'Hi there,\n\n'
+    + 'Willow Partnership LLC has requested that you fill out a rental application as part of their screening process.\n\n'
+    + (propertyName ? 'Property: ' + propertyName + '\n\n' : '')
+    + 'Please click the link below to begin your application:\n'
+    + url + '\n\n'
+    + 'The cost of your screening report is $0.00.\n\n'
+    + 'Your personal information will be shared safely and securely, only with the prospective landlord.\n\n'
+    + '—\nWillow Partnership LLC\n(267) 865-0001\ngeneral@willowpa.com'
+  );
   window.open('mailto:' + email + '?subject=' + subject + '&body=' + body, '_blank');
+  // Show success state
+  document.getElementById('appEmailTab').style.display = 'none';
+  document.getElementById('appSentConfirm').style.display = 'block';
+  document.getElementById('appSentTo').textContent = 'Email client opened for ' + email;
   showToast('Opening email client for ' + email);
 }
 
 function copyApplicationUrl() {
   var url = _appUrls[_appScreeningLevel];
-  if (!url) { alert('This screening level is not yet available. Tenant screening API integration coming soon.'); return; }
+  if (!url) { showToast('URL not available for this screening level yet.'); return; }
   navigator.clipboard.writeText(url).then(function() {
     showToast('Application URL copied to clipboard!');
+    // Brief visual feedback on button
+    var btns = document.querySelectorAll('#appUrlTab .app-send-btn');
+    if (btns.length) {
+      btns[0].innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      setTimeout(function() {
+        btns[0].innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+      }, 2000);
+    }
   }).catch(function() {
-    // Fallback
     var inp = document.getElementById('appUrlDisplay');
     inp.select();
     document.execCommand('copy');
