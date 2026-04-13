@@ -13389,27 +13389,173 @@ function WPA_hsLoadBookings() {
       box.innerHTML = '<p style="color:var(--muted);font-size:13px;">No service bookings found.</p>';
       return;
     }
+    // Cache bookings for detail view
+    window._hsBookingsCache = rows;
     var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
     html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
-    html += '<th style="padding:8px">Date</th><th style="padding:8px">Service</th><th style="padding:8px">Unit</th><th style="padding:8px">Resident</th><th style="padding:8px">Status</th><th style="padding:8px">Notes</th>';
+    html += '<th style="padding:8px">Date</th><th style="padding:8px">Service</th><th style="padding:8px">Property / Unit</th><th style="padding:8px">Resident</th><th style="padding:8px">Status</th><th style="padding:8px">Total</th>';
     html += '</tr></thead><tbody>';
-    rows.forEach(function(b) {
+    rows.forEach(function(b, idx) {
       var dt = b.created_at ? new Date(b.created_at).toLocaleDateString() : '—';
-      var statusColor = { new:'#2563eb', scheduled:'#d97706', complete:'#16a34a', cancelled:'#dc2626' };
+      var statusColor = { new:'#2563eb', quote_requested:'#8b5cf6', scheduled:'#d97706', complete:'#16a34a', cancelled:'#dc2626' };
       var color = statusColor[b.status] || '#6b7280';
-      html += '<tr style="border-bottom:1px solid var(--border)">';
+
+      // Resolve unit/property — check all possible field names from portal submission
+      var unit = b.unit || b.apt || '';
+      var property = b.property || b.address || '';
+      var resident = b.submitted_by || b.name || '';
+
+      // Auto-match from tenant data if unit/property missing
+      if ((!unit || !property) && resident && typeof data !== 'undefined') {
+        var match = data.find(function(r) {
+          return r.name && r.name.toLowerCase() === resident.toLowerCase();
+        });
+        if (match) {
+          if (!unit) unit = match.apt || '';
+          if (!property) property = match.owner || '';
+        }
+      }
+
+      var locDisplay = property ? _esc(property) + (unit ? ' — ' + _esc(unit) : '') : _esc(unit || '—');
+
+      // Parse price from hs_booking_data if available
+      var priceDisplay = '—';
+      if (b.price_total) {
+        priceDisplay = '$' + Number(b.price_total).toFixed(2);
+      } else if (b.hs_booking_data) {
+        try {
+          var bd = typeof b.hs_booking_data === 'string' ? JSON.parse(b.hs_booking_data) : b.hs_booking_data;
+          if (bd.price) priceDisplay = '$' + Number(bd.price).toFixed(2);
+        } catch(e) {}
+      }
+
+      html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="WPA_hsOpenBooking(' + idx + ')" title="Click for details">';
       html += '<td style="padding:8px">' + dt + '</td>';
-      html += '<td style="padding:8px;font-weight:500">' + _esc(b.title || b.category || '—') + '</td>';
-      html += '<td style="padding:8px">' + _esc(b.unit || '—') + '</td>';
-      html += '<td style="padding:8px">' + _esc(b.submitted_by || '—') + '</td>';
+      html += '<td style="padding:8px;font-weight:500">' + _esc(b.title || b.description || b.category || '—') + '</td>';
+      html += '<td style="padding:8px">' + locDisplay + '</td>';
+      html += '<td style="padding:8px">' + _esc(resident || '—') + '</td>';
       html += '<td style="padding:8px"><span style="background:' + color + '15;color:' + color + ';padding:2px 8px;border-radius:10px;font-size:11px">' + _esc(b.status || 'new') + '</span></td>';
-      html += '<td style="padding:8px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + _esc(b.notes || '—') + '</td>';
+      html += '<td style="padding:8px;font-weight:500">' + priceDisplay + '</td>';
       html += '</tr>';
     });
     html += '</tbody></table>';
     box.innerHTML = html;
   }).catch(function(e) {
     box.innerHTML = '<p style="color:var(--accent3);">Failed: ' + _esc(e.message) + '</p>';
+  });
+}
+
+/* ── Booking Detail Modal ── */
+function WPA_hsOpenBooking(idx) {
+  var b = window._hsBookingsCache ? window._hsBookingsCache[idx] : null;
+  if (!b) return;
+
+  var unit = b.unit || b.apt || '';
+  var property = b.property || b.address || '';
+  var resident = b.submitted_by || b.name || '';
+  var phone = b.phone || b.customer_phone || '';
+  var email = b.email || b.customer_email || '';
+
+  // Auto-match from tenant data
+  if ((!unit || !property) && resident && typeof data !== 'undefined') {
+    var match = data.find(function(r) {
+      return r.name && r.name.toLowerCase() === resident.toLowerCase();
+    });
+    if (match) {
+      if (!unit) unit = match.apt || '';
+      if (!property) property = match.owner || '';
+      if (!phone && match.phone) phone = match.phone;
+      if (!email && match.email) email = match.email;
+    }
+  }
+
+  // Parse booking data
+  var bookingDetails = '';
+  if (b.hs_booking_data) {
+    try {
+      var bd = typeof b.hs_booking_data === 'string' ? JSON.parse(b.hs_booking_data) : b.hs_booking_data;
+      if (bd.service) bookingDetails += '<div><strong>Service:</strong> ' + _esc(bd.service) + '</div>';
+      if (bd.variation) bookingDetails += '<div><strong>Size:</strong> ' + _esc(bd.variation) + '</div>';
+      if (bd.selections) {
+        Object.keys(bd.selections).forEach(function(k) {
+          bookingDetails += '<div><strong>' + _esc(k) + ':</strong> ' + _esc(String(bd.selections[k])) + '</div>';
+        });
+      }
+      if (bd.date) bookingDetails += '<div><strong>Requested Date:</strong> ' + _esc(bd.date) + '</div>';
+      if (bd.time_window) bookingDetails += '<div><strong>Time Window:</strong> ' + _esc(bd.time_window) + '</div>';
+      if (bd.price) bookingDetails += '<div><strong>Price:</strong> $' + Number(bd.price).toFixed(2) + '</div>';
+    } catch(e) {}
+  }
+
+  var statusColor = { new:'#2563eb', quote_requested:'#8b5cf6', scheduled:'#d97706', complete:'#16a34a', cancelled:'#dc2626' };
+  var color = statusColor[b.status] || '#6b7280';
+  var dt = b.created_at ? new Date(b.created_at).toLocaleString() : '—';
+
+  var html = '<div style="padding:20px">';
+  html += '<h3 style="margin:0 0 4px;font-size:18px">🧹 ' + _esc(b.title || b.description || b.category || 'Cleaning') + '</h3>';
+  html += '<span style="font-size:12px;color:#6b7280">' + dt + ' &bull; <span style="background:' + color + '15;color:' + color + ';padding:2px 8px;border-radius:10px;font-size:11px">' + _esc(b.status || 'new') + '</span></span>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0">';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Resident</span><div style="font-weight:600">' + _esc(resident || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Property</span><div style="font-weight:600">' + _esc(property || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Unit</span><div style="font-weight:600">' + _esc(unit || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Phone</span><div>' + _esc(phone || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Email</span><div>' + _esc(email || '—') + '</div></div>';
+  html += '</div>';
+
+  if (bookingDetails) {
+    html += '<div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px">';
+    html += '<div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Booking Details</div>';
+    html += bookingDetails;
+    html += '</div>';
+  }
+
+  if (b.description || b.notes) {
+    html += '<div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px">';
+    html += '<div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Notes</div>';
+    html += '<div style="white-space:pre-wrap">' + _esc(b.description || b.notes || '') + '</div>';
+    html += '</div>';
+  }
+
+  // Price display
+  var priceVal = b.price_total || '';
+  if (!priceVal && b.hs_booking_data) {
+    try {
+      var bd2 = typeof b.hs_booking_data === 'string' ? JSON.parse(b.hs_booking_data) : b.hs_booking_data;
+      priceVal = bd2.price || '';
+    } catch(e) {}
+  }
+  if (priceVal) {
+    html += '<div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:12px;margin-bottom:16px;font-size:16px;font-weight:700;color:#16a34a">';
+    html += '💰 Total: $' + Number(priceVal).toFixed(2);
+    html += '</div>';
+  }
+
+  // Status update
+  var statusOpts = ['new','quote_requested','scheduled','in-progress','complete','cancelled'];
+  html += '<div style="margin-bottom:16px"><label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Update Status</label>';
+  html += '<select id="hsBookStatus" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px">';
+  statusOpts.forEach(function(s) {
+    html += '<option value="' + s + '" ' + ((b.status || 'new') === s ? 'selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1).replace('_',' ') + '</option>';
+  });
+  html += '</select></div>';
+  html += '<button onclick="WPA_hsSaveBooking(\'' + b.id + '\')" style="width:100%;padding:10px;background:var(--accent2,#c47f00);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Save Changes</button>';
+  html += '</div>';
+
+  _hsModal('Service Booking', html, null);
+}
+
+/* ── Save booking status ── */
+function WPA_hsSaveBooking(id) {
+  var status = document.getElementById('hsBookStatus') ? document.getElementById('hsBookStatus').value : '';
+  if (!status) return;
+  pkSB('maintenance_requests', 'id=eq.' + id, 'PATCH', { status: status }).then(function() {
+    toast('Booking updated', 'success');
+    var old = document.getElementById('hsModal');
+    if (old) old.remove();
+    WPA_hsLoadBookings();
+  }).catch(function(e) {
+    toast('Failed: ' + e.message, 'error');
   });
 }
 
