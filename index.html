@@ -3722,5 +3722,101 @@ if('serviceWorker' in navigator){
   </div>
 </div>
 
+<!-- ── Application Review Modal ── -->
+<div id="appReviewOverlay" class="app-modal-overlay" style="display:none;" onclick="if(event.target===this)closeAppReview()">
+  <div class="app-modal" style="max-width:640px;width:95%;max-height:90vh;overflow-y:auto;">
+    <div class="app-modal-header" style="background:linear-gradient(135deg,#1a2874,#2d4494);position:relative;">
+      <button onclick="closeAppReview()" style="position:absolute;top:14px;right:16px;background:none;border:none;color:rgba(255,255,255,.7);font-size:22px;cursor:pointer;line-height:1;">&times;</button>
+      <div style="display:flex;align-items:center;gap:16px;">
+        <div id="arAvatar" style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#fff;flex-shrink:0;"></div>
+        <div>
+          <div id="arName" style="font-size:20px;font-weight:700;color:#fff;"></div>
+          <div id="arAddress" style="font-size:13px;color:rgba(255,255,255,.7);margin-top:3px;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button id="arApproveBtn" onclick="approveApplication()" class="mtm-btn" style="background:#4caf50;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg>Approve
+        </button>
+        <button id="arRejectBtn" onclick="rejectApplication()" class="mtm-btn" style="background:#f44336;color:#fff;border:none;padding:8px 24px;border-radius:6px;font-weight:600;cursor:pointer;font-size:14px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject
+        </button>
+      </div>
+    </div>
+    <div style="padding:24px 28px;">
+      <!-- Status Banner -->
+      <div id="arStatusBanner" style="display:none;padding:10px 16px;border-radius:8px;margin-bottom:18px;font-weight:600;font-size:14px;text-align:center;"></div>
+      <!-- Info Grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px 24px;">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Applied Date</div>
+          <div id="arApplied" style="font-size:14px;color:var(--text1);font-weight:500;"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Move-in Date</div>
+          <div id="arMoveIn" style="font-size:14px;color:var(--text1);font-weight:500;"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Date of Birth</div>
+          <div id="arDOB" style="font-size:14px;color:var(--text1);font-weight:500;"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Screening Level</div>
+          <div id="arScreening" style="font-size:14px;color:var(--text1);font-weight:500;"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Property</div>
+          <div id="arProperty" style="font-size:14px;color:var(--text1);font-weight:500;"></div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Unit</div>
+          <div id="arUnit" style="font-size:14px;color:var(--text1);font-weight:500;"></div>
+        </div>
+      </div>
+      <!-- Contact Section -->
+      <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Contact Information</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;">
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Email</div>
+            <div id="arEmail" style="font-size:14px;color:var(--accent);font-weight:500;"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Phone</div>
+            <div id="arPhone" style="font-size:14px;color:var(--text1);font-weight:500;"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Current Address -->
+      <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Current Address</div>
+        <div id="arFullAddress" style="font-size:14px;color:var(--text1);line-height:1.5;"></div>
+      </div>
+      <!-- Screening Reports (placeholder) -->
+      <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px;">Screening Reports</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="background:var(--surface2);border-radius:8px;padding:14px 16px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Background</div>
+            <div id="arBgReport" style="font-size:14px;font-weight:600;color:var(--text2);margin-top:6px;">Not ordered</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:14px 16px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Credit</div>
+            <div id="arCreditReport" style="font-size:14px;font-weight:600;color:var(--text2);margin-top:6px;">Not ordered</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:14px 16px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Eviction</div>
+            <div id="arEvictReport" style="font-size:14px;font-weight:600;color:var(--text2);margin-top:6px;">Not ordered</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:14px 16px;text-align:center;">
+            <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Income</div>
+            <div id="arIncomeReport" style="font-size:14px;font-weight:600;color:var(--text2);margin-top:6px;">Not ordered</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
