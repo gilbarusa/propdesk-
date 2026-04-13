@@ -3290,31 +3290,43 @@ function openIncomingLink(reqId) {
     + (req.preferred_block ? '<br>📅 ' + FT_esc(req.preferred_block) : '');
 
   // Populate units dropdown from PropDesk data — auto-select the unit from the request
+  // Admin app stores units in global `data` array; each row has apt, owner (property), name (tenant)
   var unitSel = document.getElementById('il-unit');
   unitSel.innerHTML = '<option value="">Select unit...</option>';
   var matchedUnit = null;
-  if (typeof allUnits !== 'undefined' && Array.isArray(allUnits)) {
+  var unitsSource = (typeof data !== 'undefined' && Array.isArray(data)) ? data
+                  : (typeof allUnits !== 'undefined' && Array.isArray(allUnits)) ? allUnits : null;
+  if (unitsSource) {
+    // Dedupe by apt so dropdown isn't flooded with one row per tenant history
+    var seenApts = {};
+    var uniqueUnits = [];
+    unitsSource.forEach(function(u) {
+      if (u.archived) return;
+      var key = String(u.apt || u.id || '').toLowerCase();
+      if (!key || seenApts[key]) return;
+      seenApts[key] = true;
+      uniqueUnits.push(u);
+    });
     // Try to locate the unit matching the request's unit/apt number
     var reqUnitStr = String(req.unit || '').trim().toLowerCase();
     var reqName = String(req.name || '').trim().toLowerCase();
     if (reqUnitStr) {
-      matchedUnit = allUnits.find(function(u) {
+      matchedUnit = uniqueUnits.find(function(u) {
         var aptStr = String(u.apt || '').trim().toLowerCase();
-        var nameStr = String(u.name || '').trim().toLowerCase();
-        return aptStr === reqUnitStr || nameStr === reqUnitStr;
+        return aptStr === reqUnitStr;
       });
     }
     // Fallback: match by tenant/resident name
     if (!matchedUnit && reqName) {
-      matchedUnit = allUnits.find(function(u) {
+      matchedUnit = uniqueUnits.find(function(u) {
         var uName = String(u.name || '').trim().toLowerCase();
         return uName && uName === reqName;
       });
     }
-    allUnits.forEach(function(u) {
+    uniqueUnits.forEach(function(u) {
       var opt = document.createElement('option');
       opt.value = u.id;
-      opt.textContent = (u.apt || u.name || 'Unit ' + u.id) + (u.owner ? ' — ' + u.owner : '');
+      opt.textContent = (u.apt || 'Unit ' + u.id) + (u.owner ? ' — ' + u.owner : '');
       if (matchedUnit && u.id === matchedUnit.id) opt.selected = true;
       unitSel.appendChild(opt);
     });
