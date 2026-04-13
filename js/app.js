@@ -10573,6 +10573,42 @@ async function saveCalBooking() {
       await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
     }
 
+    // ── Sync to bookings table (so it appears in Pipeline) ──
+    try {
+      const channelEl = document.getElementById('cbChannel');
+      const channel = channelEl ? channelEl.value : '';
+      const channelOther = document.getElementById('cbChannelOther')?.value.trim() || '';
+      const platform = (channel === 'Other' ? channelOther : channel || 'direct').toLowerCase().replace(/\s+/g,'_');
+      const gPhone = document.getElementById('cbPhone')?.value.trim() || '';
+      const gEmail = document.getElementById('cbEmail')?.value.trim() || '';
+      const nights = Math.max(1, Math.round((new Date(checkout) - new Date(checkin)) / 86400000));
+
+      const bookingRow = {
+        platform: platform || 'direct',
+        guest_name: name,
+        guest_email: gEmail || null,
+        guest_phone: gPhone || null,
+        check_in: checkin,
+        check_out: checkout,
+        adults: 1,
+        children: 0,
+        infants: 0,
+        pets: 0,
+        nightly_rate: rent > 0 ? Math.round(rent / nights) : 0,
+        total_payout: rent || 0,
+        currency: 'USD',
+        booking_status: 'confirmed',
+        unit_apt: _calApt,
+        listing_name: _calApt,
+        booked_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      await sb.from('bookings').insert(bookingRow);
+    } catch(syncErr) {
+      console.warn('Pipeline sync failed (non-critical):', syncErr);
+    }
+
     await loadAll();
     closeModal('calBookingModal');
     renderCalendar();
