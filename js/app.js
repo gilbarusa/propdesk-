@@ -6584,11 +6584,41 @@ async function syncPropertiesFromHostfully() {
 //  PROPERTY DETAIL VIEW (LT / ST toggle)
 // ══════════════════════════════════════════════════════
 
-let _pdCurrentProperty = null;  // property address string
+let _pdCurrentProperty = null;  // property address string (INNAGO-matched)
 let _pdCurrentView = 'lt';      // 'lt' or 'st'
 
+// Normalize address for fuzzy matching (Rd↔Road, Ave↔Avenue, etc.)
+function _normalizeAddr(s) {
+  if (!s) return '';
+  return s.toLowerCase().trim()
+    .replace(/\brd\b/g, 'road').replace(/\bave\b/g, 'avenue')
+    .replace(/\bst\b/g, 'street').replace(/\bdr\b/g, 'drive')
+    .replace(/\bln\b/g, 'lane').replace(/\bblvd\b/g, 'boulevard')
+    .replace(/\bct\b/g, 'court').replace(/\bpl\b/g, 'place')
+    .replace(/[.,#]/g, '').replace(/\s+/g, ' ');
+}
+
+// Find the INNAGO property name that best matches a given address
+function _matchInnagoProperty(addr) {
+  if (!addr) return null;
+  const norm = _normalizeAddr(addr);
+  // Exact match first
+  const exact = INNAGO_TENANTS.find(t => t.property === addr);
+  if (exact) return exact.property;
+  // Normalized match
+  const innagoProps = [...new Set(INNAGO_TENANTS.map(t => t.property))];
+  const match = innagoProps.find(p => _normalizeAddr(p) === norm);
+  if (match) return match;
+  // Partial match (one contains the other)
+  const partial = innagoProps.find(p => _normalizeAddr(p).includes(norm) || norm.includes(_normalizeAddr(p)));
+  return partial || null;
+}
+
 function openPropertyDetail(propertyName) {
-  _pdCurrentProperty = propertyName;
+  // Match to INNAGO property name for LT data
+  const innagoName = _matchInnagoProperty(propertyName) || propertyName;
+  _pdCurrentProperty = innagoName;
+
   // Hide all pages, show property detail
   document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
   const page = document.getElementById('page-property-detail');
@@ -6596,13 +6626,13 @@ function openPropertyDetail(propertyName) {
 
   // Determine if this property is predominantly LT or ST
   const propUnits = data.filter(u => u.owner === propertyName || (u.note && u.note.includes(propertyName)));
-  const ltTenants = INNAGO_TENANTS.filter(t => t.property === propertyName);
+  const ltTenants = INNAGO_TENANTS.filter(t => t.property === innagoName);
   const hasLT = ltTenants.length > 0;
   const hasST = propUnits.some(u => u.type === 'short-stay');
 
   // Set header
-  document.getElementById('pdTitle').textContent = propertyName;
-  const propData = propertiesData.find(p => p.name === propertyName || p.address === propertyName || p.apt === propertyName);
+  document.getElementById('pdTitle').textContent = innagoName || propertyName;
+  const propData = propertiesData.find(p => p.name === propertyName || p.address === propertyName || p.apt === propertyName || p.address === innagoName);
   const addr = propData ? [propData.city, propData.state].filter(Boolean).join(', ') : '';
   document.getElementById('pdSubtitle').textContent = addr || 'Property Details';
 
@@ -6621,7 +6651,7 @@ function openPropertyDetail(propertyName) {
   document.getElementById('pdSTView').style.display = _pdCurrentView === 'st' ? 'block' : 'none';
 
   if (_pdCurrentView === 'lt') {
-    renderPDLongTerm(propertyName);
+    renderPDLongTerm(innagoName);
   }
 }
 
