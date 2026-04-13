@@ -4528,35 +4528,54 @@ async function _mcAIRephrase() {
   }
 }
 
-// ── Applications Data & Render ──
-const INNAGO_APPLICATIONS = [
-  {name:"Marcus Johnson",email:"marcus.j@email.com",property:"46 Township Line Road",unit:"215",applied:"Apr 02, 2026",status:"pending",screening:"not started"},
-  {name:"Sarah Mitchell",email:"s.mitchell@email.com",property:"46 Township Line Road",unit:"215",applied:"Apr 01, 2026",status:"pending",screening:"in progress"},
-  {name:"James Park",email:"jpark22@email.com",property:"7845 Montgomery Avenue",unit:"Unit 3",applied:"Mar 30, 2026",status:"screening",screening:"in progress"},
-  {name:"Emily Rodriguez",email:"emily.r@email.com",property:"46 Township Line Road",unit:"128",applied:"Mar 28, 2026",status:"approved",screening:"passed"},
-  {name:"Ahmed Hassan",email:"a.hassan@email.com",property:"431 Valley Rd",unit:"Unit B1",applied:"Mar 27, 2026",status:"approved",screening:"passed"},
-  {name:"Lisa Chen",email:"lisachen@email.com",property:"7845 Montgomery Avenue",unit:"Unit 5",applied:"Mar 25, 2026",status:"denied",screening:"failed"},
-  {name:"Brian Williams",email:"bwilliams@email.com",property:"46 Township Line Road",unit:"215",applied:"Mar 24, 2026",status:"withdrawn",screening:"not started"},
-  {name:"Natalia Petrova",email:"npetrova@email.com",property:"46 Township Line Road",unit:"128",applied:"Mar 22, 2026",status:"denied",screening:"failed"},
-  {name:"Kevin O'Brien",email:"kobrien@email.com",property:"926 Fox Chase Rd",unit:"Apt 2",applied:"Mar 20, 2026",status:"approved",screening:"passed"},
-  {name:"Diana Torres",email:"dtorres@email.com",property:"7845 Montgomery Avenue",unit:"Unit 3",applied:"Mar 18, 2026",status:"withdrawn",screening:"not started"},
-  {name:"Michael Chang",email:"mchang@email.com",property:"46 Township Line Road",unit:"215",applied:"Mar 15, 2026",status:"denied",screening:"failed"},
-  {name:"Rachel Adams",email:"radams@email.com",property:"431 Valley Rd",unit:"Unit B1",applied:"Mar 12, 2026",status:"approved",screening:"passed"},
-];
+// ── Applications Data & Render (live from Supabase) ──
+let _liveApplications = [];
 
-function renderMTMApps() {
+async function fetchApplications() {
+  try {
+    const resp = await fetch(SUPA_URL + '/rest/v1/rental_applications?order=created_at.desc', {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    _liveApplications = data.map(r => ({
+      id: r.id,
+      name: (r.first_name || '') + ' ' + (r.last_name || ''),
+      email: r.email || '',
+      phone: r.phone || '',
+      property: r.property || '—',
+      unit: r.unit || '—',
+      applied: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'}) : '—',
+      status: r.status || 'pending',
+      screening: r.screening_level || 'basic',
+      move_in: r.move_in_date || '',
+      address: [r.address_line1, r.city, r.state, r.zip].filter(Boolean).join(', '),
+      birth_date: r.birth_date || '',
+      raw: r
+    }));
+  } catch(e) {
+    console.error('Failed to fetch applications:', e);
+    _liveApplications = [];
+  }
+}
+
+async function renderMTMApps() {
   const tbody = document.getElementById('mtmAppsBody');
   if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="mtm-empty">Loading applications...</td></tr>';
+  await fetchApplications();
   const propFilter = document.getElementById('mtmAppPropFilter');
-  if (propFilter && propFilter.options.length <= 1) {
-    const props = [...new Set(INNAGO_APPLICATIONS.map(a => a.property))].sort();
+  if (propFilter) {
+    // Reset to just "All Properties" then rebuild
+    propFilter.innerHTML = '<option value="all">All Properties</option>';
+    const props = [...new Set(_liveApplications.map(a => a.property).filter(p => p && p !== '—'))].sort();
     props.forEach(p => { const o = document.createElement('option'); o.value = p; o.text = p; propFilter.add(o); });
   }
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('mtmAppPending', INNAGO_APPLICATIONS.filter(a => a.status === 'pending').length);
-  el('mtmAppApproved', INNAGO_APPLICATIONS.filter(a => a.status === 'approved').length);
-  el('mtmAppScreening', INNAGO_APPLICATIONS.filter(a => a.status === 'screening').length);
-  el('mtmAppDenied', INNAGO_APPLICATIONS.filter(a => a.status === 'denied').length);
+  el('mtmAppPending', _liveApplications.filter(a => a.status === 'pending').length);
+  el('mtmAppApproved', _liveApplications.filter(a => a.status === 'approved').length);
+  el('mtmAppScreening', _liveApplications.filter(a => a.status === 'screening').length);
+  el('mtmAppDenied', _liveApplications.filter(a => a.status === 'denied').length);
   filterMTMApps();
 }
 
@@ -4567,7 +4586,7 @@ function filterMTMApps() {
   const statusF = document.getElementById('mtmAppStatusFilter')?.value || 'all';
   const propF = document.getElementById('mtmAppPropFilter')?.value || 'all';
 
-  const filtered = INNAGO_APPLICATIONS.filter(a => {
+  const filtered = _liveApplications.filter(a => {
     if (statusF !== 'all' && a.status !== statusF) return false;
     if (propF !== 'all' && a.property !== propF) return false;
     if (search && !a.name.toLowerCase().includes(search) && !a.email.toLowerCase().includes(search) && !a.property.toLowerCase().includes(search)) return false;
@@ -4577,22 +4596,21 @@ function filterMTMApps() {
   document.getElementById('mtmAppCount').textContent = filtered.length + ' application' + (filtered.length !== 1 ? 's' : '');
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="mtm-empty">No applications match your filters</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="mtm-empty">No applications found</td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map(a => {
     const statusBadge = `<span class="mtm-badge ${a.status}">${a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span>`;
-    const screenBadge = a.screening === 'passed' ? '<span class="mtm-badge active">Passed</span>' :
-      a.screening === 'failed' ? '<span class="mtm-badge expired">Failed</span>' :
-      a.screening === 'in progress' ? '<span class="mtm-badge screening">In Progress</span>' :
-      '<span class="mtm-badge" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border)">Not Started</span>';
+    const screenBadge = a.screening === 'full' ? '<span class="mtm-badge active">Full</span>' :
+      a.screening === 'criminal_credit' ? '<span class="mtm-badge screening">Criminal+Credit</span>' :
+      '<span class="mtm-badge" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border)">Basic</span>';
     return `<tr>
       <td><span class="mtm-tenant-name">${a.name}</span><span class="mtm-tenant-email">${a.email}</span></td>
       <td><span class="mtm-prop-unit">${a.unit}</span><span class="mtm-prop-addr">${a.property}</span></td>
       <td>${a.applied}</td>
       <td>${statusBadge}</td>
       <td>${screenBadge}</td>
-      <td><button class="mtm-btn" onclick="alert('Review application for ${a.name}')">Review</button></td>
+      <td><button class="mtm-btn" onclick="alert('Review application for ${a.name}\\n\\nPhone: ${a.phone}\\nAddress: ${a.address}\\nMove-in: ${a.move_in}')">Review</button></td>
     </tr>`;
   }).join('');
 }
