@@ -1321,126 +1321,6 @@
     </div>
   </div>
 
-  <!-- ═══ APPLICATION MODAL ═══ -->
-  <div class="app-modal-overlay" id="appModalOverlay" style="display:none;" onclick="closeApplicationModal()">
-    <div class="app-modal" onclick="event.stopPropagation()">
-      <!-- Header -->
-      <div class="app-modal-header">
-        <div class="app-modal-header-left">
-          <div class="app-modal-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          </div>
-          <div>
-            <h3 class="app-modal-title">Send Rental Application</h3>
-            <div class="app-modal-property" id="appModalProperty">—</div>
-          </div>
-        </div>
-        <button class="app-modal-close" onclick="closeApplicationModal()">✕</button>
-      </div>
-
-      <!-- Tabs -->
-      <div class="app-modal-tabs">
-        <button class="app-modal-tab active" onclick="switchAppTab('email',this)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          Via Email
-        </button>
-        <button class="app-modal-tab" onclick="switchAppTab('url',this)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          Via URL
-        </button>
-      </div>
-
-      <div class="app-modal-body">
-        <!-- Screening Level -->
-        <div class="app-modal-section-title">SELECT LEVEL OF SCREENING</div>
-
-        <label class="app-screen-option selected" id="appOpt1" onclick="selectScreening(1)">
-          <span class="app-radio-outer"><span class="app-radio-inner"></span></span>
-          <div class="app-screen-content">
-            <div class="app-screen-name">Application Only</div>
-            <div class="app-screen-desc">Basic rental application — personal info, rental history, references</div>
-          </div>
-          <span class="app-screen-cost">Free</span>
-        </label>
-
-        <label class="app-screen-option" id="appOpt2" onclick="selectScreening(2)">
-          <span class="app-radio-outer"><span class="app-radio-inner"></span></span>
-          <div class="app-screen-content">
-            <div class="app-screen-name">Application + Criminal + Credit</div>
-            <div class="app-screen-desc">Full background check with credit report and criminal history</div>
-          </div>
-          <span class="app-screen-cost app-screen-cost-soon">Coming Soon</span>
-        </label>
-
-        <label class="app-screen-option" id="appOpt3" onclick="selectScreening(3)">
-          <span class="app-radio-outer"><span class="app-radio-inner"></span></span>
-          <div class="app-screen-content">
-            <div class="app-screen-name">Application + Criminal + Credit + Eviction</div>
-            <div class="app-screen-desc">Comprehensive screening including eviction history records</div>
-          </div>
-          <span class="app-screen-cost app-screen-cost-soon">Coming Soon</span>
-        </label>
-
-        <!-- Email Tab Content -->
-        <div id="appEmailTab">
-          <div class="app-modal-section-title" style="margin-top:20px;">SHARE VIA EMAIL</div>
-          <div class="app-email-row">
-            <div class="app-email-field">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <input type="email" class="app-email-input" id="appEmailInput" placeholder="applicant@email.com">
-            </div>
-            <button class="app-send-btn" id="appSendBtn" onclick="sendApplicationEmail()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              Send
-            </button>
-          </div>
-          <div class="app-email-preview">
-            <div class="app-preview-label">Email preview</div>
-            <div class="app-preview-box" id="appPreviewBox">
-              <div class="app-preview-from"><strong>From:</strong> Willow Partnership LLC</div>
-              <div class="app-preview-subject"><strong>Subject:</strong> Willow Partnership LLC has requested your application</div>
-              <div class="app-preview-body">The applicant will receive a branded email with your company info, an "Apply Now" link, and screening cost details.</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- URL Tab Content -->
-        <div id="appUrlTab" style="display:none;">
-          <div class="app-modal-section-title" style="margin-top:20px;">COPY APPLICATION URL</div>
-          <div class="app-url-row">
-            <div class="app-url-field">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <input type="text" class="app-url-input" id="appUrlDisplay" readonly>
-            </div>
-            <button class="app-send-btn" onclick="copyApplicationUrl()">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-              Copy
-            </button>
-          </div>
-          <div class="app-url-hint" id="appUrlHint">Share this link directly with prospective tenants</div>
-        </div>
-
-        <!-- Sent confirmation (hidden by default) -->
-        <div id="appSentConfirm" style="display:none;" class="app-sent-confirm">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 12 15 16 10"/></svg>
-          <div class="app-sent-text">Application sent successfully!</div>
-          <div class="app-sent-to" id="appSentTo"></div>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="app-modal-footer">
-        <div class="app-footer-info">
-          <span>Willow Partnership LLC</span>
-          <span class="app-footer-sep">|</span>
-          <span>(267) 865-0001</span>
-          <span class="app-footer-sep">|</span>
-          <span>general@willowpa.com</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <!-- ═══ UNIT DETAIL FULL PAGE ═══ -->
   <div class="ud-page" id="udPage" style="display:none;">
     <!-- Unit Header -->
@@ -3737,5 +3617,110 @@ if('serviceWorker' in navigator){
   setTimeout(tryMobileInit, 3000);
 })();
 </script>
+
+<!-- ═══ APPLICATION MODAL (global — accessible from any page) ═══ -->
+<div class="app-modal-overlay" id="appModalOverlay" style="display:none;" onclick="closeApplicationModal()">
+  <div class="app-modal" onclick="event.stopPropagation()">
+    <div class="app-modal-header">
+      <div class="app-modal-header-left">
+        <div class="app-modal-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </div>
+        <div>
+          <h3 class="app-modal-title">Send Rental Application</h3>
+          <div class="app-modal-property" id="appModalProperty">—</div>
+        </div>
+      </div>
+      <button class="app-modal-close" onclick="closeApplicationModal()">✕</button>
+    </div>
+    <div class="app-modal-tabs">
+      <button class="app-modal-tab active" onclick="switchAppTab('email',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Via Email
+      </button>
+      <button class="app-modal-tab" onclick="switchAppTab('url',this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Via URL
+      </button>
+    </div>
+    <div class="app-modal-body">
+      <div class="app-modal-section-title">SELECT LEVEL OF SCREENING</div>
+      <label class="app-screen-option selected" id="appOpt1" onclick="selectScreening(1)">
+        <span class="app-radio-outer"><span class="app-radio-inner"></span></span>
+        <div class="app-screen-content">
+          <div class="app-screen-name">Application Only</div>
+          <div class="app-screen-desc">Basic rental application — personal info, rental history, references</div>
+        </div>
+        <span class="app-screen-cost">Free</span>
+      </label>
+      <label class="app-screen-option" id="appOpt2" onclick="selectScreening(2)">
+        <span class="app-radio-outer"><span class="app-radio-inner"></span></span>
+        <div class="app-screen-content">
+          <div class="app-screen-name">Application + Criminal + Credit</div>
+          <div class="app-screen-desc">Full background check with credit report and criminal history</div>
+        </div>
+        <span class="app-screen-cost app-screen-cost-soon">Coming Soon</span>
+      </label>
+      <label class="app-screen-option" id="appOpt3" onclick="selectScreening(3)">
+        <span class="app-radio-outer"><span class="app-radio-inner"></span></span>
+        <div class="app-screen-content">
+          <div class="app-screen-name">Application + Criminal + Credit + Eviction</div>
+          <div class="app-screen-desc">Comprehensive screening including eviction history records</div>
+        </div>
+        <span class="app-screen-cost app-screen-cost-soon">Coming Soon</span>
+      </label>
+      <div id="appEmailTab">
+        <div class="app-modal-section-title" style="margin-top:20px;">SHARE VIA EMAIL</div>
+        <div class="app-email-row">
+          <div class="app-email-field">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <input type="email" class="app-email-input" id="appEmailInput" placeholder="applicant@email.com">
+          </div>
+          <button class="app-send-btn" id="appSendBtn" onclick="sendApplicationEmail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            Send
+          </button>
+        </div>
+        <div class="app-email-preview">
+          <div class="app-preview-label">Email preview</div>
+          <div class="app-preview-box" id="appPreviewBox">
+            <div class="app-preview-from"><strong>From:</strong> Willow Partnership LLC</div>
+            <div class="app-preview-subject"><strong>Subject:</strong> Willow Partnership LLC has requested your application</div>
+            <div class="app-preview-body">The applicant will receive a branded email with your company info, an "Apply Now" link, and screening cost details.</div>
+          </div>
+        </div>
+      </div>
+      <div id="appUrlTab" style="display:none;">
+        <div class="app-modal-section-title" style="margin-top:20px;">COPY APPLICATION URL</div>
+        <div class="app-url-row">
+          <div class="app-url-field">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            <input type="text" class="app-url-input" id="appUrlDisplay" readonly>
+          </div>
+          <button class="app-send-btn" onclick="copyApplicationUrl()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+          </button>
+        </div>
+        <div class="app-url-hint" id="appUrlHint">Share this link directly with prospective tenants</div>
+      </div>
+      <div id="appSentConfirm" style="display:none;" class="app-sent-confirm">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="9 12 12 15 16 10"/></svg>
+        <div class="app-sent-text">Application sent successfully!</div>
+        <div class="app-sent-to" id="appSentTo"></div>
+      </div>
+    </div>
+    <div class="app-modal-footer">
+      <div class="app-footer-info">
+        <span>Willow Partnership LLC</span>
+        <span class="app-footer-sep">|</span>
+        <span>(267) 865-0001</span>
+        <span class="app-footer-sep">|</span>
+        <span>general@willowpa.com</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
