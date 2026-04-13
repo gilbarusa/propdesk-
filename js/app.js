@@ -6626,8 +6626,11 @@ function openPropertyDetail(propertyName) {
 }
 
 function closePropertyDetail() {
+  // Close unit detail if open
+  const udPage = document.getElementById('udPage');
+  if (udPage) udPage.style.display = 'none';
   document.getElementById('page-property-detail').style.display = 'none';
-  closePDUnitPanel();
+  _udCurrentUnit = null;
   // Re-show the properties page
   document.getElementById('page-properties').style.display = 'block';
 }
@@ -6763,134 +6766,297 @@ function filterPropertyUnits() {
   }).join('');
 }
 
+// ── Unit Detail Full Page ──
+
+let _udCurrentUnit = null; // current _pdUnitsData item
+
 function openPDUnitDetail(idx) {
   const u = _pdUnitsData[idx];
   if (!u) return;
+  _udCurrentUnit = u;
 
-  const panel = document.getElementById('pdUnitPanel');
-  panel.classList.add('open');
+  // Show unit detail page, hide the rest of pd content
+  document.getElementById('pdLTView').style.display = 'none';
+  document.getElementById('pdSTView').style.display = 'none';
+  document.querySelector('.pd-header').style.display = 'none';
+  const udPage = document.getElementById('udPage');
+  udPage.style.display = 'block';
 
-  // Title
-  document.getElementById('pdUnitPanelTitle').textContent = _pdCurrentProperty + ' — Unit ' + u.unit;
+  // Header timestamp
+  document.getElementById('udHeaderTs').textContent = 'Last Updated: just now';
 
-  // ── Lease Info ──
-  const leaseInfo = document.getElementById('pdUpLeaseInfo');
+  // Info Bar
+  document.getElementById('udPropName').textContent = _pdCurrentProperty;
+  document.getElementById('udPropAddr').textContent = _pdCurrentProperty;
+  document.getElementById('udUnitNum').textContent = u.unit;
+  document.getElementById('udSqft').textContent = '—';
+  document.getElementById('udBeds').textContent = '—';
+
+  // ── Lease Card ──
   const startDate = new Date(u.leaseStart);
   const endDate = u.leaseEnd === 'M to M' ? null : new Date(u.leaseEnd);
   const now = new Date();
-  let daysLeft = '';
-  let termPct = 0;
+
+  // Lease dropdown
+  const leaseSelect = document.getElementById('udLeaseSelect');
+  leaseSelect.innerHTML = `<option>Current Lease: ${u.leaseStart} - ${u.leaseEnd}</option>`;
+
   if (endDate) {
     const totalDays = Math.ceil((endDate - startDate) / 86400000);
-    const elapsed = Math.ceil((now - startDate) / 86400000);
+    const elapsed = Math.max(0, Math.ceil((now - startDate) / 86400000));
     const remaining = Math.max(0, totalDays - elapsed);
-    daysLeft = remaining + ' days left';
-    termPct = totalDays > 0 ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : 0;
+    const elapsedPct = totalDays > 0 ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : 0;
+    document.getElementById('udDaysLeft').textContent = remaining;
+    document.getElementById('udLeaseBarElapsed').style.width = elapsedPct + '%';
+    document.getElementById('udLeaseBarRemaining').style.width = (100 - elapsedPct) + '%';
   } else {
-    daysLeft = 'Month-to-Month (ongoing)';
-    termPct = 100;
+    document.getElementById('udDaysLeft').textContent = 'MTM';
+    document.getElementById('udLeaseBarElapsed').style.width = '100%';
+    document.getElementById('udLeaseBarRemaining').style.width = '0%';
   }
+  document.getElementById('udLeaseStart').textContent = u.leaseStart;
+  document.getElementById('udLeaseEnd').textContent = u.leaseEnd;
+  document.getElementById('udMTMToggle').checked = u.leaseType === 'mtm';
 
-  leaseInfo.innerHTML = `
-    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Lease Type</span><span class="pd-up-lease-val">${u.leaseType === 'mtm' ? 'Month-to-Month' : 'Fixed Term'}</span></div>
-    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Start</span><span class="pd-up-lease-val">${u.leaseStart}</span></div>
-    <div class="pd-up-lease-row"><span class="pd-up-lease-label">End</span><span class="pd-up-lease-val">${u.leaseEnd}</span></div>
-    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Monthly Rent</span><span class="pd-up-lease-val">$${u.totalRent.toLocaleString()}</span></div>
-    <div class="pd-up-lease-row"><span class="pd-up-lease-label">Status</span><span class="pd-up-lease-val">${daysLeft}</span></div>
-    ${endDate ? `<div class="pd-up-lease-term-bar"><div class="pd-up-lease-term-fill" style="width:${termPct}%"></div></div>` : ''}
-  `;
+  // ── Collection Card ──
+  const r = u.rentRecord;
+  const collected = r ? r.paid : 0;
+  const processing = r ? r.processing : 0;
+  const outstanding = r ? (r.status === 'overdue' ? r.balance : 0) : 0;
+  const comingDue = r ? (r.status === 'pending' ? r.balance : 0) : 0;
+  const total = r ? r.amount : u.totalRent;
+  document.getElementById('udCollTotal').textContent = '$' + total.toLocaleString();
+  document.getElementById('udCollCollected').textContent = '$' + collected.toLocaleString();
+  document.getElementById('udCollProcessing').textContent = '$' + processing.toLocaleString();
+  document.getElementById('udCollOutstanding').textContent = '$' + outstanding.toLocaleString();
+  document.getElementById('udCollComingDue').textContent = '$' + comingDue.toLocaleString();
+  drawUDDonut(collected, processing, outstanding, comingDue, total);
 
   // ── Tenants ──
-  const tenantsDiv = document.getElementById('pdUpTenants');
-  tenantsDiv.innerHTML = u.tenantObjs.map(t => {
+  const tenantsList = document.getElementById('udTenantsList');
+  document.getElementById('udTenantCount').textContent = u.tenantObjs.length;
+  tenantsList.innerHTML = u.tenantObjs.map(t => {
     const initials = t.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
-    const phone = t.phone || '—';
-    const email = t.email || '—';
-    return `<div class="pd-up-tenant-card">
-      <div class="pd-up-tenant-avatar">${initials}</div>
-      <div class="pd-up-tenant-info">
-        <div class="pd-up-tenant-name">${t.name}</div>
-        <div class="pd-up-tenant-contact">${phone} · ${email}</div>
-      </div>
+    const tIdx = INNAGO_TENANTS.indexOf(t);
+    return `<div class="ud-tenant-chip" onclick="openTenantFromUnit(${tIdx})">
+      <div class="ud-tenant-avatar">${initials}</div>
+      <span class="ud-tenant-name">${t.name}</span>
+      ${t.email ? '<span class="ud-tenant-verified">✓</span>' : ''}
     </div>`;
-  }).join('') || '<div style="color:var(--text3);font-size:12px;font-style:italic;">No tenant data</div>';
+  }).join('') || '<div style="color:var(--text3);font-size:12px;font-style:italic;padding:8px;">No tenants assigned</div>';
 
   // ── Invoices ──
-  const invoicesDiv = document.getElementById('pdUpInvoices');
-  if (u.rentRecord) {
-    const r = u.rentRecord;
-    const statusCls = 'pd-badge-' + r.status;
-    const statusLabel = r.status.charAt(0).toUpperCase() + r.status.slice(1);
-    invoicesDiv.innerHTML = `
-      <div class="pd-up-invoice-row">
-        <div class="pd-up-inv-date">Apr 2026</div>
-        <div class="pd-up-inv-desc">Monthly Rent</div>
-        <div class="pd-up-inv-amount">$${r.amount.toLocaleString()}</div>
-        <div class="pd-up-inv-status"><span class="pd-unit-badge ${statusCls}">${statusLabel}</span></div>
-      </div>
-      ${r.paid > 0 ? `<div class="pd-up-invoice-row"><div class="pd-up-inv-date"></div><div class="pd-up-inv-desc" style="color:var(--green)">Paid</div><div class="pd-up-inv-amount" style="color:var(--green)">$${r.paid.toLocaleString()}</div><div class="pd-up-inv-status"></div></div>` : ''}
-      ${r.processing > 0 ? `<div class="pd-up-invoice-row"><div class="pd-up-inv-date"></div><div class="pd-up-inv-desc" style="color:var(--purple)">Processing</div><div class="pd-up-inv-amount" style="color:var(--purple)">$${r.processing.toLocaleString()}</div><div class="pd-up-inv-status"></div></div>` : ''}
-      ${r.balance > 0 ? `<div class="pd-up-invoice-row"><div class="pd-up-inv-date"></div><div class="pd-up-inv-desc" style="color:var(--red)">Balance Due</div><div class="pd-up-inv-amount" style="color:var(--red)">$${r.balance.toLocaleString()}</div><div class="pd-up-inv-status"></div></div>` : ''}
-    `;
-  } else {
-    invoicesDiv.innerHTML = '<div style="color:var(--text3);font-size:12px;font-style:italic;">No invoice data</div>';
-  }
+  renderUDInvoices('upcoming');
 
-  // ── Actions ──
-  document.getElementById('pdUpActions').innerHTML = `
-    <button class="pd-up-action-btn" onclick="tenantActionFromPD('message',${idx})">💬 Message</button>
-    <button class="pd-up-action-btn" onclick="tenantActionFromPD('viewLease',${idx})">📄 View Lease</button>
-    <button class="pd-up-action-btn primary" onclick="tenantActionFromPD('collectRent',${idx})">💰 Collect Rent</button>
-  `;
+  // ── Service Orders ──
+  renderUDServiceOrders(u);
+
+  // ── Documents & Notes ──
+  renderUDDocsNotes(u);
+
+  // Update stat counts
+  document.getElementById('udServiceCount').textContent = '0'; // Updated by renderUDServiceOrders
+  document.getElementById('udInvoiceCount').textContent = r ? '1' : '0';
+  document.getElementById('udNoteCount').textContent = '0';
+}
+
+function closeUnitDetail() {
+  document.getElementById('udPage').style.display = 'none';
+  document.querySelector('.pd-header').style.display = 'flex';
+  document.getElementById('pd' + (_pdCurrentView === 'lt' ? 'LT' : 'ST') + 'View').style.display = 'block';
+  _udCurrentUnit = null;
 }
 
 function closePDUnitPanel() {
-  document.getElementById('pdUnitPanel').classList.remove('open');
+  // Legacy — now just calls closeUnitDetail
+  closeUnitDetail();
 }
 
-function tenantActionFromPD(action, idx) {
-  const u = _pdUnitsData[idx];
+// Tenant click → go to MTM/LT tenant detail
+function openTenantFromUnit(tIdx) {
+  if (tIdx < 0) return;
+  closeUnitDetail();
+  closePropertyDetail();
+  switchModule('mtm-lt');
+  setTimeout(() => {
+    const subTabs = document.querySelectorAll('#subNav .sub-tab');
+    if (subTabs[1]) subTabs[1].click(); // Tenants sub-tab
+    setTimeout(() => openTenantDetail(tIdx), 400);
+  }, 300);
+}
+
+// Invoice tabs
+let _udInvTab = 'upcoming';
+function switchInvTab(tab, btn) {
+  _udInvTab = tab;
+  document.querySelectorAll('.ud-inv-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderUDInvoices(tab);
+}
+
+function renderUDInvoices(tab) {
+  const u = _udCurrentUnit;
   if (!u) return;
-  if (action === 'message') {
-    const t = u.tenantObjs[0];
-    if (t) {
-      const tIdx = INNAGO_TENANTS.indexOf(t);
-      if (tIdx >= 0) {
-        closePDUnitPanel();
-        switchModule('mtm-lt');
-        setTimeout(() => {
-          const subTabs = document.querySelectorAll('#subNav .sub-tab');
-          if (subTabs[4]) subTabs[4].click(); // Messages sub-tab
-        }, 300);
-      }
+  const tbody = document.getElementById('udInvBody');
+  const r = u.rentRecord;
+  if (!r) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No invoices</td></tr>';
+    return;
+  }
+
+  // Generate upcoming invoices based on lease
+  const startDate = new Date(u.leaseStart);
+  const endDate = u.leaseEnd === 'M to M' ? new Date(new Date().getFullYear(), 11, 31) : new Date(u.leaseEnd);
+  const now = new Date();
+  const invoices = [];
+
+  // Current month
+  invoices.push({
+    id: 'INV-' + u.unit.replace(/\s/g,'') + '-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0'),
+    due: new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+    amount: r.amount,
+    status: r.status,
+    isPast: r.status === 'paid' || r.status === 'processing'
+  });
+
+  // Future months (up to 3 upcoming)
+  for (let m = 1; m <= 3; m++) {
+    const futureDate = new Date(now.getFullYear(), now.getMonth() + m, 1);
+    if (futureDate > endDate) break;
+    invoices.push({
+      id: 'INV-' + u.unit.replace(/\s/g,'') + '-' + futureDate.getFullYear() + String(futureDate.getMonth()+1).padStart(2,'0'),
+      due: futureDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+      amount: r.amount,
+      status: 'upcoming',
+      isPast: false
+    });
+  }
+
+  const filtered = tab === 'upcoming' ? invoices.filter(i => !i.isPast) : invoices.filter(i => i.isPast || i.status === 'overdue');
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No ${tab} invoices</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(inv => `<tr>
+    <td><a href="#" class="ud-inv-link" onclick="openInvoiceDetail('${inv.id}');return false;">${inv.id}</a></td>
+    <td>${inv.due}</td>
+    <td style="text-align:right;font-weight:600;">$${inv.amount.toLocaleString()}.00</td>
+  </tr>`).join('');
+}
+
+function renderUDServiceOrders(u) {
+  const tbody = document.getElementById('udServiceBody');
+  // Check fieldtrack jobs for this unit
+  if (typeof FT_getJobs === 'function') {
+    const jobs = FT_getJobs().filter(j => j.address && j.address.includes(u.unit));
+    document.getElementById('udServiceCount').textContent = jobs.length;
+    if (jobs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No service orders</td></tr>';
+      return;
     }
-  } else if (action === 'viewLease') {
-    const leaseIdx = INNAGO_LEASES.indexOf(u.lease);
-    if (leaseIdx >= 0) {
-      closePDUnitPanel();
-      closePropertyDetail();
-      switchModule('mtm-lt');
-      setTimeout(() => {
-        const subTabs = document.querySelectorAll('#subNav .sub-tab');
-        if (subTabs[2]) subTabs[2].click(); // Leases sub-tab
-        setTimeout(() => openLeaseDetail(leaseIdx), 400);
-      }, 300);
-    }
-  } else if (action === 'collectRent') {
-    const rentIdx = u.rentRecord ? INNAGO_RENT.indexOf(u.rentRecord) : -1;
-    if (rentIdx >= 0) {
-      closePDUnitPanel();
-      closePropertyDetail();
-      switchModule('mtm-lt');
-      setTimeout(() => {
-        const subTabs = document.querySelectorAll('#subNav .sub-tab');
-        if (subTabs[3]) subTabs[3].click(); // Rent sub-tab
-        setTimeout(() => openRentDetail && openRentDetail(rentIdx), 400);
-      }, 300);
-    }
+    tbody.innerHTML = jobs.slice(0, 5).map(j => `<tr>
+      <td><a href="#" class="ud-inv-link" onclick="openWOFromUnit('${j.woNumber}');return false;">${j.woNumber || '—'}</a></td>
+      <td>${j.description || j.title || '—'}</td>
+      <td>${j.created ? new Date(j.created).toLocaleDateString() : '—'}</td>
+      <td><span class="pd-unit-badge pd-badge-${j.status === 'completed' ? 'paid' : 'pending'}">${j.status || '—'}</span></td>
+    </tr>`).join('');
+  } else {
+    document.getElementById('udServiceCount').textContent = '0';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No service orders</td></tr>';
   }
 }
 
+function renderUDDocsNotes(u) {
+  // Documents
+  const docsList = document.getElementById('udDocsList');
+  const docs = [
+    { icon: '📄', name: 'Lease Agreement — ' + u.leaseStart, date: u.leaseStart },
+  ];
+  // Add ID docs if tenant has email (implies verified)
+  u.tenantObjs.forEach(t => {
+    if (t.email) docs.push({ icon: '🪪', name: t.name + ' — ID Copy', date: t.since || '—' });
+  });
+  docsList.innerHTML = docs.map(d => `<div class="ud-doc-row">
+    <span class="ud-doc-icon">${d.icon}</span>
+    <span class="ud-doc-name" onclick="toast('Document viewer coming soon','info')">${d.name}</span>
+    <span class="ud-doc-date">${d.date}</span>
+  </div>`).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px;font-style:italic;">No documents</div>';
+
+  // Notes
+  const notesList = document.getElementById('udNotesList');
+  const notes = TENANT_NOTES ? Object.entries(TENANT_NOTES).filter(([name]) => u.tenantObjs.some(t => t.name === name)).flatMap(([name, arr]) => arr.map(n => ({...n, tenant: name}))) : [];
+  document.getElementById('udNoteCount').textContent = notes.length;
+  notesList.innerHTML = notes.map(n => `<div class="ud-note-item"><strong>${n.tenant} · ${n.date || ''}</strong><br>${n.text}</div>`).join('') || '<div style="color:var(--text3);font-size:12px;padding:4px;font-style:italic;">No notes yet</div>';
+}
+
+// Stub functions for actions
+function openInvoiceDetail(invId) { toast('Invoice detail for ' + invId + ' — coming soon', 'info'); }
+function openWOFromUnit(woNum) {
+  closeUnitDetail(); closePropertyDetail();
+  switchModule('techtrack');
+  setTimeout(() => {
+    if (typeof FT_openJob === 'function') FT_openJob(woNum);
+  }, 500);
+}
+function viewUnitLeaseDoc() { toast('Lease document viewer coming soon', 'info'); }
+function viewAllTenants() { closeUnitDetail(); closePropertyDetail(); switchModule('mtm-lt'); }
+function viewAllInvoices() { toast('Full invoice history coming soon', 'info'); }
+function scrollToInvoices() { document.getElementById('udInvoicesCard')?.scrollIntoView({behavior:'smooth'}); }
+function newServiceOrder() { toast('Create service order from unit — coming soon', 'info'); }
+function addUnitDocument() { toast('Document upload coming soon', 'info'); }
+function newUnitLease() { toast('New lease creation coming soon', 'info'); }
+function switchUnitLease() { /* future: switch between historical leases */ }
+function toggleMTM() { toast('MTM toggle saved (demo)', 'info'); }
+function refreshUnitDetail() { if (_udCurrentUnit) { const idx = _pdUnitsData.indexOf(_udCurrentUnit); if (idx >= 0) openPDUnitDetail(idx); } }
+function editUnitDetail() { toast('Edit unit coming soon', 'info'); }
+function toggleUnitNotes() { document.getElementById('udNoteInput')?.focus(); }
+function saveUnitNote() {
+  const input = document.getElementById('udNoteInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  toast('Note saved (demo)', 'success');
+  input.value = '';
+  // In production this would save to Supabase
+}
+
+// Donut chart for unit detail
+function drawUDDonut(collected, processing, outstanding, comingDue, total) {
+  const canvas = document.getElementById('udCollDonut');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2, R = 56, r = 38;
+  ctx.clearRect(0, 0, W, H);
+
+  if (total === 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.closePath();
+    ctx.fillStyle = '#e0ddd6'; ctx.fill();
+    return;
+  }
+
+  const segments = [
+    { val: collected,    color: '#4caf50' },
+    { val: processing,   color: '#ff9800' },
+    { val: outstanding,  color: '#f44336' },
+    { val: comingDue,    color: '#2196f3' }
+  ].filter(s => s.val > 0);
+
+  let startAngle = -Math.PI / 2;
+  segments.forEach(seg => {
+    const sweep = (seg.val / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, startAngle, startAngle + sweep);
+    ctx.arc(cx, cy, r, startAngle + sweep, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    startAngle += sweep;
+  });
+}
+
+// Property-level donut (for the property overview)
 function drawPDDonut(collected, processing, overdue, comingDue, total) {
   const canvas = document.getElementById('pdDonutCanvas');
   if (!canvas) return;
