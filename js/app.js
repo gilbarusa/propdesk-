@@ -2805,6 +2805,37 @@ async function WPA_hydrateTenantsLT() {
       lease_type:  t.lease_type  || 'mtm'
     }));
     console.log('[tenants_lt] hydrated', INNAGO_TENANTS.length, 'tenants');
+    // Synthesize INNAGO_LEASES entries for every hydrated tenant who doesn't
+    // already have a matching lease row. Required because renderPDUnitsTable
+    // builds _pdUnitsData from INNAGO_LEASES (not INNAGO_TENANTS), and the
+    // unit-detail drilldown needs a row in _pdUnitsData to fire.
+    try {
+      if (typeof INNAGO_LEASES !== 'undefined' && Array.isArray(INNAGO_LEASES)) {
+        const keyOf = (p, u) => (p || '') + '||' + (u || '');
+        const existing = new Set(INNAGO_LEASES.map(l => keyOf(l.property, l.unit)));
+        const byUnit = {};
+        INNAGO_TENANTS.forEach(t => {
+          const k = keyOf(t.property, t.unitNum);
+          if (!byUnit[k]) byUnit[k] = [];
+          byUnit[k].push(t);
+        });
+        Object.keys(byUnit).forEach(k => {
+          if (existing.has(k)) return;
+          const tenants = byUnit[k];
+          const first = tenants[0];
+          INNAGO_LEASES.push({
+            status:   'Active',
+            property: first.property,
+            unit:     first.unitNum,
+            tenants:  tenants.map(x => x.name).join(', '),
+            start:    first.lease_start || '',
+            end:      first.lease_end   || (first.lease_type === 'fixed' ? '' : 'M to M'),
+            type:     first.lease_type  || 'mtm'
+          });
+        });
+        console.log('[tenants_lt] leases now total', INNAGO_LEASES.length);
+      }
+    } catch(e) { console.warn('[tenants_lt] lease synth error', e); }
     // Re-render the PD long-term view if it's currently open
     try {
       if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty &&
@@ -2819,7 +2850,7 @@ async function WPA_hydrateTenantsLT() {
 // Kick off hydration ASAP (does not block initial render — fallback array shows first)
 WPA_hydrateTenantsLT();
 
-const INNAGO_LEASES = [
+let INNAGO_LEASES = [
   {status:"Active",property:"46 Township Line Road",unit:"320",tenants:"Taron Stokes",start:"Apr 01, 2026",end:"M to M",type:"mtm"},
   {status:"Active",property:"46 Township Line Road",unit:"221",tenants:"Miesha Sassone",start:"Mar 21, 2026",end:"M to M",type:"mtm"},
   {status:"Active",property:"7845 Montgomery Avenue",unit:"Unit 8",tenants:"Justin Krebs",start:"Mar 09, 2026",end:"M to M",type:"mtm"},
