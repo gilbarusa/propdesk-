@@ -1050,7 +1050,8 @@ function FT_sendInvoice(jobId){
   if(tE>0) itemLines.push('Materials/Expenses: '+fmt$(tE));
   (job.lineItems||[]).forEach(function(it){ itemLines.push(it.desc+': '+fmt$(it.amount)); });
   var description='WO '+(job.woNum||'#'+job.id)+' — '+(prop?prop.name:'Property')+'\n'+itemLines.join('\n');
-  var unit=(prop?prop.name:'');
+  // Prefer the client's actual unit number (what the portal queries) over the TechTrack property name.
+  var unit=(job.clientUnit && String(job.clientUnit).trim()) || (prop?prop.name:'');
   var woNum=job.woNum||'';
   if(typeof sb==='undefined'){ alert('Supabase not configured.'); return; }
   // Search by work_order_id first (reliable), fallback to unit+description match
@@ -1066,7 +1067,7 @@ function FT_sendInvoice(jobId){
         alert('Invoice already exists for '+fmt$(total)+'. No changes needed.');
       } else {
         if(!confirm('An unpaid invoice exists for this WO ('+fmt$(existing.amount)+').\nUpdate amount to '+fmt$(total)+'?')) return;
-        sb.from('payment_requests').update({amount:total, description:description, user_id:job.clientUserId||existing.user_id||null, work_order_id:woNum||existing.work_order_id||null, updated_at:new Date().toISOString()}).eq('id',existing.id)
+        sb.from('payment_requests').update({amount:total, description:description, unit:unit, user_id:job.clientUserId||existing.user_id||null, work_order_id:woNum||existing.work_order_id||null, updated_at:new Date().toISOString()}).eq('id',existing.id)
         .then(function(upd){
           if(upd.error){ alert('Error: '+(upd.error.message||'')); return; }
           alert('Invoice updated to '+fmt$(total));
@@ -3367,6 +3368,18 @@ function openIncomingLink(reqId) {
     + (req.address ? '\nAddress: ' + req.address : '')
     + (req.unit ? '\nUnit: ' + req.unit : '');
 
+  // Pre-fill payment amount from the booking's agreed price (cleaning/service orders carry price_total from portal)
+  // Falls back to hs_booking_data.price for Hostfully/portal-booked cleanings. Admin can still override.
+  var amtEl = document.getElementById('il-amount');
+  if (amtEl) {
+    var prefillAmt = parseFloat(req.price_total);
+    if (!prefillAmt && req.hs_booking_data) {
+      prefillAmt = parseFloat(req.hs_booking_data.price || req.hs_booking_data.total || 0);
+    }
+    if (!prefillAmt && req.price) prefillAmt = parseFloat(req.price);
+    amtEl.value = (prefillAmt && prefillAmt > 0) ? prefillAmt.toFixed(2) : '';
+  }
+
   // Populate property search and auto-match from request address OR matched unit
   document.getElementById('il-prop-search').value = '';
   document.getElementById('il-prop-id').value = '';
@@ -3449,6 +3462,16 @@ function saveIncomingLink() {
   if (!propId) { alert('Select a property.'); return; }
   if (!title) { alert('Enter a job title.'); return; }
 
+  // Resolve the client's unit number (how the portal queries payment_requests).
+  // Priority: selected unit dropdown → request.unit → matched PropDesk unit apt.
+  var selUnitId = +(document.getElementById('il-unit') || {}).value || null;
+  var clientUnitStr = '';
+  if (selUnitId && typeof data !== 'undefined' && Array.isArray(data)) {
+    var selU = data.find(function(u){ return u.id === selUnitId; });
+    if (selU) clientUnitStr = String(selU.apt || '').trim();
+  }
+  if (!clientUnitStr && req.unit) clientUnitStr = String(req.unit).trim();
+
   // Create work order
   var prop = getProp(propId);
   var job = {
@@ -3468,6 +3491,7 @@ function saveIncomingLink() {
     clientPreferredComm: req.preferred_comm || 'sms',
     clientAddress: req.address || '',
     clientUserId: req.user_id || null,
+    clientUnit: clientUnitStr || '',
     hours: [], expenses: [], photos: [],
     sourceRequestId: reqId,
     servicePrice: chargeAmount > 0 ? chargeAmount : null,
@@ -3487,9 +3511,12 @@ function saveIncomingLink() {
     // Create payment request if amount was set
     if (chargeAmount > 0) {
       var payDesc = 'WO ' + job.woNum + ' — ' + (prop ? prop.name : 'Property') + '\n' + title;
+      // Store unit as the client's actual unit number (e.g. "207") so portal's unit=eq.{USER.unit}
+      // query finds it. Fall back to property name only if no unit is known.
+      var payUnit = clientUnitStr || (prop ? prop.name : '');
       sb.from('payment_requests').insert([{
         id: crypto.randomUUID(),
-        unit: prop ? prop.name : '',
+        unit: payUnit,
         user_id: req.user_id || null,
         amount: chargeAmount,
         status: 'pending',
