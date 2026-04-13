@@ -6598,25 +6598,41 @@ function _normalizeAddr(s) {
     .replace(/[.,#]/g, '').replace(/\s+/g, ' ');
 }
 
-// Find the INNAGO property name that best matches a given address
-function _matchInnagoProperty(addr) {
-  if (!addr) return null;
-  const norm = _normalizeAddr(addr);
-  // Exact match first
-  const exact = INNAGO_TENANTS.find(t => t.property === addr);
-  if (exact) return exact.property;
-  // Normalized match
+// Find the INNAGO property name that best matches a given address or apt number
+function _matchInnagoProperty(addr, aptNum) {
   const innagoProps = [...new Set(INNAGO_TENANTS.map(t => t.property))];
-  const match = innagoProps.find(p => _normalizeAddr(p) === norm);
-  if (match) return match;
-  // Partial match (one contains the other)
-  const partial = innagoProps.find(p => _normalizeAddr(p).includes(norm) || norm.includes(_normalizeAddr(p)));
-  return partial || null;
+
+  // 1. Exact address match
+  if (addr) {
+    const exact = innagoProps.find(p => p === addr);
+    if (exact) return exact;
+    // Normalized match (Rd→Road, Ave→Avenue)
+    const norm = _normalizeAddr(addr);
+    const normMatch = innagoProps.find(p => _normalizeAddr(p) === norm);
+    if (normMatch) return normMatch;
+    // Partial match
+    const partial = innagoProps.find(p => _normalizeAddr(p).includes(norm) || norm.includes(_normalizeAddr(p)));
+    if (partial) return partial;
+  }
+
+  // 2. Apt number lookup — find which INNAGO property this unit belongs to
+  if (aptNum) {
+    const tenant = INNAGO_TENANTS.find(t => t.unitNum === aptNum || t.unitNum === String(aptNum));
+    if (tenant) return tenant.property;
+    // Also check leases
+    const lease = INNAGO_LEASES.find(l => l.unit === aptNum || l.unit === String(aptNum));
+    if (lease) return lease.property;
+  }
+
+  return null;
 }
 
 function openPropertyDetail(propertyName) {
+  // Find the property record to get apt number for fallback matching
+  const propRec = propertiesData.find(p => (p.address || p.name || '') === propertyName);
+  const aptNum = propRec ? (propRec.apt || propRec.internal_apt || propRec.name) : propertyName;
   // Match to INNAGO property name for LT data
-  const innagoName = _matchInnagoProperty(propertyName) || propertyName;
+  const innagoName = _matchInnagoProperty(propertyName, aptNum) || propertyName;
   _pdCurrentProperty = innagoName;
 
   // Hide all pages, show property detail
@@ -6630,9 +6646,10 @@ function openPropertyDetail(propertyName) {
   const hasLT = ltTenants.length > 0;
   const hasST = propUnits.some(u => u.type === 'short-stay');
 
-  // Set header
-  document.getElementById('pdTitle').textContent = innagoName || propertyName;
-  const propData = propertiesData.find(p => p.name === propertyName || p.address === propertyName || p.apt === propertyName || p.address === innagoName);
+  // Set header — show building name + unit if applicable
+  const displayTitle = innagoName !== propertyName ? innagoName + (aptNum && aptNum !== innagoName ? ' | Unit ' + aptNum : '') : propertyName;
+  document.getElementById('pdTitle').textContent = displayTitle;
+  const propData = propRec || propertiesData.find(p => p.name === propertyName || p.address === propertyName || p.apt === propertyName || p.address === innagoName);
   const addr = propData ? [propData.city, propData.state].filter(Boolean).join(', ') : '';
   document.getElementById('pdSubtitle').textContent = addr || 'Property Details';
 
@@ -6652,6 +6669,13 @@ function openPropertyDetail(propertyName) {
 
   if (_pdCurrentView === 'lt') {
     renderPDLongTerm(innagoName);
+    // If user clicked a specific unit (not a building), auto-open that unit's detail
+    if (aptNum && aptNum !== innagoName) {
+      const unitIdx = _pdUnitsData.findIndex(u => u.unit === aptNum || u.unit === String(aptNum));
+      if (unitIdx >= 0) {
+        setTimeout(() => openPDUnitDetail(unitIdx), 100);
+      }
+    }
   }
 }
 
