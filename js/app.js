@@ -4610,7 +4610,7 @@ function filterMTMApps() {
       <td>${a.applied}</td>
       <td>${statusBadge}</td>
       <td>${screenBadge}</td>
-      <td><button class="mtm-btn" onclick="alert('Review application for ${a.name}\\n\\nPhone: ${a.phone}\\nAddress: ${a.address}\\nMove-in: ${a.move_in}')">Review</button></td>
+      <td><button class="mtm-btn" onclick="openAppReviewModal('${a.id}')">Review</button></td>
     </tr>`;
   }).join('');
 }
@@ -6946,6 +6946,238 @@ function copyApplicationUrl() {
     document.execCommand('copy');
     showToast('URL copied!');
   });
+}
+
+// ── Application Review Modal ──
+var _reviewAppId = null;
+
+function openAppReviewModal(appId) {
+  var app = _liveApplications.find(a => a.id === appId);
+  if (!app) { showToast('Application not found'); return; }
+  _reviewAppId = appId;
+
+  // Avatar initials
+  var initials = (app.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('arAvatar').textContent = initials;
+  document.getElementById('arName').textContent = app.name || '—';
+  document.getElementById('arAddress').textContent = app.address || '—';
+
+  // Info fields
+  document.getElementById('arApplied').textContent = app.applied || '—';
+  document.getElementById('arMoveIn').textContent = app.move_in ? new Date(app.move_in).toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'}) : '—';
+  document.getElementById('arDOB').textContent = app.birth_date ? new Date(app.birth_date).toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'}) : '—';
+  document.getElementById('arScreening').textContent = app.screening === 'full' ? 'Full Screening' : app.screening === 'criminal_credit' ? 'Criminal + Credit' : 'Basic (Application Only)';
+  document.getElementById('arProperty').textContent = app.property || '—';
+  document.getElementById('arUnit').textContent = app.unit || '—';
+
+  // Contact
+  document.getElementById('arEmail').textContent = app.email || '—';
+  document.getElementById('arPhone').textContent = app.phone || '—';
+
+  // Full address
+  var raw = app.raw || {};
+  var addrParts = [raw.address_line1, raw.city, raw.state, raw.zip].filter(Boolean);
+  document.getElementById('arFullAddress').textContent = addrParts.length ? addrParts.join(', ') : '—';
+
+  // Status banner
+  var banner = document.getElementById('arStatusBanner');
+  if (app.status === 'approved') {
+    banner.style.display = 'block';
+    banner.style.background = '#e8f5e9';
+    banner.style.color = '#2e7d32';
+    banner.textContent = 'This application has been approved';
+  } else if (app.status === 'denied') {
+    banner.style.display = 'block';
+    banner.style.background = '#ffebee';
+    banner.style.color = '#c62828';
+    banner.textContent = 'This application has been denied';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // Show/hide approve/reject buttons based on status
+  var approveBtn = document.getElementById('arApproveBtn');
+  var rejectBtn = document.getElementById('arRejectBtn');
+  if (app.status === 'approved' || app.status === 'denied') {
+    approveBtn.style.display = 'none';
+    rejectBtn.style.display = 'none';
+  } else {
+    approveBtn.style.display = '';
+    rejectBtn.style.display = '';
+  }
+
+  // Screening reports placeholders
+  var level = app.screening || 'basic';
+  document.getElementById('arBgReport').textContent = (level === 'full' || level === 'criminal_credit') ? 'Pending' : 'Not ordered';
+  document.getElementById('arCreditReport').textContent = (level === 'full' || level === 'criminal_credit') ? 'Pending' : 'Not ordered';
+  document.getElementById('arEvictReport').textContent = level === 'full' ? 'Pending' : 'Not ordered';
+  document.getElementById('arIncomeReport').textContent = level === 'full' ? 'Pending' : 'Not ordered';
+
+  document.getElementById('appReviewOverlay').style.display = 'flex';
+}
+
+function closeAppReview() {
+  document.getElementById('appReviewOverlay').style.display = 'none';
+  _reviewAppId = null;
+}
+
+async function approveApplication() {
+  if (!_reviewAppId) return;
+  var app = _liveApplications.find(a => a.id === _reviewAppId);
+  if (!app) return;
+
+  var btn = document.getElementById('arApproveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span> Approving...';
+
+  try {
+    // Update status in Supabase
+    var resp = await fetch(SUPA_URL + '/rest/v1/rental_applications?id=eq.' + _reviewAppId, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ status: 'approved', updated_at: new Date().toISOString() })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    // Send approval email
+    await _sendAppDecisionEmail(app, 'approved');
+
+    showToast('Application approved for ' + app.name);
+    closeAppReview();
+    renderMTMApps(); // Refresh list
+  } catch(e) {
+    console.error('Approve failed:', e);
+    showToast('Failed to approve: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg>Approve';
+  }
+}
+
+async function rejectApplication() {
+  if (!_reviewAppId) return;
+  var app = _liveApplications.find(a => a.id === _reviewAppId);
+  if (!app) return;
+
+  if (!confirm('Are you sure you want to reject the application for ' + app.name + '?')) return;
+
+  var btn = document.getElementById('arRejectBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span> Rejecting...';
+
+  try {
+    // Update status in Supabase
+    var resp = await fetch(SUPA_URL + '/rest/v1/rental_applications?id=eq.' + _reviewAppId, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ status: 'denied', updated_at: new Date().toISOString() })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    // Send rejection email
+    await _sendAppDecisionEmail(app, 'denied');
+
+    showToast('Application rejected for ' + app.name);
+    closeAppReview();
+    renderMTMApps(); // Refresh list
+  } catch(e) {
+    console.error('Reject failed:', e);
+    showToast('Failed to reject: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Reject';
+  }
+}
+
+function _buildDecisionEmailHTML(app, decision) {
+  var isApproved = decision === 'approved';
+  var headerColor = isApproved ? '#4caf50' : '#f44336';
+  var heading = isApproved ? 'Congratulations!' : 'Application Update';
+  var message = isApproved
+    ? 'We are pleased to inform you that your rental application has been <strong>approved</strong>! Please contact our office at your earliest convenience to discuss next steps and finalize your lease agreement.'
+    : 'Thank you for your interest in renting with us. After careful review of your application, we regret to inform you that we are unable to approve your application at this time. We appreciate your understanding and wish you the best in your search.';
+
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+    + '<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0;">'
+    + '<tr><td align="center">'
+    + '<table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">'
+    // Header
+    + '<tr><td style="background:linear-gradient(135deg,#1a2874,#2d4494);padding:24px 32px;text-align:center;">'
+    + '<div style="font-size:24px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">W</div>'
+    + '<div style="font-size:18px;font-weight:600;color:#ffffff;margin-top:6px;">Willow Partnership LLC</div>'
+    + '</td></tr>'
+    // Status bar
+    + '<tr><td style="background:' + headerColor + ';padding:12px 32px;text-align:center;">'
+    + '<div style="font-size:16px;font-weight:700;color:#ffffff;">' + heading + '</div>'
+    + '</td></tr>'
+    // Body
+    + '<tr><td style="padding:32px 36px;">'
+    + '<h2 style="color:#333;font-size:20px;margin:0 0 6px;">Dear ' + (app.name || 'Applicant') + ',</h2>'
+    + '<p style="color:#555;font-size:15px;line-height:1.6;margin:16px 0;">' + message + '</p>'
+    + (isApproved
+      ? '<div style="background:#e8f5e9;border-radius:8px;padding:16px 20px;margin:20px 0;">'
+        + '<div style="font-size:14px;font-weight:600;color:#2e7d32;margin-bottom:6px;">Next Steps:</div>'
+        + '<div style="font-size:14px;color:#555;line-height:1.6;">Please contact our office to schedule a time to review and sign your lease agreement.</div>'
+        + '</div>'
+      : '')
+    + '<div style="background:#f5f5f5;border-radius:8px;padding:14px 18px;margin:20px 0;">'
+    + '<div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Property</div>'
+    + '<div style="font-size:14px;font-weight:600;color:#333;">' + (app.property || '—') + (app.unit && app.unit !== '—' ? ' — Unit ' + app.unit : '') + '</div>'
+    + '</div>'
+    + '</td></tr>'
+    // Footer
+    + '<tr><td style="background:#f9f9f9;padding:20px 36px;border-top:1px solid #eee;text-align:center;">'
+    + '<div style="font-size:14px;font-weight:600;color:#333;">Willow Partnership LLC</div>'
+    + '<div style="font-size:13px;color:#888;margin-top:4px;">(267) 865-0001 &nbsp;|&nbsp; general@willowpa.com</div>'
+    + '</td></tr>'
+    + '</table>'
+    + '</td></tr></table>'
+    + '</body></html>';
+}
+
+async function _sendAppDecisionEmail(app, decision) {
+  if (!app.email) return;
+  var isApproved = decision === 'approved';
+  var subject = isApproved
+    ? 'Your Rental Application Has Been Approved — Willow Partnership LLC'
+    : 'Rental Application Update — Willow Partnership LLC';
+  var htmlBody = _buildDecisionEmailHTML(app, decision);
+
+  try {
+    var payload = { to: app.email, subject: subject, html: htmlBody, from_name: 'Willow Partnership LLC' };
+    var resp = await fetch(SUPA_URL + '/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPA_KEY },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      // Fallback to mailto
+      _decisionEmailFallback(app, decision);
+    }
+  } catch(e) {
+    _decisionEmailFallback(app, decision);
+  }
+}
+
+function _decisionEmailFallback(app, decision) {
+  var isApproved = decision === 'approved';
+  var subject = encodeURIComponent(isApproved
+    ? 'Your Rental Application Has Been Approved — Willow Partnership LLC'
+    : 'Rental Application Update — Willow Partnership LLC');
+  var body = encodeURIComponent(isApproved
+    ? 'Dear ' + app.name + ',\n\nCongratulations! We are pleased to inform you that your rental application has been approved.\n\nPlease contact our office at your earliest convenience to discuss next steps and finalize your lease agreement.\n\nProperty: ' + app.property + (app.unit !== '—' ? ' — Unit ' + app.unit : '') + '\n\n—\nWillow Partnership LLC\n(267) 865-0001\ngeneral@willowpa.com'
+    : 'Dear ' + app.name + ',\n\nThank you for your interest in renting with us. After careful review of your application, we regret to inform you that we are unable to approve your application at this time.\n\nWe appreciate your understanding and wish you the best in your search.\n\nProperty: ' + app.property + (app.unit !== '—' ? ' — Unit ' + app.unit : '') + '\n\n—\nWillow Partnership LLC\n(267) 865-0001\ngeneral@willowpa.com'
+  );
+  window.open('mailto:' + app.email + '?subject=' + subject + '&body=' + body, '_blank');
 }
 
 function renderPDLongTerm(propertyName) {
