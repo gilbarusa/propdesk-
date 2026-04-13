@@ -3289,14 +3289,33 @@ function openIncomingLink(reqId) {
     + (req.address ? '<br>📍 ' + FT_esc(req.address) + (req.unit ? ' (Unit ' + FT_esc(req.unit) + ')' : '') : '')
     + (req.preferred_block ? '<br>📅 ' + FT_esc(req.preferred_block) : '');
 
-  // Populate units dropdown from PropDesk data
+  // Populate units dropdown from PropDesk data — auto-select the unit from the request
   var unitSel = document.getElementById('il-unit');
   unitSel.innerHTML = '<option value="">Select unit...</option>';
+  var matchedUnit = null;
   if (typeof allUnits !== 'undefined' && Array.isArray(allUnits)) {
+    // Try to locate the unit matching the request's unit/apt number
+    var reqUnitStr = String(req.unit || '').trim().toLowerCase();
+    var reqName = String(req.name || '').trim().toLowerCase();
+    if (reqUnitStr) {
+      matchedUnit = allUnits.find(function(u) {
+        var aptStr = String(u.apt || '').trim().toLowerCase();
+        var nameStr = String(u.name || '').trim().toLowerCase();
+        return aptStr === reqUnitStr || nameStr === reqUnitStr;
+      });
+    }
+    // Fallback: match by tenant/resident name
+    if (!matchedUnit && reqName) {
+      matchedUnit = allUnits.find(function(u) {
+        var uName = String(u.name || '').trim().toLowerCase();
+        return uName && uName === reqName;
+      });
+    }
     allUnits.forEach(function(u) {
       var opt = document.createElement('option');
       opt.value = u.id;
       opt.textContent = (u.apt || u.name || 'Unit ' + u.id) + (u.owner ? ' — ' + u.owner : '');
+      if (matchedUnit && u.id === matchedUnit.id) opt.selected = true;
       unitSel.appendChild(opt);
     });
   }
@@ -3308,40 +3327,50 @@ function openIncomingLink(reqId) {
     + (req.address ? '\nAddress: ' + req.address : '')
     + (req.unit ? '\nUnit: ' + req.unit : '');
 
-  // Populate property search and auto-match from request address
+  // Populate property search and auto-match from request address OR matched unit
   document.getElementById('il-prop-search').value = '';
   document.getElementById('il-prop-id').value = '';
   var sel = document.getElementById('il-prop-selected'); if (sel) sel.style.display = 'none';
 
   // Try to auto-match property from the request address/unit
   var propMatched = false;
-  if (req.address && FT_state.properties && FT_state.properties.length) {
-    var addr = req.address.toLowerCase().replace(/[.,#]/g, '').trim();
-    var matched = FT_state.properties.find(function(p) {
-      if (!p.address) return false;
-      var pa = p.address.toLowerCase().replace(/[.,#]/g, '').trim();
-      if (pa === addr) return true;
-      if (addr.indexOf(pa) >= 0 || pa.indexOf(addr) >= 0) return true;
-      // Match by street number + first word of street name
-      var aParts = addr.split(/\s+/);
-      var pParts = pa.split(/\s+/);
-      if (aParts.length >= 2 && pParts.length >= 2 && aParts[0] === pParts[0] && aParts[1] === pParts[1]) return true;
-      return false;
-    });
-    if (matched) {
-      selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', matched.id);
-      propMatched = true;
-    }
-    // If no address match, try to find the catch-all "USERS" property
-    if (!propMatched) {
-      var usersProp = FT_state.properties.find(function(p) { return p.name === 'USERS'; });
-      if (usersProp) {
-        selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', usersProp.id);
+  var hints = [];
+  if (req.address) hints.push(req.address);
+  if (req.property) hints.push(req.property);
+  // If we matched a unit, use its owner field (property name) as a property hint
+  if (matchedUnit && matchedUnit.owner) hints.push(matchedUnit.owner);
+
+  if (hints.length && FT_state.properties && FT_state.properties.length) {
+    for (var hi = 0; hi < hints.length && !propMatched; hi++) {
+      var addr = String(hints[hi] || '').toLowerCase().replace(/[.,#]/g, '').trim();
+      if (!addr) continue;
+      var matched = FT_state.properties.find(function(p) {
+        var pa = String(p.address || '').toLowerCase().replace(/[.,#]/g, '').trim();
+        var pn = String(p.name || '').toLowerCase().replace(/[.,#]/g, '').trim();
+        if (pa && (pa === addr || addr.indexOf(pa) >= 0 || pa.indexOf(addr) >= 0)) return true;
+        if (pn && (pn === addr || addr.indexOf(pn) >= 0 || pn.indexOf(addr) >= 0)) return true;
+        // Match by street number + first word of street name
+        var aParts = addr.split(/\s+/);
+        var pParts = (pa || pn).split(/\s+/);
+        if (aParts.length >= 2 && pParts.length >= 2 && aParts[0] === pParts[0] && aParts[1] === pParts[1]) return true;
+        return false;
+      });
+      if (matched) {
+        selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', matched.id);
         propMatched = true;
-      } else {
-        document.getElementById('il-prop-search').value = req.address;
-        ilPropSearch();
       }
+    }
+  }
+
+  // If still no property match, try the catch-all "USERS" property
+  if (!propMatched) {
+    var usersProp = FT_state.properties && FT_state.properties.find(function(p) { return p.name === 'USERS'; });
+    if (usersProp) {
+      selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', usersProp.id);
+      propMatched = true;
+    } else if (hints.length) {
+      document.getElementById('il-prop-search').value = hints[0];
+      ilPropSearch();
     }
   }
 
