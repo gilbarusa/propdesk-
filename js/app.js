@@ -2471,6 +2471,9 @@ let currentPropertyFilter = 'all';
 
 function switchModule(moduleId, tabEl) {
   currentModule = moduleId;
+  // Hide property detail pages if open
+  var pdPage = document.getElementById('page-property-detail'); if(pdPage) pdPage.style.display = 'none';
+  var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
   // Update module tabs
   document.querySelectorAll('#moduleBar .module-tab').forEach(t => t.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
@@ -2503,6 +2506,9 @@ function switchModule(moduleId, tabEl) {
 
 let _ftInitialized = false;
 function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter, hsSec) {
+  // Hide property detail pages if open
+  var pdPage = document.getElementById('page-property-detail'); if(pdPage) pdPage.style.display = 'none';
+  var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
   // Update sub-tab active state
   if (tabEl) {
     tabEl.parentElement.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
