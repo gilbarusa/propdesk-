@@ -1917,6 +1917,34 @@ function editProp(id){ var p=getProp(id); populateSelect(document.getElementById
 function saveProp(){ var name=document.getElementById('prop-name').value.trim(); if(!name){ alert('Name required.'); return; } var id=document.getElementById('prop-edit-id').value; var svcOnly=!!(document.getElementById('prop-service-only')||{}).checked; var pdLink=svcOnly?null:((document.getElementById('prop-pd-link')||{}).value||null); var obj={name:name,ownerId:+document.getElementById('prop-owner').value||null,defaultRate:parseFloat(document.getElementById('prop-rate').value)||null,rateType:document.getElementById('prop-rate-type').value,address:document.getElementById('prop-address').value.trim(),unit:document.getElementById('prop-unit').value.trim(),city:document.getElementById('prop-city').value.trim(),pdApt:pdLink,serviceOnly:svcOnly}; if(id) Object.assign(FT_state.properties.find(function(p){ return p.id===+id; }),obj); else{ obj.id=FT_uid(); FT_state.properties.push(obj); } FT_save(); FT_closeModal('ft-modal-prop'); renderProps(); }
 function deleteProp(id){ if(!confirm('Delete?')) return; FT_state.properties=FT_state.properties.filter(function(p){ return p.id!==+id; }); FT_save(); renderProps(); }
 
+// Ensure a property with the given name exists in TechTrack; create it if missing. Returns the property.
+// Used by openIncomingLink so incoming bookings never fail to match a property.
+function ensureProperty(name, address){
+  if(!name) return null;
+  var trimmed = String(name).trim();
+  if(!trimmed) return null;
+  var lower = trimmed.toLowerCase();
+  var existing = FT_state.properties.find(function(p){
+    return String(p.name||'').trim().toLowerCase() === lower;
+  });
+  if(existing) return existing;
+  var newProp = {
+    id: FT_uid(),
+    name: trimmed,
+    ownerId: null,
+    defaultRate: null,
+    rateType: 'flat',
+    address: address || '',
+    unit: '',
+    city: '',
+    pdApt: null,
+    serviceOnly: true  // Auto-created properties are service-only by default
+  };
+  FT_state.properties.push(newProp);
+  FT_save();
+  return newProp;
+}
+
 //  PROPERTY DETAIL PAGE
 var FT_detailPropId = null;
 
@@ -3374,15 +3402,26 @@ function openIncomingLink(reqId) {
     }
   }
 
-  // If still no property match, try the catch-all "USERS" property
+  // If still no property match, auto-create one so assignment never fails:
+  //   1. If we matched a unit, use its owner field as the property name (creates e.g. "ERA LT" on first use)
+  //   2. Else if the request has address/property hints, create from those
+  //   3. Else fall back to a universal "USERS" catch-all property
   if (!propMatched) {
-    var usersProp = FT_state.properties && FT_state.properties.find(function(p) { return p.name === 'USERS'; });
-    if (usersProp) {
-      selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', usersProp.id);
-      propMatched = true;
+    var autoName = null, autoAddr = '';
+    if (matchedUnit && matchedUnit.owner) {
+      autoName = String(matchedUnit.owner).trim();
+      autoAddr = String(matchedUnit.address || req.address || '').trim();
     } else if (hints.length) {
-      document.getElementById('il-prop-search').value = hints[0];
-      ilPropSearch();
+      autoName = String(hints[0]).trim();
+      autoAddr = String(req.address || '').trim();
+    } else {
+      autoName = 'USERS';
+    }
+    var autoProp = ensureProperty(autoName, autoAddr);
+    if (autoProp) {
+      selectPropAC('il-prop-search', 'il-ac-list', 'il-prop-id', 'il-prop-selected', autoProp.id);
+      propMatched = true;
+      renderProps && (function(){ try { renderProps(); } catch(e){} })();  // Refresh props list UI if open
     }
   }
 
