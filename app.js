@@ -1829,8 +1829,143 @@ function openDetail(id){const r=data.find(x=>x.id===id);if(!r)return;detailId=id
   btns.push(`<button class="btn btn-ghost btn-sm" onclick="deleteUnitRecord(${id})" style="color:var(--red);border-color:var(--red-border);">🗑 Delete</button>`);
   // Service / Appliances link to TechTrack
   btns.push(`<button class="btn btn-secondary btn-sm" onclick="goToFTPropertyDetail('${(r.apt||'').replace(/'/g,"\\'")}')" style="width:100%;margin-top:4px;justify-content:center;font-weight:600;background:linear-gradient(135deg,rgba(79,196,207,.12),rgba(124,58,237,.08));border-color:rgba(79,196,207,.3)">🔧 Service History &amp; Appliances</button>`);
-  document.getElementById('dActions').innerHTML=btns.join('');document.getElementById('detailOverlay').classList.add('open');}
+  document.getElementById('dActions').innerHTML=btns.join('');WPA_loadDetailParking(r);document.getElementById('detailOverlay').classList.add('open');}
 function closeDetail(){document.getElementById('detailOverlay').classList.remove('open');detailId=null;}
+
+/* ── Parking section on short-term detail card ── */
+function WPA_loadDetailParking(r) {
+  var box = document.getElementById('dParking');
+  var rows = document.getElementById('dParkingRows');
+  if (!box || !rows) return;
+  box.style.display = '';
+  rows.innerHTML = '<div style="color:var(--text3);font-size:11px;">Loading…</div>';
+
+  var nameEnc = encodeURIComponent((r.name || '').trim());
+  var aptEnc = encodeURIComponent((r.apt || '').trim());
+
+  var buildingsP = pkSB('parking_buildings', 'select=id,name&active=eq.true');
+  var plansP = pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
+  var bookingsP = pkSB('parking_bookings', 'select=*&or=(unit.eq.' + aptEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5');
+
+  Promise.all([buildingsP, plansP, bookingsP]).then(function(results) {
+    var buildings = results[0] || [];
+    var plans = results[1] || [];
+    var bookings = results[2] || [];
+    var bldMap = {};
+    buildings.forEach(function(b) { bldMap[b.id] = b.name; });
+    var html = '';
+
+    // Match unit/property to a building
+    var unitText = (r.apt || '') + ' ' + (r.owner || '') + ' ' + (r.note || '');
+    var matchedBldId = WPA_matchBuildingId(buildings, unitText);
+
+    // Always show plan selector
+    var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
+    var hasSelection = !!currentPlanId;
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+    html += '<span style="font-size:11px;color:var(--text2);font-weight:600;">Plan:</span>';
+    html += '<select id="dPkPlanAssign" onchange="WPA_assignDetailPlan(this)" data-name="' + _esc(r.name || '') + '" data-unit="' + _esc(r.apt || '') + '" style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;">';
+    plans.forEach(function(p) {
+      var bldName = bldMap[p.building_id] || '';
+      var label = _esc(p.name) + (bldName ? ' (' + _esc(bldName) + ')' : '') + (p.is_default ? ' ★' : '');
+      var sel = '';
+      if (p.id === currentPlanId) { sel = ' selected'; }
+      else if (!hasSelection && p.is_default && matchedBldId && p.building_id === matchedBldId) { sel = ' selected'; hasSelection = true; }
+      html += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
+    });
+    // Fallback: if no building matched, pick first default
+    if (!hasSelection) {
+      var fbPlan = plans.find(function(p) { return p.is_default; });
+      // Will just show first option selected by browser default
+    }
+    html += '</select></div>';
+
+    if (bookings.length) {
+      bookings.forEach(function(bk) {
+        var planLabel = bk.rate_plan_name || bk.plan || 'Default';
+        var dates = (bk.start_date || '?') + ' → ' + (bk.end_date || '?');
+        html += '<div style="font-size:11px;color:var(--text3);padding:4px 0;">';
+        html += _esc(bk.vehicle || '') + ' ' + _esc(bk.plate || '') + ' · ' + dates + ' · $' + parseFloat(bk.amount || 0).toFixed(2) + ' · <em>' + _esc(planLabel) + '</em>';
+        html += '</div>';
+      });
+    }
+    rows.innerHTML = html;
+  }).catch(function() { rows.innerHTML = ''; });
+}
+
+/* Assign plan from short-term detail */
+function WPA_assignDetailPlan(sel) {
+  var planId = sel.value;
+  if (!planId) return;
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' ★', '');
+  var name = sel.getAttribute('data-name') || '';
+  var unit = sel.getAttribute('data-unit') || '';
+  var nameEnc = encodeURIComponent(name.trim());
+  var unitEnc = encodeURIComponent(unit.trim());
+  pkSB('parking_bookings', 'select=id&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&limit=1').then(function(bks) {
+    if (bks && bks.length) {
+      return pkSB('parking_bookings', 'id=eq.' + bks[0].id, 'PATCH', {
+        rate_plan_id: planId, rate_plan_name: planName, plan: planName
+      }).then(function() { toast('Parking plan → ' + planName, 'success'); });
+    } else {
+      toast('Plan set to ' + planName + ' (no active booking)', 'info');
+    }
+  }).catch(function(e) { alert('Failed: ' + e.message); });
+}
+
+/* ── Switch plan on a parking booking from detail card ── */
+function WPA_switchBookingPlan(bookingId, buildingId) {
+  var sel = document.getElementById('dPkPlan_' + bookingId);
+  if (!sel) return;
+  var planId = sel.value;
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' (default)', '');
+
+  // Get plan details to recalculate price
+  pkSB('parking_rate_plans', 'select=*&id=eq.' + planId).then(function(plans) {
+    if (!plans || !plans.length) return;
+    var plan = plans[0];
+
+    // Get the booking to know the dates
+    return pkSB('parking_bookings', 'select=*&id=eq.' + bookingId).then(function(bks) {
+      if (!bks || !bks.length) return;
+      var bk = bks[0];
+      var start = new Date(bk.start_date + 'T00:00:00');
+      var end = new Date(bk.end_date + 'T00:00:00');
+      var days = Math.max(1, Math.round((end - start) / 86400000));
+
+      // Calculate new amount
+      var billableDays = Math.max(0, days - (plan.free_days || 0));
+      var amount = billableDays * (plan.per_day || 0);
+      if (plan.minimum_cost && amount < plan.minimum_cost) amount = plan.minimum_cost;
+
+      // Check bulk packages
+      var pkgs = plan.packages || [];
+      pkgs.sort(function(a, b) { return b.days - a.days; });
+      for (var i = 0; i < pkgs.length; i++) {
+        if (days >= pkgs[i].days && pkgs[i].price < amount) {
+          amount = pkgs[i].price;
+          break;
+        }
+      }
+      amount = Math.round(amount * 100) / 100;
+
+      // Update the booking
+      return pkSB('parking_bookings', 'id=eq.' + bookingId, 'PATCH', {
+        rate_plan_id: planId,
+        rate_plan_name: planName,
+        amount: amount,
+        plan: planName
+      }).then(function() {
+        toast('Plan switched to ' + planName + ' — $' + amount.toFixed(2), 'success');
+        // Refresh the parking section
+        if (detailId) {
+          var r = data.find(function(x) { return x.id === detailId; });
+          if (r) WPA_loadDetailParking(r);
+        }
+      });
+    });
+  }).catch(function(e) { alert('Failed: ' + e.message); });
+}
 async function saveDetailNote(){if(!detailId)return;const idx=data.findIndex(x=>x.id===detailId);if(idx>=0){data[idx].note=document.getElementById('dNote').value;await save(data[idx]);renderTable();}}
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
@@ -1940,145 +2075,353 @@ function WPA_notifyMaintenanceComplete(tenant, issueDesc){
   WPA_notify(tenant, msg, {subject:'Maintenance Complete — WillowPA'});
 }
 // ═══════════════════════════════════════════════════════════════
-// MAIN SETTINGS — Section Toggle, API Keys, Messaging Config
+// PORTAL USERS MODULE
 // ═══════════════════════════════════════════════════════════════
 
+var PORTAL_API = 'https://app.willowpa.com/api/';
+var PORTAL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
+var _portalUsers = [];
+
+async function WPA_portalRefresh() {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-users', {
+      headers: { 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN }
+    });
+    const data = await res.json();
+    if (data.error) { console.error('Portal users error:', data.error); return; }
+    _portalUsers = data.users || [];
+    WPA_portalRenderStats();
+    WPA_portalFilterUsers();
+    // Update badge
+    const pending = _portalUsers.filter(u => u.status === 'pending').length;
+    const badge = document.getElementById('portalBadge');
+    if (badge) {
+      badge.textContent = pending;
+      badge.style.display = pending > 0 ? '' : 'none';
+    }
+  } catch (e) { console.error('Portal fetch error:', e); }
+}
+
+function WPA_portalRenderStats() {
+  const pending = _portalUsers.filter(u => u.status === 'pending').length;
+  const approved = _portalUsers.filter(u => u.status === 'approved').length;
+  const denied = _portalUsers.filter(u => u.status === 'denied').length;
+  document.getElementById('portal-stat-pending').textContent = pending;
+  document.getElementById('portal-stat-approved').textContent = approved;
+  document.getElementById('portal-stat-denied').textContent = denied;
+  document.getElementById('portal-stat-total').textContent = _portalUsers.length;
+}
+
+function WPA_portalFilterUsers() {
+  const q = (document.getElementById('portalSearchUser').value || '').toLowerCase();
+  const statusFilter = document.getElementById('portalFilterStatus').value;
+  const filtered = _portalUsers.filter(u => {
+    if (statusFilter !== 'all' && u.status !== statusFilter) return false;
+    if (q) {
+      const hay = [u.name, u.username, u.address, u.unit, u.phone, u.email].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  const tbody = document.getElementById('portalUsersBody');
+  const noEl = document.getElementById('portalNoUsers');
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    noEl.style.display = '';
+    return;
+  }
+  noEl.style.display = 'none';
+  tbody.innerHTML = filtered.map(u => {
+    const statusColors = { pending: 'background:rgba(255,142,83,.15);color:#d97706', approved: 'background:rgba(76,175,130,.15);color:#256645', denied: 'background:rgba(239,68,68,.15);color:#dc2626' };
+    const statusStyle = statusColors[u.status] || '';
+    const statusLabel = u.status.charAt(0).toUpperCase() + u.status.slice(1);
+    const created = u.created ? new Date(u.created).toLocaleDateString() : '—';
+    let actions = '';
+    if (u.status === 'pending') {
+      actions = `<button onclick="WPA_portalApprove('${u.id}',true)" class="btn-subtle" style="color:var(--green);font-size:11px;padding:4px 8px">✓ Approve</button>` +
+                `<button onclick="WPA_portalApprove('${u.id}',false)" class="btn-subtle" style="color:var(--red);font-size:11px;padding:4px 8px">✗ Deny</button>`;
+    } else if (u.status === 'denied') {
+      actions = `<button onclick="WPA_portalApprove('${u.id}',true)" class="btn-subtle" style="color:var(--green);font-size:11px;padding:4px 8px">✓ Approve</button>`;
+    } else if (u.status === 'approved') {
+      actions = `<button onclick="WPA_portalApprove('${u.id}',false)" class="btn-subtle" style="color:var(--red);font-size:11px;padding:4px 8px">Revoke</button>`;
+    }
+    return `<tr>
+      <td><a href="#" onclick="WPA_portalUserDetail('${u.id}');return false" style="color:var(--accent);text-decoration:underline;cursor:pointer">${u.name || '—'}</a></td>
+      <td><code style="font-size:11px;background:var(--bg2);padding:2px 6px;border-radius:4px">${u.username || '—'}</code></td>
+      <td>${u.address || '—'}</td>
+      <td>${u.unit || '—'}</td>
+      <td>${u.phone || '—'}</td>
+      <td>${u.email || '—'}</td>
+      <td><span style="font-size:11px;padding:2px 8px;border-radius:4px;${statusStyle}">${statusLabel}</span></td>
+      <td>${created}</td>
+      <td style="white-space:nowrap">${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function WPA_portalApprove(userId, approve) {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-approve-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN },
+      body: JSON.stringify({ user_id: userId, approve: approve })
+    });
+    const data = await res.json();
+    if (data.error) { alert('Error: ' + data.error); return; }
+    WPA_portalRefresh();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// ── Portal User Detail View ──
+async function WPA_portalUserDetail(userId) {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-user-detail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN },
+      body: JSON.stringify({ user_id: userId })
+    });
+    const data = await res.json();
+    if (data.error) { alert('Error: ' + data.error); return; }
+
+    const p = data.profile;
+    const mRequests = data.maintenance_requests || [];
+    const pBookings = data.parking_bookings || [];
+
+    // Build maintenance table
+    let maintHTML = '';
+    if (mRequests.length > 0) {
+      maintHTML = `<table class="table" style="font-size:12px;margin-top:8px">
+        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Status</th></tr></thead>
+        <tbody>${mRequests.map(r => `<tr>
+          <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}</td>
+          <td>${r.category || '—'}</td>
+          <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.description || '—'}</td>
+          <td>${r.status || '—'}</td>
+        </tr>`).join('')}</tbody></table>`;
+    } else {
+      maintHTML = '<p style="color:var(--muted);font-size:12px;margin-top:8px">No maintenance requests found</p>';
+    }
+
+    // Build parking table
+    let parkHTML = '';
+    if (pBookings.length > 0) {
+      parkHTML = `<table class="table" style="font-size:12px;margin-top:8px">
+        <thead><tr><th>Date</th><th>Building</th><th>Vehicle</th><th>Plate</th><th>Status</th></tr></thead>
+        <tbody>${pBookings.map(b => `<tr>
+          <td>${b.start_date || '—'}</td>
+          <td>${b.building_name || '—'}</td>
+          <td>${[b.car_color, b.car_brand, b.car_model].filter(Boolean).join(' ') || '—'}</td>
+          <td>${b.license_plate || '—'}</td>
+          <td>${b.status || '—'}</td>
+        </tr>`).join('')}</tbody></table>`;
+    } else {
+      parkHTML = '<p style="color:var(--muted);font-size:12px;margin-top:8px">No parking bookings found</p>';
+    }
+
+    // Show modal
+    const modal = document.createElement('div');
+    modal.id = 'portalUserDetailModal';
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:9999';
+    modal.innerHTML = `<div style="background:var(--bg);border-radius:12px;padding:24px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h3 style="margin:0">Customer Detail</h3>
+        <button onclick="document.getElementById('portalUserDetailModal').remove()" style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text)">&times;</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:13px;margin-bottom:20px;padding:12px;background:var(--bg2);border-radius:8px">
+        <div><strong>Name:</strong> ${p.name || '—'}</div>
+        <div><strong>Username:</strong> <code>${p.username || '—'}</code></div>
+        <div><strong>Address:</strong> ${p.address || '—'}</div>
+        <div><strong>Unit:</strong> ${p.unit || '—'}</div>
+        <div><strong>Phone:</strong> ${p.phone || '—'}</div>
+        <div><strong>Email:</strong> ${p.email || '—'}</div>
+        <div><strong>Type:</strong> ${p.user_type || '—'}</div>
+        <div><strong>Status:</strong> ${p.status || '—'}</div>
+        <div><strong>Registered:</strong> ${p.created_at ? new Date(p.created_at).toLocaleDateString() : (p.created ? new Date(p.created).toLocaleDateString() : '—')}</div>
+        <div><strong>Approved:</strong> ${p.approved_at ? new Date(p.approved_at).toLocaleDateString() : '—'}</div>
+      </div>
+
+      <h4 style="margin:16px 0 4px">Maintenance Requests (${mRequests.length})</h4>
+      ${maintHTML}
+
+      <h4 style="margin:16px 0 4px">Parking Bookings (${pBookings.length})</h4>
+      ${parkHTML}
+    </div>`;
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  } catch (e) { alert('Error loading user detail: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN SETTINGS — Section Toggle, Centralized Credentials
+// ═══════════════════════════════════════════════════════════════
+
+var WPA_credCache = {};   // in-memory cache of credentials keyed by id
+
 function showSettingsSection(secId) {
-  // Hide all settings sections
-  document.querySelectorAll('.settings-sec').forEach(s => s.style.display = 'none');
-  // Show target
-  const target = document.getElementById('settings-sec-' + secId);
+  document.querySelectorAll('.settings-sec').forEach(function(s) { s.style.display = 'none'; });
+  var target = document.getElementById('settings-sec-' + secId);
   if (target) target.style.display = '';
-  // Populate fields when opening
-  if (secId === 'api-keys') WPA_renderApiKeyStatus();
-  if (secId === 'messaging') WPA_renderMsgStatus();
+  if (secId === 'credentials') WPA_loadCredentials();
 }
 
-// API Keys — These write to FT_state (shared server-side state)
-function WPA_saveApiKey() {
-  const k = (document.getElementById('main-api-key') || {}).value || '';
-  if (typeof setApiKey === 'function') setApiKey(k);
-  WPA_renderApiKeyStatus();
-  toast(k ? 'API key saved' : 'API key cleared', k ? 'success' : '');
-}
-function WPA_saveStripeKey() {
-  const k = (document.getElementById('main-stripe-key') || {}).value || '';
-  if (typeof setStripeKey === 'function') setStripeKey(k);
-  WPA_renderApiKeyStatus();
-  toast(k ? 'Stripe key saved' : 'Stripe key cleared', k ? 'success' : '');
-}
-function WPA_renderApiKeyStatus() {
-  // Anthropic
-  const key = typeof getApiKey === 'function' ? getApiKey() : '';
-  const inp = document.getElementById('main-api-key');
-  const st = document.getElementById('main-api-status');
-  if (inp) inp.value = key;
-  if (st) {
-    if (key) { st.textContent = 'Configured (' + key.length + ' chars)'; st.style.color = 'var(--success)'; }
-    else { st.textContent = 'Not configured — AI features disabled'; st.style.color = 'var(--accent3)'; }
-  }
-  // Also update old FT settings page if it exists
-  if (typeof renderSettingsPage === 'function') renderSettingsPage();
-  // Stripe
-  const sk = typeof getStripeKey === 'function' ? getStripeKey() : '';
-  const sInp = document.getElementById('main-stripe-key');
-  const sSt = document.getElementById('main-stripe-status');
-  if (sInp) sInp.value = sk;
-  if (sSt) {
-    if (sk) { sSt.textContent = 'Configured (' + (sk.startsWith('sk_test') ? 'TEST' : 'LIVE') + ')'; sSt.style.color = sk.startsWith('sk_test') ? 'var(--accent)' : 'var(--success)'; }
-    else { sSt.textContent = 'Not configured — manual payment links only'; sSt.style.color = 'var(--accent3)'; }
-  }
+/* ── Load all credentials from Supabase ── */
+function WPA_loadCredentials() {
+  var box = document.getElementById('credCardsBox');
+  if (!box) return;
+  box.innerHTML = '<p style="color:var(--muted);font-size:13px;">Loading credentials…</p>';
+  pkSB('app_credentials', 'select=*&order=service.asc,label.asc').then(function(rows) {
+    WPA_credCache = {};
+    rows.forEach(function(r) { WPA_credCache[r.id] = r; });
+    WPA_renderCredCards(rows);
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed to load: ' + _esc(e.message) + '</p>';
+  });
 }
 
-// Messaging settings — stored in FT_state._msgConfig
+/* ── Render credential cards ── */
+function WPA_renderCredCards(rows) {
+  var box = document.getElementById('credCardsBox');
+  if (!box) return;
+
+  var icons = { stripe:'💳', sms:'📱', whatsapp:'💬', gmail:'📧', ai:'🤖', supabase:'🗄️' };
+  var html = '';
+  rows.forEach(function(r) {
+    var creds = r.credentials || {};
+    var keys = Object.keys(creds);
+    var filled = keys.filter(function(k) { return creds[k] && creds[k].length > 0; }).length;
+    var total = keys.length;
+    var statusColor = filled === total && total > 0 ? 'var(--success)' : filled > 0 ? 'var(--accent)' : 'var(--accent3)';
+    var statusText = filled === total && total > 0 ? 'Configured' : filled > 0 ? 'Partial (' + filled + '/' + total + ')' : 'Not configured';
+
+    html += '<div class="sc" style="cursor:pointer;position:relative;" onclick="WPA_editCredential(\'' + r.id + '\')">';
+    html += '<div style="display:flex;align-items:center;gap:10px;">';
+    html += '<span style="font-size:24px;">' + (icons[r.service] || '🔑') + '</span>';
+    html += '<div><h3 style="margin:0;">' + _esc(r.label) + '</h3>';
+    html += '<span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">' + _esc(r.service) + '</span></div>';
+    html += '<span style="margin-left:auto;font-size:12px;font-weight:600;color:' + statusColor + ';">' + statusText + '</span>';
+    html += '</div></div>';
+  });
+
+  html += '<div style="margin-top:16px;"><button class="btn btn-secondary" onclick="WPA_addCredential()">+ Add New Credential</button></div>';
+  box.innerHTML = html;
+}
+
+/* ── Edit a credential ── */
+function WPA_editCredential(credId) {
+  var r = WPA_credCache[credId];
+  if (!r) return;
+
+  var creds = r.credentials || {};
+  var keys = Object.keys(creds);
+
+  var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">';
+  html += '<h3 style="margin:0;">' + _esc(r.label) + '</h3>';
+  html += '<button class="btn btn-sm" style="background:#fdf1f0;color:#b83228;border:1px solid #eebfba;" onclick="WPA_deleteCredential(\'' + credId + '\')">Delete</button>';
+  html += '</div>';
+  html += '<div class="form-group" style="max-width:460px"><label>Label</label><input type="text" id="credEditLabel" value="' + _esc(r.label) + '"></div>';
+  html += '<div class="form-group" style="max-width:460px"><label>Service</label><input type="text" id="credEditService" value="' + _esc(r.service) + '" readonly style="background:var(--surface2);"></div>';
+  html += '<hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">';
+  html += '<p style="font-size:12px;color:var(--muted);margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Credential Fields</p>';
+
+  keys.forEach(function(k) {
+    var val = creds[k] || '';
+    var isSecret = k.toLowerCase().indexOf('secret') >= 0 || k.toLowerCase().indexOf('key') >= 0 || k.toLowerCase().indexOf('password') >= 0 || k.toLowerCase().indexOf('token') >= 0;
+    html += '<div class="form-group" style="max-width:460px">';
+    html += '<label>' + _esc(k.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); })) + '</label>';
+    html += '<div style="display:flex;gap:6px;">';
+    html += '<input type="' + (isSecret ? 'password' : 'text') + '" id="credF_' + _esc(k) + '" value="' + _esc(val) + '" style="flex:1;" autocomplete="off">';
+    if (isSecret) html += '<button type="button" class="btn btn-sm btn-secondary" onclick="var e=document.getElementById(\'credF_' + _esc(k) + '\');e.type=e.type===\'password\'?\'text\':\'password\';" style="white-space:nowrap;">👁</button>';
+    html += '</div></div>';
+  });
+
+  html += '<div style="margin-top:8px;">';
+  html += '<div class="form-group" style="max-width:460px"><label>Add New Field</label><div style="display:flex;gap:6px;"><input type="text" id="credNewFieldName" placeholder="field_name" style="flex:1;"><button class="btn btn-sm btn-secondary" onclick="WPA_addCredField()">Add</button></div></div>';
+  html += '</div>';
+
+  html += '<div style="margin-top:16px;display:flex;gap:8px;">';
+  html += '<button class="btn btn-primary" onclick="WPA_saveCredential(\'' + credId + '\')">Save Changes</button>';
+  html += '<button class="btn btn-secondary" onclick="WPA_loadCredentials()">Cancel</button>';
+  html += '</div>';
+
+  document.getElementById('credCardsBox').innerHTML = html;
+}
+
+/* ── Add new field to current credential ── */
+function WPA_addCredField() {
+  var nameEl = document.getElementById('credNewFieldName');
+  if (!nameEl) return;
+  var name = nameEl.value.trim().replace(/\s+/g, '_').toLowerCase();
+  if (!name) { toast('Enter a field name', ''); return; }
+  // Insert new field before the "Add New Field" section
+  var container = nameEl.closest('.form-group').parentElement;
+  var div = document.createElement('div');
+  div.className = 'form-group';
+  div.style.maxWidth = '460px';
+  div.innerHTML = '<label>' + _esc(name.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); })) + '</label><input type="text" id="credF_' + _esc(name) + '" value="" autocomplete="off">';
+  container.parentElement.insertBefore(div, container);
+  nameEl.value = '';
+  toast('Field added', 'success');
+}
+
+/* ── Save credential back to Supabase ── */
+function WPA_saveCredential(credId) {
+  var r = WPA_credCache[credId];
+  if (!r) return;
+  var label = (document.getElementById('credEditLabel') || {}).value || r.label;
+  // Collect all credF_ inputs
+  var creds = {};
+  document.querySelectorAll('[id^="credF_"]').forEach(function(inp) {
+    var key = inp.id.replace('credF_', '');
+    creds[key] = inp.value;
+  });
+  pkSB('app_credentials', 'id=eq.' + credId, 'PATCH', { label: label, credentials: creds, updated_at: new Date().toISOString() }).then(function() {
+    toast('Credentials saved', 'success');
+    WPA_loadCredentials();
+  }).catch(function(e) { alert('Save failed: ' + e.message); });
+}
+
+/* ── Delete credential ── */
+function WPA_deleteCredential(credId) {
+  if (!confirm('Delete this credential entry? This cannot be undone.')) return;
+  pkSB('app_credentials', 'id=eq.' + credId, 'DELETE').then(function() {
+    toast('Deleted', 'success');
+    WPA_loadCredentials();
+  }).catch(function(e) { alert('Delete failed: ' + e.message); });
+}
+
+/* ── Add new credential ── */
+function WPA_addCredential() {
+  var label = prompt('Label (e.g. "Stripe - Company C"):');
+  if (!label) return;
+  var service = prompt('Service type (stripe, sms, whatsapp, gmail, ai, supabase, other):');
+  if (!service) return;
+  var id = 'cred_' + service.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now().toString(36);
+  pkSB('app_credentials', '', 'POST', {
+    id: id,
+    service: service.toLowerCase(),
+    label: label,
+    credentials: {},
+    active: true
+  }).then(function() {
+    toast('Credential added', 'success');
+    WPA_loadCredentials();
+  }).catch(function(e) { alert('Failed: ' + e.message); });
+}
+
+/* ── Helper: get a credential's fields by ID (used by other modules) ── */
+function WPA_getCredential(credId) {
+  var r = WPA_credCache[credId];
+  return r ? r.credentials || {} : {};
+}
+
+/* ── Legacy compatibility — still used by FT_state ── */
 function WPA_getMsgConfig() {
   if (typeof FT_state !== 'undefined' && FT_state) return FT_state._msgConfig || {};
   return {};
 }
-function WPA_setMsgConfig(cfg) {
-  if (typeof FT_state !== 'undefined' && FT_state) {
-    FT_state._msgConfig = Object.assign(FT_state._msgConfig || {}, cfg);
-    if (typeof FT_save === 'function') FT_save();
-  }
-}
-function WPA_saveMsgSettings(channel) {
-  if (channel === 'sms') {
-    WPA_setMsgConfig({
-      flowrouteAccess: (document.getElementById('main-flowroute-access') || {}).value || '',
-      flowrouteSecret: (document.getElementById('main-flowroute-secret') || {}).value || '',
-      flowrouteFrom: (document.getElementById('main-flowroute-from') || {}).value || '',
-      flowrouteAdmin: (document.getElementById('main-flowroute-admin') || {}).value || ''
-    });
-    toast('SMS settings saved', 'success');
-  } else if (channel === 'whatsapp') {
-    WPA_setMsgConfig({
-      waPhoneId: (document.getElementById('main-wa-phone-id') || {}).value || '',
-      waToken: (document.getElementById('main-wa-token') || {}).value || ''
-    });
-    toast('WhatsApp settings saved', 'success');
-  } else if (channel === 'email') {
-    WPA_setMsgConfig({
-      smtpHost: (document.getElementById('main-smtp-host') || {}).value || '',
-      smtpPort: (document.getElementById('main-smtp-port') || {}).value || '',
-      smtpUser: (document.getElementById('main-smtp-user') || {}).value || '',
-      smtpPass: (document.getElementById('main-smtp-pass') || {}).value || '',
-      smtpFrom: (document.getElementById('main-smtp-from') || {}).value || '',
-      smtpName: (document.getElementById('main-smtp-name') || {}).value || ''
-    });
-    toast('Email settings saved', 'success');
-  }
-  WPA_renderMsgStatus();
-}
-function WPA_renderMsgStatus() {
-  const cfg = WPA_getMsgConfig();
-  // SMS
-  const smsEl = document.getElementById('main-sms-status');
-  if (smsEl) {
-    if (cfg.flowrouteAccess && cfg.flowrouteFrom) { smsEl.textContent = 'Configured — FROM: ' + cfg.flowrouteFrom; smsEl.style.color = 'var(--success)'; }
-    else { smsEl.textContent = 'Not configured — using server config.php defaults'; smsEl.style.color = 'var(--accent)'; }
-  }
-  // Fill fields
-  if (cfg.flowrouteAccess) { const el = document.getElementById('main-flowroute-access'); if (el) el.value = cfg.flowrouteAccess; }
-  if (cfg.flowrouteSecret) { const el = document.getElementById('main-flowroute-secret'); if (el) el.value = cfg.flowrouteSecret; }
-  if (cfg.flowrouteFrom)   { const el = document.getElementById('main-flowroute-from'); if (el) el.value = cfg.flowrouteFrom; }
-  if (cfg.flowrouteAdmin)  { const el = document.getElementById('main-flowroute-admin'); if (el) el.value = cfg.flowrouteAdmin; }
-  // WhatsApp
-  const waEl = document.getElementById('main-wa-status');
-  if (waEl) {
-    if (cfg.waPhoneId && cfg.waToken) { waEl.textContent = 'Configured — Phone ID: ' + cfg.waPhoneId; waEl.style.color = 'var(--success)'; }
-    else { waEl.textContent = 'Not configured — using server config.php defaults'; waEl.style.color = 'var(--accent)'; }
-  }
-  if (cfg.waPhoneId) { const el = document.getElementById('main-wa-phone-id'); if (el) el.value = cfg.waPhoneId; }
-  if (cfg.waToken)   { const el = document.getElementById('main-wa-token'); if (el) el.value = cfg.waToken; }
-  // Email
-  const emEl = document.getElementById('main-email-status');
-  if (emEl) {
-    if (cfg.smtpHost && cfg.smtpFrom) { emEl.textContent = 'Configured — FROM: ' + cfg.smtpFrom; emEl.style.color = 'var(--success)'; }
-    else { emEl.textContent = 'Not configured — using server config.php defaults'; emEl.style.color = 'var(--accent)'; }
-  }
-  if (cfg.smtpHost) { const el = document.getElementById('main-smtp-host'); if (el) el.value = cfg.smtpHost; }
-  if (cfg.smtpPort) { const el = document.getElementById('main-smtp-port'); if (el) el.value = cfg.smtpPort; }
-  if (cfg.smtpUser) { const el = document.getElementById('main-smtp-user'); if (el) el.value = cfg.smtpUser; }
-  if (cfg.smtpPass) { const el = document.getElementById('main-smtp-pass'); if (el) el.value = cfg.smtpPass; }
-  if (cfg.smtpFrom) { const el = document.getElementById('main-smtp-from'); if (el) el.value = cfg.smtpFrom; }
-  if (cfg.smtpName) { const el = document.getElementById('main-smtp-name'); if (el) el.value = cfg.smtpName; }
-}
-function WPA_testSend(channel) {
-  const cfg = WPA_getMsgConfig();
-  if (channel === 'sms') {
-    const to = cfg.flowrouteAdmin || prompt('Enter phone number to test (+1XXXXXXXXXX):');
-    if (!to) return;
-    WPA_sms(to, 'PropDesk test SMS — if you received this, SMS is working!');
-  } else if (channel === 'whatsapp') {
-    const to = prompt('Enter WhatsApp number to test (+1XXXXXXXXXX):');
-    if (!to) return;
-    WPA_whatsapp(to, 'PropDesk test WhatsApp — if you received this, WhatsApp is working!');
-  } else if (channel === 'email') {
-    const to = prompt('Enter email address to test:');
-    if (!to) return;
-    WPA_email(to, 'PropDesk Test Email', 'This is a test email from PropDesk. If you received this, email is configured correctly.');
-  }
-}
+function WPA_renderApiKeyStatus() { /* legacy stub */ }
+function WPA_renderMsgStatus() { /* legacy stub */ }
 
 // Update automation badge with pending reminders count
 function updateAutomationBadge(){const pending=data.filter(r=>!r.archived&&r.due&&new Date(r.due)<=new Date()).length;const badge=document.getElementById('automationBadge');if(!badge)return;if(pending>0){badge.textContent=pending;badge.classList.remove('hidden');}else{badge.classList.add('hidden');}}
@@ -2117,8 +2460,10 @@ const MODULE_SUB_TABS = {
   'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Completed', page:'techtrack', ftPage:'completed'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
   'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
+  'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
-  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'API Keys', page:'settings', settingsSec:'api-keys'}, {label:'Messaging', page:'settings', settingsSec:'messaging'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
+  'portal':      [{label:'Users',       page:'portal-users'}, {label:'Settings', page:'portal-settings'}],
+  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
 
 let currentModule = 'dashboard';
@@ -2126,6 +2471,10 @@ let currentPropertyFilter = 'all';
 
 function switchModule(moduleId, tabEl) {
   currentModule = moduleId;
+  // Hide property detail pages if open + clear inline styles so class system works
+  var pdPage = document.getElementById('page-property-detail'); if(pdPage){ pdPage.style.display = ''; pdPage.classList.remove('active'); }
+  var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display = ''; });
   // Update module tabs
   document.querySelectorAll('#moduleBar .module-tab').forEach(t => t.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
@@ -2144,6 +2493,7 @@ function switchModule(moduleId, tabEl) {
     else if (t.pkSec) args += ",null,null,null,'" + t.pkSec + "'";
     else if (t.dlSec) args += ",null,null,null,null,'" + t.dlSec + "'";
     else if (t.msgFilter) args += ",null,null,null,null,null,'" + t.msgFilter + "'";
+    else if (t.hsSec) args += ",null,null,null,null,null,null,'" + t.hsSec + "'";
     const badgeId = t.ftPage ? 'ft-sub-badge-' + t.ftPage : (t.page ? 'sub-badge-' + t.page : '');
     const badgeHtml = badgeId ? ` <span class="mod-badge" id="${badgeId}" style="display:none">0</span>` : '';
     return `<div class="sub-tab${i === 0 ? ' active' : ''}" onclick="showSubPage(${args})">${t.label}${badgeHtml}</div>`;
@@ -2151,12 +2501,16 @@ function switchModule(moduleId, tabEl) {
   // Show default page for this module
   if (tabs.length > 0) {
     const t0 = tabs[0];
-    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec, t0.msgFilter);
+    showSubPage(t0.page, subNav.querySelector('.sub-tab'), t0.ftPage, t0.settingsSec, t0.expView, t0.pkSec, t0.dlSec, t0.msgFilter, t0.hsSec);
   }
 }
 
 let _ftInitialized = false;
-function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter) {
+function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, msgFilter, hsSec) {
+  // Hide property detail pages if open + clear inline styles so class system works
+  var pdPage = document.getElementById('page-property-detail'); if(pdPage){ pdPage.style.display = ''; pdPage.classList.remove('active'); }
+  var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
+  document.querySelectorAll('.page').forEach(function(p){ p.style.display = ''; });
   // Update sub-tab active state
   if (tabEl) {
     tabEl.parentElement.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
@@ -2176,6 +2530,16 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, 
   // ── Delivery section routing ──
   if (dlSec) {
     showDeliverySection(dlSec);
+  }
+
+  // ── Home Services section routing ──
+  if (hsSec) {
+    showHomeServicesSection(hsSec);
+  }
+
+  // ── Portal Users routing ──
+  if (pageId === 'portal-users') {
+    WPA_portalRefresh();
   }
 
   // ── Message Center routing ──
@@ -2300,6 +2664,25 @@ function initModuleNav() {
   switchModule('dashboard', document.querySelector('#moduleBar [data-module="dashboard"]'));
   // Update MTM stats from current data
   updateMTMStats();
+  // Fetch portal badge count (non-blocking)
+  WPA_portalBadgeRefresh();
+}
+async function WPA_portalBadgeRefresh() {
+  try {
+    const res = await fetch(PORTAL_API + '?action=admin-users', {
+      headers: { 'Authorization': 'Bearer ' + PORTAL_ADMIN_TOKEN }
+    });
+    const data = await res.json();
+    if (data.users) {
+      _portalUsers = data.users;
+      const pending = data.users.filter(u => u.status === 'pending').length;
+      const badge = document.getElementById('portalBadge');
+      if (badge) {
+        badge.textContent = pending;
+        badge.style.display = pending > 0 ? '' : 'none';
+      }
+    }
+  } catch(e) { /* silent */ }
 }
 function updateMTMStats() {
   const data = window.DATA || [];
@@ -2322,7 +2705,13 @@ function updateMTMStats() {
 //  MTM / LONG-TERM MODULE — REAL INNAGO DATA
 // ══════════════════════════════════════════════════════
 
-const INNAGO_TENANTS = [
+// NOTE: This INNAGO_TENANTS array is the BOOT FALLBACK only — on app load we
+// hydrate from Supabase public.tenants_lt via WPA_hydrateTenantsLT() (defined
+// just below this array). All 50+ INNAGO_TENANTS references then read fresh
+// data without further changes. The fallback ensures the app still renders if
+// Supabase is unreachable. Updates made via the admin UI must write back to
+// tenants_lt — not this array.
+let INNAGO_TENANTS = [
   {name:"Alena Larina",unit:"46 Township Line Road | 311",property:"46 Township Line Road",unitNum:"311",status:"Active",rent:915,roommates:1,email:"alena62022@gmail.com",phone:"(267) 504-6551",since:"Aug 19, 2023"},
   {name:"Anna Chubatiuk",unit:"46 Township Line Road | 232",property:"46 Township Line Road",unitNum:"232",status:"Active",rent:1150,roommates:1},
   {name:"Bhargavkumar Chaudhary",unit:"7845 Montgomery Avenue | Unit 1B",property:"7845 Montgomery Avenue",unitNum:"Unit 1B",status:"Active",rent:425,roommates:2},
@@ -2377,7 +2766,91 @@ const INNAGO_TENANTS = [
   {name:"Whitney Diane Rustin",unit:"7845 Montgomery Avenue | Unit 9 - CH",property:"7845 Montgomery Avenue",unitNum:"Unit 9-CH",status:"Active",rent:27000,roommates:0}
 ];
 
-const INNAGO_LEASES = [
+// ─────────────────────────────────────────────────────────────────────
+// Hydrate INNAGO_TENANTS from Supabase public.tenants_lt on app boot.
+// Maps DB columns → existing in-memory shape so all 50+ call sites that
+// reference INNAGO_TENANTS (renderPDLongTerm, renderPDUnitsTable,
+// openPDUnitDetail, etc.) keep working without per-site edits.
+// ─────────────────────────────────────────────────────────────────────
+async function WPA_hydrateTenantsLT() {
+  try {
+    const r = await fetch(SUPA_URL + '/rest/v1/tenants_lt?select=*&order=name.asc', {
+      headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+    });
+    if (!r.ok) { console.warn('[tenants_lt] fetch failed', r.status); return; }
+    const rows = await r.json();
+    if (!Array.isArray(rows) || !rows.length) { console.warn('[tenants_lt] empty'); return; }
+    INNAGO_TENANTS = rows.map(t => ({
+      id:        t.id,
+      name:      t.name,
+      property:  t.property,
+      unitNum:   t.unit,
+      unit:      t.property + ' | ' + t.unit,   // legacy display string
+      status:    t.status   || 'Active',
+      rent:      Number(t.rent || 0),
+      roommates: Number(t.roommates || 0),
+      email:     t.email    || '',
+      phone:     t.phone    || '',
+      since:     t.since    || '',
+      address:   t.address  || '',
+      city:      t.city     || '',
+      state:     t.state    || '',
+      zip:       t.zip      || '',
+      insurance_status:        t.insurance_status        || '',
+      insurance_purchase_date: t.insurance_purchase_date || '',
+      enrolled_autopay:        !!t.enrolled_autopay,
+      notes:     t.notes    || '',
+      lease_start: t.lease_start || '',
+      lease_end:   t.lease_end   || '',
+      lease_type:  t.lease_type  || 'mtm'
+    }));
+    console.log('[tenants_lt] hydrated', INNAGO_TENANTS.length, 'tenants');
+    // Synthesize INNAGO_LEASES entries for every hydrated tenant who doesn't
+    // already have a matching lease row. Required because renderPDUnitsTable
+    // builds _pdUnitsData from INNAGO_LEASES (not INNAGO_TENANTS), and the
+    // unit-detail drilldown needs a row in _pdUnitsData to fire.
+    try {
+      if (typeof INNAGO_LEASES !== 'undefined' && Array.isArray(INNAGO_LEASES)) {
+        const keyOf = (p, u) => (p || '') + '||' + (u || '');
+        const existing = new Set(INNAGO_LEASES.map(l => keyOf(l.property, l.unit)));
+        const byUnit = {};
+        INNAGO_TENANTS.forEach(t => {
+          const k = keyOf(t.property, t.unitNum);
+          if (!byUnit[k]) byUnit[k] = [];
+          byUnit[k].push(t);
+        });
+        Object.keys(byUnit).forEach(k => {
+          if (existing.has(k)) return;
+          const tenants = byUnit[k];
+          const first = tenants[0];
+          INNAGO_LEASES.push({
+            status:   'Active',
+            property: first.property,
+            unit:     first.unitNum,
+            tenants:  tenants.map(x => x.name).join(', '),
+            start:    first.lease_start || '',
+            end:      first.lease_end   || (first.lease_type === 'fixed' ? '' : 'M to M'),
+            type:     first.lease_type  || 'mtm'
+          });
+        });
+        console.log('[tenants_lt] leases now total', INNAGO_LEASES.length);
+      }
+    } catch(e) { console.warn('[tenants_lt] lease synth error', e); }
+    // Re-render the PD long-term view if it's currently open
+    try {
+      if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty &&
+          typeof renderPDLongTerm === 'function') {
+        renderPDLongTerm(_pdCurrentProperty);
+      }
+    } catch(e) { /* view not open yet */ }
+  } catch (e) {
+    console.warn('[tenants_lt] hydrate error', e);
+  }
+}
+// Kick off hydration ASAP (does not block initial render — fallback array shows first)
+WPA_hydrateTenantsLT();
+
+let INNAGO_LEASES = [
   {status:"Active",property:"46 Township Line Road",unit:"320",tenants:"Taron Stokes",start:"Apr 01, 2026",end:"M to M",type:"mtm"},
   {status:"Active",property:"46 Township Line Road",unit:"221",tenants:"Miesha Sassone",start:"Mar 21, 2026",end:"M to M",type:"mtm"},
   {status:"Active",property:"7845 Montgomery Avenue",unit:"Unit 8",tenants:"Justin Krebs",start:"Mar 09, 2026",end:"M to M",type:"mtm"},
@@ -2666,7 +3139,7 @@ function openTenantDetail(idx) {
   }
 
   // Collection data
-  const rentRecords = INNAGO_RENT.filter(r => r.tenant.includes(t.name.split(' ')[0]));
+  const rentRecords = INNAGO_RENT.filter(r => r.tenant && r.tenant.includes(t.name.split(' ')[0]));
   const totalCollected = rentRecords.reduce((s, r) => s + r.paid, 0);
   const pastDue = rentRecords.filter(r => r.status === 'Late' || r.status === 'Overdue');
   const currentInvoices = rentRecords.length;
@@ -2697,6 +3170,137 @@ function openTenantDetail(idx) {
       <td><a href="#" class="tnt-msg-view-link" onclick="event.preventDefault();alert('Message viewer coming soon')">View</a></td>
     </tr>`).join('');
   }
+
+  // Load parking bookings for this tenant
+  WPA_loadTenantParking(t);
+}
+
+/* ── Parking section on MTM/LT tenant detail ── */
+function WPA_loadTenantParking(t) {
+  var sec = document.getElementById('tntParkingSection');
+  var rows = document.getElementById('tntParkingRows');
+  if (!sec || !rows) return;
+  sec.style.display = '';
+  rows.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:4px 0;">Loading…</div>';
+
+  var nameEnc = encodeURIComponent((t.name || '').trim());
+  var unitEnc = encodeURIComponent((t.unitNum || '').trim());
+
+  // Load buildings + plans + bookings in parallel
+  var buildingsP = pkSB('parking_buildings', 'select=id,name&active=eq.true');
+  var plansP = pkSB('parking_rate_plans', 'select=id,name,building_id,is_default&active=eq.true&order=name.asc');
+  var bookingsP = pkSB('parking_bookings', 'select=*&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&order=start_date.desc&limit=5');
+
+  Promise.all([buildingsP, plansP, bookingsP]).then(function(results) {
+    var buildings = results[0] || [];
+    var plans = results[1] || [];
+    var bookings = results[2] || [];
+    var bldMap = {};
+    buildings.forEach(function(b) { bldMap[b.id] = b.name; });
+    var html = '';
+
+    // Match tenant's property to a building
+    var tenantText = (t.property || '') + ' ' + (t.unitNum || '');
+    var matchedBldId = WPA_matchBuildingId(buildings, tenantText);
+
+    // Always show a plan selector
+    var currentPlanId = bookings.length ? (bookings[0].rate_plan_id || '') : '';
+    var hasSelection = !!currentPlanId;
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">';
+    html += '<span style="font-size:12px;color:var(--text2);font-weight:600;">Assigned Plan:</span>';
+    html += '<select id="tntPkPlanAssign" onchange="WPA_assignTenantPlan(this)" data-tenant-name="' + _esc(t.name || '') + '" data-tenant-unit="' + _esc(t.unitNum || '') + '" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer;">';
+    plans.forEach(function(p) {
+      var bldName = bldMap[p.building_id] || '';
+      var label = _esc(p.name) + (bldName ? ' (' + _esc(bldName) + ')' : '') + (p.is_default ? ' ★' : '');
+      var sel = '';
+      if (p.id === currentPlanId) { sel = ' selected'; }
+      else if (!hasSelection && p.is_default && matchedBldId && p.building_id === matchedBldId) { sel = ' selected'; hasSelection = true; }
+      html += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
+    });
+    // If no building matched, fall back to first default
+    if (!hasSelection) {
+      var fb = plans.find(function(p) { return p.is_default; });
+      if (fb) { /* re-render would be heavy, just note it */ }
+    }
+    html += '</select></div>';
+
+    // Show existing bookings if any
+    if (bookings.length) {
+      bookings.forEach(function(bk) {
+        var planLabel = bk.rate_plan_name || bk.plan || 'Default';
+        var dates = (bk.start_date || '?') + ' → ' + (bk.end_date || 'ongoing');
+        html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;">';
+        html += '<div style="flex:1;">';
+        html += '<strong>' + _esc(bk.vehicle || 'Vehicle') + '</strong> <span style="color:var(--muted);font-size:11px;">' + _esc(bk.plate || '') + '</span>';
+        html += '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + dates + ' · $' + parseFloat(bk.amount || 0).toFixed(2) + ' · <em>' + _esc(planLabel) + '</em></div>';
+        html += '</div></div>';
+      });
+    } else {
+      html += '<div style="color:var(--text3);font-size:11px;">No active parking bookings.</div>';
+    }
+    rows.innerHTML = html;
+  }).catch(function() {
+    rows.innerHTML = '<div style="color:var(--text3);font-size:12px;">Could not load parking data.</div>';
+  });
+}
+
+/* Assign a plan from the tenant detail dropdown (no booking required) */
+function WPA_assignTenantPlan(sel) {
+  var planId = sel.value;
+  var tenantName = sel.getAttribute('data-tenant-name') || '';
+  var tenantUnit = sel.getAttribute('data-tenant-unit') || '';
+  if (!planId) return;
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' (default)', '');
+
+  // If tenant has an active parking booking, update it
+  var nameEnc = encodeURIComponent(tenantName.trim());
+  var unitEnc = encodeURIComponent(tenantUnit.trim());
+  pkSB('parking_bookings', 'select=id&or=(unit.eq.' + unitEnc + ',guest_name.ilike.*' + nameEnc + '*)&status=eq.active&limit=1').then(function(bks) {
+    if (bks && bks.length) {
+      return pkSB('parking_bookings', 'id=eq.' + bks[0].id, 'PATCH', {
+        rate_plan_id: planId, rate_plan_name: planName, plan: planName
+      }).then(function() {
+        toast('Parking plan → ' + planName, 'success');
+      });
+    } else {
+      toast('Plan set to ' + planName + ' (no active booking yet)', 'info');
+    }
+  }).catch(function(e) { alert('Failed: ' + e.message); });
+}
+
+function WPA_switchTenantBookingPlan(bookingId, buildingId) {
+  var sel = document.getElementById('tntPkPlan_' + bookingId);
+  if (!sel) return;
+  var planId = sel.value;
+  if (!planId) return;
+  var planName = sel.options[sel.selectedIndex].textContent.replace(' (default)', '');
+
+  pkSB('parking_rate_plans', 'select=*&id=eq.' + planId).then(function(plans) {
+    if (!plans || !plans.length) return;
+    var plan = plans[0];
+    return pkSB('parking_bookings', 'select=*&id=eq.' + bookingId).then(function(bks) {
+      if (!bks || !bks.length) return;
+      var bk = bks[0];
+      var start = new Date(bk.start_date + 'T00:00:00');
+      var end = new Date(bk.end_date + 'T00:00:00');
+      var days = Math.max(1, Math.round((end - start) / 86400000));
+      var billableDays = Math.max(0, days - (plan.free_days || 0));
+      var amount = billableDays * (plan.per_day || 0);
+      if (plan.minimum_cost && amount < plan.minimum_cost) amount = plan.minimum_cost;
+      var pkgs = plan.packages || [];
+      pkgs.sort(function(a, b) { return b.days - a.days; });
+      for (var i = 0; i < pkgs.length; i++) {
+        if (days >= pkgs[i].days && pkgs[i].price < amount) { amount = pkgs[i].price; break; }
+      }
+      amount = Math.round(amount * 100) / 100;
+      return pkSB('parking_bookings', 'id=eq.' + bookingId, 'PATCH', {
+        rate_plan_id: planId, rate_plan_name: planName, amount: amount, plan: planName
+      }).then(function() {
+        toast('Plan switched to ' + planName + ' — $' + amount.toFixed(2), 'success');
+        if (currentTenantIdx !== null) WPA_loadTenantParking(INNAGO_TENANTS[currentTenantIdx]);
+      });
+    });
+  }).catch(function(e) { alert('Failed: ' + e.message); });
 }
 
 function closeTenantDetail() {
@@ -3139,7 +3743,10 @@ function showMTMMessage(id) {
     <div class="mtm-msg-reply-box">
       ${typeof buildChannelSelector === 'function' ? buildChannelSelector('app') : ''}
       <textarea class="mtm-msg-reply-input" id="mtmReplyInput" placeholder="Type your reply..."></textarea>
-      <button class="mtm-msg-reply-btn" onclick="sendMTMReply()">Send Reply</button>
+      <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+        <button class="mtm-msg-reply-btn" onclick="sendMTMReply()">Send Reply</button>
+        <button onclick="triggerMTMAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit;">🔄 Rephrase</button>
+      </div>
     </div>` : ''}
   `;
 }
@@ -3198,6 +3805,46 @@ function useMTMAISuggestion() {
   var textEl = document.getElementById('mtmAiText');
   var ta = document.getElementById('mtmReplyInput');
   if (ta && textEl) { ta.value = textEl.textContent; ta.focus(); }
+}
+
+// Long-Term AI Rephrase
+async function triggerMTMAIRephrase() {
+  var input = document.getElementById('mtmReplyInput');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  var m = INNAGO_MESSAGES.find(function(msg) { return msg.id === window._currentMTMMsgId; });
+  var tenantName = m ? m.from : 'Tenant';
+
+  input.disabled = true;
+  var origText = input.value;
+  input.value = 'Rephrasing...';
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message to tenant ' + tenantName + ':\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = origText;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.value = origText;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
+  input.disabled = false;
+  input.focus();
 }
 
 function sendMTMReply() {
@@ -3281,8 +3928,11 @@ let _msgCenterSearch = '';
 
 // Live client_messages from Supabase (loaded by _refreshClientMsgs)
 var _liveClientMessages = [];
+var _clientMsgsCacheTime = 0;
 
-async function _refreshClientMsgs() {
+async function _refreshClientMsgs(forceRefresh) {
+  // Cache for 30 seconds to avoid re-fetching on filter/search changes
+  if (!forceRefresh && _liveClientMessages.length > 0 && (Date.now() - _clientMsgsCacheTime < 30000)) return;
   try {
     var res = await sb.from('client_messages').select('*').order('created_at', { ascending: false }).limit(200);
     if (res.error) { console.warn('client_messages load error:', res.error.message); return; }
@@ -3317,7 +3967,26 @@ async function _refreshClientMsgs() {
         if (!r.read && r.sender_type === 'resident') threadMap[tid].unread = true;
       }
     });
-    _liveClientMessages = Object.values(threadMap);
+    // Tag source based on whether resident matches a short-term booking or long-term tenant
+    var threadList = Object.values(threadMap);
+    threadList.forEach(function(t) {
+      var nameLC = (t.from || '').toLowerCase().trim();
+      var unitLC = (t.unit || '').toLowerCase().trim();
+      // Check short-term bookings
+      if (typeof AIRBNB_BOOKINGS_SEED !== 'undefined') {
+        var stMatch = AIRBNB_BOOKINGS_SEED.find(function(b) {
+          return (b.guest || '').toLowerCase().trim() === nameLC
+              || (unitLC && (b.unit || '').toLowerCase().trim() === unitLC);
+        });
+        if (stMatch) { t.source = 'short-term'; t.platform = stMatch.platform || 'airbnb'; t.threadId = stMatch.threadId; return; }
+      }
+      // Check long-term tenants
+      if (typeof INNAGO_MESSAGES !== 'undefined') {
+        var ltMatch = INNAGO_MESSAGES.find(function(m) { return (m.from || '').toLowerCase().trim() === nameLC; });
+        if (ltMatch) { t.source = 'long-term'; return; }
+      }
+    });
+    _liveClientMessages = threadList;
     console.log('[MsgCenter] Loaded', _liveClientMessages.length, 'threads from client_messages');
   } catch(e) { console.warn('_refreshClientMsgs error:', e.message); }
 }
@@ -3781,8 +4450,16 @@ async function openMsgCenterDetail(contactKey) {
   var html = headerHtml;
   html += '<div id="mcThreadBubbles" style="flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:6px;">'+bubblesHtml+'</div>';
   html += '<div style="padding:8px 12px;border-top:1px solid var(--border);flex-shrink:0;" id="mcReplyArea">';
+  html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
   html += buildChannelSelector('app');
-  html += '<div style="display:flex;gap:6px;">';
+  html += '<div style="margin-left:auto;display:flex;gap:4px;">';
+  html += '<button onclick="_mcAISuggest()" title="AI-suggested reply" style="background:#7c3aed;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">⚡ AI Suggest</button>';
+  html += '<button onclick="_mcAIRephrase()" title="Rephrase your text with AI" style="background:#e8b94a;color:#fff;border:none;border-radius:4px;padding:4px 8px;font-size:9px;cursor:pointer;font-weight:600;font-family:inherit;">🔄 Rephrase</button>';
+  html += '</div></div>';
+  html += '<div id="mcAttachPreview" style="display:none;padding:4px 10px;background:#fef3c7;border-radius:6px;margin-bottom:4px;font-size:10px;align-items:center;gap:6px;"><span id="mcAttachName"></span><button onclick="_mcClearAttach()" style="background:none;border:none;color:#c62828;cursor:pointer;font-size:12px;padding:0 2px;">&times;</button></div>';
+  html += '<div style="display:flex;gap:6px;align-items:center;">';
+  html += '<input type="file" id="mcFileInput" style="display:none" accept="image/*,.pdf,.doc,.docx,.txt" onchange="_mcHandleFile(this)">';
+  html += '<button onclick="document.getElementById(\'mcFileInput\').click()" title="Attach file" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:14px;cursor:pointer;flex-shrink:0;">📎</button>';
   html += '<input id="mcReplyInput" placeholder="Type your reply... nothing is sent until you approve." style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:inherit;background:var(--surface);color:var(--text);" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\');}">';
   html += '<button onclick="_mcSendReply(\''+escapedFrom+'\',\''+escapedEmail+'\',\''+escapedPhone+'\',\''+escapedSubj+'\',\''+escapedTid+'\')" style="padding:6px 14px;background:var(--accent2);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-family:inherit;font-weight:600;">Send</button>';
   html += '</div></div>';
@@ -3794,47 +4471,201 @@ async function openMsgCenterDetail(contactKey) {
   updateMsgCenterBadge();
 }
 
-function _mcSendReply(from, email, phone, subject, threadId) {
-  var input = document.getElementById('mcReplyInput');
-  var body = input ? input.value.trim() : '';
-  if (!body) return;
-  input.value = '';
-  var ch = getSelectedChannel(document.getElementById('mcReplyArea')) || 'app';
-  sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
-  toast('Reply sent!');
-  // Refresh thread after delay
-  setTimeout(function() { if (_msgCenterSelectedId) openMsgCenterDetail(_msgCenterSelectedId); }, 1000);
+var _mcPendingFile = null;
+
+function _mcHandleFile(input) {
+  if (input.files && input.files[0]) {
+    _mcPendingFile = input.files[0];
+    var preview = document.getElementById('mcAttachPreview');
+    var nameEl = document.getElementById('mcAttachName');
+    if (preview) preview.style.display = 'flex';
+    if (nameEl) nameEl.textContent = '📎 ' + _mcPendingFile.name;
+  }
 }
 
-// ── Applications Data & Render ──
-const INNAGO_APPLICATIONS = [
-  {name:"Marcus Johnson",email:"marcus.j@email.com",property:"46 Township Line Road",unit:"215",applied:"Apr 02, 2026",status:"pending",screening:"not started"},
-  {name:"Sarah Mitchell",email:"s.mitchell@email.com",property:"46 Township Line Road",unit:"215",applied:"Apr 01, 2026",status:"pending",screening:"in progress"},
-  {name:"James Park",email:"jpark22@email.com",property:"7845 Montgomery Avenue",unit:"Unit 3",applied:"Mar 30, 2026",status:"screening",screening:"in progress"},
-  {name:"Emily Rodriguez",email:"emily.r@email.com",property:"46 Township Line Road",unit:"128",applied:"Mar 28, 2026",status:"approved",screening:"passed"},
-  {name:"Ahmed Hassan",email:"a.hassan@email.com",property:"431 Valley Rd",unit:"Unit B1",applied:"Mar 27, 2026",status:"approved",screening:"passed"},
-  {name:"Lisa Chen",email:"lisachen@email.com",property:"7845 Montgomery Avenue",unit:"Unit 5",applied:"Mar 25, 2026",status:"denied",screening:"failed"},
-  {name:"Brian Williams",email:"bwilliams@email.com",property:"46 Township Line Road",unit:"215",applied:"Mar 24, 2026",status:"withdrawn",screening:"not started"},
-  {name:"Natalia Petrova",email:"npetrova@email.com",property:"46 Township Line Road",unit:"128",applied:"Mar 22, 2026",status:"denied",screening:"failed"},
-  {name:"Kevin O'Brien",email:"kobrien@email.com",property:"926 Fox Chase Rd",unit:"Apt 2",applied:"Mar 20, 2026",status:"approved",screening:"passed"},
-  {name:"Diana Torres",email:"dtorres@email.com",property:"7845 Montgomery Avenue",unit:"Unit 3",applied:"Mar 18, 2026",status:"withdrawn",screening:"not started"},
-  {name:"Michael Chang",email:"mchang@email.com",property:"46 Township Line Road",unit:"215",applied:"Mar 15, 2026",status:"denied",screening:"failed"},
-  {name:"Rachel Adams",email:"radams@email.com",property:"431 Valley Rd",unit:"Unit B1",applied:"Mar 12, 2026",status:"approved",screening:"passed"},
-];
+function _mcClearAttach() {
+  _mcPendingFile = null;
+  var preview = document.getElementById('mcAttachPreview');
+  if (preview) preview.style.display = 'none';
+  var fi = document.getElementById('mcFileInput');
+  if (fi) fi.value = '';
+}
 
-function renderMTMApps() {
+async function _mcSendReply(from, email, phone, subject, threadId) {
+  var input = document.getElementById('mcReplyInput');
+  var body = input ? input.value.trim() : '';
+  if (!body && !_mcPendingFile) return;
+  input.value = '';
+  var ch = getSelectedChannel(document.getElementById('mcReplyArea')) || 'app';
+
+  if (_mcPendingFile && ch === 'app') {
+    // Upload file to Supabase storage, then send with attachment
+    var file = _mcPendingFile;
+    var ext = file.name.split('.').pop() || 'bin';
+    var path = 'mc/' + (threadId || Date.now()) + '/' + Date.now() + '.' + ext;
+    toast('Uploading file...');
+    try {
+      var upRes = await sb.storage.from('message-attachments').upload(path, file, { cacheControl: '3600', upsert: false });
+      if (upRes.error) { toast('Upload failed: ' + upRes.error.message, 'error'); return; }
+      var attachmentUrl = sb.supabaseUrl + '/storage/v1/object/public/message-attachments/' + path;
+      var messageType = file.type && file.type.startsWith('image/') ? 'image' : 'file';
+      if (!body) body = '📎 ' + file.name;
+      _mcClearAttach();
+      sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId, attachmentUrl: attachmentUrl, messageType: messageType });
+    } catch(e) { toast('Upload error: ' + e.message, 'error'); return; }
+  } else {
+    _mcClearAttach();
+    sendViaChannel(ch, from, email, phone, body, { subject: subject, threadId: threadId });
+  }
+  toast('Reply sent!');
+  setTimeout(function() { if (_msgCenterSelectedContact) openMsgCenterDetail(_msgCenterSelectedContact); }, 1000);
+}
+
+// ── AI Suggest & Rephrase for Message Center ──
+var _MC_AI_PROXY = 'https://tech.willowpa.com/proxy.php';
+
+function _mcBuildSystemPrompt() {
+  var prompt = 'You are a helpful property management assistant for Willow Partnership, LLC. ';
+  prompt += 'You help draft replies to guest and resident messages.\n\n';
+  prompt += '## Tone Guidelines\n';
+  prompt += '- Always use "We" not "I"\n';
+  prompt += '- Professional but warm tone\n';
+  prompt += '- Never use slang or overly casual language\n';
+  prompt += '- Sign off with: Best regards, Thank you!, or See you soon!\n';
+  prompt += '\nDraft a concise, helpful reply. Do NOT include subject lines or email headers. Just the message body. Keep it under 150 words.';
+  return prompt;
+}
+
+async function _mcAISuggest() {
+  // Get conversation context from the bubbles
+  var bubbles = document.querySelectorAll('#mcThreadBubbles > div');
+  if (!bubbles || bubbles.length === 0) { toast('No conversation to suggest from', 'warning'); return; }
+
+  var convoText = '';
+  bubbles.forEach(function(el) {
+    var label = el.querySelector('div[style*="font-weight:600"]');
+    var body = el.querySelector('div[style*="white-space:pre-wrap"]');
+    if (label && body) convoText += (label.textContent || '') + ': ' + (body.textContent || '') + '\n';
+  });
+
+  // Find contact info from grouped data
+  var m = _mcGroupedContacts.find(function(c) { return (c.from||'').toLowerCase().trim() === _msgCenterSelectedContact; });
+  var guestName = m ? m.from : 'Guest';
+  var unit = m ? m.unit : '';
+
+  var userPrompt = 'Guest: ' + guestName;
+  if (unit) userPrompt += ' (Unit ' + unit + ')';
+  userPrompt += '\n\nConversation:\n' + convoText;
+  userPrompt += '\n\nDraft a reply to the guest\'s latest message.';
+
+  // Show loading in a small inline area
+  var input = document.getElementById('mcReplyInput');
+  if (input) { input.value = 'Generating AI suggestion...'; input.disabled = true; }
+
+  try {
+    var resp = await fetch(_MC_AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 400, system: _mcBuildSystemPrompt(), messages: [{ role: 'user', content: userPrompt }] })
+    });
+    var data = await resp.json();
+    if (input) input.disabled = false;
+    if (data.content && data.content[0] && data.content[0].text) {
+      if (input) { input.value = data.content[0].text; input.focus(); }
+    } else {
+      if (input) input.value = '';
+      toast('AI suggestion unavailable', 'error');
+    }
+  } catch(e) {
+    if (input) { input.disabled = false; input.value = ''; }
+    toast('AI suggestion failed: ' + e.message, 'error');
+  }
+}
+
+async function _mcAIRephrase() {
+  var input = document.getElementById('mcReplyInput');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  input.disabled = true;
+  var original = text;
+
+  try {
+    var resp = await fetch(_MC_AI_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: 'You are a property management communication assistant. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message:\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    input.disabled = false;
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      input.focus();
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = original;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.disabled = false;
+    input.value = original;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
+}
+
+// ── Applications Data & Render (live from Supabase) ──
+let _liveApplications = [];
+
+async function fetchApplications() {
+  try {
+    const resp = await fetch(SUPA_URL + '/rest/v1/rental_applications?order=created_at.desc', {
+      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    _liveApplications = data.map(r => ({
+      id: r.id,
+      name: (r.first_name || '') + ' ' + (r.last_name || ''),
+      email: r.email || '',
+      phone: r.phone || '',
+      property: r.property || '—',
+      unit: r.unit || '—',
+      applied: r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'}) : '—',
+      status: r.status || 'pending',
+      screening: r.screening_level || 'basic',
+      move_in: r.move_in_date || '',
+      address: [r.address_line1, r.city, r.state, r.zip].filter(Boolean).join(', '),
+      birth_date: r.birth_date || '',
+      raw: r
+    }));
+  } catch(e) {
+    console.error('Failed to fetch applications:', e);
+    _liveApplications = [];
+  }
+}
+
+async function renderMTMApps() {
   const tbody = document.getElementById('mtmAppsBody');
   if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="mtm-empty">Loading applications...</td></tr>';
+  await fetchApplications();
   const propFilter = document.getElementById('mtmAppPropFilter');
-  if (propFilter && propFilter.options.length <= 1) {
-    const props = [...new Set(INNAGO_APPLICATIONS.map(a => a.property))].sort();
+  if (propFilter) {
+    // Reset to just "All Properties" then rebuild
+    propFilter.innerHTML = '<option value="all">All Properties</option>';
+    const props = [...new Set(_liveApplications.map(a => a.property).filter(p => p && p !== '—'))].sort();
     props.forEach(p => { const o = document.createElement('option'); o.value = p; o.text = p; propFilter.add(o); });
   }
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('mtmAppPending', INNAGO_APPLICATIONS.filter(a => a.status === 'pending').length);
-  el('mtmAppApproved', INNAGO_APPLICATIONS.filter(a => a.status === 'approved').length);
-  el('mtmAppScreening', INNAGO_APPLICATIONS.filter(a => a.status === 'screening').length);
-  el('mtmAppDenied', INNAGO_APPLICATIONS.filter(a => a.status === 'denied').length);
+  el('mtmAppPending', _liveApplications.filter(a => a.status === 'pending').length);
+  el('mtmAppApproved', _liveApplications.filter(a => a.status === 'approved').length);
+  el('mtmAppScreening', _liveApplications.filter(a => a.status === 'screening').length);
+  el('mtmAppDenied', _liveApplications.filter(a => a.status === 'denied').length);
   filterMTMApps();
 }
 
@@ -3845,7 +4676,7 @@ function filterMTMApps() {
   const statusF = document.getElementById('mtmAppStatusFilter')?.value || 'all';
   const propF = document.getElementById('mtmAppPropFilter')?.value || 'all';
 
-  const filtered = INNAGO_APPLICATIONS.filter(a => {
+  const filtered = _liveApplications.filter(a => {
     if (statusF !== 'all' && a.status !== statusF) return false;
     if (propF !== 'all' && a.property !== propF) return false;
     if (search && !a.name.toLowerCase().includes(search) && !a.email.toLowerCase().includes(search) && !a.property.toLowerCase().includes(search)) return false;
@@ -3855,22 +4686,21 @@ function filterMTMApps() {
   document.getElementById('mtmAppCount').textContent = filtered.length + ' application' + (filtered.length !== 1 ? 's' : '');
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="mtm-empty">No applications match your filters</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="mtm-empty">No applications found</td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map(a => {
     const statusBadge = `<span class="mtm-badge ${a.status}">${a.status.charAt(0).toUpperCase() + a.status.slice(1)}</span>`;
-    const screenBadge = a.screening === 'passed' ? '<span class="mtm-badge active">Passed</span>' :
-      a.screening === 'failed' ? '<span class="mtm-badge expired">Failed</span>' :
-      a.screening === 'in progress' ? '<span class="mtm-badge screening">In Progress</span>' :
-      '<span class="mtm-badge" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border)">Not Started</span>';
+    const screenBadge = a.screening === 'full' ? '<span class="mtm-badge active">Full</span>' :
+      a.screening === 'criminal_credit' ? '<span class="mtm-badge screening">Criminal+Credit</span>' :
+      '<span class="mtm-badge" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border)">Basic</span>';
     return `<tr>
       <td><span class="mtm-tenant-name">${a.name}</span><span class="mtm-tenant-email">${a.email}</span></td>
       <td><span class="mtm-prop-unit">${a.unit}</span><span class="mtm-prop-addr">${a.property}</span></td>
       <td>${a.applied}</td>
       <td>${statusBadge}</td>
       <td>${screenBadge}</td>
-      <td><button class="mtm-btn" onclick="alert('Review application for ${a.name}')">Review</button></td>
+      <td><button class="mtm-btn" onclick="openAppReviewModal('${a.id}')">Review</button></td>
     </tr>`;
   }).join('');
 }
@@ -4147,6 +4977,8 @@ async function loadMaintenanceFromSupabase() {
       assigned_to: r.assigned_to || '',
       address: r.address || '',
       owner: r.owner || '',
+      work_order_id: r.work_order_id || '',
+      chat: r.chat || [],
       _raw: r
     }));
     renderMTMMaint();
@@ -4154,8 +4986,8 @@ async function loadMaintenanceFromSupabase() {
 }
 
 function mapMaintStatus(s) {
-  const map = { submitted:'open', assigned:'scheduled', scheduled:'scheduled', 'in-progress':'in-progress', completed:'resolved', cancelled:'resolved' };
-  return map[s] || s || 'open';
+  // Use actual Supabase statuses directly — no remapping
+  return s || 'submitted';
 }
 
 function fmtMaintDate(iso) {
@@ -4169,10 +5001,10 @@ function renderMTMMaint() {
   const tbody = document.getElementById('mtmMaintBody');
   if (!tbody) return;
   const el = (id, v) => { const e = document.getElementById(id); if(e) e.textContent = v; };
-  el('mtmMaintOpen', MAINTENANCE_REQUESTS.filter(m => m.status === 'open').length);
+  el('mtmMaintOpen', MAINTENANCE_REQUESTS.filter(m => m.status === 'submitted' || m.status === 'assigned').length);
   el('mtmMaintProgress', MAINTENANCE_REQUESTS.filter(m => m.status === 'in-progress').length);
   el('mtmMaintScheduled', MAINTENANCE_REQUESTS.filter(m => m.status === 'scheduled').length);
-  el('mtmMaintResolved', MAINTENANCE_REQUESTS.filter(m => m.status === 'resolved').length);
+  el('mtmMaintResolved', MAINTENANCE_REQUESTS.filter(m => m.status === 'completed' || m.status === 'cancelled').length);
   filterMTMMaint();
 }
 
@@ -4182,8 +5014,17 @@ function filterMTMMaint() {
   const search = (document.getElementById('mtmMaintSearch')?.value || '').toLowerCase();
   const statusF = document.getElementById('mtmMaintStatusFilter')?.value || 'all';
 
+  const statusGroups = {
+    'open': ['submitted','assigned'],
+    'in-progress': ['in-progress'],
+    'scheduled': ['scheduled'],
+    'resolved': ['completed','cancelled']
+  };
   const filtered = MAINTENANCE_REQUESTS.filter(m => {
-    if (statusF !== 'all' && m.status !== statusF) return false;
+    if (statusF !== 'all') {
+      const group = statusGroups[statusF] || [statusF];
+      if (!group.includes(m.status)) return false;
+    }
     if (search && !m.tenant.toLowerCase().includes(search) && !m.issue.toLowerCase().includes(search) && !m.property.toLowerCase().includes(search)) return false;
     return true;
   });
@@ -4195,7 +5036,8 @@ function filterMTMMaint() {
     return;
   }
   tbody.innerHTML = filtered.map(m => {
-    const statusBadge = `<span class="mtm-badge ${m.status}">${m.status === 'in-progress' ? 'In Progress' : m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>`;
+    const statusLabels = {submitted:'New',assigned:'Assigned',scheduled:'Scheduled','in-progress':'In Progress',completed:'Completed',cancelled:'Cancelled'};
+    const statusBadge = `<span class="mtm-badge ${m.status}">${statusLabels[m.status] || m.status.charAt(0).toUpperCase() + m.status.slice(1)}</span>`;
     const priBadge = `<span class="mtm-badge ${m.priority}">${m.priority.charAt(0).toUpperCase() + m.priority.slice(1)}</span>`;
     const catIcon = {Plumbing:'🚰',Electrical:'⚡','HVAC / Heating':'🌡',Appliance:'🏠','Lock / Key':'🔑','Pest Control':'🐛','Water Damage':'💧',General:'🔧'}[m.category] || '🔧';
     return `<tr onclick="openMaintTicket('${m.id}')" style="cursor:pointer">
@@ -4254,9 +5096,51 @@ function openMaintTicket(id) {
     </div>`;
   }
 
+  // Show waiver text if permission to enter was granted
+  if (m.permission_to_enter && m.waiver_agreed) {
+    html += `<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px">
+      <strong>Permission to Enter Waiver (Signed)</strong><br>
+      Tenant has granted permission for authorized personnel to enter their unit for the purpose of performing maintenance or repairs.
+      Tenant acknowledges that management and its contractors are not responsible for any damage to personal property during the course of repairs,
+      except in cases of gross negligence. This consent remains valid for the duration of this service request.
+    </div>`;
+  }
+
+  // Show linked Work Order
+  if (m.work_order_id) {
+    html += `<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;margin-bottom:12px">
+      <strong>🔗 Work Order:</strong> ${m.work_order_id}${m.assigned_to ? ' — Assigned to: ' + m.assigned_to : ''}
+    </div>`;
+  }
+
   if (m.photo) {
     html += `<div style="margin-bottom:16px"><img src="${m.photo}" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e5e7eb" onerror="this.style.display='none'"></div>`;
   }
+
+  // Show chat thread
+  if (m.chat && m.chat.length > 0) {
+    html += `<div style="margin-bottom:16px">
+      <div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:8px">Chat Thread (${m.chat.length} message${m.chat.length !== 1 ? 's' : ''})</div>
+      <div style="background:#f9fafb;border-radius:8px;padding:12px;max-height:200px;overflow-y:auto">`;
+    m.chat.forEach(c => {
+      const isAdmin = c.from === 'admin';
+      const bgColor = isAdmin ? '#dbeafe' : '#f3f4f6';
+      const label = isAdmin ? '🔧 Admin' : '👤 ' + (c.name || 'Tenant');
+      html += `<div style="background:${bgColor};border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:13px">
+        <div style="font-size:10px;color:#6b7280;margin-bottom:2px">${label} — ${c.time || ''}</div>
+        ${c.text}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Admin chat reply
+  html += `<div style="margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <input id="maintChatInput" placeholder="Reply to tenant..." style="flex:1;padding:8px;border:1px solid #e5e7eb;border-radius:6px;font-family:inherit;font-size:13px">
+      <button onclick="sendMaintChat('${m.id}')" style="padding:8px 16px;background:var(--accent2,#c47f00);color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">Send</button>
+    </div>
+  </div>`;
 
   html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
     <div>
@@ -4311,6 +5195,25 @@ async function saveMaintTicket(id) {
     if (error) { alert('Error saving: ' + error.message); return; }
     document.getElementById('maintTicketOverlay').style.display = 'none';
     await loadMaintenanceFromSupabase();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function sendMaintChat(id) {
+  const input = document.getElementById('maintChatInput');
+  const msg = (input?.value || '').trim();
+  if (!msg) return;
+  const m = MAINTENANCE_REQUESTS.find(r => r.id === id);
+  if (!m) return;
+
+  const chatArr = [...(m.chat || []), { from: 'admin', name: 'Admin', text: msg, time: new Date().toISOString() }];
+  try {
+    const { error } = await sb.from('maintenance_requests')
+      .update({ chat: chatArr, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { alert('Error: ' + error.message); return; }
+    input.value = '';
+    await loadMaintenanceFromSupabase();
+    openMaintTicket(id); // Refresh the modal
   } catch (e) { alert('Error: ' + e.message); }
 }
 
@@ -5679,7 +6582,8 @@ function renderPropertyList(props) {
     const addrLine = [rawAddr, p.city, p.state].filter(Boolean).join(', ');
     const settingsHref = p.property_uid ? `property-settings.html?uid=${p.property_uid}` : `property-settings.html?apt=${encodeURIComponent(p.apt || p.name)}`;
 
-    return `<div class="prop-row" onclick="window.location='${settingsHref}'">
+    const propAddr = (p.address || p.name || '').replace(/'/g, "\\'");
+    return `<div class="prop-row" onclick="openPropertyDetail('${propAddr}')">
       <div class="prop-thumb">${thumbHtml}</div>
       <div class="prop-info">
         <div class="prop-name">${p.name || p.apt || '—'}</div>
@@ -5714,6 +6618,7 @@ function openAddPropertyModal() {
   document.getElementById('propFormGuests').value = '';
   document.getElementById('propFormOwner').value = '';
   document.getElementById('propFormStatus').value = 'Active';
+  loadParkingBuildingOptions('');
   openModal('addPropertyModal');
 }
 
@@ -5732,7 +6637,25 @@ function openEditPropertyModal(apt) {
   document.getElementById('propFormStatus').value = p.status || 'Active';
   document.getElementById('propFormHostfullyUid').value = p.hostfully_uid || '';
   document.getElementById('propFormApt').value = p.apt || '';
+  loadParkingBuildingOptions(p.parking_building_id || '');
   openModal('addPropertyModal');
+}
+
+async function loadParkingBuildingOptions(selectedId) {
+  var sel = document.getElementById('propFormParkingBuilding');
+  sel.innerHTML = '<option value="">— None —</option>';
+  try {
+    var res = await pkSB('parking_buildings', 'select=id,name&active=eq.true&order=name.asc');
+    if (Array.isArray(res)) {
+      res.forEach(function(b) {
+        var opt = document.createElement('option');
+        opt.value = b.id;
+        opt.textContent = b.name;
+        if (b.id === selectedId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) { /* ignore */ }
 }
 
 async function saveProperty() {
@@ -5751,6 +6674,7 @@ async function saveProperty() {
     max_guests:   parseInt(document.getElementById('propFormGuests').value) || null,
     status:       document.getElementById('propFormStatus').value,
     hostfully_uid:document.getElementById('propFormHostfullyUid').value.trim() || null,
+    parking_building_id: document.getElementById('propFormParkingBuilding').value || null,
     tags: [],
     updated_at: new Date().toISOString()
   };
@@ -5769,8 +6693,1021 @@ async function saveProperty() {
 
 async function syncPropertiesFromHostfully() {
   toast('To sync: enter your Hostfully API key in Settings → Integrations (coming soon)', 'info');
-  // Future: GET https://platform.hostfully.com/api/v3/properties with X-HOSTFULLY-APIKEY header
-  // then upsert each property into Supabase `properties` table
+}
+
+
+// ══════════════════════════════════════════════════════
+//  PROPERTY DETAIL VIEW (LT / ST toggle)
+// ══════════════════════════════════════════════════════
+
+let _pdCurrentProperty = null;  // property address string (INNAGO-matched)
+let _pdCurrentView = 'lt';      // 'lt' or 'st'
+
+// Normalize address for fuzzy matching (Rd↔Road, Ave↔Avenue, etc.)
+function _normalizeAddr(s) {
+  if (!s) return '';
+  return s.toLowerCase().trim()
+    .replace(/\brd\b/g, 'road').replace(/\bave\b/g, 'avenue')
+    .replace(/\bst\b/g, 'street').replace(/\bdr\b/g, 'drive')
+    .replace(/\bln\b/g, 'lane').replace(/\bblvd\b/g, 'boulevard')
+    .replace(/\bct\b/g, 'court').replace(/\bpl\b/g, 'place')
+    .replace(/[.,#]/g, '').replace(/\s+/g, ' ');
+}
+
+// Find the INNAGO property name that best matches a given address or apt number
+function _matchInnagoProperty(addr, aptNum) {
+  const innagoProps = [...new Set(INNAGO_TENANTS.map(t => t.property))];
+
+  // 1. Exact address match
+  if (addr) {
+    const exact = innagoProps.find(p => p === addr);
+    if (exact) return exact;
+    // Normalized match (Rd→Road, Ave→Avenue)
+    const norm = _normalizeAddr(addr);
+    const normMatch = innagoProps.find(p => _normalizeAddr(p) === norm);
+    if (normMatch) return normMatch;
+    // Partial match
+    const partial = innagoProps.find(p => _normalizeAddr(p).includes(norm) || norm.includes(_normalizeAddr(p)));
+    if (partial) return partial;
+  }
+
+  // 2. Apt number lookup — find which INNAGO property this unit belongs to
+  if (aptNum) {
+    const tenant = INNAGO_TENANTS.find(t => t.unitNum === aptNum || t.unitNum === String(aptNum));
+    if (tenant) return tenant.property;
+    // Also check leases
+    const lease = INNAGO_LEASES.find(l => l.unit === aptNum || l.unit === String(aptNum));
+    if (lease) return lease.property;
+  }
+
+  return null;
+}
+
+function openPropertyDetail(propertyName) {
+  // Find the property record to get apt number for fallback matching
+  const propRec = propertiesData.find(p => (p.address || p.name || '') === propertyName);
+  const aptNum = propRec ? (propRec.apt || propRec.internal_apt || propRec.name) : propertyName;
+  // Match to INNAGO property name for LT data
+  const innagoName = _matchInnagoProperty(propertyName, aptNum) || propertyName;
+  _pdCurrentProperty = innagoName;
+
+  // Hide all pages, show property detail
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = ''; });
+  const page = document.getElementById('page-property-detail');
+  page.classList.add('active');
+  page.style.display = 'block';
+
+  // Determine if this property is predominantly LT or ST
+  const propUnits = data.filter(u => u.owner === propertyName || (u.note && u.note.includes(propertyName)));
+  const ltTenants = INNAGO_TENANTS.filter(t => t.property === innagoName);
+  const hasLT = ltTenants.length > 0;
+  const hasST = propUnits.some(u => u.type === 'short-stay');
+
+  // Set header — show building name + unit if applicable
+  const displayTitle = innagoName !== propertyName ? innagoName + (aptNum && aptNum !== innagoName ? ' | Unit ' + aptNum : '') : propertyName;
+  document.getElementById('pdTitle').textContent = displayTitle;
+  const propData = propRec || propertiesData.find(p => p.name === propertyName || p.address === propertyName || p.apt === propertyName || p.address === innagoName);
+  const addr = propData ? [propData.city, propData.state].filter(Boolean).join(', ') : '';
+  document.getElementById('pdSubtitle').textContent = addr || 'Property Details';
+
+  // Settings link
+  const settingsLink = document.getElementById('pdSettingsLink');
+  if (propData && propData.property_uid) {
+    settingsLink.href = 'property-settings.html?uid=' + propData.property_uid;
+  } else {
+    settingsLink.href = 'property-settings.html?apt=' + encodeURIComponent(propertyName);
+  }
+
+  // Build settings URL for ST redirect
+  var _pdSettingsUrl = settingsLink.href;
+
+  // If no LT data at all, go straight to property-settings.html (original ST behavior)
+  if (!hasLT) {
+    window.location.href = _pdSettingsUrl;
+    return;
+  }
+
+  // Has LT data — show LT view by default
+  _pdCurrentView = 'lt';
+  document.querySelectorAll('.pd-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === 'lt'));
+  document.getElementById('pdLTView').style.display = 'block';
+  document.getElementById('pdSTView').style.display = 'none';
+
+  renderPDLongTerm(innagoName);
+  // If user clicked a specific unit (not a building), auto-open that unit's detail
+  if (aptNum && aptNum !== innagoName) {
+    const unitIdx = _pdUnitsData.findIndex(u => u.unit === aptNum || u.unit === String(aptNum));
+    if (unitIdx >= 0) {
+      setTimeout(() => openPDUnitDetail(unitIdx), 100);
+    }
+  }
+}
+
+function closePropertyDetail() {
+  // Close unit detail if open
+  const udPage = document.getElementById('udPage');
+  if (udPage) udPage.style.display = 'none';
+  const pdPage = document.getElementById('page-property-detail');
+  pdPage.style.display = '';
+  pdPage.classList.remove('active');
+  _udCurrentUnit = null;
+  // Re-show the properties page using class system
+  document.querySelectorAll('.page').forEach(p => { p.style.display = ''; });
+  const propPage = document.getElementById('page-properties');
+  if (propPage) propPage.classList.add('active');
+}
+
+function switchPropertyView(view, btn) {
+  if (view === 'st') {
+    // Redirect to property-settings.html for the ST view
+    var link = document.getElementById('pdSettingsLink');
+    if (link && link.href) { window.location.href = link.href; return; }
+  }
+  _pdCurrentView = view;
+  document.querySelectorAll('.pd-toggle-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pdLTView').style.display = view === 'lt' ? 'block' : 'none';
+  document.getElementById('pdSTView').style.display = view === 'st' ? 'block' : 'none';
+  if (view === 'lt') renderPDLongTerm(_pdCurrentProperty);
+}
+
+/* ═══ APPLICATION MODAL ═══ */
+var _appScreeningLevel = 1;
+var _appSending = false;
+var _appBaseUrl = (window.location.origin || 'https://app.willowpa.com') + '/apply/';
+var _appUrls = {
+  1: _appBaseUrl,  // Basic application on our domain
+  2: '',  // Coming soon — requires tenant screening API
+  3: ''   // Coming soon — requires tenant screening API
+};
+var _appScreeningNames = {
+  1: 'Application Only',
+  2: 'Application + Criminal + Credit',
+  3: 'Application + Criminal + Credit + Eviction'
+};
+
+function _getApplyUrl(level) {
+  var base = _appUrls[level || 1];
+  if (!base) return '';
+  var p = encodeURIComponent(_pdCurrentProperty || '');
+  var u = encodeURIComponent(_udCurrentUnit ? (_udCurrentUnit.unit || '') : '');
+  var qs = [];
+  if (p) qs.push('property=' + p);
+  if (u) qs.push('unit=' + u);
+  return base + (qs.length ? '?' + qs.join('&') : '');
+}
+
+function openApplicationModal() {
+  _appScreeningLevel = 1;
+  _appSending = false;
+  document.getElementById('appModalOverlay').style.display = 'flex';
+  // Set property name in modal header
+  document.getElementById('appModalProperty').textContent = _pdCurrentProperty || 'All Properties';
+  // Reset state
+  selectScreening(1);
+  switchAppTab('email', document.querySelector('.app-modal-tab'));
+  document.getElementById('appEmailInput').value = '';
+  document.getElementById('appUrlDisplay').value = _getApplyUrl(1);
+  // Reset sent confirmation
+  document.getElementById('appSentConfirm').style.display = 'none';
+  document.getElementById('appEmailTab').style.display = 'block';
+  // Reset send button
+  var btn = document.getElementById('appSendBtn');
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send'; }
+}
+
+function closeApplicationModal() {
+  document.getElementById('appModalOverlay').style.display = 'none';
+}
+
+function switchAppTab(tab, btn) {
+  document.querySelectorAll('.app-modal-tab').forEach(function(t) { t.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('appEmailTab').style.display = tab === 'email' ? 'block' : 'none';
+  document.getElementById('appUrlTab').style.display = tab === 'url' ? 'block' : 'none';
+  document.getElementById('appSentConfirm').style.display = 'none';
+}
+
+function selectScreening(level) {
+  _appScreeningLevel = level;
+  [1,2,3].forEach(function(i) {
+    var el = document.getElementById('appOpt' + i);
+    if (i === level) el.classList.add('selected');
+    else el.classList.remove('selected');
+  });
+  var url = _getApplyUrl(level);
+  document.getElementById('appUrlDisplay').value = url || 'Coming soon — screening API required';
+  // Update URL hint
+  var hint = document.getElementById('appUrlHint');
+  if (hint) hint.textContent = url ? 'Share this link directly with prospective tenants' : 'URL not available yet for this screening level';
+}
+
+function _buildApplicationEmailHTML(applicantEmail, appUrl, propertyName) {
+  var screeningName = _appScreeningNames[_appScreeningLevel] || 'Application Only';
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+    + '<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0;">'
+    + '<tr><td align="center">'
+    + '<table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">'
+    // Header bar
+    + '<tr><td style="background:linear-gradient(135deg,#8B5A2B,#a0714a);padding:24px 32px;text-align:center;">'
+    + '<div style="font-size:24px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">W</div>'
+    + '<div style="font-size:18px;font-weight:600;color:#ffffff;margin-top:6px;">Willow Partnership LLC</div>'
+    + '</td></tr>'
+    // Body
+    + '<tr><td style="padding:32px 36px;">'
+    + '<h2 style="color:#333;font-size:20px;margin:0 0 6px;">Hi there,</h2>'
+    + '<p style="color:#555;font-size:15px;line-height:1.6;margin:16px 0;">'
+    + '<strong>Willow Partnership LLC</strong> has requested that you fill out a rental application as part of their screening process.'
+    + '</p>'
+    + (propertyName ? '<p style="color:#888;font-size:13px;margin:0 0 20px;">Property: <strong style="color:#555;">' + propertyName + '</strong></p>' : '')
+    + '<p style="color:#555;font-size:15px;line-height:1.6;margin:16px 0;">'
+    + 'Click the button below to begin your application:'
+    + '</p>'
+    // CTA Button
+    + '<table cellpadding="0" cellspacing="0" style="margin:24px auto;"><tr><td>'
+    + '<a href="' + appUrl + '" style="display:inline-block;background:#8B5A2B;color:#ffffff;font-size:16px;font-weight:600;padding:14px 40px;border-radius:8px;text-decoration:none;">Apply Now</a>'
+    + '</td></tr></table>'
+    // Screening info
+    + '<div style="background:#f9f6f2;border-radius:8px;padding:14px 18px;margin:20px 0;">'
+    + '<div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Screening Level</div>'
+    + '<div style="font-size:14px;font-weight:600;color:#8B5A2B;">' + screeningName + '</div>'
+    + '<div style="font-size:12px;color:#999;margin-top:2px;">Cost: <strong style="color:#4caf50;">$0.00</strong></div>'
+    + '</div>'
+    + '<p style="color:#888;font-size:13px;line-height:1.5;margin:20px 0 0;">'
+    + 'Your personal information will be shared safely and securely, only with the prospective landlord.'
+    + '</p>'
+    + '</td></tr>'
+    // Footer
+    + '<tr><td style="background:#f9f9f9;padding:20px 36px;border-top:1px solid #eee;text-align:center;">'
+    + '<div style="font-size:14px;font-weight:600;color:#333;">Willow Partnership LLC</div>'
+    + '<div style="font-size:13px;color:#888;margin-top:4px;">(267) 865-0001 &nbsp;|&nbsp; general@willowpa.com</div>'
+    + '</td></tr>'
+    + '</table>'
+    + '</td></tr></table>'
+    + '</body></html>';
+}
+
+async function sendApplicationEmail() {
+  if (_appSending) return;
+  var email = document.getElementById('appEmailInput').value.trim();
+  if (!email) { showToast('Please enter an email address.'); return; }
+  // Validate email format
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('Please enter a valid email address.'); return; }
+  var url = _getApplyUrl(_appScreeningLevel);
+  if (!url) { showToast('This screening level is not yet available.'); return; }
+  // Append email to URL so form pre-fills
+  var urlWithEmail = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'email=' + encodeURIComponent(email);
+
+  _appSending = true;
+  var btn = document.getElementById('appSendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;"></span> Sending...';
+
+  var propertyName = _pdCurrentProperty || '';
+  var htmlBody = _buildApplicationEmailHTML(email, urlWithEmail, propertyName);
+  var subject = 'Willow Partnership LLC has requested your application';
+
+  try {
+    // Try Supabase edge function or fallback
+    var payload = { to: email, subject: subject, html: htmlBody, from_name: 'Willow Partnership LLC' };
+    var resp = await fetch(SUPABASE_URL + '/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY },
+      body: JSON.stringify(payload)
+    });
+
+    if (resp.ok) {
+      // Show success
+      document.getElementById('appEmailTab').style.display = 'none';
+      document.getElementById('appSentConfirm').style.display = 'block';
+      document.getElementById('appSentTo').textContent = 'Sent to ' + email;
+      showToast('Application email sent to ' + email);
+    } else {
+      // Fallback to mailto
+      _appSendFallback(email, urlWithEmail, propertyName);
+    }
+  } catch(e) {
+    // Fallback to mailto
+    _appSendFallback(email, urlWithEmail, propertyName);
+  }
+
+  _appSending = false;
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Send';
+}
+
+function _appSendFallback(email, url, propertyName) {
+  var subject = encodeURIComponent('Willow Partnership LLC has requested your application');
+  var body = encodeURIComponent(
+    'Hi there,\n\n'
+    + 'Willow Partnership LLC has requested that you fill out a rental application as part of their screening process.\n\n'
+    + (propertyName ? 'Property: ' + propertyName + '\n\n' : '')
+    + 'Please click the link below to begin your application:\n'
+    + url + '\n\n'
+    + 'The cost of your screening report is $0.00.\n\n'
+    + 'Your personal information will be shared safely and securely, only with the prospective landlord.\n\n'
+    + '—\nWillow Partnership LLC\n(267) 865-0001\ngeneral@willowpa.com'
+  );
+  window.open('mailto:' + email + '?subject=' + subject + '&body=' + body, '_blank');
+  // Show success state
+  document.getElementById('appEmailTab').style.display = 'none';
+  document.getElementById('appSentConfirm').style.display = 'block';
+  document.getElementById('appSentTo').textContent = 'Email client opened for ' + email;
+  showToast('Opening email client for ' + email);
+}
+
+function copyApplicationUrl() {
+  var url = _getApplyUrl(_appScreeningLevel);
+  if (!url) { showToast('URL not available for this screening level yet.'); return; }
+  navigator.clipboard.writeText(url).then(function() {
+    showToast('Application URL copied to clipboard!');
+    // Brief visual feedback on button
+    var btns = document.querySelectorAll('#appUrlTab .app-send-btn');
+    if (btns.length) {
+      btns[0].innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      setTimeout(function() {
+        btns[0].innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+      }, 2000);
+    }
+  }).catch(function() {
+    var inp = document.getElementById('appUrlDisplay');
+    inp.select();
+    document.execCommand('copy');
+    showToast('URL copied!');
+  });
+}
+
+// ── Application Review Modal ──
+var _reviewAppId = null;
+
+function openAppReviewModal(appId) {
+  var app = _liveApplications.find(a => a.id === appId);
+  if (!app) { showToast('Application not found'); return; }
+  _reviewAppId = appId;
+
+  // Avatar initials
+  var initials = (app.name || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('arAvatar').textContent = initials;
+  document.getElementById('arName').textContent = app.name || '—';
+  document.getElementById('arAddress').textContent = app.address || '—';
+
+  // Info fields
+  document.getElementById('arApplied').textContent = app.applied || '—';
+  document.getElementById('arMoveIn').textContent = app.move_in ? new Date(app.move_in).toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'}) : '—';
+  document.getElementById('arDOB').textContent = app.birth_date ? new Date(app.birth_date).toLocaleDateString('en-US', {month:'short', day:'2-digit', year:'numeric'}) : '—';
+  document.getElementById('arScreening').textContent = app.screening === 'full' ? 'Full Screening' : app.screening === 'criminal_credit' ? 'Criminal + Credit' : 'Basic (Application Only)';
+  document.getElementById('arProperty').textContent = app.property || '—';
+  document.getElementById('arUnit').textContent = app.unit || '—';
+
+  // Contact
+  document.getElementById('arEmail').textContent = app.email || '—';
+  document.getElementById('arPhone').textContent = app.phone || '—';
+
+  // Full address
+  var raw = app.raw || {};
+  var addrParts = [raw.address_line1, raw.city, raw.state, raw.zip].filter(Boolean);
+  document.getElementById('arFullAddress').textContent = addrParts.length ? addrParts.join(', ') : '—';
+
+  // Status banner
+  var banner = document.getElementById('arStatusBanner');
+  if (app.status === 'approved') {
+    banner.style.display = 'block';
+    banner.style.background = '#e8f5e9';
+    banner.style.color = '#2e7d32';
+    banner.textContent = 'This application has been approved';
+  } else if (app.status === 'denied') {
+    banner.style.display = 'block';
+    banner.style.background = '#ffebee';
+    banner.style.color = '#c62828';
+    banner.textContent = 'This application has been denied';
+  } else {
+    banner.style.display = 'none';
+  }
+
+  // Show/hide approve/reject buttons based on status
+  var approveBtn = document.getElementById('arApproveBtn');
+  var rejectBtn = document.getElementById('arRejectBtn');
+  if (app.status === 'approved' || app.status === 'denied') {
+    approveBtn.style.display = 'none';
+    rejectBtn.style.display = 'none';
+  } else {
+    approveBtn.style.display = '';
+    rejectBtn.style.display = '';
+  }
+
+  // Screening reports placeholders
+  var level = app.screening || 'basic';
+  document.getElementById('arBgReport').textContent = (level === 'full' || level === 'criminal_credit') ? 'Pending' : 'Not ordered';
+  document.getElementById('arCreditReport').textContent = (level === 'full' || level === 'criminal_credit') ? 'Pending' : 'Not ordered';
+  document.getElementById('arEvictReport').textContent = level === 'full' ? 'Pending' : 'Not ordered';
+  document.getElementById('arIncomeReport').textContent = level === 'full' ? 'Pending' : 'Not ordered';
+
+  document.getElementById('appReviewOverlay').style.display = 'flex';
+}
+
+function closeAppReview() {
+  document.getElementById('appReviewOverlay').style.display = 'none';
+  _reviewAppId = null;
+}
+
+// ── Confirm Dialog Flow ──
+var _confirmAction = null; // 'approve' or 'reject'
+
+function showAppConfirm(action) {
+  _confirmAction = action;
+  var isApprove = action === 'approve';
+  document.getElementById('acTitle').textContent = isApprove
+    ? 'Are you sure you want to approve this applicant?'
+    : 'Are you sure you want to reject this applicant?';
+  document.getElementById('acMessage').value = '';
+  var btn = document.getElementById('acConfirmBtn');
+  btn.textContent = isApprove ? 'Approve' : 'Reject';
+  btn.style.background = isApprove ? '#4caf50' : '#f44336';
+  document.getElementById('appConfirmOverlay').style.display = 'flex';
+}
+
+function closeAppConfirm() {
+  document.getElementById('appConfirmOverlay').style.display = 'none';
+  _confirmAction = null;
+}
+
+async function confirmAppDecision() {
+  if (!_reviewAppId || !_confirmAction) return;
+  var app = _liveApplications.find(a => a.id === _reviewAppId);
+  if (!app) return;
+
+  var isApprove = _confirmAction === 'approve';
+  var newStatus = isApprove ? 'approved' : 'denied';
+  var customMessage = (document.getElementById('acMessage').value || '').trim();
+
+  var btn = document.getElementById('acConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = isApprove ? 'Approving...' : 'Rejecting...';
+
+  try {
+    // Update status in Supabase
+    var resp = await fetch(SUPA_URL + '/rest/v1/rental_applications?id=eq.' + _reviewAppId, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPA_KEY,
+        'Authorization': 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ status: newStatus, updated_at: new Date().toISOString() })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    // Send decision email with optional custom message
+    await _sendAppDecisionEmail(app, newStatus, customMessage);
+
+    showToast('Application ' + newStatus + ' for ' + app.name);
+    closeAppConfirm();
+    closeAppReview();
+    renderMTMApps(); // Refresh list
+  } catch(e) {
+    console.error('Decision failed:', e);
+    showToast('Failed to ' + _confirmAction + ': ' + e.message);
+    btn.disabled = false;
+    btn.textContent = isApprove ? 'Approve' : 'Reject';
+  }
+}
+
+function _buildDecisionEmailHTML(app, decision, customMsg) {
+  var isApproved = decision === 'approved';
+  var headerColor = isApproved ? '#4caf50' : '#f44336';
+  var heading = isApproved ? 'Congratulations!' : 'Application Update';
+  var message = isApproved
+    ? 'We are pleased to inform you that your rental application has been <strong>approved</strong>! Please contact our office at your earliest convenience to discuss next steps and finalize your lease agreement.'
+    : 'Thank you for your interest in renting with us. After careful review of your application, we regret to inform you that we are unable to approve your application at this time. We appreciate your understanding and wish you the best in your search.';
+
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>'
+    + '<body style="margin:0;padding:0;background:#f4f4f4;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;">'
+    + '<table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:32px 0;">'
+    + '<tr><td align="center">'
+    + '<table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">'
+    // Header
+    + '<tr><td style="background:linear-gradient(135deg,#1a2874,#2d4494);padding:24px 32px;text-align:center;">'
+    + '<div style="font-size:24px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">W</div>'
+    + '<div style="font-size:18px;font-weight:600;color:#ffffff;margin-top:6px;">Willow Partnership LLC</div>'
+    + '</td></tr>'
+    // Status bar
+    + '<tr><td style="background:' + headerColor + ';padding:12px 32px;text-align:center;">'
+    + '<div style="font-size:16px;font-weight:700;color:#ffffff;">' + heading + '</div>'
+    + '</td></tr>'
+    // Body
+    + '<tr><td style="padding:32px 36px;">'
+    + '<h2 style="color:#333;font-size:20px;margin:0 0 6px;">Dear ' + (app.name || 'Applicant') + ',</h2>'
+    + '<p style="color:#555;font-size:15px;line-height:1.6;margin:16px 0;">' + message + '</p>'
+    + (customMsg
+      ? '<div style="background:#f0f4ff;border-left:4px solid #1a2874;border-radius:4px;padding:14px 18px;margin:18px 0;">'
+        + '<div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Message from the landlord</div>'
+        + '<div style="font-size:14px;color:#444;line-height:1.6;white-space:pre-wrap;">' + customMsg.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>'
+        + '</div>'
+      : '')
+    + (isApproved
+      ? '<div style="background:#e8f5e9;border-radius:8px;padding:16px 20px;margin:20px 0;">'
+        + '<div style="font-size:14px;font-weight:600;color:#2e7d32;margin-bottom:6px;">Next Steps:</div>'
+        + '<div style="font-size:14px;color:#555;line-height:1.6;">Please contact our office to schedule a time to review and sign your lease agreement.</div>'
+        + '</div>'
+      : '')
+    + '<div style="background:#f5f5f5;border-radius:8px;padding:14px 18px;margin:20px 0;">'
+    + '<div style="font-size:11px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Property</div>'
+    + '<div style="font-size:14px;font-weight:600;color:#333;">' + (app.property || '—') + (app.unit && app.unit !== '—' ? ' — Unit ' + app.unit : '') + '</div>'
+    + '</div>'
+    + '</td></tr>'
+    // Footer
+    + '<tr><td style="background:#f9f9f9;padding:20px 36px;border-top:1px solid #eee;text-align:center;">'
+    + '<div style="font-size:14px;font-weight:600;color:#333;">Willow Partnership LLC</div>'
+    + '<div style="font-size:13px;color:#888;margin-top:4px;">(267) 865-0001 &nbsp;|&nbsp; general@willowpa.com</div>'
+    + '</td></tr>'
+    + '</table>'
+    + '</td></tr></table>'
+    + '</body></html>';
+}
+
+async function _sendAppDecisionEmail(app, decision, customMsg) {
+  if (!app.email) return;
+  var isApproved = decision === 'approved';
+  var subject = isApproved
+    ? 'Your Rental Application Has Been Approved — Willow Partnership LLC'
+    : 'Rental Application Update — Willow Partnership LLC';
+  var htmlBody = _buildDecisionEmailHTML(app, decision, customMsg || '');
+
+  try {
+    var payload = { to: app.email, subject: subject, html: htmlBody, from_name: 'Willow Partnership LLC' };
+    var resp = await fetch(SUPA_URL + '/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPA_KEY },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      _decisionEmailFallback(app, decision, customMsg);
+    }
+  } catch(e) {
+    _decisionEmailFallback(app, decision, customMsg);
+  }
+}
+
+function _decisionEmailFallback(app, decision, customMsg) {
+  var isApproved = decision === 'approved';
+  var subject = encodeURIComponent(isApproved
+    ? 'Your Rental Application Has Been Approved — Willow Partnership LLC'
+    : 'Rental Application Update — Willow Partnership LLC');
+  var msgBlock = customMsg ? '\n\nMessage from the landlord:\n' + customMsg + '\n' : '';
+  var body = encodeURIComponent(isApproved
+    ? 'Dear ' + app.name + ',\n\nCongratulations! We are pleased to inform you that your rental application has been approved.\n\nPlease contact our office at your earliest convenience to discuss next steps and finalize your lease agreement.' + msgBlock + '\n\nProperty: ' + app.property + (app.unit !== '—' ? ' — Unit ' + app.unit : '') + '\n\n—\nWillow Partnership LLC\n(267) 865-0001\ngeneral@willowpa.com'
+    : 'Dear ' + app.name + ',\n\nThank you for your interest in renting with us. After careful review of your application, we regret to inform you that we are unable to approve your application at this time.\n\nWe appreciate your understanding and wish you the best in your search.' + msgBlock + '\n\nProperty: ' + app.property + (app.unit !== '—' ? ' — Unit ' + app.unit : '') + '\n\n—\nWillow Partnership LLC\n(267) 865-0001\ngeneral@willowpa.com'
+  );
+  window.open('mailto:' + app.email + '?subject=' + subject + '&body=' + body, '_blank');
+}
+
+function renderPDLongTerm(propertyName) {
+  // Get property-specific data
+  const tenants = INNAGO_TENANTS.filter(t => t.property === propertyName);
+  const leases = INNAGO_LEASES.filter(l => l.property === propertyName);
+  const rent = INNAGO_RENT.filter(r => r.property === propertyName);
+
+  // Unique units from leases
+  const unitNames = [...new Set(leases.map(l => l.unit))];
+  const activeTenants = tenants.filter(t => t.status === 'Active');
+
+  // ── Stats Row ──
+  document.getElementById('pdTotalUnits').textContent = unitNames.length || leases.length;
+  document.getElementById('pdOccupied').textContent = activeTenants.length > 0 ? unitNames.length : 0;
+  const vacancy = unitNames.length > 0 ? Math.round((1 - unitNames.length / Math.max(unitNames.length, unitNames.length)) * 100) : 0;
+  document.getElementById('pdVacancy').textContent = vacancy + '%';
+  const now = new Date();
+  const d90 = new Date(now.getTime() + 90 * 86400000);
+  const expiring = leases.filter(l => l.type === 'fixed' && new Date(l.end) <= d90 && new Date(l.end) >= now);
+  document.getElementById('pdExpiring').textContent = expiring.length;
+
+  // ── Collection Donut ──
+  const totalAmount = rent.reduce((s, r) => s + r.amount, 0);
+  const collected = rent.reduce((s, r) => s + r.paid, 0);
+  const processing = rent.reduce((s, r) => s + r.processing, 0);
+  const overdue = rent.filter(r => r.status === 'overdue').reduce((s, r) => s + r.balance, 0);
+  const comingDue = rent.filter(r => r.status === 'pending').reduce((s, r) => s + r.balance, 0);
+
+  drawPDDonut(collected, processing, overdue, comingDue, totalAmount);
+
+  document.getElementById('pdDonutAmount').textContent = '$' + collected.toLocaleString();
+
+  // Legend
+  const legendData = [
+    { color: '#4caf50', label: 'Collected', val: collected },
+    { color: '#9c27b0', label: 'Processing', val: processing },
+    { color: '#f44336', label: 'Overdue', val: overdue },
+    { color: '#ff9800', label: 'Coming Due', val: comingDue }
+  ];
+  document.getElementById('pdLegend').innerHTML = legendData.map(d =>
+    `<div class="pd-legend-item"><div class="pd-legend-dot" style="background:${d.color}"></div><span class="pd-legend-text">${d.label}</span><span class="pd-legend-val">$${d.val.toLocaleString()}</span></div>`
+  ).join('');
+
+  // ── Lease Snapshot ──
+  const activeL = leases.filter(l => l.status === 'Active').length;
+  const futureT = tenants.filter(t => t.status === 'Future').length;
+  const mtmL = leases.filter(l => l.type === 'mtm').length;
+  const fixedL = leases.filter(l => l.type === 'fixed').length;
+  document.getElementById('pdLeaseActive').textContent = activeL;
+  document.getElementById('pdLeaseFuture').textContent = futureT;
+  document.getElementById('pdLeaseMTM').textContent = mtmL;
+  document.getElementById('pdLeaseFixed').textContent = fixedL;
+  document.getElementById('pdLeaseExpiring').textContent = expiring.length;
+
+  // ── Units Table ──
+  renderPDUnitsTable(propertyName);
+}
+
+// Store for filtering
+let _pdUnitsData = [];
+
+function renderPDUnitsTable(propertyName) {
+  const leases = INNAGO_LEASES.filter(l => l.property === propertyName);
+  const rent = INNAGO_RENT.filter(r => r.property === propertyName);
+
+  // Build unit rows from leases
+  _pdUnitsData = leases.map(l => {
+    const r = rent.find(rv => rv.unit === l.unit);
+    const tenantNames = l.tenants;
+    const tenantList = tenantNames.split(',').map(n => n.trim());
+    const tenantObjs = tenantList.map(name => INNAGO_TENANTS.find(t => t.name === name || t.name.includes(name.split(' ')[0]))).filter(Boolean);
+    return {
+      unit: l.unit,
+      tenants: tenantNames,
+      tenantObjs,
+      leaseType: l.type,
+      leaseStart: l.start,
+      leaseEnd: l.end,
+      totalRent: r ? r.amount : tenantObjs.reduce((s, t) => s + t.rent, 0),
+      status: r ? r.status : 'pending',
+      paid: r ? r.paid : 0,
+      balance: r ? r.balance : 0,
+      lease: l,
+      rentRecord: r
+    };
+  });
+
+  filterPropertyUnits();
+}
+
+function filterPropertyUnits() {
+  const q = (document.getElementById('pdUnitSearch')?.value || '').toLowerCase();
+  const filtered = q ? _pdUnitsData.filter(u => u.unit.toLowerCase().includes(q) || u.tenants.toLowerCase().includes(q)) : _pdUnitsData;
+
+  const tbody = document.getElementById('pdUnitsBody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:24px;font-style:italic;">No units found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((u, idx) => {
+    const statusCls = 'pd-badge-' + u.status;
+    const statusLabel = u.status.charAt(0).toUpperCase() + u.status.slice(1);
+    const leaseTypeCls = u.leaseType === 'mtm' ? 'pd-badge-mtm' : 'pd-badge-fixed';
+    const leaseTypeLabel = u.leaseType === 'mtm' ? 'M-to-M' : 'Fixed';
+    const tenantCount = u.tenantObjs.length;
+    const tenantSub = tenantCount > 1 ? tenantCount + ' tenants' : '';
+
+    return `<tr onclick="openPDUnitDetail(${_pdUnitsData.indexOf(u)})">
+      <td><strong>${u.unit}</strong></td>
+      <td>
+        <div class="pd-unit-tenant-names">${u.tenants}</div>
+        ${tenantSub ? `<div class="pd-unit-tenant-sub">${tenantSub}</div>` : ''}
+      </td>
+      <td><span class="pd-unit-badge ${leaseTypeCls}">${leaseTypeLabel}</span></td>
+      <td>${u.leaseEnd}</td>
+      <td><strong>$${u.totalRent.toLocaleString()}</strong></td>
+      <td><span class="pd-unit-badge ${statusCls}">${statusLabel}</span></td>
+      <td class="pd-unit-expand">›</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Unit Detail Full Page ──
+
+let _udCurrentUnit = null; // current _pdUnitsData item
+
+function openPDUnitDetail(idx) {
+  const u = _pdUnitsData[idx];
+  if (!u) return;
+  _udCurrentUnit = u;
+
+  // Show unit detail page, hide the rest of pd content
+  document.getElementById('pdLTView').style.display = 'none';
+  document.getElementById('pdSTView').style.display = 'none';
+  document.querySelector('.pd-header').style.display = 'none';
+  const udPage = document.getElementById('udPage');
+  udPage.style.display = 'block';
+
+  // Header timestamp
+  document.getElementById('udHeaderTs').textContent = 'Last Updated: just now';
+
+  // Info Bar
+  document.getElementById('udPropName').textContent = _pdCurrentProperty;
+  document.getElementById('udPropAddr').textContent = _pdCurrentProperty;
+  document.getElementById('udUnitNum').textContent = u.unit;
+  document.getElementById('udSqft').textContent = '—';
+  document.getElementById('udBeds').textContent = '—';
+
+  // ── Lease Card ──
+  const startDate = new Date(u.leaseStart);
+  const endDate = u.leaseEnd === 'M to M' ? null : new Date(u.leaseEnd);
+  const now = new Date();
+
+  // Lease dropdown
+  const leaseSelect = document.getElementById('udLeaseSelect');
+  leaseSelect.innerHTML = `<option>Current Lease: ${u.leaseStart} - ${u.leaseEnd}</option>`;
+
+  if (endDate) {
+    const totalDays = Math.ceil((endDate - startDate) / 86400000);
+    const elapsed = Math.max(0, Math.ceil((now - startDate) / 86400000));
+    const remaining = Math.max(0, totalDays - elapsed);
+    const elapsedPct = totalDays > 0 ? Math.min(100, Math.round((elapsed / totalDays) * 100)) : 0;
+    document.getElementById('udDaysLeft').textContent = remaining;
+    document.getElementById('udLeaseBarElapsed').style.width = elapsedPct + '%';
+    document.getElementById('udLeaseBarRemaining').style.width = (100 - elapsedPct) + '%';
+  } else {
+    document.getElementById('udDaysLeft').textContent = 'MTM';
+    document.getElementById('udLeaseBarElapsed').style.width = '100%';
+    document.getElementById('udLeaseBarRemaining').style.width = '0%';
+  }
+  document.getElementById('udLeaseStart').textContent = u.leaseStart;
+  document.getElementById('udLeaseEnd').textContent = u.leaseEnd;
+  document.getElementById('udMTMToggle').checked = u.leaseType === 'mtm';
+
+  // ── Collection Card ──
+  const r = u.rentRecord;
+  const collected = r ? r.paid : 0;
+  const processing = r ? r.processing : 0;
+  const outstanding = r ? (r.status === 'overdue' ? r.balance : 0) : 0;
+  const comingDue = r ? (r.status === 'pending' ? r.balance : 0) : 0;
+  const total = r ? r.amount : u.totalRent;
+  document.getElementById('udCollTotal').textContent = '$' + total.toLocaleString();
+  document.getElementById('udCollCollected').textContent = '$' + collected.toLocaleString();
+  document.getElementById('udCollProcessing').textContent = '$' + processing.toLocaleString();
+  document.getElementById('udCollOutstanding').textContent = '$' + outstanding.toLocaleString();
+  document.getElementById('udCollComingDue').textContent = '$' + comingDue.toLocaleString();
+  drawUDDonut(collected, processing, outstanding, comingDue, total);
+
+  // ── Tenants ──
+  const tenantsList = document.getElementById('udTenantsList');
+  document.getElementById('udTenantCount').textContent = u.tenantObjs.length;
+  tenantsList.innerHTML = u.tenantObjs.map(t => {
+    const initials = t.name.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+    const tIdx = INNAGO_TENANTS.indexOf(t);
+    return `<div class="ud-tenant-chip" onclick="openTenantFromUnit(${tIdx})">
+      <div class="ud-tenant-avatar">${initials}</div>
+      <span class="ud-tenant-name">${t.name}</span>
+      ${t.email ? '<span class="ud-tenant-verified">✓</span>' : ''}
+    </div>`;
+  }).join('') || '<div style="color:var(--text3);font-size:12px;font-style:italic;padding:8px;">No tenants assigned</div>';
+
+  // ── Invoices ──
+  renderUDInvoices('upcoming');
+
+  // ── Service Orders ──
+  renderUDServiceOrders(u);
+
+  // ── Documents & Notes ──
+  renderUDDocsNotes(u);
+
+  // Update stat counts
+  document.getElementById('udServiceCount').textContent = '0'; // Updated by renderUDServiceOrders
+  document.getElementById('udInvoiceCount').textContent = r ? '1' : '0';
+  document.getElementById('udNoteCount').textContent = '0';
+}
+
+function closeUnitDetail() {
+  document.getElementById('udPage').style.display = 'none';
+  document.querySelector('.pd-header').style.display = 'flex';
+  document.getElementById('pd' + (_pdCurrentView === 'lt' ? 'LT' : 'ST') + 'View').style.display = 'block';
+  _udCurrentUnit = null;
+}
+
+function closePDUnitPanel() {
+  // Legacy — now just calls closeUnitDetail
+  closeUnitDetail();
+}
+
+// Tenant click → go to MTM/LT tenant detail
+function openTenantFromUnit(tIdx) {
+  if (tIdx < 0) return;
+  closeUnitDetail();
+  closePropertyDetail();
+  switchModule('mtm-lt');
+  setTimeout(() => {
+    const subTabs = document.querySelectorAll('#subNav .sub-tab');
+    if (subTabs[1]) subTabs[1].click(); // Tenants sub-tab
+    setTimeout(() => openTenantDetail(tIdx), 400);
+  }, 300);
+}
+
+// Invoice tabs
+let _udInvTab = 'upcoming';
+function switchInvTab(tab, btn) {
+  _udInvTab = tab;
+  document.querySelectorAll('.ud-inv-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderUDInvoices(tab);
+}
+
+function renderUDInvoices(tab) {
+  const u = _udCurrentUnit;
+  if (!u) return;
+  const tbody = document.getElementById('udInvBody');
+  const r = u.rentRecord;
+  if (!r) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No invoices</td></tr>';
+    return;
+  }
+
+  // Generate upcoming invoices based on lease
+  const startDate = new Date(u.leaseStart);
+  const endDate = u.leaseEnd === 'M to M' ? new Date(new Date().getFullYear(), 11, 31) : new Date(u.leaseEnd);
+  const now = new Date();
+  const invoices = [];
+
+  // Current month
+  invoices.push({
+    id: 'INV-' + u.unit.replace(/\s/g,'') + '-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0'),
+    due: new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+    amount: r.amount,
+    status: r.status,
+    isPast: r.status === 'paid' || r.status === 'processing'
+  });
+
+  // Future months (up to 3 upcoming)
+  for (let m = 1; m <= 3; m++) {
+    const futureDate = new Date(now.getFullYear(), now.getMonth() + m, 1);
+    if (futureDate > endDate) break;
+    invoices.push({
+      id: 'INV-' + u.unit.replace(/\s/g,'') + '-' + futureDate.getFullYear() + String(futureDate.getMonth()+1).padStart(2,'0'),
+      due: futureDate.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'}),
+      amount: r.amount,
+      status: 'upcoming',
+      isPast: false
+    });
+  }
+
+  const filtered = tab === 'upcoming' ? invoices.filter(i => !i.isPast) : invoices.filter(i => i.isPast || i.status === 'overdue');
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No ${tab} invoices</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(inv => `<tr>
+    <td><a href="#" class="ud-inv-link" onclick="openInvoiceDetail('${inv.id}');return false;">${inv.id}</a></td>
+    <td>${inv.due}</td>
+    <td style="text-align:right;font-weight:600;">$${inv.amount.toLocaleString()}.00</td>
+  </tr>`).join('');
+}
+
+function renderUDServiceOrders(u) {
+  const tbody = document.getElementById('udServiceBody');
+  // Check fieldtrack jobs for this unit
+  if (typeof FT_getJobs === 'function') {
+    const jobs = FT_getJobs().filter(j => j.address && j.address.toLowerCase().includes(u.unit.toLowerCase()));
+    document.getElementById('udServiceCount').textContent = jobs.length;
+    if (jobs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No service orders</td></tr>';
+      return;
+    }
+    tbody.innerHTML = jobs.slice(0, 5).map(j => `<tr>
+      <td><a href="#" class="ud-inv-link" onclick="openWOFromUnit('${j.woNum}');return false;">${j.woNum || '—'}</a></td>
+      <td>${j.title || j.notes || '—'}</td>
+      <td>${j.date ? new Date(j.date).toLocaleDateString() : '—'}</td>
+      <td><span class="pd-unit-badge pd-badge-${j.status === 'complete' ? 'paid' : 'pending'}">${j.status || '—'}</span></td>
+    </tr>`).join('');
+  } else {
+    document.getElementById('udServiceCount').textContent = '0';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:16px;font-style:italic;">No service orders</td></tr>';
+  }
+}
+
+function renderUDDocsNotes(u) {
+  // Documents
+  const docsList = document.getElementById('udDocsList');
+  const docs = [
+    { icon: '📄', name: 'Lease Agreement — ' + u.leaseStart, date: u.leaseStart },
+  ];
+  // Add ID docs if tenant has email (implies verified)
+  u.tenantObjs.forEach(t => {
+    if (t.email) docs.push({ icon: '🪪', name: t.name + ' — ID Copy', date: t.since || '—' });
+  });
+  docsList.innerHTML = docs.map(d => `<div class="ud-doc-row">
+    <span class="ud-doc-icon">${d.icon}</span>
+    <span class="ud-doc-name" onclick="toast('Document viewer coming soon','info')">${d.name}</span>
+    <span class="ud-doc-date">${d.date}</span>
+  </div>`).join('') || '<div style="color:var(--text3);font-size:12px;padding:8px;font-style:italic;">No documents</div>';
+
+  // Notes
+  const notesList = document.getElementById('udNotesList');
+  const notes = TENANT_NOTES ? Object.entries(TENANT_NOTES).filter(([name]) => u.tenantObjs.some(t => t.name === name)).flatMap(([name, arr]) => arr.map(n => ({...n, tenant: name}))) : [];
+  document.getElementById('udNoteCount').textContent = notes.length;
+  notesList.innerHTML = notes.map(n => `<div class="ud-note-item"><strong>${n.tenant} · ${n.date || ''}</strong><br>${n.text}</div>`).join('') || '<div style="color:var(--text3);font-size:12px;padding:4px;font-style:italic;">No notes yet</div>';
+}
+
+// Stub functions for actions
+function openInvoiceDetail(invId) { toast('Invoice detail for ' + invId + ' — coming soon', 'info'); }
+function openWOFromUnit(woNum) {
+  closeUnitDetail(); closePropertyDetail();
+  switchModule('techtrack');
+  setTimeout(() => {
+    if (typeof FT_openJob === 'function') FT_openJob(woNum);
+  }, 500);
+}
+function viewUnitLeaseDoc() { toast('Lease document viewer coming soon', 'info'); }
+function viewAllTenants() { closeUnitDetail(); closePropertyDetail(); switchModule('mtm-lt'); }
+function viewAllInvoices() { toast('Full invoice history coming soon', 'info'); }
+function scrollToInvoices() { document.getElementById('udInvoicesCard')?.scrollIntoView({behavior:'smooth'}); }
+function newServiceOrder() { toast('Create service order from unit — coming soon', 'info'); }
+function addUnitDocument() { toast('Document upload coming soon', 'info'); }
+function newUnitLease() { toast('New lease creation coming soon', 'info'); }
+function switchUnitLease() { /* future: switch between historical leases */ }
+function toggleMTM() { toast('MTM toggle saved (demo)', 'info'); }
+function refreshUnitDetail() { if (_udCurrentUnit) { const idx = _pdUnitsData.indexOf(_udCurrentUnit); if (idx >= 0) openPDUnitDetail(idx); } }
+function editUnitDetail() { toast('Edit unit coming soon', 'info'); }
+function toggleUnitNotes() { document.getElementById('udNoteInput')?.focus(); }
+function saveUnitNote() {
+  const input = document.getElementById('udNoteInput');
+  const text = input?.value?.trim();
+  if (!text) return;
+  toast('Note saved (demo)', 'success');
+  input.value = '';
+  // In production this would save to Supabase
+}
+
+// Donut chart for unit detail
+function drawUDDonut(collected, processing, outstanding, comingDue, total) {
+  const canvas = document.getElementById('udCollDonut');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2, R = 56, r = 38;
+  ctx.clearRect(0, 0, W, H);
+
+  if (total === 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.closePath();
+    ctx.fillStyle = '#e0ddd6'; ctx.fill();
+    return;
+  }
+
+  const segments = [
+    { val: collected,    color: '#4caf50' },
+    { val: processing,   color: '#ff9800' },
+    { val: outstanding,  color: '#f44336' },
+    { val: comingDue,    color: '#2196f3' }
+  ].filter(s => s.val > 0);
+
+  let startAngle = -Math.PI / 2;
+  segments.forEach(seg => {
+    const sweep = (seg.val / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, startAngle, startAngle + sweep);
+    ctx.arc(cx, cy, r, startAngle + sweep, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    startAngle += sweep;
+  });
+}
+
+// Property-level donut (for the property overview)
+function drawPDDonut(collected, processing, overdue, comingDue, total) {
+  const canvas = document.getElementById('pdDonutCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W / 2, cy = H / 2, R = 72, r = 48;
+  ctx.clearRect(0, 0, W, H);
+
+  if (total === 0) {
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.arc(cx, cy, r, 0, Math.PI * 2, true); ctx.closePath();
+    ctx.fillStyle = '#e0ddd6'; ctx.fill();
+    return;
+  }
+
+  const segments = [
+    { val: collected,   color: '#4caf50' },
+    { val: processing,  color: '#9c27b0' },
+    { val: overdue,     color: '#f44336' },
+    { val: comingDue,   color: '#ff9800' }
+  ].filter(s => s.val > 0);
+
+  let startAngle = -Math.PI / 2;
+  segments.forEach(seg => {
+    const sweep = (seg.val / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, startAngle, startAngle + sweep);
+    ctx.arc(cx, cy, r, startAngle + sweep, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = seg.color;
+    ctx.fill();
+    startAngle += sweep;
+  });
 }
 
 
@@ -6802,13 +8739,35 @@ async function renderSTDashboard(){
 }
 
 // ══════════════════════════════════════════════════════
-//  PARKING ADMIN MODULE
+//  PARKING ADMIN MODULE  (Supabase-backed)
 // ══════════════════════════════════════════════════════
-var PK_API = 'https://parking.willowpa.com/api.php';
-var PK_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
+var PK_SB_URL = (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_URL) || '';
+var PK_SB_KEY = (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_KEY) || '';
 var _pkBookings = [];
 var _pkBuildings = [];
 var _pkCoupons = [];
+
+// ── Supabase REST helper ──
+function pkSB(table, query, method, body) {
+  var url = PK_SB_URL + '/rest/v1/' + table;
+  if (query) url += '?' + query;
+  var opts = {
+    method: method || 'GET',
+    headers: {
+      'apikey': PK_SB_KEY,
+      'Authorization': 'Bearer ' + PK_SB_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': method === 'POST' ? 'return=representation' : (method === 'PATCH' || method === 'DELETE') ? 'return=representation' : ''
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  return fetch(url, opts).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error(e.message || 'Request failed'); });
+    var ct = r.headers.get('content-type') || '';
+    if (r.status === 204 || !ct.includes('json')) return [];
+    return r.json();
+  });
+}
 
 function showParkingSection(sec) {
   ['pkBookingsSection','pkBuildingsSection','pkCouponsSection','pkReceiptsSection'].forEach(function(id) {
@@ -6817,53 +8776,43 @@ function showParkingSection(sec) {
   });
   var target = document.getElementById('pk' + sec.charAt(0).toUpperCase() + sec.slice(1) + 'Section');
   if (target) target.style.display = 'block';
-
-  // Load data for the section
   if (sec === 'bookings') WPA_pkLoadBookings();
   if (sec === 'buildings') WPA_pkLoadBuildings();
   if (sec === 'coupons') WPA_pkLoadCoupons();
 }
 
-function pkFetch(action, method, body) {
-  var opts = {
-    method: method || 'GET',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + PK_ADMIN_TOKEN }
-  };
-  if (body) opts.body = JSON.stringify(body);
-  return fetch(PK_API + '?action=' + action, opts).then(function(r) { return r.json(); });
-}
-
 function WPA_pkRefresh() {
   WPA_pkLoadStats();
-  // Refresh whichever section is visible
   if (document.getElementById('pkBookingsSection').style.display !== 'none') WPA_pkLoadBookings();
   if (document.getElementById('pkBuildingsSection').style.display !== 'none') WPA_pkLoadBuildings();
   if (document.getElementById('pkCouponsSection').style.display !== 'none') WPA_pkLoadCoupons();
 }
 
-// ── Stats ──
+// ── Stats (computed from bookings) ──
 function WPA_pkLoadStats() {
-  pkFetch('admin-stats').then(function(d) {
-    if (!d.ok) return;
-    var s = d.stats;
-    document.getElementById('pk-stat-active').textContent = s.active || 0;
-    document.getElementById('pk-stat-revenue').textContent = '$' + (s.month_revenue || 0).toLocaleString();
-    document.getElementById('pk-stat-total').textContent = s.total_bookings || 0;
-    // Update dashboard cards too
+  pkSB('parking_bookings', 'select=id,status,amount,end_date,created&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    var today = new Date().toISOString().split('T')[0];
+    var now = new Date();
+    var monthStart = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-01';
+    var active = rows.filter(function(b) { return b.end_date >= today && b.status === 'active'; });
+    var monthRev = rows.filter(function(b) { return b.created >= monthStart; }).reduce(function(s,b) { return s + parseFloat(b.amount||0); }, 0);
+    document.getElementById('pk-stat-active').textContent = active.length;
+    document.getElementById('pk-stat-revenue').textContent = '$' + monthRev.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0});
+    document.getElementById('pk-stat-total').textContent = rows.length;
     var el = document.getElementById('dash-pk-assigned');
-    if (el) el.textContent = s.active || 0;
+    if (el) el.textContent = active.length;
     var el2 = document.getElementById('dash-pk-available');
-    if (el2) el2.textContent = s.total_bookings || 0;
+    if (el2) el2.textContent = rows.length;
   }).catch(function() {});
 }
 
 // ── Bookings ──
 function WPA_pkLoadBookings() {
-  pkFetch('admin-bookings').then(function(d) {
-    if (!d.ok) return;
-    _pkBookings = d.bookings || [];
+  pkSB('parking_bookings', 'select=*&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    _pkBookings = rows;
     WPA_pkFilterBookings();
-    // Count expiring in next 3 days
     var today = new Date().toISOString().split('T')[0];
     var in3 = new Date(Date.now() + 3*86400000).toISOString().split('T')[0];
     var expiring = _pkBookings.filter(function(b) { return b.end_date >= today && b.end_date <= in3 && b.status === 'active'; });
@@ -6881,7 +8830,7 @@ function WPA_pkFilterBookings() {
     if (status === 'active' && !isActive) return false;
     if (status === 'expired' && isActive) return false;
     if (search) {
-      var hay = (b.license_plate + ' ' + b.unit_number + ' ' + b.guest_name + ' ' + b.building_name + ' ' + b.car_make + ' ' + b.car_color).toLowerCase();
+      var hay = ((b.license_plate||'') + ' ' + (b.unit||'') + ' ' + (b.guest_name||'') + ' ' + (b.building_name||'') + ' ' + (b.car_brand||'') + ' ' + (b.car_color||'')).toLowerCase();
       if (hay.indexOf(search) === -1) return false;
     }
     return true;
@@ -6895,25 +8844,154 @@ function WPA_pkFilterBookings() {
   tbody.innerHTML = filtered.map(function(b) {
     var isExpired = b.end_date < today;
     return '<tr' + (isExpired ? ' style="opacity:.6"' : '') + '>' +
-      '<td>' + esc(b.building_name) + '</td>' +
-      '<td><strong>' + esc(b.unit_number) + '</strong></td>' +
-      '<td>' + esc(b.guest_name || '—') + '</td>' +
-      '<td>' + esc(b.car_make) + ' ' + esc(b.car_color) + '</td>' +
-      '<td><strong>' + esc(b.license_plate) + '</strong></td>' +
-      '<td>' + esc(b.plan_label) + '</td>' +
-      '<td style="font-size:11px">' + b.start_date + '<br>to ' + b.end_date + '</td>' +
-      '<td>$' + parseFloat(b.amount).toFixed(2) + (b.coupon_code ? '<br><span style="font-size:10px;color:var(--green)">🏷 ' + esc(b.coupon_code) + '</span>' : '') + '</td>' +
-      '<td><a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" style="color:var(--accent);font-size:11px">🧾 Receipt</a></td>' +
+      '<td>' + _esc(b.building_name||'') + '</td>' +
+      '<td><strong>' + _esc(b.unit||'') + '</strong></td>' +
+      '<td>' + _esc(b.guest_name || '—') + '</td>' +
+      '<td>' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + '</td>' +
+      '<td><strong>' + _esc(b.license_plate||'') + '</strong></td>' +
+      '<td>' + _esc(b.plan||'') + (b.rate_plan_name ? '<br><span style="font-size:10px;color:var(--text3)">' + _esc(b.rate_plan_name) + '</span>' : '') + '</td>' +
+      '<td style="font-size:11px">' + (b.start_date||'') + '<br>to ' + (b.end_date||'') + '</td>' +
+      '<td>$' + parseFloat(b.amount||0).toFixed(2) + '</td>' +
+      '<td style="white-space:nowrap">' +
+        '<button onclick="WPA_pkEditBooking(\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px;margin-right:4px">Edit</button>' +
+        '<button onclick="WPA_pkShowReceipt(\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px">Receipt</button>' +
+      '</td>' +
       '</tr>';
   }).join('');
 }
 
+// ── Booking Edit ──
+var _pkEditRatePlans = []; // rate plans for the building being edited
+
+function WPA_pkEditBooking(bookingId) {
+  var b = _pkBookings.find(function(x) { return x.id === bookingId; });
+  if (!b) return;
+  document.getElementById('pkBookingEditForm').style.display = 'block';
+  document.getElementById('pkBkEditId').value = b.id;
+  document.getElementById('pkBkEditBuildingId').value = b.building_id || '';
+  document.getElementById('pkBkEditBuilding').value = b.building_name || '';
+  document.getElementById('pkBkEditUnit').value = b.unit || '';
+  document.getElementById('pkBkEditName').value = b.guest_name || '';
+  document.getElementById('pkBkEditStart').value = b.start_date || '';
+  document.getElementById('pkBkEditEnd').value = b.end_date || '';
+  document.getElementById('pkBkEditCarBrand').value = b.car_brand || '';
+  document.getElementById('pkBkEditCarColor').value = b.car_color || '';
+  document.getElementById('pkBkEditPlate').value = b.license_plate || '';
+  document.getElementById('pkBkEditAmount').value = b.amount || 0;
+  document.getElementById('pkBkEditTitle').textContent = 'Edit Booking — ' + (b.license_plate || b.id);
+  document.getElementById('pkBkEditPriceNote').textContent = '';
+
+  // Load rate plans for this building
+  var sel = document.getElementById('pkBkEditRatePlan');
+  sel.innerHTML = '<option value="">Loading...</option>';
+  pkSB('parking_rate_plans', 'select=*&building_id=eq.' + (b.building_id||'') + '&active=eq.true&order=is_default.desc,name.asc').then(function(plans) {
+    _pkEditRatePlans = Array.isArray(plans) ? plans : [];
+    sel.innerHTML = '<option value="">— Keep current —</option>';
+    _pkEditRatePlans.forEach(function(rp) {
+      var label = rp.name + ' ($' + parseFloat(rp.per_day||0).toFixed(2) + '/day';
+      if (rp.free_days > 0) label += ', ' + rp.free_days + ' free';
+      label += ')';
+      if (rp.is_default) label += ' ★';
+      var opt = document.createElement('option');
+      opt.value = rp.id;
+      opt.textContent = label;
+      // Select if booking already has this rate plan
+      if (b.rate_plan_id && b.rate_plan_id === rp.id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+
+  // Scroll to the form
+  document.getElementById('pkBookingEditForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+function WPA_pkBkPlanChanged() {
+  var rpId = document.getElementById('pkBkEditRatePlan').value;
+  if (!rpId) { document.getElementById('pkBkEditPriceNote').textContent = ''; return; }
+  WPA_pkBkRecalc();
+}
+
+function WPA_pkBkRecalc() {
+  var rpId = document.getElementById('pkBkEditRatePlan').value;
+  if (!rpId) return;
+  var rp = _pkEditRatePlans.find(function(x) { return x.id === rpId; });
+  if (!rp) return;
+  var start = document.getElementById('pkBkEditStart').value;
+  var end = document.getElementById('pkBkEditEnd').value;
+  if (!start || !end) return;
+
+  var days = Math.round((new Date(end) - new Date(start)) / 86400000);
+  if (days <= 0) return;
+
+  var billableDays = Math.max(0, days - (rp.free_days || 0));
+  var cost = billableDays * parseFloat(rp.per_day || 0);
+  if (rp.minimum_cost && cost > 0) cost = Math.max(cost, parseFloat(rp.minimum_cost));
+
+  // Check if a bulk package is a better fit
+  var pkgs = rp.packages || [];
+  var bestPkg = null;
+  pkgs.forEach(function(pk) {
+    if (pk.days <= days && (!bestPkg || pk.days > bestPkg.days)) bestPkg = pk;
+  });
+
+  var note = rp.name + ': ' + days + ' days';
+  if (rp.free_days > 0) note += ' (' + rp.free_days + ' free, ' + billableDays + ' billable)';
+  note += ' = $' + cost.toFixed(2);
+  if (bestPkg) note += ' | Package option: ' + bestPkg.name + ' = $' + parseFloat(bestPkg.price).toFixed(2);
+
+  document.getElementById('pkBkEditPriceNote').textContent = note;
+  document.getElementById('pkBkEditAmount').value = cost.toFixed(2);
+}
+
+function WPA_pkSaveBookingEdit() {
+  var id = document.getElementById('pkBkEditId').value;
+  if (!id) return;
+  var rpId = document.getElementById('pkBkEditRatePlan').value;
+  var rp = rpId ? _pkEditRatePlans.find(function(x) { return x.id === rpId; }) : null;
+
+  var body = {
+    unit: document.getElementById('pkBkEditUnit').value.trim(),
+    guest_name: document.getElementById('pkBkEditName').value.trim(),
+    start_date: document.getElementById('pkBkEditStart').value,
+    end_date: document.getElementById('pkBkEditEnd').value,
+    car_brand: document.getElementById('pkBkEditCarBrand').value.trim(),
+    car_color: document.getElementById('pkBkEditCarColor').value.trim(),
+    license_plate: document.getElementById('pkBkEditPlate').value.trim(),
+    amount: parseFloat(document.getElementById('pkBkEditAmount').value) || 0
+  };
+  if (rp) {
+    body.rate_plan_id = rp.id;
+    body.rate_plan_name = rp.name;
+  }
+
+  pkSB('parking_bookings', 'id=eq.' + id, 'PATCH', body).then(function() {
+    document.getElementById('pkBookingEditForm').style.display = 'none';
+    toast('Booking updated', 'success');
+    WPA_pkLoadBookings();
+  }).catch(function(e) { alert('Save failed: ' + (e.message || e)); });
+}
+
 // ── Buildings ──
 function WPA_pkLoadBuildings() {
-  pkFetch('admin-buildings').then(function(d) {
-    if (!d.ok) return;
-    _pkBuildings = d.buildings || [];
+  // Load credentials cache first (for stripe labels on building cards)
+  var credP = Object.keys(WPA_credCache).length === 0
+    ? pkSB('app_credentials', 'select=*&order=service.asc').then(function(rows) { rows.forEach(function(r) { WPA_credCache[r.id] = r; }); })
+    : Promise.resolve();
+  credP.then(function() {
+    return pkSB('parking_buildings', 'select=*&order=name.asc');
+  }).then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    _pkBuildings = rows;
     WPA_pkRenderBuildings();
+  });
+}
+
+var _pkRatePlans = {}; // keyed by building_id
+
+function WPA_pkLoadRatePlans(buildingId) {
+  return pkSB('parking_rate_plans', 'select=*&building_id=eq.' + buildingId + '&order=is_default.desc,name.asc').then(function(rows) {
+    _pkRatePlans[buildingId] = Array.isArray(rows) ? rows : [];
+    return _pkRatePlans[buildingId];
   });
 }
 
@@ -6923,96 +9001,236 @@ function WPA_pkRenderBuildings() {
     el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:20px;text-align:center">No buildings configured yet. Add one above.</div>';
     return;
   }
-  el.innerHTML = _pkBuildings.map(function(b) {
-    var plans = (b.plans || []).map(function(p) {
-      return '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px">' + p.days + 'd — $' + parseFloat(p.price).toFixed(2) + (p.label ? ' (' + esc(p.label) + ')' : '') + '</span>';
-    }).join(' ');
-    return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
-      '<div style="display:flex;justify-content:space-between;align-items:start">' +
-        '<div><h3 style="border:none;padding:0;margin:0 0 4px">🏢 ' + esc(b.name) + '</h3>' +
-          (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:8px">' + esc(b.address) + '</div>' : '') +
-          '<div>' + (plans || '<span style="font-size:11px;color:var(--text3)">No plans</span>') + '</div>' +
+  // Load rate plans for all buildings then render
+  Promise.all(_pkBuildings.map(function(b) { return WPA_pkLoadRatePlans(b.id); })).then(function() {
+    el.innerHTML = _pkBuildings.map(function(b) {
+      var rps = _pkRatePlans[b.id] || [];
+      var stripeCred = b.stripe_cred_id && WPA_credCache[b.stripe_cred_id] ? WPA_credCache[b.stripe_cred_id] : null;
+      var stripeTag = stripeCred ? '<span style="display:inline-block;background:var(--green-bg,#e8f5e9);border:1px solid var(--green,#4caf50);border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:var(--green,#4caf50)">💳 ' + _esc(stripeCred.label) + '</span>' : '<span style="display:inline-block;background:#fff3e0;border:1px solid #ff9800;border-radius:6px;padding:4px 8px;font-size:11px;margin:2px;color:#e65100">No Stripe</span>';
+
+      // Rate plans section
+      var rpHtml = '';
+      if (rps.length === 0) {
+        rpHtml = '<div style="font-size:11px;color:var(--text3);padding:8px 0">No rate plans. Add one to enable parking.</div>';
+      } else {
+        rpHtml = rps.map(function(rp) {
+          var defBadge = rp.is_default ? '<span style="background:var(--accent);color:#fff;font-size:9px;padding:1px 6px;border-radius:4px;margin-left:4px">DEFAULT</span>' : '';
+          var pkgs = (rp.packages || []).map(function(pk) {
+            return pk.days + 'd/$' + parseFloat(pk.price).toFixed(0);
+          }).join(', ');
+          var priceLine = '$' + parseFloat(rp.per_day||0).toFixed(2) + '/day';
+          if (rp.free_days > 0) priceLine = rp.free_days + ' days free then ' + priceLine;
+          if (rp.minimum_cost > 0) priceLine += ' · min $' + parseFloat(rp.minimum_cost).toFixed(2);
+          if (pkgs) priceLine += ' · Packages: ' + pkgs;
+          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin:4px 0;background:var(--surface2);border:1px solid var(--border);border-radius:6px">' +
+            '<div style="font-size:12px"><strong>' + _esc(rp.name) + '</strong>' + defBadge + ' <span style="color:var(--text3);margin-left:8px">' + priceLine + '</span></div>' +
+            '<div style="display:flex;gap:4px">' +
+              '<button onclick="WPA_pkEditRatePlan(\'' + rp.id + '\',\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px">Edit</button>' +
+              '<button onclick="WPA_pkDeleteRatePlan(\'' + rp.id + '\',\'' + b.id + '\')" class="btn-subtle" style="padding:2px 8px;font-size:10px;color:var(--red)">X</button>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+
+      return '<div class="dash-panel" style="margin-bottom:12px;border-left:4px solid ' + (b.active ? 'var(--purple)' : 'var(--text3)') + '">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
+          '<div><h3 style="border:none;padding:0;margin:0 0 4px">' + _esc(b.name) + '</h3>' +
+            (b.address ? '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">' + _esc(b.address) + '</div>' : '') +
+            '<div>' + stripeTag + '</div>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px">' +
+            '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">Edit</button>' +
+            '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">Delete</button>' +
+          '</div>' +
         '</div>' +
-        '<div style="display:flex;gap:6px">' +
-          '<button onclick="WPA_pkEditBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px">✏ Edit</button>' +
-          '<button onclick="WPA_pkDeleteBuilding(\'' + b.id + '\')" class="btn-subtle" style="padding:4px 10px;font-size:11px;color:var(--red)">✕</button>' +
+        '<div style="border-top:1px solid var(--border);padding-top:8px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:11px;font-weight:600;color:var(--text3)">Rate Plans</span>' +
+            '<button onclick="WPA_pkShowRatePlanForm(\'' + b.id + '\')" class="btn-subtle" style="padding:2px 10px;font-size:10px">+ Add Plan</button>' +
+          '</div>' +
+          rpHtml +
         '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('');
+      '</div>';
+    }).join('');
+  });
 }
 
-function WPA_pkShowBuildingForm(id) {
+function WPA_pkShowBuildingForm() {
   document.getElementById('pkBuildingForm').style.display = 'block';
+  document.getElementById('pkRatePlanForm').style.display = 'none';
   document.getElementById('pkBldId').value = '';
   document.getElementById('pkBldName').value = '';
   document.getElementById('pkBldAddr').value = '';
-  document.getElementById('pkBldPlans').innerHTML = '';
+  document.getElementById('pkBldStripeCredId').value = '';
   document.getElementById('pkBldFormTitle').textContent = 'Add Building';
-  WPA_pkAddPlanRow(); // Start with one empty plan row
+  WPA_pkLoadStripeOptions();
 }
 
 function WPA_pkEditBuilding(id) {
   var b = _pkBuildings.find(function(x) { return x.id === id; });
   if (!b) return;
   document.getElementById('pkBuildingForm').style.display = 'block';
+  document.getElementById('pkRatePlanForm').style.display = 'none';
   document.getElementById('pkBldId').value = b.id;
   document.getElementById('pkBldName').value = b.name;
   document.getElementById('pkBldAddr').value = b.address || '';
   document.getElementById('pkBldFormTitle').textContent = 'Edit Building';
-  document.getElementById('pkBldPlans').innerHTML = '';
-  (b.plans || []).forEach(function(p) { WPA_pkAddPlanRow(p.days, p.price, p.label); });
-  if ((b.plans || []).length === 0) WPA_pkAddPlanRow();
+  WPA_pkLoadStripeOptions(b.stripe_cred_id || '');
 }
 
-var _pkPlanRowId = 0;
-function WPA_pkAddPlanRow(days, price, label) {
-  var rid = _pkPlanRowId++;
-  var el = document.getElementById('pkBldPlans');
-  var row = document.createElement('div');
-  row.id = 'pk-plan-row-' + rid;
-  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
-  row.innerHTML =
-    '<input type="number" placeholder="Days" value="' + (days || '') + '" class="pk-admin-input" style="width:70px" data-field="days">' +
-    '<input type="number" step="0.01" placeholder="Price $" value="' + (price || '') + '" class="pk-admin-input" style="width:90px" data-field="price">' +
-    '<input type="text" placeholder="Label (e.g. 1 Month)" value="' + (label || '') + '" class="pk-admin-input" style="flex:1" data-field="label">' +
-    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">✕</button>';
-  el.appendChild(row);
+function WPA_pkLoadStripeOptions(selectedId) {
+  var sel = document.getElementById('pkBldStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None (no payments) —</option>';
+  pkSB('app_credentials', 'select=id,label&service=eq.stripe&active=eq.true').then(function(rows) {
+    rows.forEach(function(r) {
+      var opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = r.label;
+      if (selectedId && r.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
 }
 
 function WPA_pkSaveBuilding() {
   var name = document.getElementById('pkBldName').value.trim();
   if (!name) { alert('Building name is required'); return; }
-  var plans = [];
-  document.querySelectorAll('#pkBldPlans > div').forEach(function(row) {
-    var d = row.querySelector('[data-field=days]').value;
-    var p = row.querySelector('[data-field=price]').value;
-    var l = row.querySelector('[data-field=label]').value;
-    if (d && p) plans.push({ days: parseInt(d), price: parseFloat(p), label: l || '' });
-  });
   var id = document.getElementById('pkBldId').value;
-  var method = id ? 'PUT' : 'POST';
-  var body = { id: id, name: name, address: document.getElementById('pkBldAddr').value.trim(), plans: plans, active: true };
-  pkFetch('admin-buildings', method, body).then(function(d) {
-    if (d.ok) {
+  var stripeCredId = document.getElementById('pkBldStripeCredId').value || null;
+  var body = { name: name, address: document.getElementById('pkBldAddr').value.trim(), stripe_cred_id: stripeCredId, active: true, updated: new Date().toISOString() };
+
+  if (id) {
+    pkSB('parking_buildings', 'id=eq.' + id, 'PATCH', body).then(function() {
       document.getElementById('pkBuildingForm').style.display = 'none';
+      toast('Building saved', 'success');
       WPA_pkLoadBuildings();
-    } else {
-      alert('Error: ' + (d.error || 'Unknown'));
-    }
-  });
+    }).catch(function(e) { alert('Error: ' + e.message); });
+  } else {
+    body.id = 'bld_' + Date.now();
+    pkSB('parking_buildings', '', 'POST', body).then(function() {
+      document.getElementById('pkBuildingForm').style.display = 'none';
+      toast('Building created', 'success');
+      WPA_pkLoadBuildings();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+  }
 }
 
 function WPA_pkDeleteBuilding(id) {
-  if (!confirm('Delete this building? This cannot be undone.')) return;
-  pkFetch('admin-buildings&id=' + id, 'DELETE').then(function() { WPA_pkLoadBuildings(); });
+  if (!confirm('Delete this building and all its rate plans? This cannot be undone.')) return;
+  pkSB('parking_buildings', 'id=eq.' + id, 'DELETE').then(function() {
+    toast('Building deleted', 'success');
+    WPA_pkLoadBuildings();
+  }).catch(function(e) { alert('Delete failed: ' + (e.message || e)); });
+}
+
+// ── Rate Plan Management ──
+function WPA_pkShowRatePlanForm(buildingId) {
+  document.getElementById('pkRatePlanForm').style.display = 'block';
+  document.getElementById('pkBuildingForm').style.display = 'none';
+  document.getElementById('pkRpId').value = '';
+  document.getElementById('pkRpBuildingId').value = buildingId;
+  document.getElementById('pkRpName').value = '';
+  document.getElementById('pkRpPerDay').value = '';
+  document.getElementById('pkRpMinCost').value = '';
+  document.getElementById('pkRpFreeDays').value = '0';
+  document.getElementById('pkRpDefault').checked = false;
+  document.getElementById('pkRpPackages').innerHTML = '';
+  var bld = _pkBuildings.find(function(x) { return x.id === buildingId; });
+  document.getElementById('pkRpFormTitle').textContent = 'Add Rate Plan — ' + (bld ? bld.name : '');
+}
+
+function WPA_pkEditRatePlan(rpId, buildingId) {
+  var rps = _pkRatePlans[buildingId] || [];
+  var rp = rps.find(function(x) { return x.id === rpId; });
+  if (!rp) return;
+  document.getElementById('pkRatePlanForm').style.display = 'block';
+  document.getElementById('pkBuildingForm').style.display = 'none';
+  document.getElementById('pkRpId').value = rp.id;
+  document.getElementById('pkRpBuildingId').value = buildingId;
+  document.getElementById('pkRpName').value = rp.name;
+  document.getElementById('pkRpPerDay').value = rp.per_day || '';
+  document.getElementById('pkRpMinCost').value = rp.minimum_cost || '';
+  document.getElementById('pkRpFreeDays').value = rp.free_days || 0;
+  document.getElementById('pkRpDefault').checked = !!rp.is_default;
+  var bld = _pkBuildings.find(function(x) { return x.id === buildingId; });
+  document.getElementById('pkRpFormTitle').textContent = 'Edit Rate Plan — ' + (bld ? bld.name : '');
+  document.getElementById('pkRpPackages').innerHTML = '';
+  (rp.packages || []).forEach(function(pk) { WPA_pkAddPackageRow(pk.days, pk.price, pk.name); });
+}
+
+var _pkPkgRowId = 0;
+function WPA_pkAddPackageRow(days, price, label) {
+  var rid = _pkPkgRowId++;
+  var el = document.getElementById('pkRpPackages');
+  var row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
+  row.innerHTML =
+    '<input type="number" placeholder="Days" value="' + (days || '') + '" class="pk-admin-input" style="width:70px" data-field="days">' +
+    '<input type="number" step="0.01" placeholder="Price $" value="' + (price || '') + '" class="pk-admin-input" style="width:90px" data-field="price">' +
+    '<input type="text" placeholder="Label (e.g. 10 days)" value="' + _esc(label || '') + '" class="pk-admin-input" style="flex:1" data-field="label">' +
+    '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:4px">X</button>';
+  el.appendChild(row);
+}
+
+function WPA_pkSaveRatePlan() {
+  var name = document.getElementById('pkRpName').value.trim();
+  if (!name) { alert('Plan name is required'); return; }
+  var buildingId = document.getElementById('pkRpBuildingId').value;
+  var id = document.getElementById('pkRpId').value;
+  var packages = [];
+  document.querySelectorAll('#pkRpPackages > div').forEach(function(row) {
+    var d = row.querySelector('[data-field=days]').value;
+    var p = row.querySelector('[data-field=price]').value;
+    var l = row.querySelector('[data-field=label]').value;
+    if (d && p) packages.push({ name: l || (d + ' days'), days: parseInt(d), price: parseFloat(p) });
+  });
+
+  var isDefault = document.getElementById('pkRpDefault').checked;
+  var body = {
+    building_id: buildingId,
+    name: name,
+    per_day: parseFloat(document.getElementById('pkRpPerDay').value) || 0,
+    minimum_cost: parseFloat(document.getElementById('pkRpMinCost').value) || 0,
+    free_days: parseInt(document.getElementById('pkRpFreeDays').value) || 0,
+    packages: packages,
+    is_default: isDefault,
+    active: true,
+    updated_at: new Date().toISOString()
+  };
+
+  // If setting as default, unset other defaults first
+  var saveChain = Promise.resolve();
+  if (isDefault) {
+    saveChain = pkSB('parking_rate_plans', 'building_id=eq.' + buildingId + '&is_default=eq.true', 'PATCH', { is_default: false });
+  }
+
+  saveChain.then(function() {
+    if (id) {
+      return pkSB('parking_rate_plans', 'id=eq.' + id, 'PATCH', body);
+    } else {
+      body.id = 'rp_' + buildingId + '_' + Date.now();
+      return pkSB('parking_rate_plans', '', 'POST', body);
+    }
+  }).then(function() {
+    document.getElementById('pkRatePlanForm').style.display = 'none';
+    toast('Rate plan saved', 'success');
+    WPA_pkRenderBuildings();
+  }).catch(function(e) { alert('Error: ' + (e.message || e)); });
+}
+
+function WPA_pkDeleteRatePlan(rpId, buildingId) {
+  if (!confirm('Delete this rate plan?')) return;
+  pkSB('parking_rate_plans', 'id=eq.' + rpId, 'DELETE').then(function() {
+    toast('Rate plan deleted', 'success');
+    WPA_pkRenderBuildings();
+  }).catch(function(e) { alert('Delete failed: ' + (e.message || e)); });
 }
 
 // ── Coupons ──
 function WPA_pkLoadCoupons() {
-  pkFetch('admin-coupons').then(function(d) {
-    if (!d.ok) return;
-    _pkCoupons = d.coupons || [];
+  pkSB('parking_coupons', 'select=*&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) return;
+    _pkCoupons = rows;
     WPA_pkRenderCoupons();
   });
 }
@@ -7024,15 +9242,14 @@ function WPA_pkRenderCoupons() {
     return;
   }
   el.innerHTML = _pkCoupons.map(function(c) {
-    var typeLabel = c.type === 'percent' ? c.value + '% off' : c.type === 'fixed' ? '$' + c.value + ' off' : c.value + ' free days';
+    var typeLabel = c.discount_type === 'percent' ? c.discount_value + '% off' : c.discount_type === 'fixed' ? '$' + c.discount_value + ' off' : c.discount_value + ' free days';
     var statusBg = c.active ? 'var(--green-bg)' : 'var(--surface2)';
     var statusColor = c.active ? 'var(--green)' : 'var(--text3)';
     return '<div class="dash-panel" style="margin-bottom:10px;border-left:4px solid ' + (c.active ? 'var(--green)' : 'var(--text3)') + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
         '<div>' +
-          '<span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--accent2)">' + esc(c.code) + '</span>' +
+          '<span style="font-family:monospace;font-size:16px;font-weight:700;color:var(--accent2)">' + _esc(c.code) + '</span>' +
           '<span style="margin-left:10px;font-size:12px;color:var(--text2)">' + typeLabel + '</span>' +
-          (c.description ? '<span style="margin-left:10px;font-size:11px;color:var(--text3)">— ' + esc(c.description) + '</span>' : '') +
           '<div style="font-size:11px;color:var(--text3);margin-top:4px">' +
             'Used: ' + (c.used || 0) + (c.max_uses ? '/' + c.max_uses : ' (unlimited)') +
             (c.expires ? ' · Expires: ' + c.expires : '') +
@@ -7041,7 +9258,7 @@ function WPA_pkRenderCoupons() {
         '<div style="display:flex;gap:6px;align-items:center">' +
           '<span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;background:' + statusBg + ';color:' + statusColor + '">' + (c.active ? 'Active' : 'Disabled') + '</span>' +
           '<button onclick="WPA_pkToggleCoupon(\'' + c.id + '\',' + !c.active + ')" class="btn-subtle" style="padding:4px 8px;font-size:10px">' + (c.active ? 'Disable' : 'Enable') + '</button>' +
-          '<button onclick="WPA_pkDeleteCoupon(\'' + c.id + '\')" class="btn-subtle" style="padding:4px 8px;font-size:10px;color:var(--red)">✕</button>' +
+          '<button onclick="WPA_pkDeleteCoupon(\'' + c.id + '\')" class="btn-subtle" style="padding:4px 8px;font-size:10px;color:var(--red)">Delete</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -7063,28 +9280,28 @@ function WPA_pkSaveCoupon() {
   var code = document.getElementById('pkCpnCode').value.trim();
   var value = document.getElementById('pkCpnValue').value;
   if (!code || !value) { alert('Code and value are required'); return; }
-  pkFetch('admin-coupons', 'POST', {
+  var body = {
+    id: 'cpn_' + Date.now(),
     code: code,
-    type: document.getElementById('pkCpnType').value,
-    value: parseFloat(value),
-    description: document.getElementById('pkCpnDesc').value.trim(),
+    discount_type: document.getElementById('pkCpnType').value,
+    discount_value: parseFloat(value),
     max_uses: parseInt(document.getElementById('pkCpnMaxUses').value) || 0,
-    expires: document.getElementById('pkCpnExpires').value || ''
-  }).then(function(d) {
-    if (d.ok) {
-      document.getElementById('pkCouponForm').style.display = 'none';
-      WPA_pkLoadCoupons();
-    }
-  });
+    expires: document.getElementById('pkCpnExpires').value || null,
+    active: true
+  };
+  pkSB('parking_coupons', '', 'POST', body).then(function(d) {
+    document.getElementById('pkCouponForm').style.display = 'none';
+    WPA_pkLoadCoupons();
+  }).catch(function(e) { alert('Error: ' + e.message); });
 }
 
 function WPA_pkToggleCoupon(id, active) {
-  pkFetch('admin-coupons', 'PUT', { id: id, active: active }).then(function() { WPA_pkLoadCoupons(); });
+  pkSB('parking_coupons', 'id=eq.' + id, 'PATCH', { active: active }).then(function() { WPA_pkLoadCoupons(); });
 }
 
 function WPA_pkDeleteCoupon(id) {
   if (!confirm('Delete this coupon?')) return;
-  pkFetch('admin-coupons&id=' + id, 'DELETE').then(function() { WPA_pkLoadCoupons(); });
+  pkSB('parking_coupons', 'id=eq.' + id, 'DELETE').then(function() { WPA_pkLoadCoupons(); });
 }
 
 // ── Receipt Lookup ──
@@ -7094,13 +9311,13 @@ function WPA_pkSearchReceipt() {
   var el = document.getElementById('pkReceiptResult');
   el.innerHTML = '<div style="color:var(--text3);padding:10px;font-size:12px">Searching...</div>';
 
-  pkFetch('admin-bookings').then(function(d) {
-    if (!d.ok) { el.innerHTML = '<div style="color:var(--red)">Error loading bookings</div>'; return; }
-    var results = (d.bookings || []).filter(function(b) {
-      return b.id.toLowerCase().indexOf(q) >= 0 ||
-             b.license_plate.toLowerCase().indexOf(q) >= 0 ||
-             b.unit_number.toLowerCase().indexOf(q) >= 0 ||
-             (b.guest_name || '').toLowerCase().indexOf(q) >= 0;
+  pkSB('parking_bookings', 'select=*&order=created.desc').then(function(rows) {
+    if (!Array.isArray(rows)) { el.innerHTML = '<div style="color:var(--red)">Error loading bookings</div>'; return; }
+    var results = rows.filter(function(b) {
+      return (b.id||'').toLowerCase().indexOf(q) >= 0 ||
+             (b.license_plate||'').toLowerCase().indexOf(q) >= 0 ||
+             (b.unit||'').toLowerCase().indexOf(q) >= 0 ||
+             (b.guest_name||'').toLowerCase().indexOf(q) >= 0;
     }).slice(0, 10);
 
     if (results.length === 0) {
@@ -7108,22 +9325,65 @@ function WPA_pkSearchReceipt() {
       return;
     }
     el.innerHTML = results.map(function(b) {
-      return '<div style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface2)">' +
+      return '<div onclick="WPA_pkShowReceipt(\'' + _esc(b.id) + '\')" style="border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;background:var(--surface2);cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.15)\'" onmouseout="this.style.boxShadow=\'none\'">' +
         '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">' +
-          '<div><strong>' + esc(b.building_name) + ' #' + esc(b.unit_number) + '</strong>' +
-            (b.guest_name ? ' — ' + esc(b.guest_name) : '') +
+          '<div><strong>' + _esc(b.building_name||'') + ' #' + _esc(b.unit||'') + '</strong>' +
+            (b.guest_name ? ' — ' + _esc(b.guest_name) : '') +
           '</div>' +
-          '<a href="https://parking.willowpa.com/receipt.php?id=' + b.id + '" target="_blank" class="btn-backup" style="padding:6px 12px;font-size:11px;text-decoration:none">🧾 View & Print Receipt</a>' +
+          '<span style="font-size:10px;color:var(--accent)">Click to view / print</span>' +
         '</div>' +
         '<div style="font-size:12px;color:var(--text2)">' +
-          '<span style="margin-right:12px">🚗 ' + esc(b.car_make) + ' ' + esc(b.car_color) + ' <strong>' + esc(b.license_plate) + '</strong></span>' +
-          '<span style="margin-right:12px">📅 ' + b.start_date + ' → ' + b.end_date + '</span>' +
-          '<span>💰 $' + parseFloat(b.amount).toFixed(2) + '</span>' +
+          '<span style="margin-right:12px">' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + ' <strong>' + _esc(b.license_plate||'') + '</strong></span>' +
+          '<span style="margin-right:12px">' + (b.start_date||'') + ' to ' + (b.end_date||'') + '</span>' +
+          '<span>$' + parseFloat(b.amount||0).toFixed(2) + '</span>' +
         '</div>' +
         '<div style="font-size:10px;color:var(--text3);margin-top:4px">ID: ' + b.id + '</div>' +
       '</div>';
     }).join('');
   });
+}
+
+function WPA_pkShowReceipt(bookingId) {
+  var b = _pkBookings.find(function(x) { return x.id === bookingId; });
+  if (!b) {
+    // Try loading from Supabase if not in cache
+    pkSB('parking_bookings', 'select=*&id=eq.' + bookingId).then(function(rows) {
+      if (Array.isArray(rows) && rows[0]) WPA_pkPrintReceipt(rows[0]);
+      else alert('Booking not found');
+    });
+    return;
+  }
+  WPA_pkPrintReceipt(b);
+}
+
+function WPA_pkPrintReceipt(b) {
+  var qrData = JSON.stringify({ id: b.id, plate: b.license_plate, unit: b.unit, building: b.building_name, start: b.start_date, end: b.end_date });
+  var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(qrData);
+
+  var html = '<div style="max-width:400px;margin:0 auto;text-align:center;font-family:sans-serif;padding:20px">' +
+    '<h2 style="margin:0 0 4px">Parking Permit</h2>' +
+    '<div style="font-size:12px;color:#666;margin-bottom:16px">Willow Property Management</div>' +
+    '<img src="' + qrUrl + '" style="width:200px;height:200px;margin:12px auto;display:block" />' +
+    '<div style="text-align:left;border-top:2px solid #333;padding-top:12px;margin-top:12px">' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">' +
+        '<div><strong>Building:</strong><br>' + _esc(b.building_name||'') + '</div>' +
+        '<div><strong>Unit:</strong><br>' + _esc(b.unit||'') + '</div>' +
+        '<div><strong>Name:</strong><br>' + _esc(b.guest_name||'') + '</div>' +
+        '<div><strong>Plate:</strong><br><span style="font-size:18px;font-weight:700">' + _esc(b.license_plate||'') + '</span></div>' +
+        '<div><strong>Vehicle:</strong><br>' + _esc(b.car_brand||'') + ' ' + _esc(b.car_color||'') + '</div>' +
+        '<div><strong>Amount:</strong><br>$' + parseFloat(b.amount||0).toFixed(2) + '</div>' +
+        '<div><strong>Start:</strong><br>' + (b.start_date||'') + '</div>' +
+        '<div><strong>End:</strong><br>' + (b.end_date||'') + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="font-size:10px;color:#999;margin-top:12px;border-top:1px solid #ddd;padding-top:8px">ID: ' + b.id + '</div>' +
+  '</div>';
+
+  var win = window.open('', '_blank', 'width=450,height=650');
+  win.document.write('<html><head><title>Parking Receipt — ' + _esc(b.license_plate||'') + '</title></head><body>' + html +
+    '<div style="text-align:center;margin-top:16px"><button onclick="window.print()" style="padding:10px 30px;font-size:14px;cursor:pointer;background:#333;color:#fff;border:none;border-radius:6px">Print</button></div>' +
+    '</body></html>');
+  win.document.close();
 }
 
 // Load parking stats when module loads
@@ -8403,6 +10663,42 @@ async function saveCalBooking() {
       await auditLog('cal-booking', _calApt, name, newId, null, dbRow(newRec));
     }
 
+    // ── Sync to bookings table (so it appears in Pipeline) ──
+    try {
+      const channelEl = document.getElementById('cbChannel');
+      const channel = channelEl ? channelEl.value : '';
+      const channelOther = document.getElementById('cbChannelOther')?.value.trim() || '';
+      const platform = (channel === 'Other' ? channelOther : channel || 'direct').toLowerCase().replace(/\s+/g,'_');
+      const gPhone = document.getElementById('cbPhone')?.value.trim() || '';
+      const gEmail = document.getElementById('cbEmail')?.value.trim() || '';
+      const nights = Math.max(1, Math.round((new Date(checkout) - new Date(checkin)) / 86400000));
+
+      const bookingRow = {
+        platform: platform || 'direct',
+        guest_name: name,
+        guest_email: gEmail || null,
+        guest_phone: gPhone || null,
+        check_in: checkin,
+        check_out: checkout,
+        adults: 1,
+        children: 0,
+        infants: 0,
+        pets: 0,
+        nightly_rate: rent > 0 ? Math.round(rent / nights) : 0,
+        total_payout: rent || 0,
+        currency: 'USD',
+        booking_status: 'confirmed',
+        unit_apt: _calApt,
+        listing_name: _calApt,
+        booked_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      await sb.from('bookings').insert(bookingRow);
+    } catch(syncErr) {
+      console.warn('Pipeline sync failed (non-critical):', syncErr);
+    }
+
     await loadAll();
     closeModal('calBookingModal');
     renderCalendar();
@@ -9543,7 +11839,7 @@ function updateDashWorkOrders() {
 // ══════════════════════════════════════════════════════
 //  DELIVERY / MAILROOM ADMIN MODULE
 // ══════════════════════════════════════════════════════
-var DL_API = 'https://delivery.willowpa.com/api.php';
+var DL_API = (typeof CONFIG !== 'undefined' && CONFIG.DL_API) || 'https://app.willowpa.com/delivery/api.php';
 var DL_ADMIN_TOKEN = (typeof CONFIG !== 'undefined' && CONFIG.ADMIN_TOKEN) || '';
 var _dlPackages = [];
 var _dlTenants = [];
@@ -9631,7 +11927,7 @@ function WPA_dlRenderPackages(list) {
     return;
   }
   tbody.innerHTML = list.map(function(p) {
-    var statusClass = p.status === 'Pending' ? 'dl-status-pending' : 'dl-status-collected';
+    var statusClass = p.status === 'pending' ? 'dl-status-pending' : 'dl-status-collected';
     return '<tr>' +
       '<td><input type="checkbox" class="dl-pkg-check" value="' + p.unit + '"></td>' +
       '<td><strong>' + p.unit + '</strong></td>' +
@@ -9639,9 +11935,9 @@ function WPA_dlRenderPackages(list) {
       '<td>' + (p.courier || '—') + '</td>' +
       '<td>' + (p.has_phone ? '<span style="color:var(--green)">Y</span>' : '<span style="color:var(--text-dim)">N</span>') + '</td>' +
       '<td><span class="' + statusClass + '">' + p.status + '</span></td>' +
-      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(p.created) + '</td>' +
-      '<td style="font-size:11px;color:var(--text-dim)">' + (p.collected ? DL_fmtTime(p.collected) : '—') + '</td>' +
-      '<td>' + (p.status === 'Pending' ? '<a href="javascript:;" onclick="WPA_dlConfirmPickup(\'' + p.unit + '\')" style="color:var(--green);font-size:11px">✓ Collect</a>' : '') + '</td>' +
+      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(p.created_at) + '</td>' +
+      '<td style="font-size:11px;color:var(--text-dim)">' + (p.collected_at ? DL_fmtTime(p.collected_at) : '—') + '</td>' +
+      '<td>' + (p.status === 'pending' ? '<a href="javascript:;" onclick="WPA_dlConfirmPickup(\'' + p.unit + '\')" style="color:var(--green);font-size:11px">✓ Collect</a>' : '') + '</td>' +
     '</tr>';
   }).join('');
 }
@@ -9705,7 +12001,7 @@ function WPA_dlRenderTenants(list) {
       '<td><strong>' + t.unit + '</strong></td>' +
       '<td><input type="text" class="pk-admin-input dl-tenant-phone" data-unit="' + t.unit + '" value="' + (t.phone || '') + '" style="width:120px"></td>' +
       '<td>' + (t.sms_opt ? '<span style="color:var(--green)">Y</span>' : '<span style="color:var(--red)">N</span>') + '</td>' +
-      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(t.created) + '</td>' +
+      '<td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(t.created_at) + '</td>' +
       '<td>' +
         '<a href="javascript:;" onclick="WPA_dlUpdateTenant(\'' + t.unit + '\')" style="color:var(--accent);font-size:11px">Save</a> ' +
         '<a href="javascript:;" onclick="WPA_dlDeleteTenant(\'' + t.unit + '\')" style="color:var(--red);font-size:11px;margin-left:6px">Del</a>' +
@@ -9784,34 +12080,49 @@ function WPA_dlLoadReports() {
     }
     if (type === 'signup') {
       tbody.innerHTML = data.map(function(r) {
-        return '<tr><td>' + r.unit + '</td><td>' + (r.phone || '') + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.modified) + '</td></tr>';
+        return '<tr><td>' + r.unit + '</td><td>' + (r.phone || '') + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.created_at) + '</td></tr>';
       }).join('');
     } else {
       tbody.innerHTML = data.map(function(r) {
-        return '<tr><td>' + r.unit + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.timestamp) + '</td><td>' + r.log + '</td></tr>';
+        return '<tr><td>' + r.unit + '</td><td style="font-size:11px;color:var(--text-dim)">' + DL_fmtTime(r.created_at) + '</td><td>' + r.log + '</td></tr>';
       }).join('');
     }
   });
 }
 
-// ── Community Updates ──
+// ── Community Updates & Kiosk Slides ──
 function WPA_dlLoadUpdates() {
   dlFetch('admin-community-updates').then(function(d) {
     if (!d.ok) return;
     var list = d.updates || [];
     var el = document.getElementById('dlUpdatesList');
     if (!el) return;
-    if (list.length === 0) { el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:10px">No community updates</div>'; return; }
+    if (list.length === 0) { el.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:10px">No slides added yet</div>'; return; }
     el.innerHTML = list.map(function(u) {
+      var mediaHtml = '';
+      if (u.image_url) {
+        var isPdf = u.image_url.toLowerCase().indexOf('.pdf') !== -1;
+        if (isPdf) {
+          mediaHtml = '<div style="margin-top:6px"><span style="font-size:11px;color:var(--primary)">PDF: ' + u.image_url.split('/').pop() + '</span></div>';
+        } else {
+          mediaHtml = '<div style="margin-top:6px"><img src="' + u.image_url + '" style="max-width:160px;max-height:100px;border-radius:4px;border:1px solid var(--border)"></div>';
+        }
+      }
+      var bodyHtml = u.body ? '<div style="color:var(--text-dim);margin-top:4px;white-space:pre-line">' + u.body + '</div>' : '';
+      var typeLabel = '';
+      if (u.image_url) {
+        var isPdf2 = u.image_url.toLowerCase().indexOf('.pdf') !== -1;
+        typeLabel = '<span style="font-size:10px;background:' + (isPdf2 ? '#fce4ec;color:#c62828' : '#e3f2fd;color:#1565c0') + ';padding:2px 6px;border-radius:4px;margin-left:6px">' + (isPdf2 ? 'PDF' : 'Image') + '</span>';
+      }
       return '<div style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;font-size:12px">' +
         '<div style="display:flex;justify-content:space-between;align-items:center">' +
-          '<strong>' + u.title + '</strong>' +
+          '<div><strong>' + u.title + '</strong>' + typeLabel + '</div>' +
           '<div>' +
             '<a href="javascript:;" onclick="WPA_dlToggleUpdate(\'' + u.id + '\',' + !u.active + ')" style="font-size:11px;color:' + (u.active ? 'var(--green)' : 'var(--text-dim)') + '">' + (u.active ? 'Active' : 'Inactive') + '</a> ' +
             '<a href="javascript:;" onclick="WPA_dlDeleteUpdate(\'' + u.id + '\')" style="font-size:11px;color:var(--red);margin-left:8px">Delete</a>' +
           '</div>' +
         '</div>' +
-        '<div style="color:var(--text-dim);margin-top:4px;white-space:pre-line">' + u.body + '</div>' +
+        bodyHtml + mediaHtml +
       '</div>';
     }).join('');
   });
@@ -9820,11 +12131,78 @@ function WPA_dlLoadUpdates() {
 function WPA_dlSaveUpdate() {
   var title = document.getElementById('dlUpdateTitle').value.trim();
   var body = document.getElementById('dlUpdateBody').value.trim();
+  var fileInput = document.getElementById('dlUpdateFile');
   if (!title) { alert('Enter a title'); return; }
-  dlFetch('admin-community-updates', 'POST', { title: title, body: body }).then(function(d) {
-    if (d.ok) { document.getElementById('dlUpdateTitle').value = ''; document.getElementById('dlUpdateBody').value = ''; WPA_dlLoadUpdates(); }
-  });
+
+  // Check if there's a file to upload first
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    // Upload file first, then create the community update with the URL
+    var fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    fetch(DL_API + '?action=admin-upload-file', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + DL_ADMIN_TOKEN },
+      body: fd
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.error) { alert('Upload failed: ' + d.error); return; }
+      // Now create the community update with the uploaded URL
+      dlFetch('admin-community-updates', 'POST', { title: title, body: body, image_url: d.url }).then(function(r) {
+        if (r.ok) { WPA_dlClearUpdateForm(); WPA_dlLoadUpdates(); }
+      });
+    }).catch(function(e) { alert('Upload error: ' + e.message); });
+  } else {
+    // Text-only slide
+    dlFetch('admin-community-updates', 'POST', { title: title, body: body }).then(function(d) {
+      if (d.ok) { WPA_dlClearUpdateForm(); WPA_dlLoadUpdates(); }
+    });
+  }
 }
+
+function WPA_dlClearUpdateForm() {
+  document.getElementById('dlUpdateTitle').value = '';
+  document.getElementById('dlUpdateBody').value = '';
+  var fileInput = document.getElementById('dlUpdateFile');
+  if (fileInput) fileInput.value = '';
+  WPA_dlClearFilePreview();
+}
+
+function WPA_dlClearFilePreview() {
+  var fileInput = document.getElementById('dlUpdateFile');
+  if (fileInput) fileInput.value = '';
+  var prev = document.getElementById('dlFilePreview');
+  if (prev) prev.style.display = 'none';
+  var img = document.getElementById('dlFilePreviewImg');
+  if (img) { img.style.display = 'none'; img.src = ''; }
+  var pdfName = document.getElementById('dlFilePdfName');
+  if (pdfName) pdfName.style.display = 'none';
+}
+
+// File preview handler
+(function() {
+  document.addEventListener('change', function(e) {
+    if (e.target.id === 'dlUpdateFile' && e.target.files && e.target.files[0]) {
+      var file = e.target.files[0];
+      var prev = document.getElementById('dlFilePreview');
+      var img = document.getElementById('dlFilePreviewImg');
+      var pdfName = document.getElementById('dlFilePdfName');
+      if (!prev) return;
+
+      if (file.type === 'application/pdf') {
+        if (img) img.style.display = 'none';
+        if (pdfName) { pdfName.textContent = file.name; pdfName.style.display = 'inline'; }
+        prev.style.display = 'inline-flex';
+      } else {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          if (img) { img.src = ev.target.result; img.style.display = 'inline'; }
+          if (pdfName) pdfName.style.display = 'none';
+          prev.style.display = 'inline-flex';
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+  });
+})();
 
 function WPA_dlToggleUpdate(id, active) {
   dlFetch('admin-community-updates', 'POST', { id: id, active: active }).then(function(d) { if (d.ok) WPA_dlLoadUpdates(); });
@@ -9835,43 +12213,10 @@ function WPA_dlDeleteUpdate(id) {
   dlFetch('admin-community-updates', 'DELETE', { id: id }).then(function(d) { if (d.ok) WPA_dlLoadUpdates(); });
 }
 
-// ── Kiosk Images ──
+// ── Kiosk Images (now handled via community updates with image_url) ──
 function WPA_dlLoadImages() {
-  dlFetch('kiosk-images').then(function(d) {
-    if (!d.ok) return;
-    var images = d.images || [];
-    var el = document.getElementById('dlImagesList');
-    if (!el) return;
-    if (images.length === 0) { el.innerHTML = '<div style="color:var(--text-dim);font-size:12px">No images uploaded</div>'; return; }
-    el.innerHTML = images.map(function(img) {
-      var url = DL_API.replace('api.php', 'uploads/' + img.filename);
-      return '<div style="border:1px solid var(--border);border-radius:8px;padding:8px;width:180px">' +
-        (img.ext === 'pdf' ? '<div style="font-size:11px;padding:20px 0;text-align:center">PDF: ' + img.filename + '</div>' : '<img src="' + url + '" style="width:100%;border-radius:4px;margin-bottom:4px">') +
-        '<a href="javascript:;" onclick="WPA_dlDeleteImage(\'' + img.filename + '\')" style="font-size:11px;color:var(--red)">Delete</a>' +
-      '</div>';
-    }).join('');
-  });
-}
-
-function WPA_dlUploadImage() {
-  var input = document.getElementById('dlImageUpload');
-  if (!input.files || !input.files[0]) return;
-  var fd = new FormData();
-  fd.append('file', input.files[0]);
-  fetch(DL_API + '?action=admin-upload-image', {
-    method: 'POST',
-    headers: { 'Authorization': 'Bearer ' + DL_ADMIN_TOKEN },
-    body: fd
-  }).then(function(r) { return r.json(); }).then(function(d) {
-    if (d.error) { alert(d.error); return; }
-    input.value = '';
-    WPA_dlLoadImages();
-  });
-}
-
-function WPA_dlDeleteImage(filename) {
-  if (!confirm('Delete this image?')) return;
-  dlFetch('admin-delete-image', 'POST', { filename: filename }).then(function(d) { if (d.ok) WPA_dlLoadImages(); });
+  // Images are now managed through community updates
+  // This function kept for backward compatibility
 }
 
 // ── Send Reminders ──
@@ -10000,7 +12345,9 @@ window.sendViaChannel = function(channel, name, email, phone, body, opts) {
         }
 
         // 2) Insert message into the messages table under that channel
-        var msgRes = await sb.from('messages').insert([{ channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: 'text' }]);
+        var msgObj = { channel_id: portalChannelId, sender: 'host', sender_name: 'Management', body: body, platform: 'willowpa', sent_at: now, message_type: opts.messageType || 'text' };
+        if (opts.attachmentUrl) msgObj.attachment_url = opts.attachmentUrl;
+        var msgRes = await sb.from('messages').insert([msgObj]);
         console.log('[App Channel] Message insert:', msgRes.error ? 'ERROR: ' + msgRes.error.message : 'OK');
 
         // 3) Update channel preview + bump unread
@@ -10217,6 +12564,29 @@ async function _loadModalThread(name, unit, silent) {
 
 function _esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
+/* Match a property/unit string to a parking building id.
+   Tries street number match first, then keyword match. */
+function WPA_matchBuildingId(buildings, text) {
+  if (!text || !buildings || !buildings.length) return null;
+  var t = text.toLowerCase();
+  for (var i = 0; i < buildings.length; i++) {
+    var addr = (buildings[i].address || buildings[i].name || '').toLowerCase();
+    // Extract leading street number from building address
+    var numMatch = addr.match(/^(\d+)/);
+    if (numMatch) {
+      var num = numMatch[1];
+      // Check property string like "7845 Montgomery Avenue" or unit like "46-206"
+      if (t.indexOf(num) >= 0) return buildings[i].id;
+    }
+    // Keyword fallback: "montg" → montgomery, etc.
+    var keywords = addr.replace(/[^a-z]/g, ' ').trim().split(/\s+/).filter(function(w) { return w.length > 3; });
+    for (var k = 0; k < keywords.length; k++) {
+      if (t.indexOf(keywords[k].substring(0, 4)) >= 0) return buildings[i].id;
+    }
+  }
+  return null;
+}
+
 function closeMsgModal() {
   _stopMsgPolling();
   clearMsgAttachment();
@@ -10336,6 +12706,7 @@ async function sendMsgFromModal() {
   // 4b) Also insert into client_messages so the portal can see it
   try {
     var cmObj = { thread_id: channelId, resident_name: r.name || '', resident_email: r.email || '', resident_phone: r.phone || '', resident_unit: unit, subject: 'Message', body: body, sender_type: 'management', read: false, created_at: now };
+    if (attachmentUrl) { cmObj.attachment_url = attachmentUrl; cmObj.message_type = messageType; }
     if (r.email) cmObj.resident_email = r.email;
     var cmRes = await sb.from('client_messages').insert([cmObj]);
     if (cmRes.error) console.error('[Modal] client_messages dual-write error:', cmRes.error.message, cmObj);
@@ -10401,6 +12772,44 @@ async function triggerModalAISuggest() {
   } catch(e) {
     overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:24px;"><div style="color:#c62828;">AI error: ' + e.message + '</div><button onclick="this.closest(\'div\').parentElement.remove();" style="margin-top:12px;padding:8px 16px;border:none;border-radius:6px;background:#eee;cursor:pointer;">Close</button></div>';
   }
+}
+
+// AI Rephrase in modal
+async function triggerModalAIRephrase() {
+  var input = document.getElementById('msgBody');
+  var text = input ? input.value.trim() : '';
+  if (!text) { toast('Type something first, then click Rephrase', 'warning'); return; }
+
+  var r = _modalRecipient;
+  input.disabled = true;
+  var origText = input.value;
+  input.value = 'Rephrasing...';
+
+  try {
+    var resp = await fetch('https://tech.willowpa.com/proxy.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 512,
+        system: 'You are a property management communication assistant for Willow Property Management. Rephrase the given text to be more professional, warm, and clear. Always use "We" instead of "I". Keep the same meaning but improve the tone and clarity. Return ONLY the rephrased text, nothing else.',
+        messages: [{ role: 'user', content: 'Rephrase this message to ' + (r.name || 'resident') + ':\n\n' + text }]
+      })
+    });
+    var data = await resp.json();
+    if (data.content && data.content[0] && data.content[0].text) {
+      input.value = data.content[0].text;
+      toast('Text rephrased!', 'success');
+    } else {
+      input.value = origText;
+      toast('Rephrase unavailable', 'error');
+    }
+  } catch(e) {
+    input.value = origText;
+    toast('Rephrase failed: ' + e.message, 'error');
+  }
+  input.disabled = false;
+  input.focus();
 }
 
 // ═══════════════════════════════════════════════════
@@ -10875,5 +13284,760 @@ function _openDashMsgNavigation(msgId, source, bookingId){
     switchModule('techtrack');
     return;
   }
+}
+
+/* ═══════════════════════════════════════════
+   HOME SERVICES — Admin Module
+   ═══════════════════════════════════════════ */
+
+var _hsCatalogCache = [];
+var _hsSubcatCache = [];
+var _hsVariationCache = [];
+var _hsTimeWindowCache = [];
+var _hsCategoryCache = [];
+var _hsEditingItem = null;
+
+/* ── Section Routing ── */
+function showHomeServicesSection(sec) {
+  ['hsCatalogSection','hsSubcatsSection','hsBookingsSection','hsTimeWindowsSection','hsSettingsSection'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  var map = { catalog:'hsCatalogSection', subcats:'hsSubcatsSection', bookings:'hsBookingsSection', timeWindows:'hsTimeWindowsSection', settings:'hsSettingsSection' };
+  var target = document.getElementById(map[sec]);
+  if (target) target.style.display = '';
+  if (sec === 'catalog') WPA_hsLoadCatalog();
+  if (sec === 'subcats') WPA_hsLoadSubcats();
+  if (sec === 'bookings') WPA_hsLoadBookings();
+  if (sec === 'timeWindows') WPA_hsLoadTimeWindows();
+  if (sec === 'settings') WPA_hsLoadSettings();
+}
+
+/* ── Catalog: Load Services + Variations ── */
+function WPA_hsLoadCatalog() {
+  var grid = document.getElementById('hsCatalogGrid');
+  if (!grid) return;
+  grid.innerHTML = '<div class="info-loading">Loading catalog…</div>';
+  Promise.all([
+    pkSB('hs_categories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_subcategories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_services', 'select=*&order=sort_order.asc'),
+    pkSB('hs_service_variations', 'select=*&order=sort_order.asc')
+  ]).then(function(res) {
+    _hsCategoryCache = res[0] || [];
+    _hsSubcatCache = res[1] || [];
+    _hsCatalogCache = res[2] || [];
+    _hsVariationCache = res[3] || [];
+    WPA_hsRenderCatalog();
+  }).catch(function(e) {
+    grid.innerHTML = '<p style="color:var(--accent3);">Failed to load catalog: ' + _esc(e.message) + '</p>';
+  });
+}
+
+function WPA_hsRenderCatalog() {
+  var grid = document.getElementById('hsCatalogGrid');
+  if (!grid) return;
+  if (!_hsCatalogCache.length) {
+    grid.innerHTML = '<p style="color:var(--muted);font-size:13px;">No services yet. Click "+ Add Service" to create one.</p>';
+    return;
+  }
+  // Group services by subcategory
+  var subcatMap = {};
+  _hsSubcatCache.forEach(function(sc) { subcatMap[sc.id] = sc; });
+  var catMap = {};
+  _hsCategoryCache.forEach(function(c) { catMap[c.id] = c; });
+  // Build variations lookup
+  var varMap = {};
+  _hsVariationCache.forEach(function(v) {
+    if (!varMap[v.service_id]) varMap[v.service_id] = [];
+    varMap[v.service_id].push(v);
+  });
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+  html += '<th style="padding:8px">Service</th><th style="padding:8px">Subcategory</th><th style="padding:8px">Type</th><th style="padding:8px">Price</th><th style="padding:8px">Duration</th><th style="padding:8px">Status</th><th style="padding:8px;width:80px">Actions</th>';
+  html += '</tr></thead><tbody>';
+
+  _hsCatalogCache.forEach(function(svc) {
+    var sc = subcatMap[svc.subcategory_id];
+    var scName = sc ? sc.name : '—';
+    var priceStr = '—';
+    if (svc.pricing_type === 'fixed') {
+      priceStr = '$' + (svc.base_price || 0).toFixed(2);
+    } else if (svc.pricing_type === 'variation') {
+      var vars = varMap[svc.id] || [];
+      if (vars.length) {
+        var prices = vars.map(function(v) { return v.price; });
+        priceStr = '$' + Math.min.apply(null, prices).toFixed(2) + ' – $' + Math.max.apply(null, prices).toFixed(2);
+      } else { priceStr = 'No variations'; }
+    } else if (svc.pricing_type === 'configurable' && svc.pricing_config) {
+      var cfg = svc.pricing_config;
+      priceStr = 'From $' + (cfg.base_price || 0) + ' (+$' + (cfg.per_extra_bedroom || 0) + '/BR, +$' + (cfg.per_extra_bathroom || 0) + '/Bath)';
+    } else { priceStr = 'Request quote'; }
+    var durStr = svc.estimated_duration_minutes ? svc.estimated_duration_minutes + ' min' : '—';
+    var statusBadge = svc.is_active
+      ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:10px;font-size:11px">Active</span>'
+      : '<span style="background:#fef2f2;color:#991b1b;padding:2px 8px;border-radius:10px;font-size:11px">Inactive</span>';
+
+    html += '<tr style="border-bottom:1px solid var(--border)">';
+    html += '<td style="padding:8px;font-weight:500">' + _esc(svc.title) + '</td>';
+    html += '<td style="padding:8px">' + _esc(scName) + '</td>';
+    html += '<td style="padding:8px;text-transform:capitalize">' + _esc(svc.pricing_type) + '</td>';
+    html += '<td style="padding:8px">' + priceStr + '</td>';
+    html += '<td style="padding:8px">' + durStr + '</td>';
+    html += '<td style="padding:8px">' + statusBadge + '</td>';
+    html += '<td style="padding:8px">';
+    html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;margin-right:4px" onclick="WPA_hsEditService(\'' + svc.id + '\')">Edit</button>';
+    html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;color:var(--accent3)" onclick="WPA_hsDeleteService(\'' + svc.id + '\')">Del</button>';
+    html += '</td></tr>';
+
+    // Show variations inline if type=variation
+    if (svc.pricing_type === 'variation' && varMap[svc.id] && varMap[svc.id].length) {
+      varMap[svc.id].forEach(function(v) {
+        html += '<tr style="background:var(--bg2);border-bottom:1px solid var(--border)">';
+        html += '<td style="padding:4px 8px 4px 28px;font-size:12px;color:var(--muted)">↳ ' + _esc(v.label) + '</td>';
+        html += '<td style="padding:4px 8px"></td>';
+        html += '<td style="padding:4px 8px;font-size:12px;color:var(--muted)">variation</td>';
+        html += '<td style="padding:4px 8px;font-size:12px">$' + (v.price || 0).toFixed(2) + '</td>';
+        html += '<td style="padding:4px 8px;font-size:12px">' + (v.duration_override_min ? v.duration_override_min + ' min' : '—') + '</td>';
+        html += '<td style="padding:4px 8px"></td>';
+        html += '<td style="padding:4px 8px"><button class="btn-subtle" style="font-size:10px;padding:2px 6px" onclick="WPA_hsEditVariation(\'' + v.id + '\')">Edit</button></td>';
+        html += '</tr>';
+      });
+    }
+  });
+  html += '</tbody></table>';
+  grid.innerHTML = html;
+}
+
+/* ── Subcategories: Load & Render ── */
+function WPA_hsLoadSubcats() {
+  var box = document.getElementById('hsSubcatsList');
+  if (!box) return;
+  box.innerHTML = '<div class="info-loading">Loading subcategories…</div>';
+  Promise.all([
+    pkSB('hs_categories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_subcategories', 'select=*&order=sort_order.asc'),
+    pkSB('hs_services', 'select=id,subcategory_id')
+  ]).then(function(res) {
+    _hsCategoryCache = res[0] || [];
+    _hsSubcatCache = res[1] || [];
+    var services = res[2] || [];
+    // Count services per subcat
+    var countMap = {};
+    services.forEach(function(s) {
+      countMap[s.subcategory_id] = (countMap[s.subcategory_id] || 0) + 1;
+    });
+    var catMap = {};
+    _hsCategoryCache.forEach(function(c) { catMap[c.id] = c; });
+
+    if (!_hsSubcatCache.length) {
+      box.innerHTML = '<p style="color:var(--muted);font-size:13px;">No subcategories yet.</p>';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+    html += '<th style="padding:8px">Icon</th><th style="padding:8px">Name</th><th style="padding:8px">Slug</th><th style="padding:8px">Category</th><th style="padding:8px">Services</th><th style="padding:8px">Order</th><th style="padding:8px;width:80px">Actions</th>';
+    html += '</tr></thead><tbody>';
+    _hsSubcatCache.forEach(function(sc) {
+      var cat = catMap[sc.category_id];
+      var catName = cat ? cat.name : '—';
+      var cnt = countMap[sc.id] || 0;
+      html += '<tr style="border-bottom:1px solid var(--border)">';
+      html += '<td style="padding:8px;font-size:20px">' + (sc.icon || '📦') + '</td>';
+      html += '<td style="padding:8px;font-weight:500">' + _esc(sc.name) + '</td>';
+      html += '<td style="padding:8px;font-family:monospace;font-size:12px;color:var(--muted)">' + _esc(sc.slug) + '</td>';
+      html += '<td style="padding:8px">' + _esc(catName) + '</td>';
+      html += '<td style="padding:8px">' + cnt + '</td>';
+      html += '<td style="padding:8px">' + (sc.sort_order || 0) + '</td>';
+      html += '<td style="padding:8px">';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;margin-right:4px" onclick="WPA_hsEditSubcat(\'' + sc.id + '\')">Edit</button>';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;color:var(--accent3)" onclick="WPA_hsDeleteSubcat(\'' + sc.id + '\')">Del</button>';
+      html += '</td></tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed: ' + _esc(e.message) + '</p>';
+  });
+}
+
+/* ── Bookings: Load & Render ── */
+function WPA_hsLoadBookings() {
+  var box = document.getElementById('hsBookingsList');
+  if (!box) return;
+  box.innerHTML = '<div class="info-loading">Loading bookings…</div>';
+  var filter = '';
+  var sel = document.getElementById('hsBookFilter');
+  var val = sel ? sel.value : 'all';
+  // Bookings come from maintenance_requests where source='home_services'
+  var query = 'select=*&source=eq.home_services&order=created_at.desc&limit=50';
+  if (val !== 'all') query += '&status=eq.' + val;
+
+  pkSB('maintenance_requests', query).then(function(rows) {
+    if (!rows || !rows.length) {
+      box.innerHTML = '<p style="color:var(--muted);font-size:13px;">No service bookings found.</p>';
+      return;
+    }
+    // Cache bookings for detail view
+    window._hsBookingsCache = rows;
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+    html += '<th style="padding:8px">Date</th><th style="padding:8px">Service</th><th style="padding:8px">Property / Unit</th><th style="padding:8px">Resident</th><th style="padding:8px">Status</th><th style="padding:8px">Total</th>';
+    html += '</tr></thead><tbody>';
+    rows.forEach(function(b, idx) {
+      var dt = b.created_at ? new Date(b.created_at).toLocaleDateString() : '—';
+      var statusColor = { new:'#2563eb', quote_requested:'#8b5cf6', scheduled:'#d97706', complete:'#16a34a', cancelled:'#dc2626' };
+      var color = statusColor[b.status] || '#6b7280';
+
+      // Resolve unit/property — check all possible field names from portal submission
+      var unit = b.unit || b.apt || '';
+      var property = b.property || b.address || '';
+      var resident = b.submitted_by || b.name || '';
+
+      // Auto-match from tenant data if unit/property missing
+      if ((!unit || !property) && resident && typeof data !== 'undefined') {
+        var match = data.find(function(r) {
+          return r.name && r.name.toLowerCase() === resident.toLowerCase();
+        });
+        if (match) {
+          if (!unit) unit = match.apt || '';
+          if (!property) property = match.owner || '';
+        }
+      }
+
+      var locDisplay = property ? _esc(property) + (unit ? ' — ' + _esc(unit) : '') : _esc(unit || '—');
+
+      // Parse price from hs_booking_data if available
+      var priceDisplay = '—';
+      if (b.price_total) {
+        priceDisplay = '$' + Number(b.price_total).toFixed(2);
+      } else if (b.hs_booking_data) {
+        try {
+          var bd = typeof b.hs_booking_data === 'string' ? JSON.parse(b.hs_booking_data) : b.hs_booking_data;
+          if (bd.price) priceDisplay = '$' + Number(bd.price).toFixed(2);
+        } catch(e) {}
+      }
+
+      html += '<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="WPA_hsOpenBooking(' + idx + ')" title="Click for details">';
+      html += '<td style="padding:8px">' + dt + '</td>';
+      html += '<td style="padding:8px;font-weight:500">' + _esc(b.title || b.description || b.category || '—') + '</td>';
+      html += '<td style="padding:8px">' + locDisplay + '</td>';
+      html += '<td style="padding:8px">' + _esc(resident || '—') + '</td>';
+      html += '<td style="padding:8px"><span style="background:' + color + '15;color:' + color + ';padding:2px 8px;border-radius:10px;font-size:11px">' + _esc(b.status || 'new') + '</span></td>';
+      html += '<td style="padding:8px;font-weight:500">' + priceDisplay + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed: ' + _esc(e.message) + '</p>';
+  });
+}
+
+/* ── Booking Detail Modal ── */
+function WPA_hsOpenBooking(idx) {
+  var b = window._hsBookingsCache ? window._hsBookingsCache[idx] : null;
+  if (!b) return;
+
+  var unit = b.unit || b.apt || '';
+  var property = b.property || b.address || '';
+  var resident = b.submitted_by || b.name || '';
+  var phone = b.phone || b.customer_phone || '';
+  var email = b.email || b.customer_email || '';
+
+  // Auto-match from tenant data
+  if ((!unit || !property) && resident && typeof data !== 'undefined') {
+    var match = data.find(function(r) {
+      return r.name && r.name.toLowerCase() === resident.toLowerCase();
+    });
+    if (match) {
+      if (!unit) unit = match.apt || '';
+      if (!property) property = match.owner || '';
+      if (!phone && match.phone) phone = match.phone;
+      if (!email && match.email) email = match.email;
+    }
+  }
+
+  // Parse booking data
+  var bookingDetails = '';
+  if (b.hs_booking_data) {
+    try {
+      var bd = typeof b.hs_booking_data === 'string' ? JSON.parse(b.hs_booking_data) : b.hs_booking_data;
+      if (bd.service) bookingDetails += '<div><strong>Service:</strong> ' + _esc(bd.service) + '</div>';
+      if (bd.variation) bookingDetails += '<div><strong>Size:</strong> ' + _esc(bd.variation) + '</div>';
+      if (bd.selections) {
+        Object.keys(bd.selections).forEach(function(k) {
+          bookingDetails += '<div><strong>' + _esc(k) + ':</strong> ' + _esc(String(bd.selections[k])) + '</div>';
+        });
+      }
+      if (bd.date) bookingDetails += '<div><strong>Requested Date:</strong> ' + _esc(bd.date) + '</div>';
+      if (bd.time_window) bookingDetails += '<div><strong>Time Window:</strong> ' + _esc(bd.time_window) + '</div>';
+      if (bd.price) bookingDetails += '<div><strong>Price:</strong> $' + Number(bd.price).toFixed(2) + '</div>';
+    } catch(e) {}
+  }
+
+  var statusColor = { new:'#2563eb', quote_requested:'#8b5cf6', scheduled:'#d97706', complete:'#16a34a', cancelled:'#dc2626' };
+  var color = statusColor[b.status] || '#6b7280';
+  var dt = b.created_at ? new Date(b.created_at).toLocaleString() : '—';
+
+  var html = '<div style="padding:20px">';
+  html += '<h3 style="margin:0 0 4px;font-size:18px">🧹 ' + _esc(b.title || b.description || b.category || 'Cleaning') + '</h3>';
+  html += '<span style="font-size:12px;color:#6b7280">' + dt + ' &bull; <span style="background:' + color + '15;color:' + color + ';padding:2px 8px;border-radius:10px;font-size:11px">' + _esc(b.status || 'new') + '</span></span>';
+
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0">';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Resident</span><div style="font-weight:600">' + _esc(resident || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Property</span><div style="font-weight:600">' + _esc(property || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Unit</span><div style="font-weight:600">' + _esc(unit || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Phone</span><div>' + _esc(phone || '—') + '</div></div>';
+  html += '<div><span style="font-size:11px;color:#6b7280;text-transform:uppercase">Email</span><div>' + _esc(email || '—') + '</div></div>';
+  html += '</div>';
+
+  if (bookingDetails) {
+    html += '<div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px">';
+    html += '<div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Booking Details</div>';
+    html += bookingDetails;
+    html += '</div>';
+  }
+
+  if (b.description || b.notes) {
+    html += '<div style="background:#f9fafb;border-radius:8px;padding:14px;margin-bottom:16px">';
+    html += '<div style="font-size:11px;color:#6b7280;text-transform:uppercase;margin-bottom:6px">Notes</div>';
+    html += '<div style="white-space:pre-wrap">' + _esc(b.description || b.notes || '') + '</div>';
+    html += '</div>';
+  }
+
+  // Price display
+  var priceVal = b.price_total || '';
+  if (!priceVal && b.hs_booking_data) {
+    try {
+      var bd2 = typeof b.hs_booking_data === 'string' ? JSON.parse(b.hs_booking_data) : b.hs_booking_data;
+      priceVal = bd2.price || '';
+    } catch(e) {}
+  }
+  if (priceVal) {
+    html += '<div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:12px;margin-bottom:16px;font-size:16px;font-weight:700;color:#16a34a">';
+    html += '💰 Total: $' + Number(priceVal).toFixed(2);
+    html += '</div>';
+  }
+
+  // Status update
+  var statusOpts = ['new','quote_requested','scheduled','in-progress','complete','cancelled'];
+  html += '<div style="margin-bottom:16px"><label style="font-size:11px;color:#6b7280;text-transform:uppercase;display:block;margin-bottom:4px">Update Status</label>';
+  html += '<select id="hsBookStatus" style="width:100%;padding:8px;border:1px solid #e5e7eb;border-radius:6px">';
+  statusOpts.forEach(function(s) {
+    html += '<option value="' + s + '" ' + ((b.status || 'new') === s ? 'selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1).replace('_',' ') + '</option>';
+  });
+  html += '</select></div>';
+  html += '<button onclick="WPA_hsSaveBooking(\'' + b.id + '\')" style="width:100%;padding:10px;background:var(--accent2,#c47f00);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">Save Changes</button>';
+  html += '</div>';
+
+  _hsModal('Service Booking', html, null);
+}
+
+/* ── Save booking status ── */
+function WPA_hsSaveBooking(id) {
+  var status = document.getElementById('hsBookStatus') ? document.getElementById('hsBookStatus').value : '';
+  if (!status) return;
+  pkSB('maintenance_requests', 'id=eq.' + id, 'PATCH', { status: status }).then(function() {
+    toast('Booking updated', 'success');
+    var old = document.getElementById('hsModal');
+    if (old) old.remove();
+    WPA_hsLoadBookings();
+  }).catch(function(e) {
+    toast('Failed: ' + e.message, 'error');
+  });
+}
+
+/* ── Time Windows: Load & Render ── */
+function WPA_hsLoadTimeWindows() {
+  var box = document.getElementById('hsTimeWindowsList');
+  if (!box) return;
+  box.innerHTML = '<div class="info-loading">Loading time windows…</div>';
+  pkSB('hs_time_windows', 'select=*&order=sort_order.asc').then(function(rows) {
+    _hsTimeWindowCache = rows || [];
+    if (!rows.length) {
+      box.innerHTML = '<p style="color:var(--muted);font-size:13px;">No time windows. Click "+ Add Window" to create one.</p>';
+      return;
+    }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="text-align:left;border-bottom:2px solid var(--border)">';
+    html += '<th style="padding:8px">Label</th><th style="padding:8px">Start</th><th style="padding:8px">End</th><th style="padding:8px">Order</th><th style="padding:8px;width:80px">Actions</th>';
+    html += '</tr></thead><tbody>';
+    rows.forEach(function(tw) {
+      html += '<tr style="border-bottom:1px solid var(--border)">';
+      html += '<td style="padding:8px;font-weight:500">' + _esc(tw.label) + '</td>';
+      html += '<td style="padding:8px">' + _esc(tw.start_time || '—') + '</td>';
+      html += '<td style="padding:8px">' + _esc(tw.end_time || '—') + '</td>';
+      html += '<td style="padding:8px">' + (tw.sort_order || 0) + '</td>';
+      html += '<td style="padding:8px">';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;margin-right:4px" onclick="WPA_hsEditTimeWindow(\'' + tw.id + '\')">Edit</button>';
+      html += '<button class="btn-subtle" style="font-size:11px;padding:3px 8px;color:var(--accent3)" onclick="WPA_hsDeleteTimeWindow(\'' + tw.id + '\')">Del</button>';
+      html += '</td></tr>';
+    });
+    html += '</tbody></table>';
+    box.innerHTML = html;
+  }).catch(function(e) {
+    box.innerHTML = '<p style="color:var(--accent3);">Failed: ' + _esc(e.message) + '</p>';
+  });
+}
+
+/* ── Modal Helper ── */
+function _hsModal(title, bodyHtml, onSave) {
+  // Remove existing modal
+  var old = document.getElementById('hsModal');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'hsModal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  var box = document.createElement('div');
+  box.style.cssText = 'background:var(--bg);border-radius:12px;padding:24px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);';
+  box.innerHTML = '<h3 style="margin:0 0 16px;font-size:16px">' + title + '</h3>' + bodyHtml
+    + '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px">'
+    + '<button class="btn-subtle" onclick="document.getElementById(\'hsModal\').remove()">Cancel</button>'
+    + '<button class="btn-subtle" id="hsModalSave" style="background:var(--accent);color:#fff;padding:6px 18px">Save</button>'
+    + '</div>';
+  overlay.appendChild(box);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+  document.getElementById('hsModalSave').addEventListener('click', function() {
+    if (onSave) onSave();
+  });
+}
+
+/* ── Add / Edit Service ── */
+function WPA_hsAddService() {
+  _hsEditingItem = null;
+  _hsShowServiceForm({});
+}
+
+function WPA_hsEditService(id) {
+  var svc = _hsCatalogCache.find(function(s) { return s.id === id; });
+  if (!svc) return;
+  _hsEditingItem = svc;
+  _hsShowServiceForm(svc);
+}
+
+function _hsShowServiceForm(svc) {
+  var subcatOpts = _hsSubcatCache.map(function(sc) {
+    var sel = svc.subcategory_id === sc.id ? ' selected' : '';
+    return '<option value="' + sc.id + '"' + sel + '>' + _esc(sc.name) + '</option>';
+  }).join('');
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Name</span><input id="hsFName" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.title || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Subcategory</span><select id="hsFSubcat" class="auth-inp" style="margin-top:4px">' + subcatOpts + '</select></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Pricing Type</span><select id="hsFPricing" class="auth-inp" style="margin-top:4px" onchange="WPA_hsTogglePricingFields()"><option value="fixed"' + (svc.pricing_type === 'fixed' ? ' selected' : '') + '>Fixed</option><option value="variation"' + (svc.pricing_type === 'variation' ? ' selected' : '') + '>Variation</option><option value="quote"' + (svc.pricing_type === 'quote' ? ' selected' : '') + '>Quote</option><option value="configurable"' + (svc.pricing_type === 'configurable' ? ' selected' : '') + '>Configurable (BR/Bath)</option></select></label>'
+    + '<div id="hsFFixedFields"' + (svc.pricing_type !== 'fixed' && svc.pricing_type ? ' style="display:none"' : '') + '><label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Base Price ($)</span><input id="hsFPrice" class="auth-inp" type="number" step="0.01" style="margin-top:4px" value="' + (svc.base_price || '') + '"></label></div>'
+    + '<div id="hsFConfigFields"' + (svc.pricing_type !== 'configurable' ? ' style="display:none"' : '') + '>'
+    + '<div style="background:#f8f8f8;border-radius:8px;padding:12px;margin-bottom:12px">'
+    + '<div style="font-size:12px;font-weight:600;margin-bottom:8px">Configurable Pricing Setup</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    + '<label style="display:block"><span style="font-size:11px">Base Price ($)</span><input id="hsCfgBase" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.base_price) || 150) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Base Bedrooms</span><input id="hsCfgBaseBR" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.base_bedrooms) || 1) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Per Extra BR ($)</span><input id="hsCfgPerBR" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.per_extra_bedroom) || 50) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Base Bathrooms</span><input id="hsCfgBaseBA" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.base_bathrooms) || 1) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Per Extra Bath ($)</span><input id="hsCfgPerBA" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.per_extra_bathroom) || 50) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Max Bedrooms</span><input id="hsCfgMaxBR" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.max_bedrooms) || 5) + '"></label>'
+    + '<label style="display:block"><span style="font-size:11px">Max Bathrooms</span><input id="hsCfgMaxBA" class="auth-inp" type="number" style="margin-top:2px" value="' + ((svc.pricing_config && svc.pricing_config.max_bathrooms) || 4) + '"></label>'
+    + '</div></div></div>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration (minutes)</span><input id="hsFDuration" class="auth-inp" type="number" style="margin-top:4px" value="' + (svc.estimated_duration_minutes || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsFDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(svc.short_description || '') + '</textarea></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsFIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(svc.icon || '') + '"></label>'
+    + '<div style="background:#eff6ff;border-radius:8px;padding:12px;margin-bottom:12px;border:1px solid #bfdbfe">'
+    + '<div style="font-size:12px;font-weight:600;margin-bottom:8px;color:#1e40af">💳 Stripe Payment</div>'
+    + '<label style="display:block;margin-bottom:8px"><span style="font-size:11px">Stripe Account</span><select id="hsFStripeCredId" class="auth-inp" style="margin-top:2px"><option value="">— Use default —</option></select></label>'
+    + '<p style="font-size:10px;color:#6b7280;margin:0">Select a Stripe account for this service. "Use default" falls back to the global setting.</p>'
+    + '</div>'
+    + '<label style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><input type="checkbox" id="hsFActive"' + (svc.is_active !== false ? ' checked' : '') + '> <span style="font-size:12px;font-weight:500">Active</span></label>';
+
+  _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Service', body, function() {
+    var name = document.getElementById('hsFName').value.trim();
+    if (!name) { alert('Name is required'); return; }
+    var sCode = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    var pType = document.getElementById('hsFPricing').value;
+    var payload = {
+      title: name,
+      service_code: sCode,
+      subcategory_id: document.getElementById('hsFSubcat').value,
+      pricing_type: pType,
+      base_price: pType === 'fixed' ? parseFloat(document.getElementById('hsFPrice').value) || 0 : null,
+      estimated_duration_minutes: parseInt(document.getElementById('hsFDuration').value) || null,
+      short_description: document.getElementById('hsFDesc').value.trim() || null,
+      icon: document.getElementById('hsFIcon').value.trim() || null,
+      stripe_cred_id: document.getElementById('hsFStripeCredId').value || null,
+      is_active: document.getElementById('hsFActive').checked,
+      pricing_config: pType === 'configurable' ? {
+        base_price: parseFloat(document.getElementById('hsCfgBase').value) || 150,
+        base_bedrooms: parseInt(document.getElementById('hsCfgBaseBR').value) || 1,
+        base_bathrooms: parseInt(document.getElementById('hsCfgBaseBA').value) || 1,
+        per_extra_bedroom: parseFloat(document.getElementById('hsCfgPerBR').value) || 50,
+        per_extra_bathroom: parseFloat(document.getElementById('hsCfgPerBA').value) || 50,
+        max_bedrooms: parseInt(document.getElementById('hsCfgMaxBR').value) || 5,
+        max_bathrooms: parseInt(document.getElementById('hsCfgMaxBA').value) || 4
+      } : null
+    };
+    // Need category_id from subcategory
+    var sc = _hsSubcatCache.find(function(s) { return s.id === payload.subcategory_id; });
+    if (sc) payload.category_id = sc.category_id;
+
+    if (_hsEditingItem) {
+      pkSB('hs_services', 'id=eq.' + _hsEditingItem.id, 'PATCH', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadCatalog();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    } else {
+      pkSB('hs_services', '', 'POST', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadCatalog();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    }
+  });
+
+  // Populate Stripe credential dropdown after modal is in DOM
+  WPA_hsLoadStripeCredOptions(svc.stripe_cred_id || '');
+}
+
+function WPA_hsLoadStripeCredOptions(selectedId) {
+  var sel = document.getElementById('hsFStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Use default —</option>';
+  pkSB('app_credentials', 'select=id,label&service=eq.stripe&active=eq.true').then(function(rows) {
+    (rows || []).forEach(function(r) {
+      var opt = document.createElement('option');
+      opt.value = r.id;
+      opt.textContent = '💳 ' + r.label;
+      if (selectedId && r.id === selectedId) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+function WPA_hsTogglePricingFields() {
+  var pt = document.getElementById('hsFPricing').value;
+  var ff = document.getElementById('hsFFixedFields');
+  var cf = document.getElementById('hsFConfigFields');
+  if (ff) ff.style.display = pt === 'fixed' ? '' : 'none';
+  if (cf) cf.style.display = pt === 'configurable' ? '' : 'none';
+}
+
+function WPA_hsDeleteService(id) {
+  if (!confirm('Delete this service? This cannot be undone.')) return;
+  pkSB('hs_services', 'id=eq.' + id, 'DELETE').then(function() {
+    WPA_hsLoadCatalog();
+  }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+/* ── Edit Variation ── */
+function WPA_hsEditVariation(id) {
+  var v = _hsVariationCache.find(function(x) { return x.id === id; });
+  if (!v) return;
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Label</span><input id="hsVLabel" class="auth-inp" style="margin-top:4px" value="' + _esc(v.label || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Price ($)</span><input id="hsVPrice" class="auth-inp" type="number" step="0.01" style="margin-top:4px" value="' + (v.price || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Duration Override (minutes)</span><input id="hsVDur" class="auth-inp" type="number" style="margin-top:4px" value="' + (v.duration_override_min || '') + '"></label>';
+
+  _hsModal('Edit Variation', body, function() {
+    var payload = {
+      label: document.getElementById('hsVLabel').value.trim(),
+      price: parseFloat(document.getElementById('hsVPrice').value) || 0,
+      duration_override_min: parseInt(document.getElementById('hsVDur').value) || null
+    };
+    pkSB('hs_service_variations', 'id=eq.' + v.id, 'PATCH', payload).then(function() {
+      document.getElementById('hsModal').remove();
+      WPA_hsLoadCatalog();
+    }).catch(function(e) { alert('Error: ' + e.message); });
+  });
+}
+
+/* ── Add / Edit Subcategory ── */
+function WPA_hsAddSubcat() {
+  _hsEditingItem = null;
+  _hsShowSubcatForm({});
+}
+
+function WPA_hsEditSubcat(id) {
+  var sc = _hsSubcatCache.find(function(s) { return s.id === id; });
+  if (!sc) return;
+  _hsEditingItem = sc;
+  _hsShowSubcatForm(sc);
+}
+
+function _hsShowSubcatForm(sc) {
+  var catOpts = _hsCategoryCache.map(function(c) {
+    var sel = sc.category_id === c.id ? ' selected' : '';
+    return '<option value="' + c.id + '"' + sel + '>' + _esc(c.name) + '</option>';
+  }).join('');
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Name</span><input id="hsSCName" class="auth-inp" style="margin-top:4px" value="' + _esc(sc.name || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Category</span><select id="hsSCCat" class="auth-inp" style="margin-top:4px">' + catOpts + '</select></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Icon (emoji)</span><input id="hsSCIcon" class="auth-inp" style="margin-top:4px" value="' + _esc(sc.icon || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Description</span><textarea id="hsSCDesc" class="auth-inp" rows="2" style="margin-top:4px">' + _esc(sc.description || '') + '</textarea></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Sort Order</span><input id="hsSCOrder" class="auth-inp" type="number" style="margin-top:4px" value="' + (sc.sort_order || 0) + '"></label>';
+
+  _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Subcategory', body, function() {
+    var name = document.getElementById('hsSCName').value.trim();
+    if (!name) { alert('Name is required'); return; }
+    var slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    var payload = {
+      name: name,
+      slug: slug,
+      category_id: document.getElementById('hsSCCat').value,
+      icon: document.getElementById('hsSCIcon').value.trim() || null,
+      description: document.getElementById('hsSCDesc').value.trim() || null,
+      sort_order: parseInt(document.getElementById('hsSCOrder').value) || 0
+    };
+    if (_hsEditingItem) {
+      pkSB('hs_subcategories', 'id=eq.' + _hsEditingItem.id, 'PATCH', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadSubcats();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    } else {
+      pkSB('hs_subcategories', '', 'POST', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadSubcats();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    }
+  });
+}
+
+function WPA_hsDeleteSubcat(id) {
+  if (!confirm('Delete this subcategory? Services under it will lose their subcategory.')) return;
+  pkSB('hs_subcategories', 'id=eq.' + id, 'DELETE').then(function() {
+    WPA_hsLoadSubcats();
+  }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+/* ── Add / Edit Time Window ── */
+function WPA_hsAddTimeWindow() {
+  _hsEditingItem = null;
+  _hsShowTimeWindowForm({});
+}
+
+function WPA_hsEditTimeWindow(id) {
+  var tw = _hsTimeWindowCache.find(function(t) { return t.id === id; });
+  if (!tw) return;
+  _hsEditingItem = tw;
+  _hsShowTimeWindowForm(tw);
+}
+
+function _hsShowTimeWindowForm(tw) {
+  var body = ''
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Label</span><input id="hsTWLabel" class="auth-inp" style="margin-top:4px" value="' + _esc(tw.label || '') + '" placeholder="e.g. Morning"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Start Time</span><input id="hsTWStart" class="auth-inp" type="time" style="margin-top:4px" value="' + (tw.start_time || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">End Time</span><input id="hsTWEnd" class="auth-inp" type="time" style="margin-top:4px" value="' + (tw.end_time || '') + '"></label>'
+    + '<label style="display:block;margin-bottom:12px"><span style="font-size:12px;font-weight:500">Sort Order</span><input id="hsTWOrder" class="auth-inp" type="number" style="margin-top:4px" value="' + (tw.sort_order || 0) + '"></label>';
+
+  _hsModal((_hsEditingItem ? 'Edit' : 'Add') + ' Time Window', body, function() {
+    var label = document.getElementById('hsTWLabel').value.trim();
+    if (!label) { alert('Label is required'); return; }
+    var payload = {
+      label: label,
+      start_time: document.getElementById('hsTWStart').value || null,
+      end_time: document.getElementById('hsTWEnd').value || null,
+      sort_order: parseInt(document.getElementById('hsTWOrder').value) || 0
+    };
+    if (_hsEditingItem) {
+      pkSB('hs_time_windows', 'id=eq.' + _hsEditingItem.id, 'PATCH', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadTimeWindows();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    } else {
+      pkSB('hs_time_windows', '', 'POST', payload).then(function() {
+        document.getElementById('hsModal').remove();
+        WPA_hsLoadTimeWindows();
+      }).catch(function(e) { alert('Error: ' + e.message); });
+    }
+  });
+}
+
+function WPA_hsDeleteTimeWindow(id) {
+  if (!confirm('Delete this time window?')) return;
+  pkSB('hs_time_windows', 'id=eq.' + id, 'DELETE').then(function() {
+    WPA_hsLoadTimeWindows();
+  }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+/* ── Settings ── */
+function WPA_hsLoadSettings() {
+  var cont = document.getElementById('hsSettingsContent');
+  if (!cont) return;
+  cont.innerHTML = '<div class="info-loading">Loading...</div>';
+
+  pkSB('hs_settings', 'select=*', 'GET').then(function(rows) {
+    var settings = {};
+    (rows || []).forEach(function(r) { settings[r.key] = r.value; });
+
+    var surPct = settings.weekend_evening_surcharge_pct || 20;
+    var defStripe = settings.default_stripe_cred_id || '';
+
+    cont.innerHTML = ''
+      + '<div style="display:grid;gap:20px;max-width:500px">'
+
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px">'
+      + '<div style="font-weight:600;font-size:14px;margin-bottom:12px">⚡ Weekend / Evening Surcharge</div>'
+      + '<label style="display:block;margin-bottom:8px"><span style="font-size:12px;font-weight:500">Surcharge Percentage (%)</span>'
+      + '<input id="hsSetSurchargePct" class="auth-inp" type="number" step="1" min="0" max="100" style="margin-top:4px;max-width:120px" value="' + surPct + '">'
+      + '</label>'
+      + '<p style="font-size:11px;color:#6b7280;margin:0">Applied when a customer selects a weekend date (Sat/Sun) or evening time window (after 5:00 PM). Set to 0 to disable.</p>'
+      + '</div>'
+
+      + '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px">'
+      + '<div style="font-weight:600;font-size:14px;margin-bottom:12px">💳 Default Stripe Account</div>'
+      + '<label style="display:block;margin-bottom:8px"><span style="font-size:12px;font-weight:500">Stripe Account</span>'
+      + '<select id="hsSetStripeCredId" class="auth-inp" style="margin-top:4px"><option value="">— None —</option></select>'
+      + '</label>'
+      + '<p style="font-size:11px;color:#6b7280;margin:0">Default Stripe account for payment processing. Individual services can override this in their own settings.</p>'
+      + '</div>'
+
+      + '<button class="btn-subtle" style="background:#c47f00;color:#fff;padding:10px 24px;border-radius:8px;font-weight:600;justify-self:start" onclick="WPA_hsSaveSettings()">Save Settings</button>'
+      + '</div>';
+
+    // Populate Stripe dropdown in settings
+    WPA_hsLoadStripeCredOptions_settings(defStripe);
+  }).catch(function(e) {
+    cont.innerHTML = '<p style="color:#ef4444">Failed to load settings. The hs_settings table may not exist yet.</p>'
+      + '<button class="btn-subtle" onclick="WPA_hsCreateSettingsTable()">Create Settings Table</button>';
+  });
+}
+
+function WPA_hsLoadStripeCredOptions_settings(selectedId) {
+  var sel = document.getElementById('hsSetStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None —</option>';
+  pkSB('app_credentials', 'service=eq.stripe&active=eq.true&select=id,label', 'GET').then(function(rows) {
+    (rows || []).forEach(function(c) {
+      var o = document.createElement('option');
+      o.value = c.id;
+      o.textContent = c.label || ('Cred #' + c.id);
+      if (String(c.id) === String(selectedId)) o.selected = true;
+      sel.appendChild(o);
+    });
+  });
+}
+
+function WPA_hsSaveSettings() {
+  var pct = document.getElementById('hsSetSurchargePct').value;
+  var stripe = document.getElementById('hsSetStripeCredId').value || '';
+  var saves = [
+    _hsUpsertSetting('weekend_evening_surcharge_pct', pct),
+    _hsUpsertSetting('default_stripe_cred_id', stripe)
+  ];
+  Promise.all(saves).then(function() {
+    alert('Settings saved!');
+  }).catch(function(e) { alert('Error saving: ' + e.message); });
+}
+
+function _hsUpsertSetting(key, value) {
+  return pkSB('hs_settings', 'key=eq.' + key, 'GET').then(function(rows) {
+    if (rows && rows.length > 0) {
+      return pkSB('hs_settings', 'key=eq.' + key, 'PATCH', { value: String(value) });
+    } else {
+      return pkSB('hs_settings', '', 'POST', { key: key, value: String(value) });
+    }
+  });
+}
+
+function WPA_hsCreateSettingsTable() {
+  alert('Please create the hs_settings table in Supabase SQL Editor:\\n\\nCREATE TABLE hs_settings (\\n  key TEXT PRIMARY KEY,\\n  value TEXT,\\n  updated_at TIMESTAMPTZ DEFAULT now()\\n);\\n\\nINSERT INTO hs_settings (key, value) VALUES\\n(\\\'weekend_evening_surcharge_pct\\\', \\\'20\\\'),\\n(\\\'default_stripe_account\\\', \\\'\\\');');
 }
 
