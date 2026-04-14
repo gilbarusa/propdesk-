@@ -1658,6 +1658,32 @@
       <div id="credCardsBox"></div>
     </div>
 
+    <!-- ── BACKUP SECTION ── -->
+    <div class="settings-sec" id="settings-sec-backup" style="display:none">
+      <div class="sc">
+        <h3>Full Backup (Data + Schema)</h3>
+        <p class="scd">Downloads a single JSON file containing every table's rows plus column/index/policy definitions. Run before risky migrations or weekly as a habit. Free-plan Supabase has no native backups — this fills the gap.</p>
+        <div class="sr">
+          <div>
+            <div class="srl">Last backup (this browser)</div>
+            <div class="srs" id="bkLastRun">Never — run your first backup now</div>
+          </div>
+          <button onclick="WPA_runBackup()" id="bkRunBtn" class="btn btn-primary btn-sm">🗂️ Download Backup</button>
+        </div>
+        <div class="sr">
+          <div>
+            <div class="srl">What's included</div>
+            <div class="srs">All tables readable by the anon key · column types · RLS policies · indexes · row counts</div>
+          </div>
+        </div>
+        <div id="bkProgress" style="display:none;margin-top:12px;padding:12px;background:#eef1fb;border:1px solid #c4cdeb;border-radius:8px;font-family:'DM Mono',monospace;font-size:11px;color:#14172a;max-height:220px;overflow:auto;"></div>
+      </div>
+      <div class="sc">
+        <h3>Restore from Backup</h3>
+        <p class="scd">Restoring is manual for now — open the JSON file, copy the table you want, and upsert via SQL Editor. An automated restore UI is a future feature.</p>
+      </div>
+    </div>
+
     <!-- ── THEME SECTION ── -->
     <div class="settings-sec" id="settings-sec-theme" style="display:none">
       <div class="sc">
@@ -3508,7 +3534,7 @@
 <script src="js/config.js"></script>
 <script src="js/ft-db.js"></script>
 <script src="js/fieldtrack.js"></script>
-<script src="js/app.js?v=20260414-invoice-link"></script>
+<script src="js/app.js?v=20260414-backup"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
