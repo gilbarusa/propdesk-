@@ -2263,6 +2263,130 @@ function showSettingsSection(secId) {
   var target = document.getElementById('settings-sec-' + secId);
   if (target) target.style.display = '';
   if (secId === 'credentials') WPA_loadCredentials();
+  if (secId === 'backup') WPA_initBackupUI();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUPABASE FULL BACKUP — data rows + schema snapshot → single JSON
+   ═══════════════════════════════════════════════════════════════ */
+
+// Tables to include in the backup. Add new ones here as the app grows.
+var WPA_BACKUP_TABLES = [
+  'app_credentials', 'properties', 'units',
+  'tenants_lt', 'leases', 'mtm_tenants',
+  'invoices', 'invoice_lines', 'payments', 'reminders_log',
+  'tenant_notes', 'work_orders', 'bookings',
+  'parking_plans', 'parking_bookings',
+  'deliveries'
+];
+
+function WPA_initBackupUI() {
+  try {
+    var last = localStorage.getItem('wpa_last_backup');
+    if (last) {
+      var d = new Date(last);
+      document.getElementById('bkLastRun').textContent = d.toLocaleString();
+    }
+  } catch (e) {}
+}
+
+function _bkLog(msg, kind) {
+  var box = document.getElementById('bkProgress');
+  if (!box) return;
+  box.style.display = 'block';
+  var color = kind === 'err' ? '#b83228' : kind === 'ok' ? '#1f7a4d' : '#4d5670';
+  box.innerHTML += '<div style="color:' + color + '">' + msg + '</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+async function WPA_runBackup() {
+  var btn = document.getElementById('bkRunBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Backing up…'; }
+  var box = document.getElementById('bkProgress');
+  if (box) { box.innerHTML = ''; }
+  _bkLog('Starting backup at ' + new Date().toLocaleString());
+
+  var headers = {
+    apikey: CONFIG.SUPABASE_KEY,
+    Authorization: 'Bearer ' + CONFIG.SUPABASE_KEY
+  };
+  var baseUrl = CONFIG.SUPABASE_URL + '/rest/v1/';
+  var bundle = {
+    meta: {
+      created_at: new Date().toISOString(),
+      project_url: CONFIG.SUPABASE_URL,
+      app_version: 'propdesk',
+      tables_requested: WPA_BACKUP_TABLES.length
+    },
+    data: {},
+    errors: {}
+  };
+
+  var dataTotal = 0;
+  for (var i = 0; i < WPA_BACKUP_TABLES.length; i++) {
+    var t = WPA_BACKUP_TABLES[i];
+    try {
+      var r = await fetch(baseUrl + t + '?select=*', { headers: headers });
+      if (r.ok) {
+        var rows = await r.json();
+        bundle.data[t] = rows;
+        dataTotal += rows.length;
+        _bkLog('  ✓ ' + t + ' — ' + rows.length + ' row' + (rows.length === 1 ? '' : 's'), 'ok');
+      } else {
+        var txt = await r.text();
+        bundle.errors[t] = { status: r.status, message: txt.slice(0, 200) };
+        _bkLog('  ✗ ' + t + ' — HTTP ' + r.status + ' (skipped)', 'err');
+      }
+    } catch (e) {
+      bundle.errors[t] = { message: e.message };
+      _bkLog('  ✗ ' + t + ' — ' + e.message, 'err');
+    }
+  }
+
+  // Schema snapshot via PostgREST — list of tables + columns (from information_schema exposure if enabled)
+  // Fallback: derive structure from sample rows.
+  _bkLog('Building schema snapshot from sampled rows…');
+  bundle.schema = {};
+  Object.keys(bundle.data).forEach(function(t) {
+    var sample = bundle.data[t][0];
+    if (!sample) { bundle.schema[t] = { columns: [], note: 'no rows sampled' }; return; }
+    bundle.schema[t] = {
+      columns: Object.keys(sample).map(function(k) {
+        var v = sample[k];
+        return {
+          name: k,
+          inferred_type: v === null ? 'null' :
+                         Array.isArray(v) ? 'array' :
+                         typeof v === 'object' ? 'jsonb' :
+                         typeof v
+        };
+      }),
+      row_count: bundle.data[t].length
+    };
+  });
+
+  bundle.meta.total_rows = dataTotal;
+  bundle.meta.tables_succeeded = Object.keys(bundle.data).length;
+  bundle.meta.tables_failed = Object.keys(bundle.errors).length;
+
+  var fname = 'willow-backup-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16) + '.json';
+  var blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  _bkLog('Downloaded: ' + fname + ' (' + (blob.size / 1024).toFixed(1) + ' KB)', 'ok');
+  _bkLog('Totals: ' + dataTotal + ' rows across ' + bundle.meta.tables_succeeded + ' tables, ' + bundle.meta.tables_failed + ' failed.', 'ok');
+
+  try {
+    localStorage.setItem('wpa_last_backup', new Date().toISOString());
+    document.getElementById('bkLastRun').textContent = new Date().toLocaleString();
+  } catch (e) {}
+
+  if (btn) { btn.disabled = false; btn.textContent = '🗂️ Download Backup'; }
 }
 
 /* ── Load all credentials from Supabase ── */
@@ -2463,7 +2587,7 @@ const MODULE_SUB_TABS = {
   'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'portal':      [{label:'Users',       page:'portal-users'}, {label:'Settings', page:'portal-settings'}],
-  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
+  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Backup', page:'settings', settingsSec:'backup'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
 
 let currentModule = 'dashboard';
