@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invoice Preview · Willow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#eef1f7;--surface:#ffffff;--surface2:#f5f7fb;--surface3:#e6ebf3;
+    --border:#d4dae6;--border2:#b9c3d5;
+    --text:#14172a;--text2:#4d5670;--text3:#8590a8;
+    --accent:#6b7fd1;--accent2:#3651b5;--accent3:#c4cdeb;--accent-bg:#eef1fb;
+    --red:#b83228;--red-bg:#fdf1f0;--red-border:#eebfba;
+    --orange:#b86818;--orange-bg:#fdf3e8;--orange-border:#eecfa0;
+    --green:#1f7a4d;--green-bg:#eaf6f0;--green-border:#9ed2b8;
+    --blue:#3651b5;--blue-bg:#eef1fb;--blue-border:#c4cdeb;
+    --gold:#b5784a;--gold-bg:#f8ede0;--gold-border:#e9c9a6;
+    --shadow:0 1px 4px rgba(26,42,122,.06),0 2px 8px rgba(26,42,122,.04);
+    --shadow-md:0 4px 20px rgba(26,42,122,.10),0 1px 4px rgba(26,42,122,.06);
+    --shadow-lg:0 16px 48px rgba(26,42,122,.14),0 4px 16px rgba(26,42,122,.08);
+    --radius:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;min-height:100vh;
+    background-image:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231a2a7a' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    padding:40px 20px;
+  }
+
+  /* Invoice Wrapper */
+  .inv{
+    max-width:960px;margin:0 auto;background:var(--surface);
+    border-radius:var(--radius);box-shadow:var(--shadow-lg);overflow:hidden;
+    border:1px solid var(--border);
+  }
+
+  /* ── Header ── */
+  .inv-hd{
+    background:linear-gradient(135deg,#ffffff 0%,#f3f6fc 60%,#e7edf8 100%);
+    padding:32px 40px;position:relative;overflow:hidden;
+    border-bottom:1px solid var(--border);
+  }
+  .inv-hd::after{content:'';position:absolute;inset:0;background-image:url("data:image/svg+xml,%3Csvg width='80' height='80' viewBox='0 0 80 80' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231a2a7a' fill-opacity='0.04'%3E%3Cpath d='M50 50h30v2H50zM0 50h30v2H0zM50 0h30v2H50zM0 0h30v2H0z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");pointer-events:none}
+
+  /* Logo */
+  .inv-logo{display:flex;align-items:center;margin-bottom:18px}
+  .inv-logo img{height:64px;width:auto;display:block}
+  .inv-hd-inner{display:grid;grid-template-columns:1fr auto;gap:40px;align-items:start;position:relative;z-index:1}
+  .inv-number-box .inv-lbl{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--text3);font-weight:500;margin-bottom:6px}
+  .inv-number-box .inv-num{font-family:'Playfair Display',serif;font-size:38px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-1px}
+  .inv-addr{margin-top:14px;font-size:12px;color:var(--text2);line-height:1.5}
+  .inv-addr strong{color:var(--text);font-weight:600;display:block;margin-bottom:2px;font-size:13px}
+  .inv-dates{display:flex;gap:28px;margin-top:18px}
+  .inv-date-item .d-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:3px;display:flex;align-items:center;gap:5px}
+  .inv-date-item .d-val{font-family:'Playfair Display',serif;font-size:16px;font-weight:600;color:var(--text);letter-spacing:-.2px}
+  .inv-date-item .d-sub{font-size:10px;color:var(--red);margin-top:2px;font-weight:500}
+  .inv-date-item .d-sub.green{color:var(--green)}
+  .inv-date-item .d-sub.muted{color:var(--text3)}
+
+  /* Total Due card (header) */
+  .total-card{
+    background:#fff;border:2px solid var(--accent2);border-radius:12px;padding:14px 22px;
+    min-width:240px;text-align:right;box-shadow:var(--shadow);
+    background-image:linear-gradient(135deg,#fff 0%,#eef1f9 100%);
+  }
+  .total-card .tc-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);font-weight:500;margin-bottom:4px}
+  .total-card .tc-val{font-family:'Playfair Display',serif;font-size:32px;font-weight:800;color:var(--text);line-height:1;letter-spacing:-.5px}
+  .total-card .tc-sub{font-size:10px;color:var(--text2);margin-top:6px;letter-spacing:.2px}
+  .total-card.paid{border-color:var(--green);background-image:linear-gradient(135deg,#fff 0%,#edf7f2 100%)}
+  .total-card.paid .tc-val{color:var(--green)}
+
+  /* Sticky summary bar (appears after scroll past header) */
+  .sticky-bar{
+    position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);
+    padding:12px 40px;display:none;align-items:center;gap:24px;box-shadow:var(--shadow);
+    font-size:12px;
+  }
+  .sticky-bar.on{display:flex}
+  .sticky-bar .sb-num{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;color:var(--text)}
+  .sticky-bar .sb-sep{color:var(--text3)}
+  .sticky-bar .sb-due-lbl{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--text3)}
+  .sticky-bar .sb-due-val{font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:var(--text);margin-left:10px}
+  .sticky-bar .sb-status{margin-left:auto;padding:4px 12px;border:1.5px solid currentColor;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+  .sticky-bar .sb-status.late{color:var(--red)}
+  .sticky-bar .sb-status.paid{color:var(--green)}
+  .sticky-bar .sb-status.partial{color:var(--blue)}
+  .sticky-bar .sb-status.pending{color:var(--orange)}
+
+  /* Status stamp */
+  .stamp{
+    font-family:'Playfair Display',serif;font-size:28px;font-weight:700;
+    padding:10px 22px;border:3px solid currentColor;border-radius:8px;
+    transform:rotate(-6deg);display:inline-block;
+    letter-spacing:1.5px;text-transform:uppercase;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.5);
+    background:rgba(255,255,255,.3);
+  }
+  .stamp.late{color:var(--red)}
+  .stamp.paid{color:var(--green)}
+  .stamp.pending{color:var(--orange)}
+  .stamp.partial{color:var(--blue)}
+  .stamp-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .note-btn{
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:7px 14px;font-size:11px;cursor:pointer;color:var(--text2);font-family:inherit;
+    display:inline-flex;align-items:center;gap:6px;transition:all .15s;
+  }
+  .note-btn:hover{border-color:var(--accent);color:var(--accent2);background:var(--accent-bg)}
+  .note-btn .num{color:var(--text3);margin-left:4px}
+
+  /* ── Action Bar ── */
+  .act-bar{
+    display:flex;gap:10px;padding:18px 40px;background:var(--surface2);
+    border-bottom:1px solid var(--border);flex-wrap:wrap;
+  }
+  .act-bar .spacer{flex:1}
+  .btn{
+    font-family:'DM Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.3px;
+    padding:9px 18px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface);color:var(--text);cursor:pointer;
+    display:inline-flex;align-items:center;gap:7px;transition:all .15s;
+  }
+  .btn:hover{border-color:var(--accent);color:var(--accent2);background:var(--accent-bg);transform:translateY(-1px);box-shadow:var(--shadow)}
+  .btn.primary{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+  .btn.primary:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{border-color:var(--red-border);color:var(--red);background:var(--surface)}
+  .btn.danger:hover{background:var(--red-bg);border-color:var(--red)}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--text2)}
+  .btn.ghost:hover{background:var(--accent-bg);color:var(--accent2)}
+  .btn .ico{font-size:14px;line-height:1}
+
+  /* ── Details Strip ── */
+  .strip{
+    display:grid;grid-template-columns:1fr 1fr 1fr;gap:28px;
+    padding:24px 40px;border-bottom:1px solid var(--border);
+  }
+  .strip-item .s-lbl{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);font-weight:500;margin-bottom:6px}
+  .strip-item .s-val{font-size:13px;color:var(--text);font-weight:500;line-height:1.5}
+
+  /* ── Sections ── */
+  .sec{padding:24px 40px;border-bottom:1px solid var(--border)}
+  .sec.sec-items{background:var(--accent-bg)}
+  .sec.sec-items table.items thead th{background:#dfe6f6}
+  .sec.sec-items table.items tbody tr{background:#fff}
+  .sec.sec-items table.items tbody tr:hover{background:#f5f7fd}
+  .sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .sec-hd h3{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;color:var(--text);letter-spacing:-.2px}
+  .sec-hd .sec-sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+  /* ── Line Items Table ── */
+  table.items{width:100%;border-collapse:collapse;background:var(--surface)}
+  table.items thead th{
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);
+    font-weight:500;text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);
+    background:var(--surface2);
+  }
+  table.items thead th.num{text-align:right}
+  table.items tbody td{
+    padding:14px 12px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);
+    vertical-align:top;
+  }
+  table.items tbody tr{transition:background .12s}
+  table.items tbody tr:hover{background:var(--surface2)}
+  table.items tbody tr:hover .row-act{opacity:1}
+  table.items tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.items tbody td.amt{font-weight:700;color:var(--text)}
+  table.items tbody td .desc{color:var(--text2);font-size:12px;margin-top:3px}
+  table.items tbody td .item-name{font-weight:500}
+  table.items tbody td .item-tag{
+    display:inline-block;font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+    padding:2px 7px;border-radius:4px;margin-left:6px;vertical-align:middle;
+  }
+  .tag-rent{background:var(--accent-bg);color:var(--accent2)}
+  .tag-late{background:var(--red-bg);color:var(--red)}
+  .tag-credit{background:var(--green-bg);color:var(--green)}
+  .tag-fee{background:var(--orange-bg);color:var(--orange)}
+  .row-act{opacity:0;display:inline-flex;gap:4px;transition:opacity .12s}
+  .row-act button{
+    background:transparent;border:none;font-size:12px;padding:3px 7px;border-radius:5px;
+    color:var(--text3);cursor:pointer;transition:all .12s;
+  }
+  .row-act button:hover{background:var(--surface3);color:var(--accent2)}
+  .row-act button.del:hover{background:var(--red-bg);color:var(--red)}
+  .add-line{
+    margin-top:12px;display:inline-flex;align-items:center;gap:6px;
+    padding:8px 14px;border:1px dashed var(--border2);border-radius:8px;
+    background:transparent;color:var(--text2);font-family:inherit;font-size:12px;
+    cursor:pointer;transition:all .15s;
+  }
+  .add-line:hover{border-color:var(--accent);color:var(--accent2);background:var(--accent-bg);border-style:solid}
+
+  /* ── Payments ── */
+  .pay-card{
+    background:var(--green-bg);border:1px solid var(--green-border);border-radius:10px;
+    overflow:hidden;margin-top:6px;
+  }
+  table.pays{width:100%;border-collapse:collapse}
+  table.pays thead th{
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--green);
+    font-weight:600;text-align:left;padding:10px 14px;border-bottom:1px solid var(--green-border);
+  }
+  table.pays thead th.num{text-align:right}
+  table.pays tbody td{padding:12px 14px;border-bottom:1px solid rgba(168,216,190,.4);font-size:12px;color:var(--text);vertical-align:middle}
+  table.pays tbody tr:last-child td{border-bottom:none}
+  table.pays tbody td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;color:var(--green)}
+  table.pays tbody td .method-pill{
+    display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:4px;
+    background:#fff;border:1px solid var(--green-border);font-size:11px;font-weight:500;color:var(--green);
+  }
+  .pay-foot{
+    display:flex;justify-content:space-between;align-items:center;padding:12px 14px;
+    background:rgba(37,102,69,.06);font-size:12px;color:var(--green);font-weight:500;
+  }
+  .pay-empty{padding:24px;text-align:center;color:var(--text3);font-size:12px}
+
+  /* ── Timeline ── */
+  .tl{position:relative;padding:8px 0 8px 0;margin-top:6px}
+  .tl::before{content:'';position:absolute;left:70px;top:12px;bottom:12px;width:2px;background:var(--border)}
+  .tl-row{display:grid;grid-template-columns:140px 1fr;gap:24px;padding:12px 0;position:relative;align-items:start}
+  .tl-pill{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:6px 12px;border-radius:6px;font-size:10px;font-weight:600;letter-spacing:.5px;
+    text-transform:uppercase;border:1.5px solid currentColor;white-space:nowrap;
+    background:var(--surface);z-index:1;position:relative;
+  }
+  .tl-pill.green{color:var(--green);background:var(--green-bg);border-color:var(--green-border)}
+  .tl-pill.red{color:var(--red);background:var(--red-bg);border-color:var(--red-border)}
+  .tl-pill.orange{color:var(--orange);background:var(--orange-bg);border-color:var(--orange-border)}
+  .tl-pill.blue{color:var(--blue);background:var(--blue-bg);border-color:var(--blue-border)}
+  .tl-body{padding-top:2px}
+  .tl-when{font-size:11px;color:var(--text3);margin-bottom:3px;letter-spacing:.3px}
+  .tl-what{font-size:13px;color:var(--text);line-height:1.5}
+  .tl-what b{color:var(--text);font-weight:700}
+  .tl-who{font-size:11px;color:var(--text2);margin-top:3px;font-style:italic}
+
+  /* ── Footer Total ── */
+  .totals{padding:24px 40px 32px;background:var(--surface2);display:flex;justify-content:flex-end}
+  .totals-grid{min-width:300px;font-variant-numeric:tabular-nums}
+  .totals-row{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:var(--text2)}
+  .totals-row.strong{color:var(--text);font-weight:500}
+  .totals-row.credit{color:var(--green)}
+  .totals-divider{border-top:1px solid var(--border);margin:10px 0}
+  .totals-row.grand{
+    font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--text);
+    padding-top:10px;border-top:2px solid var(--accent2);margin-top:6px;
+  }
+  .totals-row.grand .lbl{font-size:13px;text-transform:uppercase;letter-spacing:2px;font-family:'DM Mono',monospace;font-weight:500;align-self:center}
+
+  /* ── Helper toolbar at top ── */
+  .demo-bar{
+    max-width:960px;margin:0 auto 18px;display:flex;gap:10px;align-items:center;
+    background:var(--surface);padding:10px 16px;border-radius:8px;border:1px solid var(--border);
+    font-size:11px;color:var(--text2);box-shadow:var(--shadow);
+  }
+  .demo-bar b{color:var(--accent2);font-family:'Playfair Display',serif;font-size:14px;margin-right:8px}
+  .demo-bar button{
+    background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 10px;
+    font-size:11px;font-family:inherit;color:var(--text2);cursor:pointer;transition:all .15s;
+  }
+  .demo-bar button:hover{border-color:var(--accent);color:var(--accent2);background:var(--accent-bg)}
+  .demo-bar button.active{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+
+  @media (max-width:720px){
+    body{padding:16px 10px}
+    .inv-hd,.strip,.sec,.totals,.act-bar{padding-left:20px;padding-right:20px}
+    .inv-hd-inner{grid-template-columns:1fr;gap:24px}
+    .stamp-wrap{align-items:flex-start}
+    .strip{grid-template-columns:1fr;gap:16px}
+    .tl-row{grid-template-columns:1fr;gap:6px;padding:10px 0}
+    .tl::before{display:none}
+    .inv-number-box .inv-num{font-size:28px}
+  }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <b>Preview</b>
+  <span>Status:</span>
+  <button class="active" onclick="setStatus('late',this)">Late</button>
+  <button onclick="setStatus('partial',this)">Partial</button>
+  <button onclick="setStatus('paid',this)">Paid</button>
+  <button onclick="setStatus('pending',this)">Pending</button>
+  <span style="flex:1"></span>
+  <span>Type:</span>
+  <button class="active" onclick="setType('rent',this)">Rent</button>
+  <button onclick="setType('cleaning',this)">Cleaning</button>
+  <button onclick="setType('workorder',this)">Work Order</button>
+  <button onclick="setType('parking',this)">Parking</button>
+</div>
+
+<div class="inv" id="inv">
+
+  <!-- Sticky summary bar (appears when you scroll past the header) -->
+  <div class="sticky-bar" id="stickyBar">
+    <span class="sb-num" id="sbNum">WPA-2026-0412</span>
+    <span class="sb-sep">·</span>
+    <span id="sbSubj">Rent due April 1, 2026</span>
+    <span class="sb-sep">·</span>
+    <span class="sb-due-lbl">Total Due</span>
+    <span class="sb-due-val" id="sbVal">$430.00</span>
+    <span class="sb-status late" id="sbStatus">Late</span>
+  </div>
+
+  <!-- Header -->
+  <div class="inv-hd">
+    <div class="inv-hd-inner">
+      <div>
+        <div class="inv-logo">
+          <img src="willow-logo.png" alt="Willow Partnership">
+        </div>
+        <div class="inv-number-box">
+          <div class="inv-lbl">Invoice</div>
+          <div class="inv-num" id="invNum">WPA-2026-0412</div>
+        </div>
+        <div class="inv-addr">
+          <strong id="propAddr">37 North York Road · Unit 311</strong>
+          <span id="propCity">Willow Grove, PA 19090</span>
+        </div>
+        <div class="inv-dates">
+          <div class="inv-date-item">
+            <div class="d-lbl">📄 Generated</div>
+            <div class="d-val" id="genDate">Mar 17, 2026</div>
+            <div class="d-sub muted" id="remSent">2 reminders sent</div>
+          </div>
+          <div class="inv-date-item">
+            <div class="d-lbl">💰 Due</div>
+            <div class="d-val" id="dueDate">Apr 01, 2026</div>
+            <div class="d-sub" id="dueSub">12 days late</div>
+          </div>
+        </div>
+      </div>
+      <div class="stamp-wrap">
+        <button class="note-btn">➕ Add Note <span class="num">· 0</span></button>
+        <div class="total-card">
+          <div class="tc-lbl">Total Due</div>
+          <div class="tc-val" id="tcVal">$430.00</div>
+          <div class="tc-sub" id="tcSub">of $2,430.00 invoice · $2,000.00 paid</div>
+        </div>
+        <div class="stamp late" id="stamp">Late</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="act-bar">
+    <button class="btn"><span class="ico">⬇</span> Download PDF</button>
+    <button class="btn primary"><span class="ico">📧</span> Send Reminder</button>
+    <button class="btn"><span class="ico">💳</span> Record Payment</button>
+    <div class="spacer"></div>
+    <button class="btn ghost"><span class="ico">✏️</span> Edit</button>
+    <button class="btn danger"><span class="ico">🗑</span> Delete</button>
+  </div>
+
+  <!-- Details Strip -->
+  <div class="strip">
+    <div class="strip-item">
+      <div class="s-lbl">Subject</div>
+      <div class="s-val" id="subject">Rent due April 1, 2026</div>
+    </div>
+    <div class="strip-item">
+      <div class="s-lbl">Billed To</div>
+      <div class="s-val" id="billedTo">Alena Larina<br><span style="color:var(--text2);font-weight:400;font-size:12px">alena.larina@example.com · (267) 555-0199</span></div>
+    </div>
+    <div class="strip-item">
+      <div class="s-lbl">Deposit Account</div>
+      <div class="s-val" id="bankAcct">Chelbourne Holdings LLC<br><span style="color:var(--text2);font-weight:400;font-size:12px">•••• 4712 · Stripe</span></div>
+    </div>
+  </div>
+
+  <!-- Line Items -->
+  <div class="sec sec-items">
+    <div class="sec-hd">
+      <div>
+        <h3>Line Items</h3>
+        <div class="sec-sub">Charges on this invoice</div>
+      </div>
+    </div>
+    <table class="items">
+      <thead>
+        <tr>
+          <th style="width:30%">Item</th>
+          <th>Description</th>
+          <th class="num" style="width:80px">Qty</th>
+          <th class="num" style="width:110px">Rate</th>
+          <th class="num" style="width:120px">Amount</th>
+          <th style="width:60px"></th>
+        </tr>
+      </thead>
+      <tbody id="itemsTbody">
+        <tr>
+          <td>
+            <span class="item-name">Rent</span>
+            <span class="item-tag tag-rent">Rent</span>
+          </td>
+          <td><div>Monthly rent — April 2026</div><div class="desc">37 North York Road · Unit 311 · Lease #LT-0311</div></td>
+          <td class="num">1</td>
+          <td class="num">$2,300.00</td>
+          <td class="num amt">$2,300.00</td>
+          <td><div class="row-act"><button>✏️</button><button class="del">✕</button></div></td>
+        </tr>
+        <tr>
+          <td>
+            <span class="item-name">Late Fee</span>
+            <span class="item-tag tag-late">Late</span>
+          </td>
+          <td><div>Daily late fee after 5-day grace period</div><div class="desc">$30.00 × 6 days (Apr 7 – Apr 12)</div></td>
+          <td class="num">6</td>
+          <td class="num">$30.00</td>
+          <td class="num amt">$180.00</td>
+          <td><div class="row-act"><button>✏️</button><button class="del">✕</button></div></td>
+        </tr>
+        <tr>
+          <td>
+            <span class="item-name">Credit</span>
+            <span class="item-tag tag-credit">Credit</span>
+          </td>
+          <td><div>Goodwill credit — HVAC service delay</div><div class="desc">Applied by admin on Apr 10, 2026</div></td>
+          <td class="num">1</td>
+          <td class="num">−$50.00</td>
+          <td class="num amt" style="color:var(--green)">−$50.00</td>
+          <td><div class="row-act"><button>✏️</button><button class="del">✕</button></div></td>
+        </tr>
+      </tbody>
+    </table>
+    <button class="add-line">＋ Add Line Item</button>
+  </div>
+
+  <!-- Payments Received -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div>
+        <h3>Payments Received</h3>
+        <div class="sec-sub">2 payments totaling $2,000.00</div>
+      </div>
+    </div>
+    <div class="pay-card">
+      <table class="pays">
+        <thead>
+          <tr>
+            <th>Payer</th>
+            <th>Submitted</th>
+            <th>Deposited</th>
+            <th>Method</th>
+            <th class="num">Amount</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>Alena Larina</b></td>
+            <td>Apr 03, 2026 · 09:50 AM</td>
+            <td>Apr 03, 2026</td>
+            <td><span class="method-pill">💵 Cash</span></td>
+            <td class="num">$1,000.00</td>
+            <td><button class="btn ghost" style="padding:4px 10px;font-size:11px">Remove</button></td>
+          </tr>
+          <tr>
+            <td><b>Alena Larina</b></td>
+            <td>Apr 08, 2026 · 02:14 PM</td>
+            <td>Apr 08, 2026</td>
+            <td><span class="method-pill">🏦 ACH · Stripe (pi_3N…4Kq2)</span></td>
+            <td class="num">$1,000.00</td>
+            <td><button class="btn ghost" style="padding:4px 10px;font-size:11px">Remove</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pay-foot">
+        <span>Total received</span>
+        <span>$2,000.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Timeline -->
+  <div class="sec">
+    <div class="sec-hd">
+      <div>
+        <h3>Invoice History</h3>
+        <div class="sec-sub">Audit trail — all actions on this invoice</div>
+      </div>
+    </div>
+    <div class="tl">
+      <div class="tl-row">
+        <div><span class="tl-pill red">Late Fee Removed</span></div>
+        <div class="tl-body">
+          <div class="tl-when">Apr 12, 2026 · 2:05 PM</div>
+          <div class="tl-what">Late fee charge of <b>$180.00</b> removed from invoice.</div>
+          <div class="tl-who">by Ekaterina Shakhova · manual adjustment</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div><span class="tl-pill green">Late Fee Applied</span></div>
+        <div class="tl-body">
+          <div class="tl-when">Apr 07, 2026 · 12:53 AM</div>
+          <div class="tl-what">Late fee quantity updated from <b>5</b> to <b>6</b>.</div>
+          <div class="tl-who">by System · automated daily cron</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div><span class="tl-pill green">Late Fee Applied</span></div>
+        <div class="tl-body">
+          <div class="tl-when">Apr 06, 2026 · 12:53 AM</div>
+          <div class="tl-what">Late fee quantity updated from <b>4</b> to <b>5</b>.</div>
+          <div class="tl-who">by System · automated daily cron</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div><span class="tl-pill orange">Late Fee Started</span></div>
+        <div class="tl-body">
+          <div class="tl-when">Apr 02, 2026 · 12:54 AM</div>
+          <div class="tl-what">Invoice entered late status. Grace period (5 days) expired — late fees begin accruing at <b>$30/day</b>.</div>
+          <div class="tl-who">by System · lease-configured late-fee policy</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div><span class="tl-pill blue">Reminder Sent</span></div>
+        <div class="tl-body">
+          <div class="tl-when">Apr 01, 2026 · 8:57 AM</div>
+          <div class="tl-what">"Invoice Due Today" reminder sent to Alena Larina via email + SMS.</div>
+          <div class="tl-who">by System · -0 days reminder rule</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div><span class="tl-pill blue">Reminder Sent</span></div>
+        <div class="tl-body">
+          <div class="tl-when">Mar 27, 2026 · 8:42 AM</div>
+          <div class="tl-what">"Upcoming invoice due in 5 days" reminder sent to Alena Larina via email.</div>
+          <div class="tl-who">by System · -5 days reminder rule</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div><span class="tl-pill green">Invoice Created</span></div>
+        <div class="tl-body">
+          <div class="tl-when">Mar 17, 2026 · 12:00 AM</div>
+          <div class="tl-what">Invoice <b>WPA-2026-0412</b> generated for Alena Larina — $2,300.00 due Apr 1, 2026.</div>
+          <div class="tl-who">by System · auto-generated from lease schedule</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Totals -->
+  <div class="totals">
+    <div class="totals-grid">
+      <div class="totals-row"><span>Subtotal (rent)</span><span>$2,300.00</span></div>
+      <div class="totals-row"><span>Late fees</span><span>$180.00</span></div>
+      <div class="totals-row credit"><span>Credits</span><span>−$50.00</span></div>
+      <div class="totals-row strong"><span>Invoice total</span><span>$2,430.00</span></div>
+      <div class="totals-row credit"><span>Payments received</span><span>−$2,000.00</span></div>
+      <div class="totals-divider"></div>
+      <div class="totals-row grand"><span class="lbl">Total Due</span><span>$430.00</span></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Demo preview switcher — adjusts stamp + content for status/type combos
+  const stamp = document.getElementById('stamp');
+  function setStatus(s, btn){
+    document.querySelectorAll('.demo-bar button').forEach(b=>{ if(['Late','Partial','Paid','Pending'].includes(b.textContent)) b.classList.remove('active'); });
+    btn.classList.add('active');
+    stamp.className = 'stamp ' + s;
+    stamp.textContent = {late:'Late',partial:'Partial',paid:'Paid',pending:'Pending'}[s];
+    const sub = document.getElementById('dueSub');
+    if(s==='late'){sub.className='d-sub';sub.textContent='12 days late'}
+    else if(s==='paid'){sub.className='d-sub green';sub.textContent='Paid in full'}
+    else if(s==='partial'){sub.className='d-sub';sub.textContent='$430.00 remaining'}
+    else{sub.className='d-sub muted';sub.textContent='Due in 18 days'}
+
+    // Sync total-card + sticky bar
+    const tcVal = document.getElementById('tcVal');
+    const tcSub = document.getElementById('tcSub');
+    const tc = document.querySelector('.total-card');
+    const sbVal = document.getElementById('sbVal');
+    const sbStatus = document.getElementById('sbStatus');
+    if(s==='paid'){
+      tc.classList.add('paid'); tcVal.textContent = '$0.00';
+      tcSub.textContent = '$2,430.00 invoice · fully paid';
+      sbVal.textContent = '$0.00';
+    } else {
+      tc.classList.remove('paid');
+      tcVal.textContent = '$430.00';
+      tcSub.textContent = 'of $2,430.00 invoice · $2,000.00 paid';
+      sbVal.textContent = '$430.00';
+    }
+    sbStatus.className = 'sb-status ' + s;
+    sbStatus.textContent = {late:'Late',partial:'Partial',paid:'Paid',pending:'Pending'}[s];
+  }
+
+  // Sticky summary bar appears once the header scrolls out of view
+  const sticky = document.getElementById('stickyBar');
+  window.addEventListener('scroll', () => {
+    sticky.classList.toggle('on', window.scrollY > 240);
+  });
+  function setType(t, btn){
+    document.querySelectorAll('.demo-bar button').forEach(b=>{ if(['Rent','Cleaning','Work Order','Parking'].includes(b.textContent)) b.classList.remove('active'); });
+    btn.classList.add('active');
+    const presets = {
+      rent:      { num:'WPA-2026-0412', subj:'Rent due April 1, 2026', addr:'37 North York Road · Unit 311' },
+      cleaning:  { num:'WPA-2026-0855', subj:'Turnover cleaning · Apr 9 check-out', addr:'112 Ekaterina Apartments · Unit 2B' },
+      workorder: { num:'WPA-2026-1023', subj:'Work order #TT-2241 · HVAC repair', addr:'46 Township Line Rd · Unit 232' },
+      parking:   { num:'WPA-2026-1188', subj:'Parking pass · May 2026 · Space 17', addr:'Chelbourne Garage · Space 17' },
+    };
+    const p = presets[t];
+    document.getElementById('invNum').textContent = p.num;
+    document.getElementById('subject').textContent = p.subj;
+    document.getElementById('propAddr').textContent = p.addr;
+  }
+</script>
+
+</body>
+</html>
