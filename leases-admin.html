@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Lease Admin | v2026-04-14 1800</title>
+<title>Willow — Lease Admin | v2026-04-14 1820</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- Quill rich-text editor -->
 <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+<!-- Template's own <style> block is injected here at load time so the editor matches the preview -->
+<style id="tplInlineStyles"></style>
 <style>
 :root {
   --accent: #3651b5;
@@ -204,15 +206,14 @@ body {
   line-height: 1.5;
   resize: vertical;
 }
-/* Rich-text editor */
+/* Rich-text editor — template's own <style> block (injected at load time) provides the lease typography */
 #tplEditor { min-height: 520px; background: #fff; font-size: 13px; }
 .ql-toolbar { border-radius: 6px 6px 0 0; }
 .ql-container { border-radius: 0 0 6px 6px; min-height: 520px; }
-.ql-editor { min-height: 520px; font-family: Georgia, 'Times New Roman', serif; }
-.ql-editor h1 { font-size: 20px; }
-.ql-editor h2 { font-size: 16px; color: #3651b5; border-bottom: 2px solid #3651b5; padding-bottom: 2px; }
-.ql-editor h3 { font-size: 14px; color: #2a3f8f; text-transform: uppercase; letter-spacing: 0.5px; }
-.ql-editor h4 { font-size: 13px; }
+.ql-editor { min-height: 520px; font-family: Georgia, 'Times New Roman', serif; line-height: 1.55; color: #1a1f2e; }
+/* The template's CSS is scoped to .wpa-lease — we add that class to .ql-editor via JS so the
+   scoped rules (.wpa-lease h2 { ... }, .wpa-lease .sig-block { ... }) apply to the editor too.
+   Fallback typography only — the real rules come from the template's own <style> block. */
 .mode-toggle { display: flex; gap: 4px; }
 .mode-toggle button {
   padding: 5px 10px;
@@ -480,6 +481,6 @@ body {
 <div class="toast" id="toast"></div>
 
 <script src="js/config.js"></script>
-<script src="js/leases-admin.js?v=20260414-1800"></script>
+<script src="js/leases-admin.js?v=20260414-1820"></script>
 </body>
 </html>
