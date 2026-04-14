@@ -868,4 +868,126 @@
     if (pop) pop.classList.remove('on');
   };
 
+  /* ════════════════════════════════════════════════════════════
+     INVOICE SERIES GENERATOR — Supabase-wired, LT/MTM aware
+     ──────────────────────────────────────────────────────────── */
+
+  async function _sbInsert(path, body) {
+    const r = await fetch(CONFIG.SUPABASE_URL + '/rest/v1/' + path, {
+      method: 'POST',
+      headers: {
+        apikey: CONFIG.SUPABASE_KEY,
+        Authorization: 'Bearer ' + CONFIG.SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('[' + path + '] HTTP ' + r.status + ' ' + (await r.text()));
+    return r.json();
+  }
+
+  function _firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+  function _addMonths(d, n) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
+  function _toIsoDate(d) { return d.toISOString().slice(0, 10); }
+
+  function _buildExpectedMonths(leaseStart, leaseEnd, leaseType) {
+    // Returns array of {period_month: "YYYY-MM-01", due_date: "YYYY-MM-DD"} entries
+    // LT: every month from start→end (inclusive)
+    // MTM: every month from start→(next calendar month from today)
+    const months = [];
+    if (!leaseStart) return months;
+    const start = _firstOfMonth(new Date(leaseStart + 'T12:00:00'));
+    const today = _firstOfMonth(new Date());
+    let stop;
+    if (leaseType === 'mtm' || !leaseEnd) {
+      stop = _addMonths(today, 1); // current + next month (rolling)
+    } else {
+      stop = _firstOfMonth(new Date(leaseEnd + 'T12:00:00'));
+    }
+    const cur = new Date(start);
+    let safety = 0;
+    while (cur.getTime() <= stop.getTime() && safety < 240) {
+      months.push({ period_month: _toIsoDate(cur) });
+      cur.setMonth(cur.getMonth() + 1);
+      safety++;
+    }
+    return months;
+  }
+
+  /*  Public: refresh (create missing) invoices for a unit's lease.
+      ctx = {
+        property, unit, rent, lease_start, lease_end, lease_type,
+        due_day (default 1), grace_days (default 5),
+        primary_tenant_id,   // optional — UUID of first tenant on the lease
+        tenant_name          // optional — for logging
+      }
+      Returns { expected, existing, created, errors }
+  */
+  window.WPA_refreshInvoicesForUnit = async function (ctx) {
+    ctx = ctx || {};
+    const res = { expected: 0, existing: 0, created: 0, errors: [] };
+    if (!ctx.property || !ctx.unit || !ctx.rent || !ctx.lease_start) {
+      res.errors.push('Missing required ctx fields (property, unit, rent, lease_start).');
+      return res;
+    }
+
+    const dueDay = Math.min(28, Math.max(1, parseInt(ctx.due_day, 10) || 1));
+    const leaseType = (ctx.lease_type || '').toLowerCase() === 'mtm' ? 'mtm' : 'lt';
+
+    const expected = _buildExpectedMonths(ctx.lease_start, ctx.lease_end, leaseType);
+    res.expected = expected.length;
+    if (!expected.length) return res;
+
+    // Fetch existing invoices for this (property, unit)
+    const q = 'invoices?select=id,period_month&property=eq.' + encodeURIComponent(ctx.property)
+            + '&unit=eq.' + encodeURIComponent(ctx.unit);
+    let existing = [];
+    try {
+      existing = await _sb(q);
+    } catch (e) {
+      res.errors.push('Fetch existing failed: ' + e.message);
+      return res;
+    }
+    const existSet = new Set(existing.map(x => (x.period_month || '').slice(0, 10)));
+    res.existing = existSet.size;
+
+    // Create each missing invoice + its rent line
+    for (const m of expected) {
+      if (existSet.has(m.period_month)) continue;
+      try {
+        const periodDate = new Date(m.period_month + 'T12:00:00');
+        // due_date = first of month + (due_day - 1) days, but cap at end-of-month
+        const due = new Date(periodDate.getFullYear(), periodDate.getMonth(), dueDay);
+        const invPayload = {
+          tenant_id: ctx.primary_tenant_id || null,
+          property: ctx.property,
+          unit: ctx.unit,
+          period_month: m.period_month,
+          due_date: _toIsoDate(due),
+          status: 'open',
+          total: Number(ctx.rent),
+          paid: 0,
+          notes: 'Rent — ' + periodDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+        };
+        const inserted = await _sbInsert('invoices', invPayload);
+        const invId = Array.isArray(inserted) ? inserted[0].id : inserted.id;
+
+        // Rent line
+        await _sbInsert('invoice_lines', {
+          invoice_id: invId,
+          kind: 'rent',
+          description: 'Monthly rent — ' + periodDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          amount: Number(ctx.rent),
+          day_offset: null,
+          created_by: 'System (auto-generator)'
+        });
+        res.created++;
+      } catch (e) {
+        res.errors.push(m.period_month + ': ' + e.message);
+      }
+    }
+    return res;
+  };
+
 })();

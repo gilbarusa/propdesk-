@@ -7860,6 +7860,7 @@ function WPA_renderLeaseEditor(u) {
       bar.innerHTML = `
         <button id="udLeaseSaveBtn" onclick="WPA_saveLease()" style="padding:6px 14px;background:#8a5f32;color:#fff;border:0;border-radius:4px;cursor:pointer;font:inherit;">Save Lease</button>
         <button id="udLeaseResetBtn" onclick="WPA_renderLeaseEditor(_udCurrentUnit)" style="padding:6px 14px;background:transparent;color:var(--text);border:1px solid var(--line);border-radius:4px;cursor:pointer;font:inherit;">Cancel</button>
+        <button id="udLeaseRefreshInvBtn" onclick="WPA_manualRefreshInvoices()" title="Generate any missing monthly invoices based on current lease" style="padding:6px 14px;background:transparent;color:#3651b5;border:1px solid #3651b5;border-radius:4px;cursor:pointer;font:inherit;">🔄 Refresh Invoices</button>
         <span id="udLeaseSaveMsg" style="font-size:12px;color:var(--text3);"></span>
       `;
       host.appendChild(bar);
@@ -7877,6 +7878,56 @@ function WPA_onLeaseTypeChange() {
     if (mtm.checked) endIn.value = '';
   }
 }
+// Build ctx for WPA_refreshInvoicesForUnit from the unit detail record.
+// Pulls the FULL lease rent (not per-person split) per the shared-lease rule.
+function _buildInvoiceGenCtx(u, overrides) {
+  if (!u || !u.lease) return null;
+  overrides = overrides || {};
+  const startIso = overrides.startIso || (u.leaseStart ? WPA_toIsoDate(u.leaseStart) : null);
+  const endIso   = overrides.endIso   || (u.leaseEnd && u.leaseEnd !== 'M to M' ? WPA_toIsoDate(u.leaseEnd) : null);
+  const leaseType = overrides.leaseType || ((u.leaseEnd === 'M to M') ? 'mtm' : 'lt');
+  // Full lease rent — rentRecord.amount is the full amount; u.totalRent is a fallback
+  const fullRent = (u.rentRecord && u.rentRecord.amount) || u.totalRent || 0;
+  const tenantIds = overrides.tenantIds || (u.tenantObjs || []).map(t => t.id).filter(Boolean);
+  if (!startIso || !fullRent) return null;
+  return {
+    property: u.lease.property,
+    unit: u.lease.unit,
+    rent: fullRent,
+    lease_start: startIso,
+    lease_end: endIso,
+    lease_type: leaseType === 'fixed' ? 'lt' : leaseType,
+    due_day: (u.lease && u.lease.due_day) || 1,
+    primary_tenant_id: tenantIds[0] || null
+  };
+}
+
+async function WPA_manualRefreshInvoices() {
+  const u = _udCurrentUnit;
+  const btn = document.getElementById('udLeaseRefreshInvBtn');
+  if (!u) return;
+  const ctx = _buildInvoiceGenCtx(u);
+  if (!ctx) { toast('Cannot refresh — missing lease start or rent', 'error'); return; }
+  if (typeof WPA_refreshInvoicesForUnit !== 'function') { toast('Generator not loaded', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Refreshing…'; }
+  try {
+    const gen = await WPA_refreshInvoicesForUnit(ctx);
+    const parts = [];
+    parts.push('Expected ' + gen.expected);
+    parts.push('Existing ' + gen.existing);
+    parts.push('Created ' + gen.created);
+    if (gen.errors && gen.errors.length) parts.push(gen.errors.length + ' error(s)');
+    toast(parts.join(' · '), gen.errors && gen.errors.length ? 'error' : 'success');
+    if (gen.errors && gen.errors.length) console.warn('[manualRefresh]', gen.errors);
+    refreshUnitDetail();
+  } catch (e) {
+    console.error('[manualRefresh]', e);
+    toast('Refresh failed: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Refresh Invoices'; }
+  }
+}
+
 async function WPA_saveLease() {
   const u = _udCurrentUnit;
   if (!u) return;
@@ -7934,6 +7985,26 @@ async function WPA_saveLease() {
     if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty) {
       renderPDLongTerm(_pdCurrentProperty);
     }
+
+    // Auto-generate any missing invoices for this lease (idempotent)
+    try {
+      if (typeof WPA_refreshInvoicesForUnit === 'function') {
+        const genCtx = _buildInvoiceGenCtx(u, { startIso, endIso, leaseType: newType, tenantIds });
+        if (genCtx) {
+          if (msg) { msg.textContent='Generating invoices…'; msg.style.color='var(--text3)'; }
+          const gen = await WPA_refreshInvoicesForUnit(genCtx);
+          if (gen && gen.created > 0) {
+            toast('Created ' + gen.created + ' invoice(s) for lease', 'success');
+          }
+          if (gen && gen.errors && gen.errors.length) {
+            console.warn('[saveLease invoice-gen]', gen.errors);
+          }
+        }
+      }
+    } catch (gErr) {
+      console.error('[saveLease invoice-gen]', gErr);
+    }
+
     setTimeout(() => { if (msg) msg.textContent = ''; refreshUnitDetail(); }, 900);
   } catch (e) {
     console.error('[saveLease]', e);
