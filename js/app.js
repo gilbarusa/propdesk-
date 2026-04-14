@@ -3741,6 +3741,17 @@ function closeLeaseDetail() {
 }
 
 function leaseAction(action, docIdx) {
+  // 'newLease' and 'export' don't need a selected lease — handle them first
+  if (action === 'newLease') {
+    if (typeof openNewLeaseWizard === 'function') openNewLeaseWizard();
+    else alert('Lease wizard not loaded. Make sure js/lease-wizard.js is included.');
+    return;
+  }
+  if (action === 'export') {
+    if (typeof exportLeasesCSV === 'function') exportLeasesCSV();
+    else alert('Export not available yet.');
+    return;
+  }
   if (!currentLeaseDetail) return;
   const l = currentLeaseDetail.lease;
   const key = getLeaseKey(l);
