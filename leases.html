@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Willow — Leases &amp; Files | v2026-04-14 1900</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --accent: #3651b5;
+  --accent-dark: #2a3f8f;
+  --surface: #fff;
+  --surface2: #f7f8fb;
+  --surface3: #eef1f8;
+  --text: #1a1f2e;
+  --text2: #5a6378;
+  --text3: #8a93a8;
+  --border: #e1e5ee;
+  --border2: #c9cfdd;
+  --green: #1f7a4d;
+  --red: #b83228;
+  --amber: #b5791f;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--surface2);
+  color: var(--text);
+  font-size: 14px;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.header-brand { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; color: var(--accent); }
+.header-right { margin-left: auto; }
+.back-btn { padding: 6px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); text-decoration: none; font-size: 12px; }
+.back-btn:hover { background: var(--surface3); }
+
+.page-title-bar { display:flex; align-items:center; gap:14px; padding:18px 24px 0; max-width:1400px; margin:0 auto; }
+.page-title { font-size: 24px; font-weight: 600; margin: 0; }
+
+.tabs { display: flex; gap: 0; padding: 0 24px; max-width:1400px; margin:0 auto; border-bottom: 1px solid var(--border); margin-top:14px; }
+.tab { padding: 12px 18px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text2); border-bottom: 2px solid transparent; margin-bottom: -1px; text-transform: uppercase; letter-spacing:0.5px; text-decoration:none; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover:not(.active) { color: var(--text); }
+
+.layout { display: grid; grid-template-columns: 1fr 280px; gap: 20px; max-width: 1400px; margin: 0 auto; padding: 24px; align-items: flex-start; }
+@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+
+/* Main column */
+.toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.filter-input { flex:1 1 320px; padding: 9px 12px 9px 32px; border:1px solid var(--border); border-radius:8px; font-size:13px; background: var(--surface) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%235a6378" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg>') no-repeat 10px center; }
+.toolbar-count { font-size:12px; color: var(--text3); }
+.btn { padding: 9px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); cursor: pointer; font-size: 13px; font-weight: 500; font-family: inherit; }
+.btn:hover { background: var(--surface2); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-ghost { background: transparent; }
+.btn-sm { padding:6px 10px; font-size:12px; }
+.btn-danger { color: var(--red); border-color: #f0c9c5; background:#fff; }
+
+/* Lease list table */
+.leases-card { background: var(--surface); border:1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.leases-table { width:100%; border-collapse: collapse; }
+.leases-table th { text-align:left; font-size: 11px; text-transform: uppercase; letter-spacing:0.6px; color: var(--text3); padding: 12px 14px; background: var(--surface2); border-bottom: 1px solid var(--border); font-weight:600; position:sticky; top:0; cursor:pointer; user-select:none; }
+.leases-table th:hover { color: var(--text); }
+.leases-table td { padding: 14px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+.leases-table tr { cursor:pointer; }
+.leases-table tr:hover td { background: var(--surface2); }
+.leases-table tr:last-child td { border-bottom: 0; }
+
+.status-pill { display:inline-block; padding: 4px 10px; border-radius:20px; font-size:11px; font-weight:600; letter-spacing:0.3px; }
+.status-draft             { background:#eef1f8; color:#5a6378; }
+.status-out_for_signature { background:#e6f0ff; color:#2a3f8f; }
+.status-partially_signed  { background:#fff4d9; color:#8a5c00; }
+.status-fully_signed      { background:#dff3e6; color:#1f7a4d; }
+.status-countersigned     { background:#cce8d6; color:#0d5e38; }
+.status-void              { background:#fde4e1; color:#b83228; }
+.status-active            { background:#dff3e6; color:#1f7a4d; }
+.status-future            { background:#1a2540; color:#fff; }
+.status-expired           { background:#f3f3f3; color:#8a93a8; }
+.status-in_process        { background:#e6f0ff; color:#2a3f8f; }
+
+.addr { color: var(--text2); font-size:12px; }
+.tenants-chip { display:inline-flex; align-items:center; gap:6px; }
+.icon-group { width:14px; height:14px; opacity:0.6; }
+.empty { padding: 60px 20px; text-align:center; color: var(--text3); font-size:14px; }
+.loading { padding: 40px 20px; text-align:center; color: var(--text3); }
+
+/* Stats sidebar */
+.stats { display:flex; flex-direction:column; gap: 10px; }
+.stat-card { padding: 14px 16px; border-radius: 10px; color: #fff; position:relative; overflow:hidden; }
+.stat-card .big { font-size: 28px; font-weight: 700; line-height: 1; }
+.stat-card .lbl { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; margin-top:6px; opacity: 0.9; }
+.stat-active    { background: linear-gradient(135deg, #4ba877, #2e7d4d); }
+.stat-in-process{ background: linear-gradient(135deg, #5b85e8, #3651b5); }
+.stat-future    { background: linear-gradient(135deg, #1a2540, #0d1020); }
+.stat-expiring  { background: linear-gradient(135deg, #d97c4a, #b83228); }
+.stat-expired   { background: linear-gradient(135deg, #b4b9c4, #8a93a8); }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(20,25,40,0.55); display:none; align-items: center; justify-content: center; z-index: 1000; padding:20px; }
+.modal-backdrop.active { display:flex; }
+.modal { background: var(--surface); border-radius: 14px; max-width: 980px; width: 100%; max-height: 92vh; overflow-y: auto; padding: 0; box-shadow: 0 16px 48px rgba(0,0,0,0.22); }
+.modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:14px; }
+.modal-head h3 { margin: 0; font-size: 18px; font-weight: 600; }
+.modal-head .close { margin-left:auto; cursor:pointer; border:none; background:transparent; font-size: 22px; color: var(--text3); padding: 4px 8px; }
+.modal-body { padding: 22px 24px; }
+.modal-foot { padding: 16px 24px; border-top: 1px solid var(--border); display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; }
+.modal-foot-right { display:flex; gap:8px; margin-left:auto; }
+
+/* Wizard */
+.wiz-steps { display:flex; gap: 4px; padding: 12px 24px; background: var(--surface2); border-bottom: 1px solid var(--border); flex-wrap:wrap; }
+.wiz-step { display:flex; align-items:center; gap:8px; padding: 6px 10px; font-size:12px; color: var(--text3); border-radius:16px; }
+.wiz-step.active { color: var(--accent); background: #fff; border:1px solid var(--accent); font-weight:600; }
+.wiz-step.done { color: var(--green); }
+.wiz-step .num { width: 20px; height: 20px; border-radius: 50%; background: var(--surface3); color: var(--text2); display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; }
+.wiz-step.active .num { background: var(--accent); color:#fff; }
+.wiz-step.done .num { background: var(--green); color:#fff; }
+
+.wiz-page { display:none; }
+.wiz-page.active { display:block; }
+
+.form-row { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
+.form-row label { font-size:12px; font-weight:600; color: var(--text2); }
+.form-row input[type=text], .form-row input[type=email], .form-row input[type=tel], .form-row input[type=date], .form-row input[type=number], .form-row select, .form-row textarea { padding: 9px 11px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; background:var(--surface); color:var(--text); }
+.form-row textarea { min-height: 70px; font-family: inherit; resize: vertical; }
+.form-grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid-3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; } }
+
+.tenant-row { display:grid; grid-template-columns: 1fr 1fr 140px 40px; gap: 8px; margin-bottom: 8px; align-items:center; }
+.tenant-row input { padding: 8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; }
+.remove-tenant { background: transparent; border: 0; color: var(--red); cursor:pointer; font-size:18px; padding: 0 6px; }
+@media (max-width: 640px) { .tenant-row { grid-template-columns: 1fr 40px; } .tenant-row input { grid-column: 1 / -1; } .tenant-row .remove-tenant { grid-column: 2 / 3; grid-row: 1 / 4; } }
+
+.hint { font-size: 11px; color: var(--text3); }
+.chk-row { display:flex; align-items:center; gap:8px; padding: 6px 0; font-size:13px; cursor:pointer; }
+.chk-row input[type=checkbox] { margin:0; cursor:pointer; }
+
+.addendum-item { display:flex; align-items:flex-start; gap:10px; padding: 10px 12px; border:1px solid var(--border); border-radius:8px; margin-bottom: 6px; }
+.addendum-item .name { font-weight:500; font-size:13px; }
+.addendum-item .meta { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+.extra-row { display:grid; grid-template-columns: 1fr 140px 1fr 40px; gap: 8px; margin-bottom: 8px; align-items:center; }
+.extra-row input { padding: 8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; }
+
+/* Review */
+.review-sec { background: var(--surface2); border:1px solid var(--border); border-radius:8px; padding:14px 16px; margin-bottom: 10px; }
+.review-sec h4 { margin: 0 0 10px; font-size: 13px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+.review-row { display:grid; grid-template-columns: 160px 1fr; gap: 10px; padding: 3px 0; font-size:13px; }
+.review-row .k { color: var(--text3); }
+
+/* Detail modal */
+.detail-head { background: var(--surface3); padding: 18px 24px; border-radius: 12px 12px 0 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; align-items: center; border-bottom: 1px solid var(--border); }
+.detail-prop { font-size: 17px; font-weight: 600; }
+.detail-rent { font-size: 15px; }
+.detail-rent .amt { font-weight: 700; font-size: 17px; }
+.detail-rent small { color: var(--text2); }
+.detail-tenants-chip { color: var(--text2); font-size: 13px; }
+
+.doc-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-top: 14px; }
+.doc-head { display:flex; align-items:center; gap:10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom:10px; }
+.doc-head h4 { margin:0; font-size:13px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--accent); }
+.signer-row { display:grid; grid-template-columns: 1fr 140px 1fr 140px; gap:10px; padding: 10px 4px; border-bottom: 1px solid var(--border); align-items:center; }
+.signer-row:last-child { border-bottom: 0; }
+.timeline { display:flex; align-items:center; gap: 6px; }
+.tl-dot { width:18px; height:18px; border-radius:50%; background: var(--border); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:700; }
+.tl-dot.done { background: var(--green); }
+.tl-line { flex: 1; height: 2px; background: var(--border); }
+.tl-line.done { background: var(--green); }
+.tl-label { font-size: 11px; color: var(--text3); }
+
+.toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 18px; background: var(--text); color: #fff; border-radius: 8px; font-size: 13px; opacity: 0; transform: translateY(10px); transition: all 0.25s; z-index: 3000; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: var(--green); }
+.toast.error { background: var(--red); }
+
+.pill { display:inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight:600; background: var(--surface3); color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">Willow PropDesk</div>
+  <span style="color:var(--border2);">›</span>
+  <div style="font-size:14px;color:var(--text2);">Leases &amp; Files</div>
+  <div class="header-right">
+    <a href="index.html" class="back-btn">← PropDesk</a>
+  </div>
+</div>
+
+<div class="page-title-bar">
+  <h1 class="page-title">Leases &amp; Files</h1>
+</div>
+
+<div class="tabs">
+  <a class="tab active" href="leases.html">Leases</a>
+  <a class="tab" href="leases-admin.html">Templates</a>
+</div>
+
+<div class="layout">
+  <!-- LEFT: list -->
+  <div>
+    <div class="toolbar">
+      <input type="text" class="filter-input" id="filterInput" placeholder="Filter by tenant, property, unit, status...">
+      <span class="toolbar-count" id="toolbarCount">Showing 0 of 0</span>
+      <button class="btn btn-sm" onclick="exportCSV()">Export</button>
+      <button class="btn btn-primary" onclick="openWizardNew()">+ New Lease</button>
+    </div>
+
+    <div class="leases-card">
+      <div style="overflow-x:auto; max-height: calc(100vh - 280px);">
+        <table class="leases-table" id="leasesTable">
+          <thead>
+            <tr>
+              <th data-sort="status">Status</th>
+              <th data-sort="property">Property</th>
+              <th data-sort="unit">Unit</th>
+              <th data-sort="address">Address</th>
+              <th data-sort="tenants">Tenants</th>
+              <th data-sort="lease_start">Start</th>
+              <th data-sort="lease_end">End</th>
+            </tr>
+          </thead>
+          <tbody id="leasesBody">
+            <tr><td colspan="7" class="loading">Loading leases…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: stats sidebar -->
+  <div class="stats">
+    <div class="stat-card stat-active"><div class="big" id="statActive">—</div><div class="lbl">Active Leases</div></div>
+    <div class="stat-card stat-in-process"><div class="big" id="statInProcess">—</div><div class="lbl">In Process</div></div>
+    <div class="stat-card stat-future"><div class="big" id="statFuture">—</div><div class="lbl">Future Leases</div></div>
+    <div class="stat-card stat-expiring"><div class="big" id="statExpiring">—</div><div class="lbl">Expiring in 90 Days</div></div>
+    <div class="stat-card stat-expired"><div class="big" id="statExpired">—</div><div class="lbl">Expired / Void</div></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     CREATE LEASE WIZARD
+══════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="wizardModal">
+  <div class="modal" style="max-width:900px;">
+    <div class="modal-head">
+      <h3 id="wizTitle">Create Lease</h3>
+      <button class="close" onclick="closeWizard()">×</button>
+    </div>
+
+    <div class="wiz-steps" id="wizSteps"></div>
+
+    <div class="modal-body">
+      <!-- STEP 1: Tenants -->
+      <div class="wiz-page active" data-step="1">
+        <p class="hint">Add every person who will sign the lease. They'll each receive a signing link by email.</p>
+        <div id="tenantsList"></div>
+        <button class="btn btn-sm" onclick="addTenantRow()">+ Add tenant</button>
+      </div>
+
+      <!-- STEP 2: Property -->
+      <div class="wiz-page" data-step="2">
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label>Property / Building</label>
+            <input type="text" id="wizProperty" placeholder="46 Township Line Road">
+          </div>
+          <div class="form-row">
+            <label>Unit</label>
+            <input type="text" id="wizUnit" placeholder="222">
+          </div>
+        </div>
+        <div class="form-row">
+          <label>City / Jurisdiction</label>
+          <input type="text" id="wizCity" placeholder="Elkins Park, PA">
+        </div>
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label>Landlord name</label>
+            <input type="text" id="wizLandlordName" value="Kevin Smith">
+          </div>
+          <div class="form-row">
+            <label>Landlord entity</label>
+            <input type="text" id="wizLandlordEntity" value="ERA Holding LLC">
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Terms -->
+      <div class="wiz-page" data-step="3">
+        <div class="form-grid-2">
+          <div class="form-row">
+            <label>Lease type</label>
+            <select id="wizLeaseType" onchange="onLeaseTypeChange()">
+              <option value="lt">Long-term (fixed end date)</option>
+              <option value="mtm">Month-to-Month</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Template</label>
+            <select id="wizTemplate"></select>
+          </div>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-row">
+            <label>Lease start</label>
+            <input type="date" id="wizLeaseStart">
+          </div>
+          <div class="form-row" id="wizLeaseEndWrap">
+            <label>Lease end</label>
+            <input type="date" id="wizLeaseEnd">
+          </div>
+          <div class="form-row">
+            <label>Monthly rent ($)</label>
+            <input type="number" id="wizMonthlyRent" step="0.01" min="0">
+          </div>
+        </div>
+        <div class="form-grid-3">
+          <div class="form-row">
+            <label>Security deposit ($)</label>
+            <input type="number" id="wizSecDep" step="0.01" min="0">
+          </div>
+          <div class="form-row">
+            <label>Last month's rent ($)</label>
+            <input type="number" id="wizLastMonth" step="0.01" min="0">
+          </div>
+          <div class="form-row">
+            <label>Total deposit on signing ($)</label>
+            <input type="number" id="wizTotalDep" step="0.01" min="0" readonly style="background:var(--surface2);">
+            <span class="hint">Auto = security + last month</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: Utilities + Extras -->
+      <div class="wiz-page" data-step="4">
+        <div class="form-row">
+          <label>Utilities included in rent</label>
+          <div id="utilityChecks" style="display:flex;flex-wrap:wrap;gap:14px;"></div>
+        </div>
+        <div class="form-row">
+          <label>Extra monthly charges</label>
+          <div id="extraCharges"></div>
+          <button class="btn btn-sm" style="align-self:flex-start;" onclick="addExtraCharge()">+ Add charge</button>
+          <span class="hint">e.g. Parking, Pet fee, Storage</span>
+        </div>
+      </div>
+
+      <!-- STEP 5: Addendums -->
+      <div class="wiz-page" data-step="5">
+        <p class="hint">All active addendums pre-checked. Uncheck any that don't apply to this lease.</p>
+        <div id="addendumList"></div>
+      </div>
+
+      <!-- STEP 6: Review -->
+      <div class="wiz-page" data-step="6">
+        <div id="reviewContent"></div>
+      </div>
+    </div>
+
+    <div class="modal-foot">
+      <div>
+        <button class="btn" id="wizBackBtn" onclick="wizBack()" style="display:none;">← Back</button>
+      </div>
+      <div class="modal-foot-right">
+        <button class="btn btn-ghost" onclick="closeWizard()">Cancel</button>
+        <button class="btn btn-primary" id="wizNextBtn" onclick="wizNext()">Next →</button>
+        <button class="btn btn-primary" id="wizSaveDraftBtn" style="display:none;" onclick="wizSubmit('draft')">Save draft</button>
+        <button class="btn btn-primary" id="wizSendBtn" style="display:none;" onclick="wizSubmit('send')">Save &amp; Send for signing</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     LEASE DETAIL MODAL
+══════════════════════════════════════════════════════ -->
+<div class="modal-backdrop" id="detailModal">
+  <div class="modal" style="max-width:1000px;">
+    <div class="modal-head">
+      <h3>Lease Detail</h3>
+      <button class="close" onclick="closeDetail()">×</button>
+    </div>
+
+    <div class="modal-body" id="detailBody"></div>
+
+    <div class="modal-foot">
+      <div id="detailFootLeft"></div>
+      <div class="modal-foot-right">
+        <button class="btn" onclick="closeDetail()">Close</button>
+        <button class="btn btn-danger btn-sm" id="revokeBtn" style="display:none;" onclick="revokeLease()">Revoke signing link</button>
+        <button class="btn btn-primary btn-sm" id="resendBtn" style="display:none;" onclick="resendLease()">Resend links</button>
+        <button class="btn btn-primary btn-sm" id="countersignBtn" style="display:none;" onclick="countersignLease()">Countersign &amp; Finalize</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/config.js"></script>
+<script src="js/leases.js?v=20260414-1900"></script>
+</body>
+</html>
