@@ -368,14 +368,16 @@
         </div>
       </div>
 
-      ${_viewMode === 'client' ? `
+      ${(_viewMode === 'client' || _viewMode === 'client-pr') ? `
       <div class="act-bar">
         <button class="wbtn" onclick="WPA_invoiceDownload('${_esc(inv.id)}')"><span>⬇</span> Download PDF</button>
         <div class="spacer"></div>
         ${status.key === 'paid' ? `
           <span style="padding:9px 18px;color:#1f7a4d;font-weight:600;font-size:12px;">✓ Paid in full — thank you</span>
         ` : status.key === 'void' ? `
-          <span style="padding:9px 18px;color:#8590a8;font-weight:600;font-size:12px;">This invoice has been voided</span>
+          <span style="padding:9px 18px;color:#8590a8;font-weight:600;font-size:12px;">${inv._is_pr ? 'This request has been cancelled' : 'This invoice has been voided'}</span>
+        ` : inv._is_pr ? `
+          <button class="wbtn primary" style="font-size:13px;padding:11px 22px;" onclick="WPA_payViaPayPhp('${_esc(inv._pr_id)}')">💳 Pay ${_esc(MONEY(due))}</button>
         ` : `
           <button class="wbtn primary" style="font-size:13px;padding:11px 22px;" onclick="WPA_startPayment('${_esc(inv.id)}')">💳 Pay ${_esc(MONEY(due))}</button>
         `}
@@ -540,6 +542,78 @@
       document.getElementById('wpaInvBox').innerHTML = '<div class="loading" style="color:#b83228">Failed to load invoice<br><br>' + _esc(e.message) + '</div>';
     }
   };
+
+  // ─── Payment Request → invoice-shaped view ──────────────────
+  // Opens a payment_requests row in the same modal as a regular invoice.
+  // The Pay button routes to /pay.php to keep the existing tip + Stripe flow.
+  window.WPA_openPaymentRequest = async function (prId, opts) {
+    opts = opts || {};
+    _viewMode = 'client-pr';   // special mode: read-only + redirect Pay to pay.php
+    _viewInvoiceId = 'pr:' + prId;
+    _openOverlay('<div class="loading">Loading payment request…</div>');
+    try {
+      const prArr = await _sb('payment_requests?id=eq.' + prId + '&select=*');
+      if (!prArr.length) throw new Error('Payment request not found');
+      const pr = prArr[0];
+      const bundle = _prToBundle(pr);
+      document.getElementById('wpaInvBox').innerHTML = _renderBundle(bundle);
+      const ovr = document.getElementById('wpaInvOverlay');
+      const sticky = document.getElementById('wpaSticky');
+      if (ovr && sticky) ovr.addEventListener('scroll', () => sticky.classList.toggle('on', ovr.scrollTop > 240));
+    } catch (e) {
+      document.getElementById('wpaInvBox').innerHTML = '<div class="loading" style="color:#b83228">Failed to load<br><br>' + _esc(e.message) + '</div>';
+    }
+  };
+
+  function _prToBundle(pr) {
+    // Map payment_requests row to the invoice-bundle shape the modal expects.
+    const total = Number(pr.amount || 0);
+    const paid  = pr.status === 'paid' ? total : 0;
+    const rawDesc = String(pr.description || 'Service');
+    const descLines = rawDesc.split('\n').map(s => s.trim()).filter(Boolean);
+    const title = descLines[0] || 'Service';
+    // Build line items from description "key: value" lines
+    const lines = [];
+    if (descLines.length > 1) {
+      for (let i = 1; i < descLines.length; i++) {
+        const m = descLines[i].match(/^([^:]+):\s*(.+)$/);
+        if (m) {
+          const v = m[2].trim();
+          const amt = parseFloat(v.replace(/[^0-9.\-]/g, '')) || 0;
+          lines.push({
+            id: 'pr-' + i,
+            item_label: m[1].trim(),
+            description: '',
+            amount: amt || total / (descLines.length - 1),
+            sort_order: i
+          });
+        } else {
+          lines.push({ id: 'pr-' + i, item_label: descLines[i], description: '', amount: 0, sort_order: i });
+        }
+      }
+    } else {
+      lines.push({ id: 'pr-1', item_label: title, description: '', amount: total, sort_order: 1 });
+    }
+    const invoice = {
+      id: 'pr:' + pr.id,
+      _pr_id: pr.id,
+      _is_pr: true,
+      invoice_number: pr.wo_number ? ('WO-' + pr.wo_number) : ('PR-' + String(pr.id).slice(0, 8)),
+      subject: title,
+      property: pr.property || '',
+      unit: pr.unit || '',
+      period_month: null,
+      due_date: pr.due_date || null,
+      created_at: pr.created_at,
+      total: total,
+      paid: paid,
+      total_amount: total,
+      amount_paid: paid,
+      status: pr.status === 'paid' ? 'paid' : (pr.status === 'cancelled' ? 'void' : 'open'),
+      notes: null
+    };
+    return { invoice, lines, payments: [], reminders: [], tenant: null };
+  }
 
   // ─── Preview mode (mock data, no Supabase) ─────────────────
   const _MOCK = {
@@ -1239,6 +1313,27 @@
       _renderPay();
     } catch (e) {
       alert('Failed to load invoice: ' + e.message);
+    }
+  };
+
+  // ─── Pay via pay.php (payment requests — tip + Stripe) ──────
+  window.WPA_payViaPayPhp = async function (prId) {
+    try {
+      const rows = await _sb('payment_requests?id=eq.' + prId + '&select=id,amount,description,work_order_id');
+      if (!rows || !rows.length) { alert('Payment request not found'); return; }
+      const req = rows[0];
+      const amtCents = Math.round((parseFloat(req.amount) || 0) * 100);
+      const desc = (req.description || 'Service').split('\n')[0];
+      const wo = req.work_order_id || '';
+      const portalBase = (window.WPA_PORTAL_URL || '').replace(/\/$/, '');
+      const payUrl = (portalBase || '') + '/pay.php'
+        + '?amount=' + amtCents
+        + '&desc=' + encodeURIComponent(desc)
+        + '&wo='   + encodeURIComponent(wo)
+        + '&pr='   + encodeURIComponent(req.id);
+      window.open(payUrl, '_blank');
+    } catch (e) {
+      alert('Error loading payment details: ' + e.message);
     }
   };
 
