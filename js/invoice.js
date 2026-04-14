@@ -357,7 +357,7 @@
             </div>
           </div>
           <div class="stamp-wrap">
-            <button class="note-btn" onclick="WPA_invoiceAddNote('${_esc(inv.id)}')">➕ Add Note <span class="num">· ${(inv.notes ? 1 : 0)}</span></button>
+            ${_viewMode === 'admin' ? `<button class="note-btn" onclick="WPA_invoiceAddNote('${_esc(inv.id)}')">➕ Add Note <span class="num">· ${(inv.notes ? 1 : 0)}</span></button>` : ''}
             <div class="total-card ${status.key === 'paid' ? 'paid' : ''}">
               <div class="tc-lbl">Total Due</div>
               <div class="tc-val">${_esc(MONEY(due))}</div>
@@ -368,14 +368,29 @@
         </div>
       </div>
 
+      ${_viewMode === 'client' ? `
+      <div class="act-bar">
+        <button class="wbtn" onclick="WPA_invoiceDownload('${_esc(inv.id)}')"><span>⬇</span> Download PDF</button>
+        <div class="spacer"></div>
+        ${status.key === 'paid' ? `
+          <span style="padding:9px 18px;color:#1f7a4d;font-weight:600;font-size:12px;">✓ Paid in full — thank you</span>
+        ` : status.key === 'void' ? `
+          <span style="padding:9px 18px;color:#8590a8;font-weight:600;font-size:12px;">This invoice has been voided</span>
+        ` : `
+          <button class="wbtn primary" style="font-size:13px;padding:11px 22px;" onclick="WPA_startPayment('${_esc(inv.id)}')">💳 Pay ${_esc(MONEY(due))}</button>
+        `}
+      </div>
+      ` : `
       <div class="act-bar">
         <button class="wbtn" onclick="WPA_invoiceDownload('${_esc(inv.id)}')"><span>⬇</span> Download PDF</button>
         <button class="wbtn primary" onclick="WPA_invoiceSendReminder('${_esc(inv.id)}')"><span>📧</span> Send Reminder</button>
         <button class="wbtn" onclick="WPA_invoiceRecordPayment('${_esc(inv.id)}')"><span>💳</span> Record Payment</button>
         <div class="spacer"></div>
+        <button class="wbtn ghost" title="See how the tenant sees this invoice" onclick="WPA_openInvoice('${_esc(inv.id)}',{mode:'client'})"><span>👁</span> Preview as Client</button>
         <button class="wbtn ghost" onclick="WPA_invoiceEdit('${_esc(inv.id)}')"><span>✏️</span> Edit</button>
         <button class="wbtn danger" onclick="WPA_invoiceDelete('${_esc(inv.id)}')"><span>🗑</span> Delete</button>
       </div>
+      `}
 
       <div class="strip">
         <div><div class="s-lbl">Subject</div><div class="s-val">${subjectText}</div></div>
@@ -391,7 +406,7 @@
             ${b.lines.map(l => _renderLineRow(l)).join('') || '<tr><td colspan="6" class="pay-empty">No line items yet</td></tr>'}
           </tbody>
         </table>
-        <button class="add-line" onclick="WPA_invoiceAddLine('${_esc(inv.id)}')">＋ Add Line Item</button>
+        ${_viewMode === 'admin' ? `<button class="add-line" onclick="WPA_invoiceAddLine('${_esc(inv.id)}')">＋ Add Line Item</button>` : ''}
       </div>
 
       <div class="sec">
@@ -399,10 +414,11 @@
         ${b.payments.length ? _renderPaymentsCard(b.payments) : '<div class="pay-card"><div class="pay-empty">No payments recorded yet.</div></div>'}
       </div>
 
+      ${_viewMode === 'admin' ? `
       <div class="sec">
         <div class="sec-hd"><div><h3>Invoice History</h3><div class="sec-sub">Audit trail — all actions on this invoice</div></div></div>
         <div class="tl">${_buildTimeline(b).map(r => _renderTimelineRow(r)).join('')}</div>
-      </div>
+      </div>` : ''}
 
       <div class="totals">
         <div class="totals-grid">
@@ -433,7 +449,7 @@
         <td class="num">${qty}</td>
         <td class="num">${_esc(MONEY(rate))}</td>
         <td class="num ${amtCls}">${_esc(MONEY(l.amount))}</td>
-        <td><div class="row-act"><button onclick="WPA_invoiceEditLine('${_esc(l.id)}')">✏️</button><button class="del" onclick="WPA_invoiceRemoveLine('${_esc(l.id)}')">✕</button></div></td>
+        <td>${_viewMode === 'admin' ? `<div class="row-act"><button onclick="WPA_invoiceEditLine('${_esc(l.id)}')">✏️</button><button class="del" onclick="WPA_invoiceRemoveLine('${_esc(l.id)}')">✕</button></div>` : ''}</td>
       </tr>`;
   }
 
@@ -441,7 +457,9 @@
     const rows = payments.map(p => {
       const methodIcon = p.method === 'ach' ? '🏦' : '💳';
       const methodLbl = p.method === 'ach' ? 'ACH' : 'Credit Card';
-      const stripeRef = p.stripe_payment_intent_id ? ' · <code style="font-size:10px;color:#4d5670">' + _esc(p.stripe_payment_intent_id) + '</code>' : '';
+      // Stripe ref = internal admin info only
+      const stripeRef = (_viewMode === 'admin' && p.stripe_payment_intent_id)
+        ? ' · <code style="font-size:10px;color:#4d5670">' + _esc(p.stripe_payment_intent_id) + '</code>' : '';
       const statusBadge = p.status !== 'succeeded' ? ` <span style="color:#b86818;font-size:10px;text-transform:uppercase;">(${_esc(p.status)})</span>` : '';
       return `<tr>
         <td><b>${_esc(p.payer_name || 'Tenant')}</b></td>
@@ -449,7 +467,7 @@
         <td>${_esc(p.paid_at ? FMT_DATE(p.paid_at) : '—')}${statusBadge}</td>
         <td><span class="method-pill">${methodIcon} ${methodLbl}${stripeRef}</span></td>
         <td class="num">${_esc(MONEY(p.amount))}</td>
-        <td><button class="wbtn ghost" style="padding:4px 10px;font-size:11px" onclick="WPA_invoiceRemovePayment('${_esc(p.id)}')">Remove</button></td>
+        <td>${_viewMode === 'admin' ? `<button class="wbtn ghost" style="padding:4px 10px;font-size:11px" onclick="WPA_invoiceRemovePayment('${_esc(p.id)}')">Remove</button>` : ''}</td>
       </tr>`;
     }).join('');
     const total = payments.filter(p => p.status === 'succeeded').reduce((s, p) => s + Number(p.amount), 0);
@@ -501,7 +519,15 @@
     document.body.style.overflow = '';
   };
 
-  window.WPA_openInvoice = async function (invoiceId) {
+  // Module-level view mode — 'admin' (default, full controls + history + bank)
+  // or 'client' (resident portal: read-only invoice + Pay button).
+  let _viewMode = 'admin';
+  let _viewInvoiceId = null;
+
+  window.WPA_openInvoice = async function (invoiceId, opts) {
+    opts = opts || {};
+    _viewMode = (opts.mode === 'client') ? 'client' : 'admin';
+    _viewInvoiceId = invoiceId;
     _openOverlay('<div class="loading">Loading invoice…</div>');
     try {
       const bundle = await _loadInvoiceBundle(invoiceId);
@@ -571,8 +597,35 @@
     if (ovr && sticky) ovr.addEventListener('scroll', () => sticky.classList.toggle('on', ovr.scrollTop > 240));
   };
 
+  // ─── Send Reminder (real) ───────────────────────────────────
+  window.WPA_invoiceSendReminder = async function (id) {
+    if (!id) return;
+    if (!confirm('Send rent-invoice email to the tenant on file?')) return;
+    const endpoint = (window.WPA_PORTAL_URL || 'https://app.willowpa.com/portal')
+                   + '/api/send-rent-invoice.php';
+    try {
+      const r = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'invoice_id=' + encodeURIComponent(id)
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok) {
+        alert('Could not send: ' + (j.error || r.statusText || 'unknown error'));
+        return;
+      }
+      alert('Sent to ' + j.to);
+      // Refresh the open invoice to pick up the new reminders_log row
+      if (typeof WPA_openInvoice === 'function' && document.getElementById('wpaInvOverlay')) {
+        WPA_openInvoice(id);
+      }
+    } catch (e) {
+      alert('Send failed: ' + e.message);
+    }
+  };
+
   // ─── Action stubs (wired in later phases) ───────────────────
-  ['AddNote','Download','SendReminder','RecordPayment','Edit','Delete','AddLine','EditLine','RemoveLine','RemovePayment'].forEach(fn => {
+  ['AddNote','Download','RecordPayment','Edit','Delete','AddLine','EditLine','RemoveLine','RemovePayment'].forEach(fn => {
     const name = 'WPA_invoice' + fn;
     if (!window[name]) window[name] = function (id) {
       alert(fn + ' → ' + (id || '') + '\n\nThis action is wired in Phase 2 of the Rent module.');
@@ -1075,6 +1128,286 @@
       }
     }
     return res;
+  };
+
+  /* ════════════════════════════════════════════════════════════
+     PAYMENT FLOW — 3 steps: method → amount → autopay
+     Client-side only for now; actual Stripe charge is Phase 2.
+     Rules:
+       • Credit card adds 3.5% processing fee (shown in step 2)
+       • Bank/ACH is free
+       • Partial payments allowed
+       • Autopay capped at 12 scheduled OR lease-end, whichever sooner
+     ──────────────────────────────────────────────────────────── */
+
+  const PAY_CSS = `
+  .wpa-pay-ovr{position:fixed;inset:0;background:rgba(20,23,42,.65);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;animation:wpaInvFade .15s ease}
+  .wpa-pay{background:#fff;border-radius:14px;width:100%;max-width:540px;box-shadow:0 24px 64px rgba(26,42,122,.24);font-family:'DM Mono',monospace;color:#14172a;overflow:hidden}
+  .wpa-pay-hd{padding:22px 28px 14px;border-bottom:1px solid #eef1f7;display:flex;align-items:center;justify-content:space-between}
+  .wpa-pay-hd h2{font-family:'Playfair Display',serif;margin:0;font-size:22px;font-weight:800}
+  .wpa-pay-hd .close{width:32px;height:32px;border-radius:50%;border:1px solid #d4dae6;background:#fff;cursor:pointer;font-size:16px;color:#4d5670}
+  .wpa-pay-steps{display:flex;gap:8px;padding:14px 28px;background:#f5f7fb;border-bottom:1px solid #eef1f7;font-size:11px}
+  .wpa-pay-steps .step{flex:1;padding:8px 10px;border-radius:6px;background:#fff;border:1px solid #d4dae6;color:#8590a8;text-align:center;font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+  .wpa-pay-steps .step.on{background:#14172a;color:#fff;border-color:#14172a}
+  .wpa-pay-steps .step.done{background:#eaf6f0;color:#1f7a4d;border-color:#9ed2b8}
+  .wpa-pay-body{padding:24px 28px;min-height:220px}
+  .wpa-pay-body h3{margin:0 0 6px;font-size:15px;font-weight:700}
+  .wpa-pay-body .sub{color:#4d5670;font-size:12px;margin-bottom:18px}
+  .wpa-pay-method{display:grid;gap:10px}
+  .wpa-pay-method label{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid #d4dae6;border-radius:10px;cursor:pointer;transition:all .1s}
+  .wpa-pay-method label:hover{border-color:#3651b5;background:#f5f7fb}
+  .wpa-pay-method input{margin:0}
+  .wpa-pay-method label.sel{border-color:#3651b5;background:#eef1fb}
+  .wpa-pay-method .m-icon{font-size:22px}
+  .wpa-pay-method .m-name{font-weight:700;font-size:13px}
+  .wpa-pay-method .m-sub{font-size:11px;color:#4d5670;margin-top:2px}
+  .wpa-pay-method .m-fee{margin-left:auto;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px}
+  .wpa-pay-method .m-fee.free{background:#eaf6f0;color:#1f7a4d}
+  .wpa-pay-method .m-fee.paid{background:#fdf3e8;color:#b86818}
+  .wpa-pay-amt{display:flex;align-items:center;gap:12px;padding:14px;background:#f5f7fb;border-radius:10px;margin-bottom:14px}
+  .wpa-pay-amt input{flex:1;font-family:'Playfair Display',serif;font-size:26px;font-weight:800;border:1.5px solid #d4dae6;border-radius:8px;padding:10px 14px;background:#fff;color:#14172a}
+  .wpa-pay-amt input:focus{outline:none;border-color:#3651b5}
+  .wpa-pay-presets{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .wpa-pay-presets button{padding:6px 12px;border:1px solid #d4dae6;background:#fff;border-radius:16px;cursor:pointer;font-size:11px;font-weight:600}
+  .wpa-pay-presets button:hover{border-color:#3651b5;color:#3651b5}
+  .wpa-pay-summary{padding:12px 14px;background:#eef1fb;border-radius:8px;font-size:12px}
+  .wpa-pay-summary .row{display:flex;justify-content:space-between;padding:3px 0}
+  .wpa-pay-summary .row.total{border-top:1px solid #c4cdeb;margin-top:6px;padding-top:8px;font-weight:800;font-size:14px}
+  .wpa-pay-auto{margin-top:14px;padding:14px;border:1px dashed #c4cdeb;border-radius:10px;background:#fafbfe}
+  .wpa-pay-auto label.toggle{display:flex;align-items:center;gap:10px;font-weight:700;cursor:pointer}
+  .wpa-pay-auto .auto-body{margin-top:12px;padding-top:12px;border-top:1px solid #eef1f7;font-size:12px;color:#4d5670;display:none}
+  .wpa-pay-auto.on .auto-body{display:block}
+  .wpa-pay-auto .auto-row{display:flex;justify-content:space-between;padding:3px 0}
+  .wpa-pay-foot{padding:16px 28px;border-top:1px solid #eef1f7;display:flex;gap:10px;justify-content:flex-end;background:#fafbfe}
+  .wpa-pay-foot .back{background:transparent;border:1px solid #d4dae6;color:#4d5670;padding:9px 18px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px}
+  .wpa-pay-foot .next{background:#3651b5;color:#fff;border:0;padding:10px 22px;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700}
+  .wpa-pay-foot .next:disabled{background:#b9c3d5;cursor:not-allowed}
+  `;
+
+  function _injectPayCSS() {
+    if (document.getElementById('wpaPayCSS')) return;
+    const s = document.createElement('style');
+    s.id = 'wpaPayCSS'; s.textContent = PAY_CSS;
+    document.head.appendChild(s);
+  }
+
+  const CC_FEE_PCT = 0.035;
+  let _payState = null;
+
+  window.WPA_startPayment = async function (invoiceId) {
+    _injectPayCSS();
+    try {
+      const bundle = await _loadInvoiceBundle(invoiceId);
+      const inv = bundle.invoice;
+      const remaining = Math.max(0, Number(inv.total||0) - Number(inv.paid||0));
+      if (remaining <= 0) { alert('This invoice has no remaining balance.'); return; }
+      // Lookup lease end + autopay context from tenants_lt for cap calculation
+      let leaseEnd = null, leaseType = 'lt';
+      if (inv.tenant_id) {
+        try {
+          const t = await _sb('tenants_lt?id=eq.' + inv.tenant_id + '&select=lease_end,lease_type');
+          if (t && t[0]) { leaseEnd = t[0].lease_end || null; leaseType = t[0].lease_type || 'lt'; }
+        } catch (e) { /* ignore */ }
+      }
+      _payState = {
+        step: 1,
+        invoice: inv,
+        bundle,
+        remaining,
+        method: null,        // 'ach' | 'card'
+        amount: remaining,   // default: pay in full
+        autopay: false,
+        autopayCap: null,    // { count, reason }
+        leaseEnd,
+        leaseType
+      };
+      _renderPay();
+    } catch (e) {
+      alert('Failed to load invoice: ' + e.message);
+    }
+  };
+
+  window.WPA_closePayment = function () {
+    const ovr = document.getElementById('wpaPayOverlay');
+    if (ovr) ovr.remove();
+    _payState = null;
+  };
+
+  function _autopayCap(state) {
+    // Cap = min(12, months remaining to lease end from today). MTM = 12.
+    if (!state.leaseEnd || state.leaseType === 'mtm') return { count: 12, reason: '12-payment cap' };
+    const today = new Date(); today.setHours(0,0,0,0);
+    const end = new Date(state.leaseEnd + 'T12:00:00');
+    let months = (end.getFullYear() - today.getFullYear()) * 12 + (end.getMonth() - today.getMonth());
+    if (end.getDate() >= today.getDate()) months += 0;
+    months = Math.max(0, months);
+    if (months < 12) return { count: months, reason: 'lease ends ' + state.leaseEnd };
+    return { count: 12, reason: '12-payment cap' };
+  }
+
+  function _renderPay() {
+    const s = _payState;
+    if (!s) return;
+    const stepLabels = ['Method', 'Amount', 'Autopay'];
+    const stepsHtml = stepLabels.map((lbl, i) => {
+      const n = i + 1;
+      const cls = s.step === n ? 'on' : (s.step > n ? 'done' : '');
+      return `<div class="step ${cls}">${n}. ${lbl}</div>`;
+    }).join('');
+
+    let body = '';
+    if (s.step === 1) body = _payRenderMethod(s);
+    else if (s.step === 2) body = _payRenderAmount(s);
+    else if (s.step === 3) body = _payRenderAutopay(s);
+    else body = _payRenderConfirm(s);
+
+    const canNext =
+      (s.step === 1) ? !!s.method :
+      (s.step === 2) ? (s.amount > 0 && s.amount <= s.remaining) :
+      true;
+
+    const nextLabel = s.step === 3 ? 'Confirm Payment' : 'Continue';
+
+    const html = `
+      <div class="wpa-pay-ovr" id="wpaPayOverlay" onclick="if(event.target===this)WPA_closePayment()">
+        <div class="wpa-pay">
+          <div class="wpa-pay-hd">
+            <h2>Pay Invoice</h2>
+            <button class="close" onclick="WPA_closePayment()">✕</button>
+          </div>
+          <div class="wpa-pay-steps">${stepsHtml}</div>
+          <div class="wpa-pay-body">${body}</div>
+          <div class="wpa-pay-foot">
+            ${s.step > 1 ? `<button class="back" onclick="WPA_payBack()">Back</button>` : ''}
+            <button class="next" ${canNext?'':'disabled'} onclick="WPA_payNext()">${nextLabel}</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const ex = document.getElementById('wpaPayOverlay');
+    if (ex) ex.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  function _payRenderMethod(s) {
+    return `
+      <h3>How would you like to pay?</h3>
+      <div class="sub">Remaining balance: <b>${_esc(MONEY(s.remaining))}</b></div>
+      <div class="wpa-pay-method">
+        <label class="${s.method==='ach'?'sel':''}" onclick="WPA_paySetMethod('ach')">
+          <input type="radio" name="pm" ${s.method==='ach'?'checked':''}>
+          <span class="m-icon">🏦</span>
+          <div><div class="m-name">Bank Account (ACH)</div><div class="m-sub">Takes 2–5 business days</div></div>
+          <span class="m-fee free">FREE</span>
+        </label>
+        <label class="${s.method==='card'?'sel':''}" onclick="WPA_paySetMethod('card')">
+          <input type="radio" name="pm" ${s.method==='card'?'checked':''}>
+          <span class="m-icon">💳</span>
+          <div><div class="m-name">Credit / Debit Card</div><div class="m-sub">Instant · processing fee applies</div></div>
+          <span class="m-fee paid">+3.5%</span>
+        </label>
+      </div>
+    `;
+  }
+
+  function _payRenderAmount(s) {
+    const fee = s.method === 'card' ? s.amount * CC_FEE_PCT : 0;
+    const total = s.amount + fee;
+    const presets = [
+      { lbl: 'Full balance', val: s.remaining },
+      { lbl: 'Half', val: Math.round(s.remaining/2) },
+      { lbl: '$100', val: Math.min(100, s.remaining) }
+    ];
+    return `
+      <h3>How much would you like to pay?</h3>
+      <div class="sub">You can pay the full amount or make a partial payment.</div>
+      <div class="wpa-pay-amt">
+        <span style="font-family:'Playfair Display',serif;font-size:26px;font-weight:800">$</span>
+        <input type="number" min="1" max="${s.remaining}" step="0.01" value="${s.amount}" id="wpaPayAmtInput" oninput="WPA_paySetAmount(this.value)">
+      </div>
+      <div class="wpa-pay-presets">
+        ${presets.map(p => `<button onclick="WPA_paySetAmount(${p.val})">${_esc(p.lbl)} — ${_esc(MONEY(p.val))}</button>`).join('')}
+      </div>
+      <div class="wpa-pay-summary">
+        <div class="row"><span>Payment amount</span><span>${_esc(MONEY(s.amount))}</span></div>
+        ${fee > 0 ? `<div class="row"><span>Card processing (3.5%)</span><span>${_esc(MONEY(fee))}</span></div>` : ''}
+        <div class="row total"><span>You'll be charged</span><span>${_esc(MONEY(total))}</span></div>
+      </div>
+      ${s.amount < s.remaining ? `<div class="sub" style="margin-top:10px;color:#b86818">⚠ Partial payment — ${_esc(MONEY(s.remaining - s.amount))} will remain on this invoice.</div>` : ''}
+    `;
+  }
+
+  function _payRenderAutopay(s) {
+    const cap = _autopayCap(s);
+    s.autopayCap = cap;
+    return `
+      <h3>Set up autopay? (optional)</h3>
+      <div class="sub">Automatically pay future monthly invoices using the same method.</div>
+      <div class="wpa-pay-auto ${s.autopay?'on':''}" id="wpaPayAuto">
+        <label class="toggle">
+          <input type="checkbox" ${s.autopay?'checked':''} onchange="WPA_payToggleAutopay(this.checked)">
+          Enable autopay for this lease
+        </label>
+        <div class="auto-body">
+          <div class="auto-row"><span>Scheduled payments</span><b>${cap.count}</b></div>
+          <div class="auto-row"><span>Cap reason</span><span>${_esc(cap.reason)}</span></div>
+          <div class="auto-row"><span>Method</span><b>${s.method==='card'?'Credit Card (3.5% fee)':'ACH (free)'}</b></div>
+          <div class="auto-row"><span>Stops</span><span>${s.leaseType==='mtm'?'You can cancel anytime':'At lease end or after 12 payments'}</span></div>
+        </div>
+      </div>
+      <div class="sub" style="margin-top:10px">You'll still be charged ${_esc(MONEY(s.amount + (s.method==='card'?s.amount*CC_FEE_PCT:0)))} for this invoice now.</div>
+    `;
+  }
+
+  window.WPA_paySetMethod = function (m) { if (!_payState) return; _payState.method = m; _renderPay(); };
+  window.WPA_paySetAmount = function (v) {
+    if (!_payState) return;
+    let n = Number(v) || 0;
+    if (n < 0) n = 0;
+    if (n > _payState.remaining) n = _payState.remaining;
+    _payState.amount = n;
+    // Update only the summary + presets; re-render for simplicity
+    _renderPay();
+    // Preserve focus on input
+    const el = document.getElementById('wpaPayAmtInput');
+    if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+  };
+  window.WPA_payToggleAutopay = function (on) { if (!_payState) return; _payState.autopay = !!on; _renderPay(); };
+  window.WPA_payBack = function () { if (!_payState) return; _payState.step = Math.max(1, _payState.step - 1); _renderPay(); };
+  window.WPA_payNext = function () {
+    if (!_payState) return;
+    if (_payState.step < 3) { _payState.step += 1; _renderPay(); return; }
+    // Step 3 → confirm + fake charge (Phase 2 will hit Stripe)
+    WPA_payConfirm();
+  };
+
+  window.WPA_payConfirm = async function () {
+    const s = _payState;
+    if (!s) return;
+    const fee = s.method === 'card' ? s.amount * CC_FEE_PCT : 0;
+    const charged = s.amount + fee;
+    // Demo insert into payments table (NOT a real charge)
+    try {
+      const payload = {
+        invoice_id: s.invoice.id,
+        amount: s.amount,
+        method: s.method,
+        status: 'pending',   // will flip to 'succeeded' once Stripe integration lands
+        paid_at: new Date().toISOString(),
+        payer_name: (s.bundle && s.bundle.tenant && s.bundle.tenant.name) || 'Tenant'
+      };
+      await _sbInsert('payments', payload);
+      alert('Payment recorded (demo)\n\nMethod: ' + (s.method === 'card' ? 'Credit Card' : 'Bank/ACH') +
+            '\nCharged: ' + MONEY(charged) +
+            (fee ? '\n(includes ' + MONEY(fee) + ' processing fee)' : '') +
+            (s.autopay ? '\n\nAutopay enabled for ' + s.autopayCap.count + ' future payments (' + s.autopayCap.reason + ').' : '') +
+            '\n\nNote: Real Stripe charge comes in Phase 2.');
+      WPA_closePayment();
+      // Reload the invoice to show the new payment row
+      if (_viewInvoiceId) WPA_openInvoice(_viewInvoiceId, { mode: _viewMode });
+    } catch (e) {
+      alert('Failed to record payment: ' + e.message);
+    }
   };
 
 })();
