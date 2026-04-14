@@ -3214,6 +3214,30 @@ function filterTenantList() {
   }).join('');
 }
 
+/* ── Shared lease rent rule ───────────────────────────────────
+   When a lease has multiple tenants, each tenant should display
+   the FULL lease rent (not their per-person split). The ledger is
+   shared — one payment reduces the balance for all lease tenants.
+   ────────────────────────────────────────────────────────────── */
+function _getFullLeaseRent(tenant, lease) {
+  if (!tenant) return 0;
+  // Try to find the canonical rent from INNAGO_RENT (has `amount` at lease level)
+  if (lease) {
+    const rentRec = INNAGO_RENT.find(r =>
+      r.property === lease.property && r.unit === lease.unit
+    );
+    if (rentRec && rentRec.amount) return rentRec.amount;
+  }
+  // Fallback: sum all tenants sharing same property+unit
+  const roommates = INNAGO_TENANTS.filter(x =>
+    x.property === tenant.property && x.unitNum === tenant.unitNum
+  );
+  if (roommates.length > 1) {
+    return roommates.reduce((s, x) => s + (x.rent || 0), 0);
+  }
+  return tenant.rent || 0;
+}
+
 function openTenantDetail(idx) {
   const t = INNAGO_TENANTS[idx];
   if (!t) return;
@@ -3247,17 +3271,20 @@ function openTenantDetail(idx) {
   document.getElementById('tntNoteCount').textContent = notes.length;
 
   // Current Lease info
+  // Shared-lease rule: if multiple tenants on same lease, EVERY tenant shows the FULL rent
+  // (the ledger is shared — a payment by one reduces the balance for both).
   const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
+  const fullRent = _getFullLeaseRent(t, lease);
   if (lease) {
     document.getElementById('tntLeaseProp').textContent = lease.property + ' | ' + lease.unit;
-    document.getElementById('tntLeaseRent').textContent = '$' + t.rent.toLocaleString() + '.00';
-    document.getElementById('tntLeaseRentOf').textContent = 'of $' + t.rent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseRent').textContent = '$' + fullRent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseRentOf').textContent = 'of $' + fullRent.toLocaleString() + '.00';
     document.getElementById('tntLeaseStart').textContent = lease.start;
     document.getElementById('tntLeaseEnd').textContent = lease.end === 'M to M' ? 'M to M' : lease.end;
   } else {
     document.getElementById('tntLeaseProp').textContent = t.property + ' | ' + t.unitNum;
-    document.getElementById('tntLeaseRent').textContent = '$' + t.rent.toLocaleString() + '.00';
-    document.getElementById('tntLeaseRentOf').textContent = 'of $' + t.rent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseRent').textContent = '$' + fullRent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseRentOf').textContent = 'of $' + fullRent.toLocaleString() + '.00';
     document.getElementById('tntLeaseStart').textContent = '—';
     document.getElementById('tntLeaseEnd').textContent = '—';
   }
@@ -3461,14 +3488,15 @@ function tenantAction(action) {
     case 'resendVerification': alert(`Verification link would be resent to ${t.email || '(no email on file)'}`); break;
     case 'requestInsurance': alert(`Renter's insurance request would be sent to ${t.name}`); break;
     case 'viewInvoices': {
-      // Open universal invoice modal. Once Supabase invoices exist, pass real invoiceId.
-      // For now, open preview seeded with this tenant's name/rent/property.
+      // Open universal invoice modal. Uses FULL lease rent (shared-lease rule).
+      const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
+      const fullRent = _getFullLeaseRent(t, lease);
       if (typeof WPA_openInvoicePreview === 'function') {
         WPA_openInvoicePreview('rent', {
           tenantName: t.name,
           property: t.property,
           unit: t.unitNum,
-          rent: t.rent
+          rent: fullRent
         });
       } else {
         alert('Invoice module not loaded.');
@@ -3477,14 +3505,16 @@ function tenantAction(action) {
     }
     case 'viewAllInvoices': {
       // Open the invoices list page (Innago-style) with hover summary popover.
+      // Uses FULL lease rent (shared-lease rule).
       const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
       const leaseType = (lease && lease.end === 'M to M') ? 'mtm' : 'lt';
+      const fullRent = _getFullLeaseRent(t, lease);
       if (typeof WPA_openInvoiceList === 'function') {
         WPA_openInvoiceList({
           tenantName: t.name,
           property: t.property,
           unit: t.unitNum,
-          rent: t.rent,
+          rent: fullRent,
           leaseType: leaseType,
           leaseStart: lease ? lease.start : null,
           leaseEnd: lease && lease.end !== 'M to M' ? lease.end : null
