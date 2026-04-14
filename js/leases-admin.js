@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════
 //  LEASE ADMIN — Addendum Library + Lease Template editor
-//  v2026-04-14 1800 — Quill WYSIWYG + style-block preservation + iframe preview
+//  v2026-04-14 1820 — editor & preview share the template's own <style> block
 // ══════════════════════════════════════════════════════
 
 const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
@@ -193,12 +193,39 @@ function getEditorHtml() {
   return wrapChrome(_quill.root.innerHTML);
 }
 
-// Accepts full body_html, splits off chrome, shows inner in Quill
+// Accepts full body_html, splits off chrome, shows inner in Quill, and injects
+// the template's <style> block into the admin page so the editor LOOKS like the preview.
 function setEditorHtml(html) {
   const split = splitChrome(html || '');
   _chrome = { styleHtml: split.styleHtml, wrapOpen: split.wrapOpen, wrapClose: split.wrapClose };
   _quill.clipboard.dangerouslyPasteHTML(split.inner);
   document.getElementById('tplBody').value = html || '';
+  applyTemplateStylesToEditor();
+}
+
+// Inject the template's own <style> into the admin head and tag the Quill
+// editor root with the wrapper class so scoped rules (e.g. .wpa-lease h2) apply.
+function applyTemplateStylesToEditor() {
+  const styleEl = document.getElementById('tplInlineStyles');
+  if (styleEl) {
+    // Extract just the CSS text from <style>…</style> blocks (strip the tags)
+    const css = (_chrome.styleHtml || '').replace(/<\/?style[^>]*>/gi, '');
+    styleEl.textContent = css;
+  }
+  // Derive the wrapper's class name and add it to the Quill editor root so scoped CSS matches
+  const editorRoot = document.querySelector('#tplEditor .ql-editor');
+  if (editorRoot) {
+    // Clear any previously added wrapper classes
+    editorRoot.classList.forEach(c => {
+      if (c !== 'ql-editor' && c !== 'ql-blank') editorRoot.classList.remove(c);
+    });
+    const m = (_chrome.wrapOpen || '').match(/class="([^"]+)"/i);
+    if (m && m[1]) {
+      m[1].split(/\s+/).forEach(cls => cls && editorRoot.classList.add(cls));
+    } else {
+      editorRoot.classList.add('wpa-lease'); // fallback
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════
