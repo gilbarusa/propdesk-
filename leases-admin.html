@@ -6,6 +6,9 @@
 <title>Willow — Lease Admin | v2026-04-14 1700</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<!-- Quill rich-text editor -->
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <style>
 :root {
   --accent: #3651b5;
@@ -201,6 +204,25 @@ body {
   line-height: 1.5;
   resize: vertical;
 }
+/* Rich-text editor */
+#tplEditor { min-height: 520px; background: #fff; font-size: 13px; }
+.ql-toolbar { border-radius: 6px 6px 0 0; }
+.ql-container { border-radius: 0 0 6px 6px; min-height: 520px; }
+.ql-editor { min-height: 520px; font-family: Georgia, 'Times New Roman', serif; }
+.ql-editor h1 { font-size: 20px; }
+.ql-editor h2 { font-size: 16px; color: #3651b5; border-bottom: 2px solid #3651b5; padding-bottom: 2px; }
+.ql-editor h3 { font-size: 14px; color: #2a3f8f; text-transform: uppercase; letter-spacing: 0.5px; }
+.ql-editor h4 { font-size: 13px; }
+.mode-toggle { display: flex; gap: 4px; }
+.mode-toggle button {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 11px;
+  border-radius: 4px;
+}
+.mode-toggle button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .form-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -382,16 +404,19 @@ body {
 
   <div class="card">
     <div class="card-hdr">
-      <div class="card-title">Template body (HTML)</div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-sm" onclick="previewTemplate()">👁 Preview with sample data</button>
+      <div class="card-title">Template body</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="mode-toggle">
+          <button id="modeRich" class="active" onclick="setMode('rich')">Visual</button>
+          <button id="modeHtml" onclick="setMode('html')">HTML source</button>
+        </div>
+        <button class="btn btn-sm" onclick="previewTemplate()">👁 Preview</button>
         <button class="btn btn-danger btn-sm" onclick="deleteTemplate()">Delete</button>
         <button class="btn btn-primary btn-sm" onclick="saveTemplate()">Save template</button>
       </div>
     </div>
-    <div class="form-row">
-      <textarea id="tplBody" placeholder="<h1>Lease Agreement</h1>..."></textarea>
-    </div>
+    <div id="tplEditor"></div>
+    <textarea id="tplBody" style="display:none;min-height:520px;"></textarea>
   </div>
 </div>
 
