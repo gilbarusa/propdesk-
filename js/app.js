@@ -3476,17 +3476,21 @@ function tenantAction(action) {
       break;
     }
     case 'viewAllInvoices': {
-      // TODO: open per-tenant invoices list page with hover summaries (Innago-style).
-      // For now, open the same preview modal.
-      if (typeof WPA_openInvoicePreview === 'function') {
-        WPA_openInvoicePreview('rent', {
+      // Open the invoices list page (Innago-style) with hover summary popover.
+      const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
+      const leaseType = (lease && lease.end === 'M to M') ? 'mtm' : 'lt';
+      if (typeof WPA_openInvoiceList === 'function') {
+        WPA_openInvoiceList({
           tenantName: t.name,
           property: t.property,
           unit: t.unitNum,
-          rent: t.rent
+          rent: t.rent,
+          leaseType: leaseType,
+          leaseStart: lease ? lease.start : null,
+          leaseEnd: lease && lease.end !== 'M to M' ? lease.end : null
         });
       } else {
-        alert(`Invoice list for ${t.name} coming soon.`);
+        alert(`Invoice list module not loaded.`);
       }
       break;
     }

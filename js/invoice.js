@@ -581,7 +581,291 @@
 
   // ─── Press Esc to close ─────────────────────────────────────
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.getElementById('wpaInvOverlay')) WPA_closeInvoice();
+    if (e.key === 'Escape') {
+      if (document.getElementById('wpaInvListOverlay')) WPA_closeInvoiceList();
+      else if (document.getElementById('wpaInvOverlay')) WPA_closeInvoice();
+    }
   });
+
+  /* ════════════════════════════════════════════════════════════
+     INVOICE LIST — Innago-style table with hover summary popover
+     ──────────────────────────────────────────────────────────── */
+
+  const LIST_CSS = `
+  .wpa-il-ovr{position:fixed;inset:0;background:rgba(20,23,42,.55);z-index:9000;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;animation:wpaInvFade .15s ease}
+  .wpa-il{position:relative;max-width:1180px;width:100%;background:#fff;border-radius:12px;box-shadow:0 16px 48px rgba(26,42,122,.14);border:1px solid #d4dae6;overflow:hidden;font-family:'DM Mono',monospace;font-size:13px;color:#14172a}
+  .wpa-il-close{position:absolute;top:14px;right:14px;z-index:10;width:34px;height:34px;border-radius:50%;border:1px solid #d4dae6;background:#fff;cursor:pointer;font-size:16px;color:#4d5670;display:flex;align-items:center;justify-content:center}
+  .wpa-il-close:hover{background:#f5f7fb}
+  .wpa-il-head{background:linear-gradient(135deg,#eef1fb 0%,#dfe6f6 100%);border-bottom:1px solid #c4cdeb;padding:28px 40px 22px}
+  .wpa-il-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:800;color:#14172a;margin:0}
+  .wpa-il-sub{color:#4d5670;font-size:12px;margin-top:6px;letter-spacing:.3px}
+  .wpa-il-kpis{display:flex;gap:28px;margin-top:18px}
+  .wpa-il-kpi{flex:0 0 auto}
+  .wpa-il-kpi .k-lbl{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:#4d5670;margin-bottom:4px}
+  .wpa-il-kpi .k-val{font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:#14172a}
+  .wpa-il-kpi .k-val.overdue{color:#b83228}
+  .wpa-il-filters{display:flex;gap:8px;padding:14px 40px;border-bottom:1px solid #d4dae6;background:#f5f7fb;flex-wrap:wrap}
+  .wpa-il-chip{background:#fff;border:1px solid #d4dae6;border-radius:16px;padding:5px 14px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;color:#4d5670;transition:all .1s}
+  .wpa-il-chip:hover{border-color:#3651b5;color:#3651b5}
+  .wpa-il-chip.on{background:#14172a;border-color:#14172a;color:#fff}
+  .wpa-il-table{width:100%;border-collapse:collapse;font-size:12px}
+  .wpa-il-table thead th{background:#dfe6f6;color:#14172a;font-size:10px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;padding:11px 18px;text-align:left;border-bottom:1px solid #c4cdeb;position:sticky;top:0}
+  .wpa-il-table thead th.num{text-align:right}
+  .wpa-il-table tbody tr{border-bottom:1px solid #eef1f7;cursor:pointer;transition:background .1s}
+  .wpa-il-table tbody tr:hover{background:#eef1fb}
+  .wpa-il-table tbody td{padding:13px 18px;vertical-align:middle}
+  .wpa-il-table tbody td.num{text-align:right;font-family:'Playfair Display',serif;font-weight:700;font-size:14px}
+  .wpa-il-table tbody td.num.red{color:#b83228}
+  .wpa-il-table tbody td.inv-num{font-weight:700;color:#3651b5;font-size:12.5px}
+  .wpa-il-table tbody td.subj{color:#14172a}
+  .wpa-il-pill{display:inline-block;padding:3px 10px;border-radius:10px;font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;border:1px solid currentColor}
+  .wpa-il-pill.paid{color:#1f7a4d;background:#eaf6f0;border-color:#9ed2b8}
+  .wpa-il-pill.open,.wpa-il-pill.upcoming{color:#b86818;background:#fdf3e8;border-color:#eecfa0}
+  .wpa-il-pill.late,.wpa-il-pill.overdue{color:#b83228;background:#fdf1f0;border-color:#eebfba}
+  .wpa-il-pill.partial{color:#3651b5;background:#eef1fb;border-color:#c4cdeb}
+  .wpa-il-pill.void{color:#8590a8;background:#f5f7fb;border-color:#d4dae6}
+  .wpa-il-empty{padding:50px 20px;text-align:center;color:#8590a8;font-style:italic}
+  /* hover popover */
+  .wpa-il-pop{position:fixed;z-index:9200;background:#fff;border:1px solid #c4cdeb;border-radius:10px;box-shadow:0 8px 24px rgba(20,23,42,.18);padding:14px 16px;min-width:260px;font-size:11.5px;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity .12s}
+  .wpa-il-pop.on{opacity:1;transform:translateY(0)}
+  .wpa-il-pop .p-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:800;color:#14172a;margin-bottom:10px;border-bottom:1px solid #eef1f7;padding-bottom:8px}
+  .wpa-il-pop .p-row{display:flex;justify-content:space-between;gap:12px;padding:3px 0;color:#4d5670}
+  .wpa-il-pop .p-row b{color:#14172a;font-weight:700}
+  .wpa-il-pop .p-edit{margin-top:10px;padding-top:8px;border-top:1px solid #eef1f7;color:#3651b5;font-size:11px;font-weight:600}
+  `;
+
+  function _injectListCSS() {
+    if (document.getElementById('wpaInvListCSS')) return;
+    const s = document.createElement('style');
+    s.id = 'wpaInvListCSS';
+    s.textContent = LIST_CSS;
+    document.head.appendChild(s);
+  }
+
+  // ── Mock invoice series generator (LT: full range, MTM: all past + next) ──
+  function _genSeries(ctx) {
+    // ctx: {tenantName, property, unit, rent, leaseStart, leaseEnd, leaseType}
+    const rent = Number(ctx.rent) || 2000;
+    const leaseType = (ctx.leaseType || 'lt').toLowerCase();
+    const now = new Date();
+    now.setHours(0,0,0,0);
+
+    // parse or default
+    const start = ctx.leaseStart ? new Date(ctx.leaseStart) : new Date(now.getFullYear(), now.getMonth() - 6, 1);
+    const end = (leaseType === 'mtm') ? null : (ctx.leaseEnd ? new Date(ctx.leaseEnd) : new Date(now.getFullYear() + 1, now.getMonth(), 1));
+
+    const rows = [];
+    const cur = new Date(start.getFullYear(), start.getMonth(), 1);
+
+    // stop condition
+    function done(d) {
+      if (leaseType === 'mtm') {
+        // keep through next month
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        return d.getTime() > nextMonth.getTime();
+      }
+      return end && d.getTime() > end.getTime();
+    }
+
+    let i = 0;
+    while (!done(cur)) {
+      const dueDate = new Date(cur.getFullYear(), cur.getMonth(), 1);
+      const isPast = dueDate.getTime() < now.getTime();
+      const isFarFuture = dueDate.getTime() > new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+      const daysLate = Math.floor((now.getTime() - dueDate.getTime()) / 86400000);
+
+      let status, paid;
+      if (isFarFuture) {
+        status = 'upcoming'; paid = 0;
+      } else if (isPast && daysLate > 30) {
+        status = 'paid'; paid = rent; // assume old ones paid
+      } else if (isPast && daysLate > 5) {
+        // recently late — random partial/paid/late
+        const roll = (i * 7) % 10;
+        if (roll < 6) { status = 'paid'; paid = rent; }
+        else if (roll < 8) { status = 'partial'; paid = Math.round(rent * 0.4); }
+        else { status = 'late'; paid = 0; }
+      } else if (isPast) {
+        status = 'paid'; paid = rent;
+      } else {
+        status = 'open'; paid = 0;
+      }
+
+      const total = rent;
+      rows.push({
+        id: 'mock-' + i + '-' + dueDate.getTime(),
+        number: 'WPA-' + String(10000 + (dueDate.getFullYear() * 100) + dueDate.getMonth()),
+        subject: 'Rent — ' + dueDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        property: ctx.property || '—',
+        unit: ctx.unit || '',
+        due_date: dueDate.toISOString().slice(0, 10),
+        total: total,
+        paid: paid,
+        remaining: total - paid,
+        status: status,
+        daysLate: isPast ? daysLate : 0,
+        reminders_sent: status === 'late' ? 2 : status === 'partial' ? 1 : 0,
+        bank_account: 'ERA Holding, LLC',
+        payment_method: paid > 0 ? (i % 2 === 0 ? 'ACH' : 'Credit Card') : null
+      });
+      cur.setMonth(cur.getMonth() + 1);
+      i++;
+      if (i > 60) break; // safety
+    }
+
+    // newest first
+    rows.sort((a, b) => b.due_date.localeCompare(a.due_date));
+    return rows;
+  }
+
+  const _fmt$ = n => (n < 0 ? '−$' : '$') + Math.abs(Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const _fmtDate = s => { try { return new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch (e) { return s; } };
+
+  let _listRows = [];
+  let _listFilter = 'all';
+  let _listCtx = null;
+
+  window.WPA_openInvoiceList = function (ctx) {
+    _injectListCSS();
+    ctx = ctx || {};
+    _listCtx = ctx;
+    _listRows = _genSeries(ctx);
+    _listFilter = 'all';
+    _renderList();
+  };
+
+  window.WPA_closeInvoiceList = function () {
+    const ovr = document.getElementById('wpaInvListOverlay');
+    if (ovr) ovr.remove();
+    const pop = document.getElementById('wpaInvListPop');
+    if (pop) pop.remove();
+  };
+
+  function _filtered() {
+    if (_listFilter === 'all') return _listRows;
+    if (_listFilter === 'overdue') return _listRows.filter(r => r.status === 'late' || r.status === 'partial');
+    if (_listFilter === 'upcoming') return _listRows.filter(r => r.status === 'open' || r.status === 'upcoming');
+    if (_listFilter === 'paid') return _listRows.filter(r => r.status === 'paid');
+    return _listRows;
+  }
+
+  function _kpis() {
+    const totalBilled = _listRows.reduce((s, r) => s + r.total, 0);
+    const totalPaid = _listRows.reduce((s, r) => s + r.paid, 0);
+    const overdue = _listRows.filter(r => r.status === 'late' || r.status === 'partial').reduce((s, r) => s + r.remaining, 0);
+    const upcoming = _listRows.filter(r => r.status === 'open' || r.status === 'upcoming').length;
+    return { totalBilled, totalPaid, overdue, upcoming };
+  }
+
+  function _renderList() {
+    const ctx = _listCtx;
+    const k = _kpis();
+    const rows = _filtered();
+    const title = ctx.tenantName ? ('Invoices — ' + ctx.tenantName) : 'All Invoices';
+    const propLine = [ctx.property, ctx.unit ? '| ' + ctx.unit : '', ctx.leaseType ? ('· ' + ctx.leaseType.toUpperCase()) : ''].filter(Boolean).join(' ');
+
+    const html = `
+    <div class="wpa-il-ovr" id="wpaInvListOverlay" onclick="if(event.target===this)WPA_closeInvoiceList()">
+      <div class="wpa-il">
+        <button class="wpa-il-close" onclick="WPA_closeInvoiceList()">&times;</button>
+        <div class="wpa-il-head">
+          <h2 class="wpa-il-title">${_esc(title)}</h2>
+          <div class="wpa-il-sub">${_esc(propLine || 'Full invoice ledger')}</div>
+          <div class="wpa-il-kpis">
+            <div class="wpa-il-kpi"><div class="k-lbl">Total Billed</div><div class="k-val">${_fmt$(k.totalBilled)}</div></div>
+            <div class="wpa-il-kpi"><div class="k-lbl">Total Paid</div><div class="k-val">${_fmt$(k.totalPaid)}</div></div>
+            <div class="wpa-il-kpi"><div class="k-lbl">Overdue</div><div class="k-val ${k.overdue > 0 ? 'overdue' : ''}">${_fmt$(k.overdue)}</div></div>
+            <div class="wpa-il-kpi"><div class="k-lbl">Upcoming</div><div class="k-val">${k.upcoming}</div></div>
+          </div>
+        </div>
+        <div class="wpa-il-filters">
+          ${['all','overdue','upcoming','paid'].map(f =>
+            `<span class="wpa-il-chip ${_listFilter===f?'on':''}" onclick="_wpaSetInvFilter('${f}')">${f === 'all' ? 'All' : f.charAt(0).toUpperCase()+f.slice(1)} (${f==='all'?_listRows.length:_listRows.filter(r=>f==='overdue'?(r.status==='late'||r.status==='partial'):f==='upcoming'?(r.status==='open'||r.status==='upcoming'):r.status===f).length})</span>`
+          ).join('')}
+        </div>
+        <div style="max-height:56vh;overflow:auto">
+          ${rows.length === 0 ? `<div class="wpa-il-empty">No invoices match this filter.</div>` : `
+          <table class="wpa-il-table">
+            <thead><tr>
+              <th>Invoice #</th><th>Subject</th><th>Due Date</th>
+              <th class="num">Total</th><th class="num">Paid</th><th class="num">Remaining</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map((r, idx) => `
+                <tr onclick="_wpaOpenRow(${idx})" onmouseenter="_wpaShowPop(event,${idx})" onmousemove="_wpaMovePop(event)" onmouseleave="_wpaHidePop()">
+                  <td class="inv-num">${_esc(r.number)}</td>
+                  <td class="subj">${_esc(r.subject)}</td>
+                  <td>${_fmtDate(r.due_date)}</td>
+                  <td class="num">${_fmt$(r.total)}</td>
+                  <td class="num">${_fmt$(r.paid)}</td>
+                  <td class="num ${r.remaining > 0 && r.status !== 'upcoming' ? 'red' : ''}">${_fmt$(r.remaining)}</td>
+                  <td><span class="wpa-il-pill ${r.status}">${r.status}</span></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>`}
+        </div>
+      </div>
+    </div>
+    <div class="wpa-il-pop" id="wpaInvListPop"></div>
+    `;
+
+    let existing = document.getElementById('wpaInvListOverlay');
+    if (existing) existing.remove();
+    const pop = document.getElementById('wpaInvListPop');
+    if (pop) pop.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  window._wpaSetInvFilter = function (f) { _listFilter = f; _renderList(); };
+  window._wpaOpenRow = function (idx) {
+    const r = _filtered()[idx];
+    if (!r) return;
+    WPA_closeInvoiceList();
+    // Open detail in preview mode with row context
+    WPA_openInvoicePreview('rent', {
+      tenantName: _listCtx.tenantName,
+      property: _listCtx.property,
+      unit: _listCtx.unit,
+      rent: r.total
+    });
+  };
+  window._wpaShowPop = function (e, idx) {
+    const r = _filtered()[idx];
+    const pop = document.getElementById('wpaInvListPop');
+    if (!pop || !r) return;
+    const daysLine = r.status === 'late' ? `<div class="p-row"><span>Days late</span><b style="color:#b83228">${r.daysLate}</b></div>`
+                   : r.status === 'upcoming' ? `<div class="p-row"><span>Due in</span><b>${Math.abs(Math.floor((new Date(r.due_date)-new Date())/86400000))} days</b></div>`
+                   : '';
+    pop.innerHTML = `
+      <div class="p-title">${_esc(r.number)}</div>
+      <div class="p-row"><span>Due Date</span><b>${_fmtDate(r.due_date)}</b></div>
+      <div class="p-row"><span>Total Due</span><b>${_fmt$(r.remaining)}</b></div>
+      <div class="p-row"><span>Reminders Sent</span><b>${r.reminders_sent}</b></div>
+      <div class="p-row"><span>Invoice Items</span><b>Rent — ${_fmt$(r.total)}</b></div>
+      ${r.paid > 0 ? `<div class="p-row"><span>Payments</span><b>${_esc(_listCtx.tenantName||'Tenant')} by ${r.payment_method||'—'}</b></div>
+      <div class="p-row"><span>Bank Account</span><b>${_esc(r.bank_account)} (${_fmt$(r.paid)})</b></div>` : ''}
+      ${daysLine}
+      <div class="p-edit">Click to open · Edit Invoice ↗</div>
+    `;
+    pop.classList.add('on');
+    _wpaMovePop(e);
+  };
+  window._wpaMovePop = function (e) {
+    const pop = document.getElementById('wpaInvListPop');
+    if (!pop) return;
+    const w = pop.offsetWidth || 280;
+    const h = pop.offsetHeight || 180;
+    let x = e.clientX + 18;
+    let y = e.clientY + 12;
+    if (x + w > window.innerWidth - 10) x = e.clientX - w - 18;
+    if (y + h > window.innerHeight - 10) y = e.clientY - h - 12;
+    pop.style.left = x + 'px';
+    pop.style.top = y + 'px';
+  };
+  window._wpaHidePop = function () {
+    const pop = document.getElementById('wpaInvListPop');
+    if (pop) pop.classList.remove('on');
+  };
 
 })();
