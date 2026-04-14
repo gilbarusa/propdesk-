@@ -7433,9 +7433,8 @@ function openPDUnitDetail(idx) {
     document.getElementById('udLeaseBarElapsed').style.width = '100%';
     document.getElementById('udLeaseBarRemaining').style.width = '0%';
   }
-  document.getElementById('udLeaseStart').textContent = u.leaseStart;
-  document.getElementById('udLeaseEnd').textContent = u.leaseEnd;
-  document.getElementById('udMTMToggle').checked = u.leaseType === 'mtm';
+  // ── Lease edit UI (editable inputs + Save button, wired to Supabase) ──
+  WPA_renderLeaseEditor(u);
 
   // ── Collection Card ──
   const r = u.rentRecord;
@@ -7627,9 +7626,134 @@ function newServiceOrder() { toast('Create service order from unit — coming so
 function addUnitDocument() { toast('Document upload coming soon', 'info'); }
 function newUnitLease() { toast('New lease creation coming soon', 'info'); }
 function switchUnitLease() { /* future: switch between historical leases */ }
-function toggleMTM() { toast('MTM toggle saved (demo)', 'info'); }
+function toggleMTM() { WPA_onLeaseTypeChange(); }
 function refreshUnitDetail() { if (_udCurrentUnit) { const idx = _pdUnitsData.indexOf(_udCurrentUnit); if (idx >= 0) openPDUnitDetail(idx); } }
 function editUnitDetail() { toast('Edit unit coming soon', 'info'); }
+
+// ─────────────────────────────────────────────────────────────────────
+// Lease editor: turns the read-only lease spans into date inputs
+// wired to Supabase. Start/End become <input type="date">. The MTM
+// toggle + Save button together persist changes to public.tenants_lt
+// (lease_start, lease_end, lease_type) and update in-memory state.
+// ─────────────────────────────────────────────────────────────────────
+function WPA_toIsoDate(v) {
+  if (!v) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+function WPA_fromIsoDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+function WPA_renderLeaseEditor(u) {
+  const startEl = document.getElementById('udLeaseStart');
+  const endEl   = document.getElementById('udLeaseEnd');
+  const mtmEl   = document.getElementById('udMTMToggle');
+  if (!startEl || !endEl || !mtmEl) return;
+
+  const isoStart = WPA_toIsoDate(u.leaseStart);
+  const isoEnd   = (u.leaseEnd === 'M to M' || !u.leaseEnd) ? '' : WPA_toIsoDate(u.leaseEnd);
+  const isMtm    = u.leaseType === 'mtm';
+
+  startEl.innerHTML = `<input type="date" id="udLeaseStartInput" value="${isoStart}" style="padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg2);color:var(--text);font:inherit;">`;
+  endEl.innerHTML   = `<input type="date" id="udLeaseEndInput" value="${isoEnd}" ${isMtm ? 'disabled' : ''} style="padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg2);color:var(--text);font:inherit;">`;
+  mtmEl.checked = isMtm;
+
+  // Inject Save + Cancel buttons next to the MTM toggle's parent row
+  if (!document.getElementById('udLeaseSaveBtn')) {
+    const host = mtmEl.closest('.ud-card, .ud-lease-card, div') || mtmEl.parentElement;
+    if (host) {
+      const bar = document.createElement('div');
+      bar.id = 'udLeaseSaveBar';
+      bar.style.cssText = 'margin-top:10px;display:flex;gap:8px;align-items:center;';
+      bar.innerHTML = `
+        <button id="udLeaseSaveBtn" onclick="WPA_saveLease()" style="padding:6px 14px;background:#8a5f32;color:#fff;border:0;border-radius:4px;cursor:pointer;font:inherit;">Save Lease</button>
+        <button id="udLeaseResetBtn" onclick="WPA_renderLeaseEditor(_udCurrentUnit)" style="padding:6px 14px;background:transparent;color:var(--text);border:1px solid var(--line);border-radius:4px;cursor:pointer;font:inherit;">Cancel</button>
+        <span id="udLeaseSaveMsg" style="font-size:12px;color:var(--text3);"></span>
+      `;
+      host.appendChild(bar);
+    }
+  }
+
+  // Wire MTM toggle to enable/disable end-date field live
+  mtmEl.onchange = WPA_onLeaseTypeChange;
+}
+function WPA_onLeaseTypeChange() {
+  const mtm = document.getElementById('udMTMToggle');
+  const endIn = document.getElementById('udLeaseEndInput');
+  if (mtm && endIn) {
+    endIn.disabled = mtm.checked;
+    if (mtm.checked) endIn.value = '';
+  }
+}
+async function WPA_saveLease() {
+  const u = _udCurrentUnit;
+  if (!u) return;
+  const mtm      = document.getElementById('udMTMToggle').checked;
+  const startIso = document.getElementById('udLeaseStartInput').value || '';
+  const endIso   = mtm ? '' : (document.getElementById('udLeaseEndInput').value || '');
+  const msg      = document.getElementById('udLeaseSaveMsg');
+  const btn      = document.getElementById('udLeaseSaveBtn');
+
+  if (!startIso) { if (msg) { msg.textContent='Start date required'; msg.style.color='#c00'; } return; }
+  if (!mtm && !endIso) { if (msg) { msg.textContent='End date required for Fixed leases'; msg.style.color='#c00'; } return; }
+  if (!mtm && endIso < startIso) { if (msg) { msg.textContent='End must be after Start'; msg.style.color='#c00'; } return; }
+
+  const newType = mtm ? 'mtm' : 'fixed';
+  if (msg) { msg.textContent='Saving…'; msg.style.color='var(--text3)'; }
+  if (btn) btn.disabled = true;
+
+  // Collect tenant IDs on this unit (roommates share one lease)
+  const tenantIds = u.tenantObjs.map(t => t.id).filter(Boolean);
+  if (!tenantIds.length) { if (msg) { msg.textContent='No tenant ids found'; msg.style.color='#c00'; } if (btn) btn.disabled=false; return; }
+
+  try {
+    // PATCH every tenant row on this unit via "id=in.(...)" filter
+    const idsFilter = 'in.(' + tenantIds.map(id => '"' + id + '"').join(',') + ')';
+    const r = await fetch(SUPA_URL + '/rest/v1/tenants_lt?id=' + encodeURIComponent(idsFilter), {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json', Prefer: 'return=representation'
+      },
+      body: JSON.stringify({ lease_start: startIso || null, lease_end: endIso || null, lease_type: newType })
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error('HTTP ' + r.status + ' ' + t);
+    }
+
+    // Update in-memory INNAGO_TENANTS for the affected ids
+    tenantIds.forEach(id => {
+      const t = INNAGO_TENANTS.find(x => x.id === id);
+      if (t) { t.lease_start = startIso; t.lease_end = endIso; t.lease_type = newType; }
+    });
+
+    // Update the matching synthesized lease entry (match by property+unit)
+    const lease = INNAGO_LEASES.find(l => l.property === u.lease.property && l.unit === u.lease.unit);
+    if (lease) {
+      lease.start = startIso ? WPA_fromIsoDate(startIso) : '';
+      lease.end   = mtm ? 'M to M' : (endIso ? WPA_fromIsoDate(endIso) : '');
+      lease.type  = newType;
+    }
+
+    if (msg) { msg.textContent='Saved ✓'; msg.style.color='#1a7f37'; }
+    if (btn) btn.disabled = false;
+    // Refresh the unit detail view so header bar + days-left recompute
+    if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty) {
+      renderPDLongTerm(_pdCurrentProperty);
+    }
+    setTimeout(() => { if (msg) msg.textContent = ''; refreshUnitDetail(); }, 900);
+  } catch (e) {
+    console.error('[saveLease]', e);
+    if (msg) { msg.textContent='Save failed: ' + e.message; msg.style.color='#c00'; }
+    if (btn) btn.disabled = false;
+  }
+}
 function toggleUnitNotes() { document.getElementById('udNoteInput')?.focus(); }
 function saveUnitNote() {
   const input = document.getElementById('udNoteInput');
