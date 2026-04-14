@@ -3336,7 +3336,36 @@ function tenantAction(action) {
     }
     case 'resendVerification': alert(`Verification link would be resent to ${t.email || '(no email on file)'}`); break;
     case 'requestInsurance': alert(`Renter's insurance request would be sent to ${t.name}`); break;
-    case 'viewInvoices': case 'viewAllInvoices': alert(`This would open the invoice list filtered for ${t.name}`); break;
+    case 'viewInvoices': {
+      // Open universal invoice modal. Once Supabase invoices exist, pass real invoiceId.
+      // For now, open preview seeded with this tenant's name/rent/property.
+      if (typeof WPA_openInvoicePreview === 'function') {
+        WPA_openInvoicePreview('rent', {
+          tenantName: t.name,
+          property: t.property,
+          unit: t.unitNum,
+          rent: t.rent
+        });
+      } else {
+        alert('Invoice module not loaded.');
+      }
+      break;
+    }
+    case 'viewAllInvoices': {
+      // TODO: open per-tenant invoices list page with hover summaries (Innago-style).
+      // For now, open the same preview modal.
+      if (typeof WPA_openInvoicePreview === 'function') {
+        WPA_openInvoicePreview('rent', {
+          tenantName: t.name,
+          property: t.property,
+          unit: t.unitNum,
+          rent: t.rent
+        });
+      } else {
+        alert(`Invoice list for ${t.name} coming soon.`);
+      }
+      break;
+    }
   }
 }
 

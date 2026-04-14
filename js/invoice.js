@@ -537,8 +537,34 @@
     },
   };
 
-  window.WPA_openInvoicePreview = function (type) {
+  window.WPA_openInvoicePreview = function (type, ctx) {
     const b = JSON.parse(JSON.stringify(_MOCK[type || 'rent'] || _MOCK.rent));
+    // Override preview bundle with real tenant context (when opened from tenant card)
+    if (ctx && typeof ctx === 'object') {
+      if (ctx.tenantName) {
+        b.tenant.name = ctx.tenantName;
+        b.tenant.email = (ctx.tenantName.toLowerCase().split(' ')[0] || 'tenant') + '@example.com';
+      }
+      if (ctx.property) b.invoice.property = ctx.property;
+      if (ctx.unit) b.invoice.unit = ctx.unit;
+      if (typeof ctx.rent === 'number' && ctx.rent > 0) {
+        // Re-scale line amounts to this tenant's rent
+        const oldRent = b.lines.find(l => l.kind === 'rent')?.amount || 2300;
+        const rentLine = b.lines.find(l => l.kind === 'rent');
+        if (rentLine) rentLine.amount = ctx.rent;
+        const lateLine = b.lines.find(l => l.kind === 'late_fee');
+        // proportionally scale late fee & credit
+        if (lateLine) lateLine.amount = Math.round(lateLine.amount * (ctx.rent / oldRent));
+        b.invoice.total = b.lines.reduce((s, l) => s + (l.amount || 0), 0);
+        // keep ~80% paid ratio so partial status stays meaningful
+        b.invoice.paid = Math.min(b.invoice.paid, Math.max(0, b.invoice.total - 100));
+        const ratio = b.invoice.paid / (b.payments.reduce((s,p)=>s+p.amount,0) || 1);
+        b.payments.forEach(p => p.amount = Math.round(p.amount * ratio));
+        b.payments.forEach(p => { if (ctx.tenantName) p.payer_name = ctx.tenantName; });
+      } else if (ctx.tenantName) {
+        b.payments.forEach(p => p.payer_name = ctx.tenantName);
+      }
+    }
     _openOverlay(_renderBundle(b));
     const ovr = document.getElementById('wpaInvOverlay');
     const sticky = document.getElementById('wpaSticky');
