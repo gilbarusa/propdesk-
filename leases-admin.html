@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Willow — Lease Admin | v2026-04-14 1700</title>
+<title>Willow — Lease Admin | v2026-04-14 1800</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <!-- Quill rich-text editor -->
@@ -292,11 +292,15 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 20px;
-  max-height: 500px;
-  overflow-y: auto;
-  font-size: 13px;
-  line-height: 1.6;
+  padding: 0;
+  height: 70vh;
+  overflow: hidden;
+}
+.preview-box iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
 }
 
 .toast {
@@ -462,9 +466,11 @@ body {
      TEMPLATE PREVIEW MODAL
 ═════════════════════════════════════════════════════════ -->
 <div class="modal-backdrop" id="previewModal">
-  <div class="modal" style="max-width:900px;">
-    <h3>Template preview (sample data)</h3>
-    <div class="preview-box" id="previewBody"></div>
+  <div class="modal" style="max-width:1100px;width:95%;max-height:92vh;">
+    <h3>Template preview (sample data — 2 tenants: Darlene Smith, Kevin Smith Jr.)</h3>
+    <div class="preview-box">
+      <iframe id="previewFrame" title="Lease preview"></iframe>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-primary" onclick="closePreviewModal()">Close</button>
     </div>
@@ -474,6 +480,6 @@ body {
 <div class="toast" id="toast"></div>
 
 <script src="js/config.js"></script>
-<script src="js/leases-admin.js?v=20260414-1700"></script>
+<script src="js/leases-admin.js?v=20260414-1800"></script>
 </body>
 </html>
