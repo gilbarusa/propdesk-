@@ -237,8 +237,11 @@
     if (s === 'paid') return { key: 'paid', label: 'Paid' };
     if (s === 'partial') return { key: 'partial', label: 'Partial' };
     if (s === 'void') return { key: 'void', label: 'Void' };
+    // No due date yet (e.g. rent before lease entered) → show pending, no day math
+    if (!invoice.due_date) return { key: 'pending', label: 'Pending', daysUntilDue: 0 };
     const days = DAYS_BETWEEN(invoice.due_date, new Date().toISOString().slice(0, 10));
     if (days > 0) return { key: 'late', label: 'Late', daysLate: days };
+    if (days === 0) return { key: 'pending', label: 'Due Today', daysUntilDue: 0 };
     return { key: 'pending', label: 'Pending', daysUntilDue: -days };
   }
 
@@ -339,7 +342,7 @@
       <div class="inv-hd">
         <div class="inv-hd-inner">
           <div>
-            <div class="inv-logo"><img src="willow-logo.png" alt="Willow Partnership"></div>
+            <div class="inv-logo"><img src="${_esc(window.WPA_LOGO_URL || 'logo.png')}" alt="Willow Partnership" onerror="this.style.display='none'"></div>
             <div class="inv-lbl">Invoice</div>
             <div class="inv-num">${_esc(invNum)}</div>
             <div class="inv-addr">
@@ -607,7 +610,7 @@
       property: pr.property || '',
       unit: pr.unit || '',
       period_month: null,
-      due_date: pr.due_date || null,
+      due_date: pr.due_date || (pr.created_at ? String(pr.created_at).slice(0,10) : null),
       created_at: pr.created_at,
       total: total,
       paid: paid,
