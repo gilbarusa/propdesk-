@@ -1,6 +1,6 @@
 // ══════════════════════════════════════════════════════
 //  LEASE ADMIN — Addendum Library + Lease Template editor
-//  v2026-04-14 1745 — WYSIWYG (Quill) + dynamic tenant signatures
+//  v2026-04-14 1800 — Quill WYSIWYG + style-block preservation + iframe preview
 // ══════════════════════════════════════════════════════
 
 const sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
@@ -12,6 +12,13 @@ let _currentTemplate = null;
 let _editingAddendumId = null;
 let _editorMode = 'rich';     // 'rich' | 'html'
 let _quill = null;
+
+// Preserved template chrome that Quill can't handle:
+//   .styleHtml   - full <style>…</style> block(s) extracted from body_html
+//   .wrapOpen    - outer <div class="wpa-lease"> (or similar)
+//   .wrapClose   - closing </div>
+// These are stripped before Quill sees the body and re-wrapped on save/preview.
+let _chrome = { styleHtml: '', wrapOpen: '', wrapClose: '' };
 
 // Available template tokens
 const TOKENS = [
@@ -54,6 +61,53 @@ const SAMPLE = {
 };
 
 // ══════════════════════════════════════════════════════
+//  CHROME EXTRACT / REWRAP — protect <style> + outer wrapper from Quill
+// ══════════════════════════════════════════════════════
+
+// Parse body_html and split off:
+//   - <style>…</style> blocks (all of them, concatenated)
+//   - outermost <div class="wpa-lease"> wrapper (if present)
+// Returns { inner, styleHtml, wrapOpen, wrapClose }
+function splitChrome(html) {
+  if (!html) return { inner: '', styleHtml: '', wrapOpen: '', wrapClose: '' };
+
+  // 1) Extract all <style> blocks
+  let styleHtml = '';
+  const stripped = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, (m) => {
+    styleHtml += m + '\n';
+    return '';
+  });
+
+  // 2) Find the outer .wpa-lease wrapper (if present)
+  // Regex is intentionally loose — we just want to preserve the opening/closing tags.
+  const openRe = /<div[^>]*class="[^"]*\bwpa-lease\b[^"]*"[^>]*>/i;
+  const m = stripped.match(openRe);
+  let wrapOpen = '', wrapClose = '', inner = stripped.trim();
+
+  if (m) {
+    const openTag = m[0];
+    const openIdx = stripped.indexOf(openTag);
+    // Take everything after the open tag up to the LAST </div>
+    const afterOpen = stripped.slice(openIdx + openTag.length);
+    const lastClose = afterOpen.lastIndexOf('</div>');
+    if (lastClose !== -1) {
+      wrapOpen  = openTag;
+      wrapClose = '</div>';
+      inner     = afterOpen.slice(0, lastClose).trim();
+    }
+  }
+
+  return { inner, styleHtml, wrapOpen, wrapClose };
+}
+
+// Rebuild full body_html from Quill's inner content + preserved chrome
+function wrapChrome(inner) {
+  const open  = _chrome.wrapOpen  || '<div class="wpa-lease">';
+  const close = _chrome.wrapClose || '</div>';
+  return `${_chrome.styleHtml}${open}\n${inner}\n${close}`;
+}
+
+// ══════════════════════════════════════════════════════
 //  TAB SWITCHER
 // ══════════════════════════════════════════════════════
 
@@ -71,12 +125,10 @@ document.querySelectorAll('.tab').forEach(t => {
 // ══════════════════════════════════════════════════════
 
 function initQuill() {
-  // Register fonts
   const Font = Quill.import('formats/font');
   Font.whitelist = ['serif', 'sans-serif', 'monospace', 'georgia', 'times', 'arial', 'helvetica', 'courier'];
   Quill.register(Font, true);
 
-  // Register font sizes
   const Size = Quill.import('attributors/style/size');
   Size.whitelist = ['10px', '11px', '12px', '13px', '14px', '16px', '18px', '20px', '24px', '30px'];
   Quill.register(Size, true);
@@ -97,9 +149,7 @@ function initQuill() {
   _quill = new Quill('#tplEditor', {
     theme: 'snow',
     modules: {
-      toolbar: {
-        container: toolbarOptions,
-      },
+      toolbar: { container: toolbarOptions },
       clipboard: { matchVisual: false },
     },
     placeholder: 'Loading template...',
@@ -112,18 +162,22 @@ function setMode(mode) {
   const htmlBtn = document.getElementById('modeHtml');
   const editor  = document.getElementById('tplEditor');
   const textarea = document.getElementById('tplBody');
+
   if (mode === 'rich') {
-    // Apply any HTML edits back into Quill
+    // HTML → Quill: textarea value is expected to be the FULL body_html
+    // (style + wrapper + inner). Re-split chrome and load inner into Quill.
     if (textarea.style.display !== 'none') {
-      _quill.clipboard.dangerouslyPasteHTML(textarea.value || '');
+      const split = splitChrome(textarea.value || '');
+      _chrome = { styleHtml: split.styleHtml, wrapOpen: split.wrapOpen, wrapClose: split.wrapClose };
+      _quill.clipboard.dangerouslyPasteHTML(split.inner);
     }
     richBtn.classList.add('active');
     htmlBtn.classList.remove('active');
     editor.style.display   = 'block';
     textarea.style.display = 'none';
   } else {
-    // Sync Quill HTML into textarea for raw editing
-    textarea.value = _quill.root.innerHTML;
+    // Quill → HTML: show the FULL body_html (chrome + inner) so user can edit styles too
+    textarea.value = wrapChrome(_quill.root.innerHTML);
     htmlBtn.classList.add('active');
     richBtn.classList.remove('active');
     editor.style.display   = 'none';
@@ -131,15 +185,19 @@ function setMode(mode) {
   }
 }
 
+// Returns the FULL body_html (chrome + inner) regardless of current mode
 function getEditorHtml() {
   if (_editorMode === 'html') {
     return document.getElementById('tplBody').value;
   }
-  return _quill.root.innerHTML;
+  return wrapChrome(_quill.root.innerHTML);
 }
 
+// Accepts full body_html, splits off chrome, shows inner in Quill
 function setEditorHtml(html) {
-  _quill.clipboard.dangerouslyPasteHTML(html || '');
+  const split = splitChrome(html || '');
+  _chrome = { styleHtml: split.styleHtml, wrapOpen: split.wrapOpen, wrapClose: split.wrapClose };
+  _quill.clipboard.dangerouslyPasteHTML(split.inner);
   document.getElementById('tplBody').value = html || '';
 }
 
@@ -313,9 +371,13 @@ async function loadTemplates() {
     sel.innerHTML = _templates.map(t =>
       `<option value="${t.id}">${escapeHtml(t.name)}${t.is_default ? ' (default)' : ''}${!t.active ? ' — inactive' : ''}</option>`
     ).join('');
-    if (_templates.length) {
-      sel.value = _templates[0].id;
-      loadTemplate(_templates[0].id);
+
+    // Preserve current selection across reloads when possible
+    const keepId = _currentTemplate?.id;
+    const useId  = keepId && _templates.find(t => t.id === keepId) ? keepId : (_templates[0]?.id || null);
+    if (useId) {
+      sel.value = useId;
+      loadTemplate(useId);
     } else {
       _currentTemplate = null;
       clearTemplateForm();
@@ -338,6 +400,7 @@ function loadTemplate(id) {
 
 function clearTemplateForm() {
   _currentTemplate = null;
+  _chrome = { styleHtml: '', wrapOpen: '', wrapClose: '' };
   document.getElementById('tplName').value = '';
   setEditorHtml('');
   document.getElementById('tplDefault').checked = false;
@@ -355,9 +418,7 @@ async function saveTemplate() {
   const name = document.getElementById('tplName').value.trim();
   const body = getEditorHtml();
   if (!name) { toast('Name is required', 'error'); return; }
-  if (!body || !body.trim() || body === '<p><br></p>') {
-    toast('Body is required', 'error'); return;
-  }
+  if (!body || !body.trim()) { toast('Body is required', 'error'); return; }
 
   const isDefault = document.getElementById('tplDefault').checked;
   const payload = {
@@ -380,7 +441,7 @@ async function saveTemplate() {
         .update(payload)
         .eq('id', _currentTemplate.id);
       if (error) throw error;
-      toast('Template updated', 'success');
+      toast('Template updated ✓', 'success');
     } else {
       const { data, error } = await sb
         .from('lease_templates')
@@ -389,12 +450,9 @@ async function saveTemplate() {
         .single();
       if (error) throw error;
       _currentTemplate = data;
-      toast('Template created', 'success');
+      toast('Template created ✓', 'success');
     }
-    await loadTemplates();
-    if (_currentTemplate?.id) {
-      document.getElementById('templateSelect').value = _currentTemplate.id;
-    }
+    await loadTemplates();  // reloads current template from DB (preserves selection)
   } catch (e) {
     console.error(e);
     toast('Save failed: ' + e.message, 'error');
@@ -424,11 +482,23 @@ async function deleteTemplate() {
 }
 
 // ── Preview ────────────────────────────────────────────
+// Render the merged template in an ISOLATED IFRAME so the template's
+// embedded <style> block applies exactly as it will in the final PDF.
 function previewTemplate() {
   const body = getEditorHtml();
   if (!body || !body.trim()) { toast('Nothing to preview', 'error'); return; }
   const merged = mergeTokens(body, buildSampleData());
-  document.getElementById('previewBody').innerHTML = merged;
+
+  const iframe = document.getElementById('previewFrame');
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(`<!doctype html><html><head><meta charset="utf-8">
+    <style>
+      body { margin: 24px; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: #1a1f2e; line-height: 1.55; }
+    </style>
+  </head><body>${merged}</body></html>`);
+  doc.close();
+
   document.getElementById('previewModal').classList.add('active');
 }
 
@@ -443,21 +513,19 @@ function buildSampleData() {
   return data;
 }
 
-// Dynamic signature blocks — one per tenant
+// Dynamic signature blocks — one per tenant. Uses .sig-block class so the
+// template's own CSS (if present) styles them consistently.
 function buildSignatureBlocks(tenantNames) {
   if (!Array.isArray(tenantNames) || !tenantNames.length) tenantNames = ['Tenant'];
   return tenantNames.map((name, i) => `
-    <div style="margin-top:20px;padding:14px;border:1px solid #ddd;background:#fafafa;page-break-inside:avoid;border-radius:4px;">
-      <p style="margin:0 0 6px;"><strong>Tenant ${i + 1}:</strong> ${escapeHtml(name)}</p>
-      <p style="margin:4px 0;">
-        Signature: <span style="border-bottom:1px solid #333;display:inline-block;width:260px;height:24px;"></span>
-        &nbsp;&nbsp; Date: <span style="border-bottom:1px solid #333;display:inline-block;width:130px;height:24px;"></span>
-      </p>
+    <div class="sig-block">
+      <p><strong>Tenant ${i + 1}:</strong> ${escapeHtml(name)}</p>
+      <p>Signature: <span class="sig-line"></span> &nbsp; Date: <span class="sig-line" style="width:140px;"></span></p>
     </div>
   `).join('');
 }
 
-// {{TOKEN}} substitution — matches PHP strtr approach
+// {{TOKEN}} substitution
 function mergeTokens(src, data) {
   return src.replace(/\{\{([A-Z_]+)\}\}/g, (m, key) =>
     Object.prototype.hasOwnProperty.call(data, key) ? data[key] : m
