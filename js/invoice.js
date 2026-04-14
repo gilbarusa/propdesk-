@@ -725,14 +725,90 @@
   let _listFilter = 'all';
   let _listCtx = null;
 
-  window.WPA_openInvoiceList = function (ctx) {
+  window.WPA_openInvoiceList = async function (ctx) {
     _injectListCSS();
     ctx = ctx || {};
     _listCtx = ctx;
-    _listRows = _genSeries(ctx);
     _listFilter = 'all';
+    _listRows = [];
+    // Show loading shell
+    _renderList({ loading: true });
+    try {
+      const rows = await _fetchInvoiceListFromSupabase(ctx);
+      if (rows && rows.length) {
+        _listRows = rows;
+      } else {
+        // No real invoices yet — fall back to client-side mock so the UI isn't empty
+        _listRows = _genSeries(ctx);
+        _listCtx.mockFallback = true;
+      }
+    } catch (e) {
+      console.warn('[WPA_openInvoiceList] Supabase fetch failed, using mock:', e);
+      _listRows = _genSeries(ctx);
+      _listCtx.mockFallback = true;
+      _listCtx.mockError = e.message;
+    }
     _renderList();
   };
+
+  // Fetch real invoices + their payments + reminder counts for one unit
+  async function _fetchInvoiceListFromSupabase(ctx) {
+    if (!ctx.property || !ctx.unit) return [];
+    const q = 'invoices?select=id,property,unit,period_month,due_date,status,total,paid,notes'
+            + '&property=eq.' + encodeURIComponent(ctx.property)
+            + '&unit=eq.' + encodeURIComponent(ctx.unit)
+            + '&order=period_month.desc';
+    const invoices = await _sb(q);
+    if (!invoices.length) return [];
+    // Fetch payments + reminders for all these invoices in parallel
+    const idList = invoices.map(i => '"' + i.id + '"').join(',');
+    const [payments, reminders] = await Promise.all([
+      _sb('payments?invoice_id=in.(' + idList + ')&select=invoice_id,amount,method,status,paid_at,payer_name').catch(() => []),
+      _sb('reminders_log?invoice_id=in.(' + idList + ')&select=invoice_id,sent_at,status').catch(() => [])
+    ]);
+    const payByInv = {};
+    payments.forEach(p => {
+      if (!payByInv[p.invoice_id]) payByInv[p.invoice_id] = [];
+      payByInv[p.invoice_id].push(p);
+    });
+    const remByInv = {};
+    reminders.forEach(r => { remByInv[r.invoice_id] = (remByInv[r.invoice_id] || 0) + 1; });
+    const today = new Date(); today.setHours(0,0,0,0);
+    return invoices.map(inv => {
+      const pays = payByInv[inv.id] || [];
+      const paid = pays.filter(p => (p.status||'succeeded') === 'succeeded').reduce((s,p)=>s+Number(p.amount||0),0);
+      const total = Number(inv.total||0);
+      const remaining = Math.max(0, total - paid);
+      const due = inv.due_date ? new Date(inv.due_date + 'T12:00:00') : null;
+      const dbStatus = (inv.status||'open').toLowerCase();
+      let status = dbStatus;
+      let daysLate = 0;
+      if (dbStatus === 'paid') status = 'paid';
+      else if (dbStatus === 'void') status = 'void';
+      else if (paid > 0 && paid < total) status = 'partial';
+      else if (due && due < today) { status = 'late'; daysLate = Math.floor((today-due)/86400000); }
+      else if (due && due > today) status = 'upcoming';
+      else status = 'open';
+      const period = inv.period_month ? new Date(inv.period_month+'T12:00:00') : null;
+      const subject = inv.notes || (period ? 'Rent — ' + period.toLocaleDateString('en-US',{month:'long',year:'numeric'}) : 'Invoice');
+      const lastPay = pays.sort((a,b)=>new Date(b.paid_at||0)-new Date(a.paid_at||0))[0];
+      const invNumShort = (inv.id||'').slice(0,8).toUpperCase();
+      return {
+        id: inv.id,
+        number: 'INV-' + invNumShort,
+        subject,
+        due_date: inv.due_date,
+        total, paid, remaining,
+        status,
+        daysLate,
+        reminders_sent: remByInv[inv.id] || 0,
+        payment_method: lastPay ? (lastPay.method || '—') : '—',
+        bank_account: lastPay && lastPay.method === 'ach' ? 'ACH ••••' : (lastPay && lastPay.method === 'card' ? 'Card ••••' : '—'),
+        period_month: inv.period_month,
+        _real: true
+      };
+    });
+  }
 
   window.WPA_closeInvoiceList = function () {
     const ovr = document.getElementById('wpaInvListOverlay');
@@ -757,19 +833,25 @@
     return { totalBilled, totalPaid, overdue, upcoming };
   }
 
-  function _renderList() {
+  function _renderList(opts) {
+    opts = opts || {};
     const ctx = _listCtx;
     const k = _kpis();
     const rows = _filtered();
     const title = ctx.tenantName ? ('Invoices — ' + ctx.tenantName) : 'All Invoices';
     const propLine = [ctx.property, ctx.unit ? '| ' + ctx.unit : '', ctx.leaseType ? ('· ' + ctx.leaseType.toUpperCase()) : ''].filter(Boolean).join(' ');
+    const sourceBadge = opts.loading
+      ? '<span style="margin-left:10px;padding:2px 8px;border:1px solid #c4cdeb;border-radius:10px;font-size:10px;color:#4d5670;background:#fff">Loading…</span>'
+      : ctx.mockFallback
+        ? '<span title="No invoices in Supabase for this unit yet — showing client-side preview. Use 🔄 Refresh Invoices on the lease card." style="margin-left:10px;padding:2px 8px;border:1px solid #eecfa0;border-radius:10px;font-size:10px;color:#b86818;background:#fdf3e8;cursor:help">Preview (no DB rows)</span>'
+        : '<span style="margin-left:10px;padding:2px 8px;border:1px solid #9ed2b8;border-radius:10px;font-size:10px;color:#1f7a4d;background:#eaf6f0">Live</span>';
 
     const html = `
     <div class="wpa-il-ovr" id="wpaInvListOverlay" onclick="if(event.target===this)WPA_closeInvoiceList()">
       <div class="wpa-il">
         <button class="wpa-il-close" onclick="WPA_closeInvoiceList()">&times;</button>
         <div class="wpa-il-head">
-          <h2 class="wpa-il-title">${_esc(title)}</h2>
+          <h2 class="wpa-il-title">${_esc(title)}${sourceBadge}</h2>
           <div class="wpa-il-sub">${_esc(propLine || 'Full invoice ledger')}</div>
           <div class="wpa-il-kpis">
             <div class="wpa-il-kpi"><div class="k-lbl">Total Billed</div><div class="k-val">${_fmt$(k.totalBilled)}</div></div>
@@ -822,13 +904,18 @@
     const r = _filtered()[idx];
     if (!r) return;
     WPA_closeInvoiceList();
-    // Open detail in preview mode with row context
-    WPA_openInvoicePreview('rent', {
-      tenantName: _listCtx.tenantName,
-      property: _listCtx.property,
-      unit: _listCtx.unit,
-      rent: r.total
-    });
+    if (r._real && r.id) {
+      // Real Supabase invoice — load by id
+      WPA_openInvoice(r.id);
+    } else {
+      // Client-side preview fallback
+      WPA_openInvoicePreview('rent', {
+        tenantName: _listCtx.tenantName,
+        property: _listCtx.property,
+        unit: _listCtx.unit,
+        rent: r.total
+      });
+    }
   };
   window._wpaShowPop = function (e, idx) {
     const r = _filtered()[idx];

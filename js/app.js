@@ -3488,19 +3488,31 @@ function tenantAction(action) {
     case 'resendVerification': alert(`Verification link would be resent to ${t.email || '(no email on file)'}`); break;
     case 'requestInsurance': alert(`Renter's insurance request would be sent to ${t.name}`); break;
     case 'viewInvoices': {
-      // Open universal invoice modal. Uses FULL lease rent (shared-lease rule).
+      // Try to open the most recent REAL invoice for this tenant's property+unit.
+      // Falls back to the preview modal if nothing is in Supabase yet.
       const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
       const fullRent = _getFullLeaseRent(t, lease);
-      if (typeof WPA_openInvoicePreview === 'function') {
-        WPA_openInvoicePreview('rent', {
-          tenantName: t.name,
-          property: t.property,
-          unit: t.unitNum,
-          rent: fullRent
-        });
-      } else {
-        alert('Invoice module not loaded.');
-      }
+      (async () => {
+        try {
+          const q = '/rest/v1/invoices?select=id,period_month,due_date,status'
+                  + '&property=eq.' + encodeURIComponent(t.property)
+                  + '&unit=eq.' + encodeURIComponent(t.unitNum)
+                  + '&order=period_month.desc&limit=1';
+          const r = await fetch(SUPA_URL + q, { headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}});
+          if (r.ok) {
+            const arr = await r.json();
+            if (arr && arr.length && typeof WPA_openInvoice === 'function') {
+              WPA_openInvoice(arr[0].id);
+              return;
+            }
+          }
+        } catch (e) { console.warn('[viewInvoices] supabase lookup failed:', e); }
+        if (typeof WPA_openInvoicePreview === 'function') {
+          WPA_openInvoicePreview('rent', { tenantName: t.name, property: t.property, unit: t.unitNum, rent: fullRent });
+        } else {
+          alert('Invoice module not loaded.');
+        }
+      })();
       break;
     }
     case 'viewAllInvoices': {
