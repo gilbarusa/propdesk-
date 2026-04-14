@@ -1027,6 +1027,21 @@
     return r.json();
   }
 
+  async function _sbPatch(path, body) {
+    const r = await fetch(CONFIG.SUPABASE_URL + '/rest/v1/' + path, {
+      method: 'PATCH',
+      headers: {
+        apikey: CONFIG.SUPABASE_KEY,
+        Authorization: 'Bearer ' + CONFIG.SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('[' + path + '] HTTP ' + r.status + ' ' + (await r.text()));
+    return true;
+  }
+
   function _firstOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
   function _addMonths(d, n) { return new Date(d.getFullYear(), d.getMonth() + n, 1); }
   function _toIsoDate(d) { return d.toISOString().slice(0, 10); }
@@ -1338,6 +1353,22 @@
   }
 
   function _payRenderAutopay(s) {
+    // MTM cannot set up autopay
+    if (s.leaseType === 'mtm') {
+      s.autopay = false;
+      s.autopayCap = { count: 0, reason: 'not available for month-to-month' };
+      return `
+        <h3>Autopay</h3>
+        <div class="sub">Autopay is not available for month-to-month leases. Each month's rent must be paid manually.</div>
+        <div class="wpa-pay-auto" style="opacity:.55;pointer-events:none">
+          <label class="toggle">
+            <input type="checkbox" disabled>
+            Autopay (unavailable for month-to-month)
+          </label>
+        </div>
+        <div class="sub" style="margin-top:10px">You'll be charged ${_esc(MONEY(s.amount + (s.method==='card'?s.amount*CC_FEE_PCT:0)))} for this invoice.</div>
+      `;
+    }
     const cap = _autopayCap(s);
     s.autopayCap = cap;
     return `
@@ -1352,7 +1383,8 @@
           <div class="auto-row"><span>Scheduled payments</span><b>${cap.count}</b></div>
           <div class="auto-row"><span>Cap reason</span><span>${_esc(cap.reason)}</span></div>
           <div class="auto-row"><span>Method</span><b>${s.method==='card'?'Credit Card (3.5% fee)':'ACH (free)'}</b></div>
-          <div class="auto-row"><span>Stops</span><span>${s.leaseType==='mtm'?'You can cancel anytime':'At lease end or after 12 payments'}</span></div>
+          <div class="auto-row"><span>Stops</span><span>At lease end or after 12 payments</span></div>
+          <div class="auto-row" style="color:#8590a8;font-size:11px"><span>You can cancel any upcoming invoice from your portal.</span></div>
         </div>
       </div>
       <div class="sub" style="margin-top:10px">You'll still be charged ${_esc(MONEY(s.amount + (s.method==='card'?s.amount*CC_FEE_PCT:0)))} for this invoice now.</div>
@@ -1397,10 +1429,31 @@
         payer_name: (s.bundle && s.bundle.tenant && s.bundle.tenant.name) || 'Tenant'
       };
       await _sbInsert('payments', payload);
+
+      // Persist autopay: mark the next N upcoming invoices for this unit with [AUTOPAY]
+      let autopayMarked = 0;
+      if (s.autopay && s.leaseType !== 'mtm' && s.autopayCap && s.autopayCap.count > 0) {
+        try {
+          const todayIso = new Date().toISOString().slice(0,10);
+          const q = 'invoices?select=id,notes,due_date&property=eq.' + encodeURIComponent(s.invoice.property)
+                  + '&unit=eq.' + encodeURIComponent(s.invoice.unit)
+                  + '&status=in.(open,partial)'
+                  + '&due_date=gt.' + todayIso
+                  + '&order=due_date.asc&limit=' + s.autopayCap.count;
+          const future = await _sb(q);
+          for (const f of (future || [])) {
+            if (f.notes && /\[AUTOPAY\]/i.test(f.notes)) continue;
+            const newNotes = ('[AUTOPAY] ' + (f.notes || '')).trim();
+            await _sbPatch('invoices?id=eq.' + f.id, { notes: newNotes });
+            autopayMarked++;
+          }
+        } catch (ae) { console.warn('[autopay persist]', ae); }
+      }
+
       alert('Payment recorded (demo)\n\nMethod: ' + (s.method === 'card' ? 'Credit Card' : 'Bank/ACH') +
             '\nCharged: ' + MONEY(charged) +
             (fee ? '\n(includes ' + MONEY(fee) + ' processing fee)' : '') +
-            (s.autopay ? '\n\nAutopay enabled for ' + s.autopayCap.count + ' future payments (' + s.autopayCap.reason + ').' : '') +
+            (s.autopay && autopayMarked > 0 ? '\n\n⚡ Autopay scheduled for ' + autopayMarked + ' future payment(s) (' + s.autopayCap.reason + ').\nYou can cancel any upcoming autopay from your portal.' : '') +
             '\n\nNote: Real Stripe charge comes in Phase 2.');
       WPA_closePayment();
       // Reload the invoice to show the new payment row
