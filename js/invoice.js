@@ -308,8 +308,10 @@
     const lateSum = sumByKind('late_fee');
     const creditSum = sumByKind('credit'); // negative
     const miscSum = sumByKind('misc');
-    const subjectText = _esc(inv.notes || ('Rent due ' + FMT_DATE(inv.due_date)));
-    const invNum = inv.id ? ('WPA-' + inv.id.slice(0, 8).toUpperCase()) : '—';
+    const subjectText = _esc(inv.subject || inv.notes || ('Rent due ' + FMT_DATE(inv.due_date)));
+    const invNum = inv._is_pr
+      ? _esc(inv.invoice_number || 'SERVICE')
+      : (inv.id ? ('WPA-' + inv.id.slice(0, 8).toUpperCase()) : '—');
     const tenantName = _esc(tenant.name || '—');
     const tenantContact = [tenant.email, tenant.phone].filter(Boolean).map(_esc).join(' · ');
     const remindersSent = b.reminders.filter(r => r.status === 'sent').length;
@@ -440,13 +442,14 @@
   function _renderLineRow(l) {
     const kind = l.kind || 'misc';
     const tagCls = 'tag-' + kind.replace('_', '-');
-    const tagLabel = { rent:'Rent', late_fee:'Late', credit:'Credit', misc:'Fee' }[kind] || 'Fee';
+    const tagLabel = { rent:'Rent', late_fee:'Late', credit:'Credit', misc:'Fee', service:'Service' }[kind] || 'Fee';
+    const itemName = l.item_label || tagLabel;
     const amtCls = Number(l.amount) < 0 ? 'amt credit' : 'amt';
     const qty = l.day_offset || 1;
     const rate = qty ? Number(l.amount) / qty : Number(l.amount);
     return `
       <tr>
-        <td><span class="item-name">${_esc(tagLabel)}</span><span class="item-tag ${tagCls}">${_esc(tagLabel)}</span></td>
+        <td><span class="item-name">${_esc(itemName)}</span><span class="item-tag ${tagCls}">${_esc(tagLabel)}</span></td>
         <td><div>${_esc(l.description || '')}</div>${l.created_by ? '<div class="desc">Added by ' + _esc(l.created_by) + ' · ' + _esc(FMT_DATE(l.created_at)) + '</div>' : ''}</td>
         <td class="num">${qty}</td>
         <td class="num">${_esc(MONEY(rate))}</td>
@@ -582,17 +585,18 @@
           const amt = parseFloat(v.replace(/[^0-9.\-]/g, '')) || 0;
           lines.push({
             id: 'pr-' + i,
+            kind: 'service',
             item_label: m[1].trim(),
             description: '',
-            amount: amt || total / (descLines.length - 1),
+            amount: amt || 0,
             sort_order: i
           });
         } else {
-          lines.push({ id: 'pr-' + i, item_label: descLines[i], description: '', amount: 0, sort_order: i });
+          lines.push({ id: 'pr-' + i, kind: 'service', item_label: descLines[i], description: '', amount: 0, sort_order: i });
         }
       }
     } else {
-      lines.push({ id: 'pr-1', item_label: title, description: '', amount: total, sort_order: 1 });
+      lines.push({ id: 'pr-1', kind: 'service', item_label: title, description: '', amount: total, sort_order: 1 });
     }
     const invoice = {
       id: 'pr:' + pr.id,
@@ -1325,12 +1329,17 @@
       const amtCents = Math.round((parseFloat(req.amount) || 0) * 100);
       const desc = (req.description || 'Service').split('\n')[0];
       const wo = req.work_order_id || '';
-      const portalBase = (window.WPA_PORTAL_URL || '').replace(/\/$/, '');
-      const payUrl = (portalBase || '') + '/pay.php'
-        + '?amount=' + amtCents
-        + '&desc=' + encodeURIComponent(desc)
-        + '&wo='   + encodeURIComponent(wo)
-        + '&pr='   + encodeURIComponent(req.id);
+      // Resolve pay.php URL: prefer explicit override, otherwise resolve relative
+      // to the current page (works whether portal is at /portal/ or the site root).
+      let payUrl = window.WPA_PAY_PHP_URL;
+      if (!payUrl) {
+        try { payUrl = new URL('pay.php', window.location.href).toString(); }
+        catch (_e) { payUrl = 'pay.php'; }
+      }
+      payUrl += '?amount=' + amtCents
+             +  '&desc='   + encodeURIComponent(desc)
+             +  '&wo='     + encodeURIComponent(wo)
+             +  '&pr='     + encodeURIComponent(req.id);
       window.open(payUrl, '_blank');
     } catch (e) {
       alert('Error loading payment details: ' + e.message);
