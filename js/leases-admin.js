@@ -520,8 +520,23 @@ function previewTemplate() {
   const doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open();
   doc.write(`<!doctype html><html><head><meta charset="utf-8">
+    <!-- Quill Snow CSS — renders ql-align-*, ql-indent-*, ql-font-*, ql-size-* classes
+         that Quill inserts when it normalizes pasted HTML -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     <style>
       body { margin: 24px; font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: #1a1f2e; line-height: 1.55; }
+      /* Quill alignment helpers (in case snow CSS doesn't ship them standalone) */
+      .ql-align-center  { text-align: center; }
+      .ql-align-right   { text-align: right; }
+      .ql-align-justify { text-align: justify; }
+      .ql-indent-1 { padding-left: 3em; }
+      .ql-indent-2 { padding-left: 6em; }
+      .ql-indent-3 { padding-left: 9em; }
+      .ql-indent-4 { padding-left: 12em; }
+      /* Quill font size helpers */
+      .ql-size-small { font-size: 0.75em; }
+      .ql-size-large { font-size: 1.5em; }
+      .ql-size-huge  { font-size: 2.5em; }
     </style>
   </head><body>${merged}</body></html>`);
   doc.close();
