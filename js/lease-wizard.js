@@ -1,5 +1,5 @@
 /* ═══ LEASE WIZARD — Create Lease + send for signing ═══
-   v2026-04-14 2305 — Real email + SMS send on "Send for Signature", schema-safe lease_events
+   v2026-04-14 2335 — Address dropdown shows street+city+state+zip; full address saved to lease.property
    Depends on: window.supa (shared Supabase client from app.js)
    Invoked by: leaseAction('newLease') in app.js
 */
@@ -214,41 +214,78 @@
       <button class="lw-add" onclick="lwAddT()">+ Add another tenant</button>`;
   }
 
-  // Group properties into buildings.
-  // A "building" key is the address (preferred) or the name with the unit suffix stripped.
-  function buildingKeyFor(p){
+  // ── Address handling ──
+  // Properties may store address as a string ("46 Township Line Rd") OR an object {street, city, state, zip}.
+  // Other address pieces live in p.city, p.state, p.zip (if set).
+  function getStreet(p){
     if (!p) return '';
-    var addr = (typeof p.address === 'object' && p.address)
-      ? (p.address.street || p.address.address1 || p.address.line1 || '')
-      : (p.address || '');
-    addr = String(addr || '').trim();
-    if (addr) return addr;
+    var a = p.address;
+    if (typeof a === 'object' && a){
+      return String(a.street || a.address1 || a.line1 || '').trim();
+    }
+    return String(a || '').trim();
+  }
+  function getCity(p){
+    if (typeof p.address === 'object' && p.address && p.address.city) return String(p.address.city).trim();
+    return String(p.city || '').trim();
+  }
+  function getState(p){
+    if (typeof p.address === 'object' && p.address && p.address.state) return String(p.address.state).trim();
+    return String(p.state || '').trim();
+  }
+  function getZip(p){
+    if (typeof p.address === 'object' && p.address && (p.address.zip || p.address.postal_code)) return String(p.address.zip || p.address.postal_code).trim();
+    return String(p.zip || p.postal_code || '').trim();
+  }
+  function formatBuildingAddress(p){
+    var street = getStreet(p);
+    var city   = getCity(p);
+    var state  = getState(p);
+    var zip    = getZip(p);
+    var line2  = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return [street, line2].filter(Boolean).join(', ');
+  }
+
+  // Building grouping key — uses STREET ADDRESS only (so 46 Township Ln Apt A and Apt B group together).
+  function buildingKeyFor(p){
+    var street = getStreet(p);
+    if (street) return street;
     // Fallback: strip unit/apt suffix from name or apt
     var src = String(p.name || p.apt || '').trim();
-    return src.replace(/\s*[#\-,]?\s*(apt|unit|suite|ste|#)\s*[\w\-]+\s*$/i, '').trim() || src;
+    var stripped = src.replace(/\s*[#\-,]?\s*(apt|unit|suite|ste|#)\s*[\w\-]+\s*$/i, '').trim();
+    return stripped || src || '(no address)';
   }
+  // Display label for the dropdown (street + city, state, zip)
+  function buildingLabelFor(p){
+    return formatBuildingAddress(p) || buildingKeyFor(p);
+  }
+  // Unit dropdown label
   function unitLabelFor(p){
-    // Display-friendly unit label: try to extract suffix; else use full apt/name
     var src = String(p.apt || p.name || '').trim();
     var m = src.match(/\b(?:apt|unit|suite|ste|#)\s*([\w\-]+)\s*$/i);
     if (m) return m[1];
-    var bk = buildingKeyFor(p);
-    if (bk && src.toLowerCase().indexOf(bk.toLowerCase()) === 0){
-      var rest = src.slice(bk.length).replace(/^[\s,#\-]+/, '').trim();
+    var street = getStreet(p);
+    if (street && src.toLowerCase().indexOf(street.toLowerCase()) === 0){
+      var rest = src.slice(street.length).replace(/^[\s,#\-]+/, '').trim();
       if (rest) return rest;
     }
     return src;
   }
 
   function getBuildings(){
-    var map = {};
+    var map = {}; // { street: { label, units:[] } }
     properties.forEach(function(p){
       if (p.status && String(p.status).toLowerCase() === 'inactive') return; // skip inactive
-      var k = buildingKeyFor(p) || '(Unspecified)';
-      if (!map[k]) map[k] = [];
-      map[k].push(p);
+      var k = buildingKeyFor(p) || '(no address)';
+      if (!map[k]) map[k] = { label: '', units: [] };
+      map[k].units.push(p);
+      // Use the most complete address label found for this building (some units may have city/state set, others not)
+      var lbl = buildingLabelFor(p);
+      if (lbl && lbl.length > map[k].label.length) map[k].label = lbl;
     });
-    return Object.keys(map).sort().map(function(k){ return { name: k, units: map[k] }; });
+    return Object.keys(map).sort().map(function(k){
+      return { key: k, name: k, label: map[k].label || k, units: map[k].units };
+    });
   }
 
   function renderProperty(){
@@ -257,22 +294,24 @@
       return '<div style="color:#c33;font-size:13px;padding:14px;background:#fff4f4;border-radius:6px">No properties available. Open the Properties tab and confirm at least one is loaded, then re-open this wizard.</div>';
     }
     var bldOpts = buildings.map(function(b){
-      return `<option value="${esc(b.name)}" ${wizState.building===b.name?'selected':''}>${esc(b.name)} (${b.units.length})</option>`;
+      return `<option value="${esc(b.key)}" ${wizState.building===b.key?'selected':''}>${esc(b.label)} (${b.units.length} unit${b.units.length===1?'':'s'})</option>`;
     }).join('');
-    var sel = buildings.find(function(b){ return b.name === wizState.building; });
+    var sel = buildings.find(function(b){ return b.key === wizState.building; });
     var unitOpts = sel ? sel.units.map(function(p){
       var ul = unitLabelFor(p);
       return `<option value="${esc(ul)}" ${wizState.unit===ul?'selected':''}>${esc(ul)}${p.owner?' — '+esc(p.owner):''}</option>`;
     }).join('') : '';
+    var selectedLabel = sel ? sel.label : '';
     return `
-      <label>Building / Property address</label>
+      <label>Choose an Address</label>
       <select onchange="lwPickBuilding(this.value)">
-        <option value="">-- Select building --</option>
+        <option value="">-- Select address --</option>
         ${bldOpts}
       </select>
-      <label>Apartment / Unit</label>
+      ${selectedLabel ? `<div style="font-size:12px;color:#1a2874;margin:4px 0 0">📍 ${esc(selectedLabel)}</div>` : ''}
+      <label>Unit Number</label>
       <select onchange="lwSet('unit',this.value)" ${sel ? '' : 'disabled'}>
-        <option value="">${sel ? '-- Select unit --' : '(pick a building first)'}</option>
+        <option value="">${sel ? '-- Select unit --' : '(pick an address first)'}</option>
         ${unitOpts}
       </select>
       <label style="margin-top:14px;font-size:11px;color:#888">Or type unit manually:</label>
@@ -347,7 +386,8 @@
 
   function renderReview(){
     const tplName = templates.find(t=>t.id===wizState.template_id)?.name || '—';
-    const propName = wizState.building || '—';
+    const _b = getBuildings().find(function(b){ return b.key === wizState.building; });
+    const propName = (_b && _b.label) ? _b.label : (wizState.building || '—');
     const selAdds = addendums.filter(a => wizState.addendums[a.id]).map(a=>a.name);
     return `
       <div class="lw-review-sec"><h4>Tenants</h4>
@@ -485,8 +525,9 @@
       const tpl = templates.find(t => t.id === wizState.template_id);
       const tenants = wizState.tenants;
       const snapshot = buildSnapshot(tpl, tenants);
-      // property = building name (text column on leases table)
-      const propText = wizState.building || '';
+      // property = full address (text column on leases table) — not just the street key
+      const _bld = getBuildings().find(function(b){ return b.key === wizState.building; });
+      const propText = (_bld && _bld.label) ? _bld.label : (wizState.building || '');
       // Schema lease_type values: 'lt' or 'mtm' (not 'fixed')
       const leaseTypeDb = wizState.lease_type === 'fixed' ? 'lt' : wizState.lease_type;
 
@@ -670,7 +711,7 @@
     const tokens = {
       TENANT_NAMES: escapeHtml(tenantList),
       TENANT_SIGNATURE_BLOCKS: sigBlocks,
-      PROPERTY_ADDRESS: escapeHtml(wizState.building || ''),
+      PROPERTY_ADDRESS: escapeHtml((function(){ var b = getBuildings().find(function(x){return x.key===wizState.building;}); return b? b.label : (wizState.building||''); })()),
       UNIT: escapeHtml(wizState.unit),
       LEASE_START: wizState.lease_start||'',
       LEASE_END: wizState.lease_end||'Month-to-Month',
