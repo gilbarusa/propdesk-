@@ -137,8 +137,8 @@
     }
     try {
       const [tpls, ads, props, apps] = await Promise.all([
-        rest('lease_templates?select=id,name,body_html,is_default,is_active&is_active=eq.true'),
-        rest('lease_addendums?select=id,name,description,body_html,requires_signature,is_active&is_active=eq.true'),
+        rest('lease_templates?select=id,name,body_html,is_default,active&active=eq.true'),
+        rest('lease_addendum_library?select=id,name,body_html,requires_signature,active,sort_order&active=eq.true&order=sort_order.asc'),
         rest('properties?select=apt,name,address,owner,status&limit=500'),
         rest('rental_applications?select=id,first_name,last_name,email,phone,property,unit,status&order=created_at.desc&limit=1000')
       ]);
@@ -328,6 +328,16 @@
         try { console.warn('[lease-wizard] Skipped ' + stillOrphan.length + ' properties without a street address:', stillOrphan.map(function(p){ return p.apt || p.name || p.id; })); } catch(e){}
       }
     }
+
+    // Natural sort units within each building (A1, A2, … B1 … 10 > 9)
+    var natCmp = function(a, b){
+      return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+    };
+    Object.keys(map).forEach(function(k){
+      map[k].units.sort(function(p1, p2){
+        return natCmp(unitLabelFor(p1), unitLabelFor(p2));
+      });
+    });
 
     return Object.keys(map).sort(function(a,b){
       return (map[a].label||a).localeCompare(map[b].label||b);
