@@ -246,18 +246,40 @@
     return [street, line2].filter(Boolean).join(', ');
   }
 
-  // Building grouping key — uses STREET ADDRESS only (so 46 Township Ln Apt A and Apt B group together).
+  // Normalize a street string: lowercase, collapse spaces, expand common
+  // abbreviations so "46 Township Line Rd" and "46 Township Line Road" hash equal.
+  function normalizeStreet(street){
+    if (!street) return '';
+    var s = String(street).toLowerCase().trim();
+    // Strip apt/unit suffixes that sometimes leak into the street field
+    s = s.replace(/[,\s]+(apt|unit|suite|ste|#)\s*[\w\-]+\s*$/i, '').trim();
+    // Collapse multiple whitespace
+    s = s.replace(/\s+/g,' ');
+    // Expand common street-type abbreviations
+    var types = {
+      'rd':'road','st':'street','ave':'avenue','av':'avenue',
+      'blvd':'boulevard','ln':'lane','dr':'drive','ct':'court',
+      'pl':'place','ter':'terrace','pkwy':'parkway','hwy':'highway',
+      'cir':'circle','sq':'square','tr':'trail','trl':'trail'
+    };
+    s = s.replace(/\b([a-z]+)\.?\b/g, function(_, w){
+      return types[w] || w;
+    });
+    // Strip punctuation
+    s = s.replace(/[.,]/g,'').replace(/\s+/g,' ').trim();
+    return s;
+  }
+
+  // Building grouping key — normalized street only (so "46 Township Line Rd"
+  // and "46 Township Line Road" group together).
   function buildingKeyFor(p){
     var street = getStreet(p);
-    if (street) return street;
-    // Fallback: strip unit/apt suffix from name or apt
-    var src = String(p.name || p.apt || '').trim();
-    var stripped = src.replace(/\s*[#\-,]?\s*(apt|unit|suite|ste|#)\s*[\w\-]+\s*$/i, '').trim();
-    return stripped || src || '(no address)';
+    if (street) return normalizeStreet(street);
+    return ''; // no street → not a building
   }
   // Display label for the dropdown (street + city, state, zip)
   function buildingLabelFor(p){
-    return formatBuildingAddress(p) || buildingKeyFor(p);
+    return formatBuildingAddress(p) || getStreet(p);
   }
   // Unit dropdown label
   function unitLabelFor(p){
@@ -273,17 +295,43 @@
   }
 
   function getBuildings(){
-    var map = {}; // { street: { label, units:[] } }
+    var map = {};      // { normKey: { label, units:[] } }
+    var orphans = [];  // properties with no street address
     properties.forEach(function(p){
       if (p.status && String(p.status).toLowerCase() === 'inactive') return; // skip inactive
-      var k = buildingKeyFor(p) || '(no address)';
+      var k = buildingKeyFor(p);
+      if (!k){ orphans.push(p); return; }
       if (!map[k]) map[k] = { label: '', units: [] };
       map[k].units.push(p);
-      // Use the most complete address label found for this building (some units may have city/state set, others not)
+      // Pick the most complete label among variants (longer label wins —
+      // captures city/state/zip if some siblings have them and others don't).
       var lbl = buildingLabelFor(p);
       if (lbl && lbl.length > map[k].label.length) map[k].label = lbl;
     });
-    return Object.keys(map).sort().map(function(k){
+
+    // Try to attach orphans (apt-only records, e.g. "311") to an existing
+    // building if they share parking_building_id with a known unit.
+    if (orphans.length){
+      var bldByPkId = {};
+      Object.keys(map).forEach(function(k){
+        map[k].units.forEach(function(u){
+          if (u.parking_building_id) bldByPkId[u.parking_building_id] = k;
+        });
+      });
+      var stillOrphan = [];
+      orphans.forEach(function(p){
+        var k = p.parking_building_id && bldByPkId[p.parking_building_id];
+        if (k){ map[k].units.push(p); }
+        else { stillOrphan.push(p); }
+      });
+      if (stillOrphan.length){
+        try { console.warn('[lease-wizard] Skipped ' + stillOrphan.length + ' properties without a street address:', stillOrphan.map(function(p){ return p.apt || p.name || p.id; })); } catch(e){}
+      }
+    }
+
+    return Object.keys(map).sort(function(a,b){
+      return (map[a].label||a).localeCompare(map[b].label||b);
+    }).map(function(k){
       return { key: k, name: k, label: map[k].label || k, units: map[k].units };
     });
   }
