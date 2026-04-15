@@ -1,5 +1,5 @@
 /* ═══ LEASE WIZARD — Create Lease + send for signing ═══
-   v2026-04-14 1935
+   v2026-04-14 2240 — Building + Unit dropdowns, reads window.propertiesData
    Depends on: window.supa (shared Supabase client from app.js)
    Invoked by: leaseAction('newLease') in app.js
 */
@@ -88,7 +88,7 @@
     wizState = {
       step: 0,
       tenants: [{name:'', email:'', phone:'', application_id:null}],
-      property_id: '', unit: '', property_address: '',
+      building: '', unit: '', property_id: '', property_address: '',
       template_id: '',
       lease_type: 'fixed', // fixed | mtm
       lease_start: '', lease_end: '',
@@ -106,15 +106,12 @@
     document.getElementById('lwModal').style.display = 'flex';
     await lwLoadRefs();
 
-    // After refs are loaded, try to match a property_name string against the loaded properties
-    if (prefill?.property_name && !wizState.property_id){
+    // After refs are loaded, try to match a property_name string against the loaded buildings
+    if (prefill?.property_name && !wizState.building){
       const q = String(prefill.property_name).toLowerCase();
-      const m = properties.find(p =>
-        (p.name||'').toLowerCase() === q ||
-        (p.address||'').toLowerCase().includes(q) ||
-        (p.name||'').toLowerCase().includes(q)
-      );
-      if (m) wizState.property_id = m.id;
+      const blds = getBuildings();
+      const m = blds.find(b => b.name.toLowerCase() === q || b.name.toLowerCase().includes(q) || q.includes(b.name.toLowerCase()));
+      if (m) wizState.building = m.name;
     }
     lwRender();
   };
@@ -142,12 +139,15 @@
       const [tpls, ads, props, apps] = await Promise.all([
         rest('lease_templates?select=id,name,body_html,is_default,is_active&is_active=eq.true'),
         rest('lease_addendums?select=id,name,description,body_html,requires_signature,is_active&is_active=eq.true'),
-        rest('properties?select=id,name,address&limit=500'),
+        rest('properties?select=apt,name,address,owner,status&limit=500'),
         rest('rental_applications?select=id,first_name,last_name,email,phone,property,unit,status&order=created_at.desc&limit=1000')
       ]);
       templates = tpls || [];
       addendums = ads || [];
-      properties = props || [];
+      // Prefer admin-loaded propertiesData (avoids RLS / refetch); fall back to REST result
+      const adminProps = (typeof window !== 'undefined' && Array.isArray(window.propertiesData)) ? window.propertiesData : null;
+      properties = (adminProps && adminProps.length) ? adminProps : (props || []);
+      console.log('[lease-wizard] property source:', adminProps && adminProps.length ? 'window.propertiesData' : 'REST', '— count:', properties.length);
       applicants = (apps||[]).map(a => ({
         id: a.id,
         name: ((a.first_name||'') + ' ' + (a.last_name||'')).trim(),
@@ -214,18 +214,79 @@
       <button class="lw-add" onclick="lwAddT()">+ Add another tenant</button>`;
   }
 
+  // Group properties into buildings.
+  // A "building" key is the address (preferred) or the name with the unit suffix stripped.
+  function buildingKeyFor(p){
+    if (!p) return '';
+    var addr = (typeof p.address === 'object' && p.address)
+      ? (p.address.street || p.address.address1 || p.address.line1 || '')
+      : (p.address || '');
+    addr = String(addr || '').trim();
+    if (addr) return addr;
+    // Fallback: strip unit/apt suffix from name or apt
+    var src = String(p.name || p.apt || '').trim();
+    return src.replace(/\s*[#\-,]?\s*(apt|unit|suite|ste|#)\s*[\w\-]+\s*$/i, '').trim() || src;
+  }
+  function unitLabelFor(p){
+    // Display-friendly unit label: try to extract suffix; else use full apt/name
+    var src = String(p.apt || p.name || '').trim();
+    var m = src.match(/\b(?:apt|unit|suite|ste|#)\s*([\w\-]+)\s*$/i);
+    if (m) return m[1];
+    var bk = buildingKeyFor(p);
+    if (bk && src.toLowerCase().indexOf(bk.toLowerCase()) === 0){
+      var rest = src.slice(bk.length).replace(/^[\s,#\-]+/, '').trim();
+      if (rest) return rest;
+    }
+    return src;
+  }
+
+  function getBuildings(){
+    var map = {};
+    properties.forEach(function(p){
+      if (p.status && String(p.status).toLowerCase() === 'inactive') return; // skip inactive
+      var k = buildingKeyFor(p) || '(Unspecified)';
+      if (!map[k]) map[k] = [];
+      map[k].push(p);
+    });
+    return Object.keys(map).sort().map(function(k){ return { name: k, units: map[k] }; });
+  }
+
   function renderProperty(){
-    const propOpts = properties.map(p => `<option value="${p.id}" ${wizState.property_id===p.id?'selected':''}>${esc(p.name||p.address||p.id)}</option>`).join('');
+    var buildings = getBuildings();
+    if (!buildings.length){
+      return '<div style="color:#c33;font-size:13px;padding:14px;background:#fff4f4;border-radius:6px">No properties available. Open the Properties tab and confirm at least one is loaded, then re-open this wizard.</div>';
+    }
+    var bldOpts = buildings.map(function(b){
+      return `<option value="${esc(b.name)}" ${wizState.building===b.name?'selected':''}>${esc(b.name)} (${b.units.length})</option>`;
+    }).join('');
+    var sel = buildings.find(function(b){ return b.name === wizState.building; });
+    var unitOpts = sel ? sel.units.map(function(p){
+      var ul = unitLabelFor(p);
+      return `<option value="${esc(ul)}" ${wizState.unit===ul?'selected':''}>${esc(ul)}${p.owner?' — '+esc(p.owner):''}</option>`;
+    }).join('') : '';
     return `
-      <label>Property</label>
-      <select onchange="lwSet('property_id',this.value)">
-        <option value="">-- Select property --</option>
-        ${propOpts}
+      <label>Building / Property address</label>
+      <select onchange="lwPickBuilding(this.value)">
+        <option value="">-- Select building --</option>
+        ${bldOpts}
       </select>
-      <label>Unit</label>
+      <label>Apartment / Unit</label>
+      <select onchange="lwSet('unit',this.value)" ${sel ? '' : 'disabled'}>
+        <option value="">${sel ? '-- Select unit --' : '(pick a building first)'}</option>
+        ${unitOpts}
+      </select>
+      <label style="margin-top:14px;font-size:11px;color:#888">Or type unit manually:</label>
       <input type="text" value="${esc(wizState.unit)}" oninput="lwSet('unit',this.value)" placeholder="e.g. 301">
     `;
   }
+  window.lwPickBuilding = function(name){
+    wizState.building = name || '';
+    wizState.unit = ''; // reset unit when building changes
+    // Sync legacy property_id if a building maps to a single property record
+    var b = getBuildings().find(function(x){ return x.name === name; });
+    if (b && b.units.length === 1) wizState.unit = unitLabelFor(b.units[0]);
+    lwRender();
+  };
 
   function renderTerms(){
     const tplOpts = templates.map(t => `<option value="${t.id}" ${wizState.template_id===t.id?'selected':''}>${esc(t.name)}${t.is_default?' (default)':''}</option>`).join('');
@@ -286,8 +347,7 @@
 
   function renderReview(){
     const tplName = templates.find(t=>t.id===wizState.template_id)?.name || '—';
-    const prop = properties.find(p=>p.id===wizState.property_id);
-    const propName = prop ? (prop.name||prop.address) : '—';
+    const propName = wizState.building || '—';
     const selAdds = addendums.filter(a => wizState.addendums[a.id]).map(a=>a.name);
     return `
       <div class="lw-review-sec"><h4>Tenants</h4>
@@ -350,17 +410,16 @@
     const a = applicants.find(x => x.id === id);
     if (!a) return;
     wizState.tenants[i] = { name: a.name, email: a.email, phone: a.phone, application_id: a.id };
-    // Auto-fill property/unit/application_id on first tenant pick if still empty
+    // Auto-fill building/unit/application_id on first tenant pick if still empty
     if (i === 0){
       if (!wizState.application_id) wizState.application_id = a.id;
       if (!wizState.unit && a.unit) wizState.unit = a.unit;
-      // Match applicant.property (text) to properties list
-      if (!wizState.property_id && a.property){
-        const match = properties.find(p =>
-          (p.name||'').toLowerCase() === a.property.toLowerCase() ||
-          (p.address||'').toLowerCase().includes(a.property.toLowerCase())
-        );
-        if (match) wizState.property_id = match.id;
+      // Match applicant.property (text) to building list
+      if (!wizState.building && a.property){
+        const blds = getBuildings();
+        const q = a.property.toLowerCase();
+        const m = blds.find(b => b.name.toLowerCase() === q || b.name.toLowerCase().includes(q) || q.includes(b.name.toLowerCase()));
+        if (m) wizState.building = m.name;
       }
     }
     lwCloseSuggest(i);
@@ -394,8 +453,8 @@
       }
     }
     if (wizState.step === 1){
-      if (!wizState.property_id) return 'Pick a property';
-      if (!wizState.unit.trim()) return 'Enter the unit';
+      if (!wizState.building.trim()) return 'Pick a building';
+      if (!wizState.unit.trim()) return 'Pick or enter the unit';
     }
     if (wizState.step === 2){
       if (!wizState.template_id) return 'Pick a lease template';
@@ -416,53 +475,55 @@
       const tpl = templates.find(t => t.id === wizState.template_id);
       const tenants = wizState.tenants;
       const snapshot = buildSnapshot(tpl, tenants);
-      const prop = properties.find(p=>p.id===wizState.property_id);
+      // property = building name (text column on leases table)
+      const propText = wizState.building || '';
+      // Schema lease_type values: 'lt' or 'mtm' (not 'fixed')
+      const leaseTypeDb = wizState.lease_type === 'fixed' ? 'lt' : wizState.lease_type;
 
       const lease = {
-        application_id: wizState.application_id,
-        template_id: wizState.template_id,
-        property_id: wizState.property_id,
+        property: propText,
         unit: wizState.unit,
-        lease_type: wizState.lease_type,
-        lease_start: wizState.lease_start || null,
-        lease_end: wizState.lease_type==='fixed' ? (wizState.lease_end||null) : null,
-        monthly_rent: parseFloat(wizState.monthly_rent)||0,
-        rent_due_day: wizState.rent_due_day,
-        security_deposit: parseFloat(wizState.security_deposit)||0,
-        utilities_tenant: wizState.utilities_tenant,
-        utilities_landlord: wizState.utilities_landlord,
-        status: action==='send' ? 'out_for_signature' : 'draft',
-        body_html_snapshot: snapshot,
-        sent_at: action==='send' ? new Date().toISOString() : null,
         landlord_name: 'Willow Partnership',
-        landlord_email: 'kevin@willowpa.com'
+        template_id: wizState.template_id || null,
+        lease_type: leaseTypeDb,
+        lease_start: wizState.lease_start || null,
+        lease_end: leaseTypeDb === 'lt' ? (wizState.lease_end || null) : null,
+        monthly_rent: parseFloat(wizState.monthly_rent) || 0,
+        security_deposit: parseFloat(wizState.security_deposit) || 0,
+        utilities_included: [...wizState.utilities_landlord], // schema only stores landlord-paid
+        status: action === 'send' ? 'out_for_signature' : 'draft',
+        body_html_snapshot: snapshot,
+        sent_at: action === 'send' ? new Date().toISOString() : null,
+        created_from_application_id: wizState.application_id || null,
+        created_by: 'admin'
       };
 
       const { data: leaseRow, error: le } = await s.from('leases').insert(lease).select().single();
       if (le) throw le;
 
-      // Tenants as signers
-      const signers = tenants.map((t,i) => ({
+      // Tenants as signers — schema: name, sign_order, application_id, signature_png
+      const signers = tenants.map((t, i) => ({
         lease_id: leaseRow.id,
         role: 'tenant',
-        sort_order: i,
-        full_name: t.name,
+        sign_order: i + 1,
+        name: t.name,
         email: t.email,
-        phone: t.phone || null
+        phone: t.phone || null,
+        application_id: t.application_id || null
       }));
-      // Landlord signer (countersigns)
+      // Landlord signer (countersigns last)
       signers.push({
         lease_id: leaseRow.id,
         role: 'landlord',
-        sort_order: 99,
-        full_name: lease.landlord_name,
-        email: lease.landlord_email
+        sign_order: 99,
+        name: lease.landlord_name,
+        email: 'kevin@willowpa.com'
       });
       const { error: se } = await s.from('lease_signers').insert(signers);
       if (se) throw se;
 
       // Selected addendums snapshot
-      const selAds = addendums.filter(a => wizState.addendums[a.id]).map((a,i) => ({
+      const selAds = addendums.filter(a => wizState.addendums[a.id]).map((a, i) => ({
         lease_id: leaseRow.id,
         addendum_id: a.id,
         sort_order: i,
@@ -470,33 +531,39 @@
         body_html_snapshot: a.body_html,
         requires_signature: a.requires_signature
       }));
-      if (selAds.length){
+      if (selAds.length) {
         const { error: ae } = await s.from('lease_addendums_selected').insert(selAds);
         if (ae) console.warn('addendum insert', ae);
       }
 
-      // Events
+      // Events (schema: lease_events has only `meta` jsonb — no actor/metadata cols)
       await s.from('lease_events').insert([
-        { lease_id: leaseRow.id, event_type: 'created', actor: 'admin' },
-        ...(action==='send' ? [{ lease_id: leaseRow.id, event_type: 'sent', actor: 'admin' }] : [])
+        { lease_id: leaseRow.id, event_type: 'created', meta: { actor: 'admin' } },
+        ...(action === 'send' ? [{ lease_id: leaseRow.id, event_type: 'sent', meta: { actor: 'admin' } }] : [])
       ]);
 
-      // Queue signing emails (stub)
-      if (action==='send'){
-        const { data: ins } = await s.from('lease_signers').select('id,full_name,email,signing_token').eq('lease_id', leaseRow.id).eq('role','tenant');
-        const evts = (ins||[]).map(sg => ({
-          lease_id: leaseRow.id,
-          event_type: 'email_queued',
-          actor: 'system',
-          metadata: { signer_id: sg.id, email: sg.email, token: sg.signing_token, link: `https://app.willowpa.com/sign.php?token=${sg.signing_token}` }
-        }));
-        if (evts.length) await s.from('lease_events').insert(evts);
+      // Send signing requests via EMAIL + SMS
+      let sendReport = null;
+      if (action === 'send') {
+        const { data: ins } = await s.from('lease_signers')
+          .select('id,name,email,phone,signing_token')
+          .eq('lease_id', leaseRow.id).eq('role', 'tenant');
+        sendReport = await sendSigningRequests(ins || [], leaseRow, lease);
       }
 
       closeLeaseWizard();
-      alert(action==='send'
-        ? `Lease created and sent for signing to ${tenants.length} tenant(s).`
-        : 'Draft lease saved.');
+      if (action === 'send' && sendReport){
+        alert(
+          `Lease sent for signing.\n\n` +
+          `Email: ${sendReport.emailOk}/${sendReport.total} delivered` +
+          (sendReport.emailFail.length ? ` (failed: ${sendReport.emailFail.join(', ')})` : '') + `\n` +
+          `SMS:   ${sendReport.smsOk}/${sendReport.smsAttempt} delivered` +
+          (sendReport.smsFail.length ? ` (failed: ${sendReport.smsFail.join(', ')})` : '') +
+          (sendReport.smsSkipped.length ? `\nSkipped (no phone): ${sendReport.smsSkipped.join(', ')}` : '')
+        );
+      } else {
+        alert('Draft lease saved.');
+      }
       if (typeof loadLeases === 'function') loadLeases();
     } catch(e){
       console.error(e);
@@ -515,11 +582,10 @@
         <div>Tenant: <strong>${escapeHtml(t.name)}</strong></div>
         <div>Signature: ____________________&nbsp;&nbsp;Date: __________</div>
       </div>`).join('');
-    const prop = properties.find(p=>p.id===wizState.property_id);
     const tokens = {
       TENANT_NAMES: escapeHtml(tenantList),
       TENANT_SIGNATURE_BLOCKS: sigBlocks,
-      PROPERTY_ADDRESS: escapeHtml(prop ? (prop.address||prop.name||'') : ''),
+      PROPERTY_ADDRESS: escapeHtml(wizState.building || ''),
       UNIT: escapeHtml(wizState.unit),
       LEASE_START: wizState.lease_start||'',
       LEASE_END: wizState.lease_end||'Month-to-Month',

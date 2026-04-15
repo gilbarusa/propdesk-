@@ -6707,6 +6707,8 @@ async function loadProperties() {
     return { ...p, unit_type: linkedUnit ? linkedUnit.type : null };
   });
   populatePropOwnerFilter();
+  // Expose to other modules (lease wizard, etc.)
+  try { window.propertiesData = propertiesData; window.unitsData = data; } catch(e){}
 }
 
 function populatePropOwnerFilter() {
