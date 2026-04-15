@@ -92,7 +92,8 @@
       template_id: '',
       lease_type: 'fixed', // fixed | mtm
       lease_start: '', lease_end: '',
-      monthly_rent: '', rent_due_day: 1, security_deposit: '',
+      monthly_rent: '', rent_due_day: 1, security_deposit: '', last_month_rent: '',
+      extra_charges: [], // [{label, amount, note}]
       utilities_tenant: [], utilities_landlord: [],
       addendums: {}, // {id: true}
       application_id: prefill?.application_id || null,
@@ -434,6 +435,24 @@
         <div><label>Security deposit ($)</label>
           <input type="number" step="0.01" value="${esc(wizState.security_deposit)}" oninput="lwSet('security_deposit',this.value)"></div>
       </div>
+      <div class="lw-row">
+        <div><label>Last month's rent held ($)</label>
+          <input type="number" step="0.01" value="${esc(wizState.last_month_rent)}" oninput="lwSet('last_month_rent',this.value)"></div>
+        <div></div>
+      </div>
+      <label style="margin-top:14px">Other charges</label>
+      <div id="lwExtraCharges">
+        ${(wizState.extra_charges||[]).map(function(c,i){
+          return `
+            <div class="lw-row" style="margin-bottom:6px">
+              <input type="text" placeholder="Label (e.g. Pet fee)" value="${esc(c.label||'')}" oninput="lwSetCharge(${i},'label',this.value)">
+              <input type="number" step="0.01" placeholder="Amount" value="${esc(c.amount||'')}" oninput="lwSetCharge(${i},'amount',this.value)">
+              <input type="text" placeholder="Note (optional)" value="${esc(c.note||'')}" oninput="lwSetCharge(${i},'note',this.value)">
+              <button type="button" onclick="lwRemoveCharge(${i})" style="padding:6px 10px;background:#fee;border:1px solid #f99;border-radius:4px;color:#c33;cursor:pointer">×</button>
+            </div>`;
+        }).join('')}
+      </div>
+      <button type="button" onclick="lwAddCharge()" style="margin-top:6px;padding:6px 12px;background:#eef1f8;border:1px solid #d6def0;border-radius:4px;color:#1a2874;cursor:pointer;font-size:12px">+ Add charge</button>
     `;
   }
 
@@ -479,7 +498,11 @@
         <div class="kv"><b>Start:</b> ${esc(wizState.lease_start||'—')}</div>
         ${wizState.lease_type==='fixed'?`<div class="kv"><b>End:</b> ${esc(wizState.lease_end||'—')}</div>`:''}
         <div class="kv"><b>Rent:</b> $${esc(wizState.monthly_rent||'0')} on day ${wizState.rent_due_day}</div>
-        <div class="kv"><b>Security deposit:</b> $${esc(wizState.security_deposit||'0')}</div></div>
+        <div class="kv"><b>Security deposit:</b> $${esc(wizState.security_deposit||'0')}</div>
+        <div class="kv"><b>Last month held:</b> $${esc(wizState.last_month_rent||'0')}</div>
+        ${(wizState.extra_charges||[]).filter(function(c){return c.label||c.amount;}).map(function(c){
+          return `<div class="kv"><b>${esc(c.label||'Charge')}:</b> $${esc(c.amount||'0')}${c.note?' — '+esc(c.note):''}</div>`;
+        }).join('')}</div>
       <div class="lw-review-sec"><h4>Utilities</h4>
         <div class="kv"><b>Tenant pays:</b> ${wizState.utilities_tenant.join(', ')||'—'}</div>
         <div class="kv"><b>Landlord pays:</b> ${wizState.utilities_landlord.join(', ')||'—'}</div></div>
@@ -510,6 +533,20 @@
     if (k==='lease_type' && v==='mtm') wizState.lease_end='';
     var rerenderKeys = ['lease_type','template_id','building'];
     if (rerenderKeys.indexOf(k) !== -1) lwRender();
+  };
+  window.lwAddCharge = function(){
+    if (!wizState.extra_charges) wizState.extra_charges = [];
+    wizState.extra_charges.push({ label:'', amount:'', note:'' });
+    lwRender();
+  };
+  window.lwRemoveCharge = function(i){
+    wizState.extra_charges.splice(i, 1);
+    lwRender();
+  };
+  // No re-render — keep focus while typing in label/amount/note
+  window.lwSetCharge = function(i, k, v){
+    if (!wizState.extra_charges[i]) wizState.extra_charges[i] = { label:'', amount:'', note:'' };
+    wizState.extra_charges[i][k] = v;
   };
   window.lwSetT = (i,k,v) => { wizState.tenants[i][k] = v; };
 
@@ -627,6 +664,10 @@
         lease_end: leaseTypeDb === 'lt' ? (wizState.lease_end || null) : null,
         monthly_rent: parseFloat(wizState.monthly_rent) || 0,
         security_deposit: parseFloat(wizState.security_deposit) || 0,
+        last_month_rent: parseFloat(wizState.last_month_rent) || 0,
+        extra_charges: (wizState.extra_charges||[])
+          .map(function(c){ return { label:String(c.label||'').trim(), amount: parseFloat(c.amount)||0, note:String(c.note||'').trim() }; })
+          .filter(function(c){ return c.label || c.amount; }),
         utilities_included: [...wizState.utilities_landlord], // schema only stores landlord-paid
         status: action === 'send' ? 'out_for_signature' : 'draft',
         body_html_snapshot: snapshot,
@@ -805,6 +846,16 @@
       RENT_DUE_DAY: wizState.rent_due_day,
       SECURITY_DEPOSIT: parseFloat(wizState.security_deposit||0).toFixed(2),
       LANDLORD_NAME: 'Willow Partnership',
+      LAST_MONTH: parseFloat(wizState.last_month_rent||0).toFixed(2),
+      EXTRA_CHARGES_HTML: (function(){
+        var rows = (wizState.extra_charges||[]).filter(function(c){ return c.label || c.amount; });
+        if (!rows.length) return '<p><em>None</em></p>';
+        return '<ul>' + rows.map(function(c){
+          var amt = (parseFloat(c.amount)||0).toFixed(2);
+          var note = c.note ? ' — ' + escapeHtml(c.note) : '';
+          return '<li>' + escapeHtml(c.label||'Charge') + ': $' + amt + note + '</li>';
+        }).join('') + '</ul>';
+      })(),
       UTILITIES_TENANT: wizState.utilities_tenant.join(', ')||'None',
       UTILITIES_LANDLORD: wizState.utilities_landlord.join(', ')||'None'
     };
