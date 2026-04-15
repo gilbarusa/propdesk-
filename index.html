@@ -12,7 +12,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Willow">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:wght@600;700&family=Great+Vibes&family=Dancing+Script:wght@400;700&family=Pacifico&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" onerror="window._supaFailed=true"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -2132,12 +2132,27 @@
       <p style="margin-top:0; color:#5a6378;">By countersigning, you confirm the lease has been reviewed and execute it as landlord. The fully-executed PDF will be generated and emailed to all tenants.</p>
       <div style="margin:14px 0; padding:12px 14px; background:#f7f8fb; border:1px solid #e1e5ee; border-radius:8px;" id="lvCsSummary"></div>
       <label style="font-size:12px; font-weight:600; color:#5a6378;">Landlord signature</label>
-      <div style="border:1px solid #e1e5ee; border-radius:8px; background:#fff; margin-top:6px;">
+      <div style="display:flex; gap:6px; margin-top:6px;" id="lvSigTabs">
+        <button type="button" class="lv-btn lv-btn-sm lv-sig-tab active" data-tab="draw" onclick="LeasesView.switchSigTab('draw')">✍️ Draw</button>
+        <button type="button" class="lv-btn lv-btn-sm lv-sig-tab" data-tab="type" onclick="LeasesView.switchSigTab('type')">⌨️ Type</button>
+      </div>
+      <div id="lvSigDrawWrap" style="border:1px solid #e1e5ee; border-radius:8px; background:#fff; margin-top:6px;">
         <canvas id="lvLandlordPad" width="700" height="160" style="display:block; width:100%; height:160px; cursor:crosshair;"></canvas>
+      </div>
+      <div id="lvSigTypeWrap" style="display:none; border:1px solid #e1e5ee; border-radius:8px; background:#fff; margin-top:6px; padding:14px;">
+        <input type="text" id="lvSigTypeInput" placeholder="Type your full name…" oninput="LeasesView.renderTypedSig()" style="width:100%; padding:10px 12px; border:1px solid #d8dde9; border-radius:6px; font-size:14px; box-sizing:border-box;">
+        <div style="font-size:11px; color:#5a6378; margin:10px 0 4px;">Choose a style:</div>
+        <div id="lvSigFontPicker" style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="lv-sig-font" data-font="Great Vibes, cursive" onclick="LeasesView.pickSigFont(this)" style="font-family:'Great Vibes',cursive; font-size:22px; padding:6px 14px; border:2px solid #1a2874; border-radius:6px; background:#fff; cursor:pointer;">Signature</button>
+          <button type="button" class="lv-sig-font" data-font="Dancing Script, cursive" onclick="LeasesView.pickSigFont(this)" style="font-family:'Dancing Script',cursive; font-size:22px; padding:6px 14px; border:2px solid transparent; border-radius:6px; background:#fff; cursor:pointer;">Signature</button>
+          <button type="button" class="lv-sig-font" data-font="Pacifico, cursive" onclick="LeasesView.pickSigFont(this)" style="font-family:'Pacifico',cursive; font-size:22px; padding:6px 14px; border:2px solid transparent; border-radius:6px; background:#fff; cursor:pointer;">Signature</button>
+          <button type="button" class="lv-sig-font" data-font="Caveat, cursive" onclick="LeasesView.pickSigFont(this)" style="font-family:'Caveat',cursive; font-size:22px; padding:6px 14px; border:2px solid transparent; border-radius:6px; background:#fff; cursor:pointer;">Signature</button>
+        </div>
+        <canvas id="lvSigTypeCanvas" width="700" height="100" style="display:block; width:100%; height:100px; margin-top:12px; border:1px dashed #d8dde9; border-radius:4px; background:#fdfdfd;"></canvas>
       </div>
       <div style="display:flex; gap:8px; margin-top:8px;">
         <button class="lv-btn lv-btn-sm" onclick="LeasesView.clearLandlordPad()">Clear</button>
-        <span class="lv-hint" style="margin-left:auto; align-self:center;">Sign with mouse, finger, or stylus</span>
+        <span class="lv-hint" style="margin-left:auto; align-self:center;">Sign with mouse, finger, stylus, or type your name</span>
       </div>
       <div id="lvCsProgress" style="margin-top:14px; display:none;">
         <div style="font-size:13px; color:#1a2874; font-weight:600;" id="lvCsProgressText">Working...</div>
@@ -3727,7 +3742,7 @@
 <script src="js/pipeline.js"></script>
 <script src="js/invoice.js?v=20260414-prlogo"></script>
 <script src="js/lease-wizard.js?v=20260415-0400"></script>
-<script src="js/leases-view.js?v=20260415-0600"></script>
+<script src="js/leases-view.js?v=20260415-0700"></script>
 
 <!-- ══ GLOBAL Drill-Down & Invoice Panels (outside all pages) ══ -->
 <div class="dd-overlay" id="ddOverlay" onclick="panelBack()"></div>
