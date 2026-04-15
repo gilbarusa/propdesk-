@@ -6,7 +6,7 @@
 (function(){
   'use strict';
 
-  const LEASE_WIZARD_VERSION = '20260415-0900';
+  const LEASE_WIZARD_VERSION = '20260415-1100';
   try { console.log('%c[lease-wizard] loaded v' + LEASE_WIZARD_VERSION, 'background:#1a2874;color:#fff;padding:2px 8px;border-radius:3px'); } catch(e){}
   window.LEASE_WIZARD_VERSION = LEASE_WIZARD_VERSION;
 
@@ -749,6 +749,52 @@
         { lease_id: leaseRow.id, event_type: 'created', meta: { actor: 'admin' } },
         ...(action === 'send' ? [{ lease_id: leaseRow.id, event_type: 'sent', meta: { actor: 'admin' } }] : [])
       ]);
+
+      // Create tenants_lt row(s) so each tenant shows up in the Tenants list
+      // (app.js hydrates INNAGO_TENANTS exclusively from tenants_lt). One row
+      // per tenant on the lease, all pointing at the same lease_id. Status
+      // reflects lease status: draft/out_for_signature → 'Future', signed → 'Active'.
+      try {
+        const _tenantStatus = (lease.status === 'draft' || lease.status === 'out_for_signature' || lease.status === 'future') ? 'Future' : 'Active';
+        const _tenantRows = tenants.map(function(t){
+          return {
+            lease_id:   leaseRow.id,
+            name:       t.name,
+            email:      t.email || '',
+            phone:      t.phone || '',
+            property:   propText,
+            unit:       wizState.unit,
+            rent:       parseFloat(wizState.monthly_rent) || 0,
+            status:     _tenantStatus,
+            lease_start: wizState.lease_start || null,
+            lease_end:   leaseTypeDb === 'lt' ? (wizState.lease_end || null) : null,
+            lease_type:  leaseTypeDb
+          };
+        });
+        if (_tenantRows.length){
+          // Upsert on email so re-leasing an existing tenant updates their row
+          // instead of colliding with tenants_lt_email_unique. Rows without an
+          // email fall through to plain insert.
+          const _withEmail = _tenantRows.filter(function(r){ return r.email; });
+          const _noEmail   = _tenantRows.filter(function(r){ return !r.email; });
+          let _anyErr = null;
+          if (_withEmail.length){
+            const { error: ue } = await s.from('tenants_lt')
+              .upsert(_withEmail, { onConflict: 'email' });
+            if (ue) _anyErr = ue;
+          }
+          if (_noEmail.length){
+            const { error: ie } = await s.from('tenants_lt').insert(_noEmail);
+            if (ie) _anyErr = ie;
+          }
+          if (_anyErr) console.warn('[lease-wizard] tenants_lt upsert failed:', _anyErr);
+          else if (typeof window.WPA_hydrateTenantsLT === 'function') {
+            try { await window.WPA_hydrateTenantsLT(); } catch(e){ console.warn('rehydrate', e); }
+          }
+        }
+      } catch(e) {
+        console.warn('[lease-wizard] tenants_lt cascade error:', e);
+      }
 
       // Send signing requests via EMAIL + SMS
       let sendReport = null;
