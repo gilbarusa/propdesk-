@@ -125,26 +125,6 @@
   };
 
   async function lwLoadRefs(){
-    const s = sb();
-    // 1) Pull applicants from app.js's already-loaded _liveApplications (preferred — known to work)
-    if (Array.isArray(window._liveApplications) && window._liveApplications.length){
-      applicants = window._liveApplications.map(a => ({
-        id: a.id, name: a.name||'', email: a.email||'', phone: a.phone||'',
-        property: a.property||'', unit: a.unit||'', status: a.status||''
-      })).filter(a => a.name && a.name.trim());
-      console.log('[lease-wizard] loaded', applicants.length, 'applicants from window._liveApplications');
-    } else if (typeof window.fetchApplications === 'function'){
-      try {
-        await window.fetchApplications();
-        applicants = (window._liveApplications||[]).map(a => ({
-          id: a.id, name: a.name||'', email: a.email||'', phone: a.phone||'',
-          property: a.property||'', unit: a.unit||'', status: a.status||''
-        })).filter(a => a.name && a.name.trim());
-        console.log('[lease-wizard] fetched', applicants.length, 'applicants via fetchApplications');
-      } catch(e){ console.warn('[lease-wizard] fetchApplications failed', e); applicants = []; }
-    }
-
-    // 2) Use the same direct REST pattern as app.js for templates/addendums/properties
     const SUPA_URL = window.CONFIG?.SUPABASE_URL;
     const SUPA_KEY = window.CONFIG?.SUPABASE_KEY;
     async function rest(path){
@@ -157,15 +137,22 @@
       } catch(e){ console.warn('[lease-wizard] REST failed', path, e); return []; }
     }
     try {
-      const [tpls, ads, props] = await Promise.all([
+      const [tpls, ads, props, apps] = await Promise.all([
         rest('lease_templates?select=id,name,body_html,is_default,is_active&is_active=eq.true'),
         rest('lease_addendums?select=id,name,description,body_html,requires_signature,is_active&is_active=eq.true'),
-        rest('properties?select=id,name,address&limit=500')
+        rest('properties?select=id,name,address&limit=500'),
+        rest('rental_applications?select=id,first_name,last_name,email,phone,property,unit,status&order=created_at.desc&limit=1000')
       ]);
       templates = tpls || [];
       addendums = ads || [];
       properties = props || [];
-      console.log('[lease-wizard] templates:', templates.length, 'addendums:', addendums.length, 'properties:', properties.length);
+      applicants = (apps||[]).map(a => ({
+        id: a.id,
+        name: ((a.first_name||'') + ' ' + (a.last_name||'')).trim(),
+        email: a.email||'', phone: a.phone||'',
+        property: a.property||'', unit: a.unit||'', status: a.status||''
+      })).filter(a => a.name);
+      console.log('[lease-wizard] templates:', templates.length, 'addendums:', addendums.length, 'properties:', properties.length, 'applicants:', applicants.length);
       // Pre-select default template
       const def = templates.find(t => t.is_default);
       if (def && !wizState.template_id) wizState.template_id = def.id;
