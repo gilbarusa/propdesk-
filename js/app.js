@@ -1110,11 +1110,35 @@ function getEarliestBooking(activeRecord) {
   };
 }
 
+// Future filter: when true, future-dated bookings show as separate rows;
+// when false (default), the dedup logic hides them so each unit counts once.
+window.showFuture = window.showFuture || false;
+function toggleFutureFilter(el){
+  window.showFuture = !window.showFuture;
+  if (el) { el.classList.toggle('active', window.showFuture); }
+  renderTable();
+}
+
 function getFiltered(){
   // Deduplicate by apt — keep only the most relevant booking per apt
   // Priority: 1) currently active (checkin <= today <= due), 2) next upcoming (checkin > today), 3) available
   const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
   const allActive = data.filter(r=>!r.archived);
+
+  // FUTURE-FILTER MODE: skip dedup, return each row but tag future ones
+  if (window.showFuture) {
+    let rows = allActive.slice();
+    const q=document.getElementById('searchInput').value.toLowerCase();
+    if(q)rows=rows.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
+    if(currentTypeFilter!=='all'){
+      if(currentTypeFilter==='available'){ rows=rows.filter(r=>r.type==='available'||dueStatus(r)==='available'); }
+      else { rows=rows.filter(r=>r.type===currentTypeFilter); }
+    }
+    rows.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
+    return rows;
+  }
+
   const aptMap = {};
   allActive.forEach(r => {
     const apt = r.apt;
