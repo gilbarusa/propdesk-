@@ -6,7 +6,7 @@
 (function(){
   'use strict';
 
-  const LEASE_WIZARD_VERSION = '20260415-1100';
+  const LEASE_WIZARD_VERSION = '20260415-1200';
   try { console.log('%c[lease-wizard] loaded v' + LEASE_WIZARD_VERSION, 'background:#1a2874;color:#fff;padding:2px 8px;border-radius:3px'); } catch(e){}
   window.LEASE_WIZARD_VERSION = LEASE_WIZARD_VERSION;
 
@@ -756,13 +756,19 @@
       // reflects lease status: draft/out_for_signature → 'Future', signed → 'Active'.
       try {
         const _tenantStatus = (lease.status === 'draft' || lease.status === 'out_for_signature' || lease.status === 'future') ? 'Future' : 'Active';
+        // tenants_lt.property must match the short street form stored on
+        // properties.address (e.g. "46 Township Line Rd") so the Tenants list
+        // filter (t.property === propertyName) lines up. Derive from the first
+        // unit of the selected building; fall back to the full label if missing.
+        const _firstUnitForAddr = (_bld && _bld.units && _bld.units[0]) ? _bld.units[0] : null;
+        const _shortStreet = _firstUnitForAddr ? (getStreet(_firstUnitForAddr) || propText) : propText;
         const _tenantRows = tenants.map(function(t){
           return {
             lease_id:   leaseRow.id,
             name:       t.name,
             email:      t.email || '',
             phone:      t.phone || '',
-            property:   propText,
+            property:   _shortStreet,
             unit:       wizState.unit,
             rent:       parseFloat(wizState.monthly_rent) || 0,
             status:     _tenantStatus,
