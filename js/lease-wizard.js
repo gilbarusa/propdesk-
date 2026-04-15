@@ -125,12 +125,14 @@
   };
 
   async function lwLoadRefs(){
-    const SUPA_URL = window.CONFIG?.SUPABASE_URL;
-    const SUPA_KEY = window.CONFIG?.SUPABASE_KEY;
+    // CONFIG, SUPA_URL, SUPA_KEY are top-level consts in config.js / app.js — accessible across <script> tags
+    const _url = (typeof SUPA_URL !== 'undefined' && SUPA_URL) || (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_URL);
+    const _key = (typeof SUPA_KEY !== 'undefined' && SUPA_KEY) || (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_KEY);
+    if (!_url || !_key){ console.error('[lease-wizard] No Supabase URL/key found'); return; }
     async function rest(path){
       try {
-        const r = await fetch(SUPA_URL + '/rest/v1/' + path, {
-          headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+        const r = await fetch(_url + '/rest/v1/' + path, {
+          headers: { apikey: _key, Authorization: 'Bearer ' + _key }
         });
         if (!r.ok) { console.warn('[lease-wizard] REST', path, r.status); return []; }
         return await r.json();
