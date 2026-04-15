@@ -1,5 +1,5 @@
 /* ═══ LEASE WIZARD — Create Lease + send for signing ═══
-   v2026-04-14 1935
+   v2026-04-14 2335 — Address dropdown shows street+city+state+zip; full address saved to lease.property
    Depends on: window.supa (shared Supabase client from app.js)
    Invoked by: leaseAction('newLease') in app.js
 */
@@ -88,23 +88,32 @@
     wizState = {
       step: 0,
       tenants: [{name:'', email:'', phone:'', application_id:null}],
-      property_id: '', unit: '', property_address: '',
+      building: '', unit: '', property_id: '', property_address: '',
       template_id: '',
       lease_type: 'fixed', // fixed | mtm
       lease_start: '', lease_end: '',
-      monthly_rent: '', rent_due_day: 1, security_deposit: '',
+      monthly_rent: '', rent_due_day: 1, security_deposit: '', last_month_rent: '',
+      extra_charges: [], // [{label, amount, note}]
       utilities_tenant: [], utilities_landlord: [],
       addendums: {}, // {id: true}
       application_id: prefill?.application_id || null,
       error: ''
     };
-    if (prefill?.tenant) wizState.tenants[0] = {name: prefill.tenant||'', email: prefill.email||'', phone: prefill.phone||''};
+    if (prefill?.tenant) wizState.tenants[0] = {name: prefill.tenant||'', email: prefill.email||'', phone: prefill.phone||'', application_id: prefill.application_id||null};
     if (prefill?.property_id) wizState.property_id = prefill.property_id;
     if (prefill?.unit) wizState.unit = prefill.unit;
     if (prefill?.rent) wizState.monthly_rent = prefill.rent;
 
     document.getElementById('lwModal').style.display = 'flex';
     await lwLoadRefs();
+
+    // After refs are loaded, try to match a property_name string against the loaded buildings
+    if (prefill?.property_name && !wizState.building){
+      const q = String(prefill.property_name).toLowerCase();
+      const blds = getBuildings();
+      const m = blds.find(b => b.name.toLowerCase() === q || b.name.toLowerCase().includes(q) || q.includes(b.name.toLowerCase()));
+      if (m) wizState.building = m.name;
+    }
     lwRender();
   };
 
@@ -114,23 +123,39 @@
   };
 
   async function lwLoadRefs(){
-    const s = sb(); if (!s) return;
+    // CONFIG, SUPA_URL, SUPA_KEY are top-level consts in config.js / app.js — accessible across <script> tags
+    const _url = (typeof SUPA_URL !== 'undefined' && SUPA_URL) || (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_URL);
+    const _key = (typeof SUPA_KEY !== 'undefined' && SUPA_KEY) || (typeof CONFIG !== 'undefined' && CONFIG.SUPABASE_KEY);
+    if (!_url || !_key){ console.error('[lease-wizard] No Supabase URL/key found'); return; }
+    async function rest(path){
+      try {
+        const r = await fetch(_url + '/rest/v1/' + path, {
+          headers: { apikey: _key, Authorization: 'Bearer ' + _key }
+        });
+        if (!r.ok) { console.warn('[lease-wizard] REST', path, r.status); return []; }
+        return await r.json();
+      } catch(e){ console.warn('[lease-wizard] REST failed', path, e); return []; }
+    }
     try {
-      const [{data: tpls}, {data: ads}, {data: props}, {data: apps}] = await Promise.all([
-        s.from('lease_templates').select('id,name,body_html,is_default,is_active').eq('is_active', true),
-        s.from('lease_addendums').select('id,name,description,body_html,requires_signature,is_active').eq('is_active', true),
-        s.from('properties').select('id,name,address').limit(500),
-        s.from('rental_applications').select('id,first_name,last_name,email,phone,property,unit,status').order('created_at',{ascending:false}).limit(500)
+      const [tpls, ads, props, apps] = await Promise.all([
+        rest('lease_templates?select=id,name,body_html,is_default,active&active=eq.true'),
+        rest('lease_addendum_library?select=id,name,body_html,requires_signature,active,sort_order&active=eq.true&order=sort_order.asc'),
+        rest('properties?select=apt,name,address,owner,status&limit=500'),
+        rest('rental_applications?select=id,first_name,last_name,email,phone,property,unit,status&order=created_at.desc&limit=1000')
       ]);
       templates = tpls || [];
       addendums = ads || [];
-      properties = props || [];
+      // Prefer admin-loaded propertiesData (avoids RLS / refetch); fall back to REST result
+      const adminProps = (typeof window !== 'undefined' && Array.isArray(window.propertiesData)) ? window.propertiesData : null;
+      properties = (adminProps && adminProps.length) ? adminProps : (props || []);
+      console.log('[lease-wizard] property source:', adminProps && adminProps.length ? 'window.propertiesData' : 'REST', '— count:', properties.length);
       applicants = (apps||[]).map(a => ({
         id: a.id,
         name: ((a.first_name||'') + ' ' + (a.last_name||'')).trim(),
         email: a.email||'', phone: a.phone||'',
         property: a.property||'', unit: a.unit||'', status: a.status||''
       })).filter(a => a.name);
+      console.log('[lease-wizard] templates:', templates.length, 'addendums:', addendums.length, 'properties:', properties.length, 'applicants:', applicants.length);
       // Pre-select default template
       const def = templates.find(t => t.is_default);
       if (def && !wizState.template_id) wizState.template_id = def.id;
@@ -190,18 +215,196 @@
       <button class="lw-add" onclick="lwAddT()">+ Add another tenant</button>`;
   }
 
+  // ── Address handling ──
+  // Properties may store address as a string ("46 Township Line Rd") OR an object {street, city, state, zip}.
+  // Other address pieces live in p.city, p.state, p.zip (if set).
+  // Returns true if a string looks like a real street (e.g. "431 Valley Rd"),
+  // not an apt identifier ("A1", "3", "Studio").
+  function looksLikeStreet(s){
+    if (!s) return false;
+    return /^\s*\d+[A-Za-z]?\s+\S/.test(String(s));
+  }
+  function getStreet(p){
+    if (!p) return '';
+    // Collect every candidate field that might hold a street
+    var candidates = [];
+    var a = p.address;
+    if (typeof a === 'object' && a){
+      candidates.push(a.address1, a.line1, a.street, a.address, a.full_address);
+    } else if (a){
+      candidates.push(a);
+    }
+    candidates.push(p.address1, p.line1, p.street, p.full_address);
+    // Prefer the first one that looks like a real street; else longest non-empty
+    for (var i=0; i<candidates.length; i++){
+      if (looksLikeStreet(candidates[i])) return String(candidates[i]).trim();
+    }
+    var best = '';
+    for (var j=0; j<candidates.length; j++){
+      var v = candidates[j] ? String(candidates[j]).trim() : '';
+      if (v.length > best.length) best = v;
+    }
+    return best;
+  }
+  function getCity(p){
+    if (typeof p.address === 'object' && p.address && p.address.city) return String(p.address.city).trim();
+    return String(p.city || '').trim();
+  }
+  function getState(p){
+    if (typeof p.address === 'object' && p.address && p.address.state) return String(p.address.state).trim();
+    return String(p.state || '').trim();
+  }
+  function getZip(p){
+    if (typeof p.address === 'object' && p.address && (p.address.zip || p.address.postal_code)) return String(p.address.zip || p.address.postal_code).trim();
+    return String(p.zip || p.postal_code || '').trim();
+  }
+  function formatBuildingAddress(p){
+    var street = getStreet(p);
+    var city   = getCity(p);
+    var state  = getState(p);
+    var zip    = getZip(p);
+    var line2  = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    return [street, line2].filter(Boolean).join(', ');
+  }
+
+  // Normalize a street string: lowercase, collapse spaces, expand common
+  // abbreviations so "46 Township Line Rd" and "46 Township Line Road" hash equal.
+  function normalizeStreet(street){
+    if (!street) return '';
+    var s = String(street).toLowerCase().trim();
+    // Strip apt/unit suffixes that sometimes leak into the street field
+    s = s.replace(/[,\s]+(apt|unit|suite|ste|#)\s*[\w\-]+\s*$/i, '').trim();
+    // Collapse multiple whitespace
+    s = s.replace(/\s+/g,' ');
+    // Expand common street-type abbreviations
+    var types = {
+      'rd':'road','st':'street','ave':'avenue','av':'avenue',
+      'blvd':'boulevard','ln':'lane','dr':'drive','ct':'court',
+      'pl':'place','ter':'terrace','pkwy':'parkway','hwy':'highway',
+      'cir':'circle','sq':'square','tr':'trail','trl':'trail'
+    };
+    s = s.replace(/\b([a-z]+)\.?\b/g, function(_, w){
+      return types[w] || w;
+    });
+    // Strip punctuation
+    s = s.replace(/[.,]/g,'').replace(/\s+/g,' ').trim();
+    return s;
+  }
+
+  // Building grouping key — normalized street only (so "46 Township Line Rd"
+  // and "46 Township Line Road" group together).
+  function buildingKeyFor(p){
+    var street = getStreet(p);
+    if (street) return normalizeStreet(street);
+    return ''; // no street → not a building
+  }
+  // Display label for the dropdown (street + city, state, zip)
+  function buildingLabelFor(p){
+    return formatBuildingAddress(p) || getStreet(p);
+  }
+  // Unit dropdown label
+  function unitLabelFor(p){
+    var src = String(p.apt || p.name || '').trim();
+    var m = src.match(/\b(?:apt|unit|suite|ste|#)\s*([\w\-]+)\s*$/i);
+    if (m) return m[1];
+    var street = getStreet(p);
+    if (street && src.toLowerCase().indexOf(street.toLowerCase()) === 0){
+      var rest = src.slice(street.length).replace(/^[\s,#\-]+/, '').trim();
+      if (rest) return rest;
+    }
+    return src;
+  }
+
+  function getBuildings(){
+    var map = {};      // { normKey: { label, units:[] } }
+    var orphans = [];  // properties with no street address
+    properties.forEach(function(p){
+      if (p.status && String(p.status).toLowerCase() === 'inactive') return; // skip inactive
+      var k = buildingKeyFor(p);
+      if (!k){ orphans.push(p); return; }
+      if (!map[k]) map[k] = { label: '', units: [] };
+      map[k].units.push(p);
+      // Pick the most complete label among variants (longer label wins —
+      // captures city/state/zip if some siblings have them and others don't).
+      var lbl = buildingLabelFor(p);
+      if (lbl && lbl.length > map[k].label.length) map[k].label = lbl;
+    });
+
+    // Try to attach orphans (apt-only records, e.g. "311") to an existing
+    // building if they share parking_building_id with a known unit.
+    if (orphans.length){
+      var bldByPkId = {};
+      Object.keys(map).forEach(function(k){
+        map[k].units.forEach(function(u){
+          if (u.parking_building_id) bldByPkId[u.parking_building_id] = k;
+        });
+      });
+      var stillOrphan = [];
+      orphans.forEach(function(p){
+        var k = p.parking_building_id && bldByPkId[p.parking_building_id];
+        if (k){ map[k].units.push(p); }
+        else { stillOrphan.push(p); }
+      });
+      if (stillOrphan.length){
+        try { console.warn('[lease-wizard] Skipped ' + stillOrphan.length + ' properties without a street address:', stillOrphan.map(function(p){ return p.apt || p.name || p.id; })); } catch(e){}
+      }
+    }
+
+    // Natural sort units within each building (A1, A2, … B1 … 10 > 9)
+    var natCmp = function(a, b){
+      return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+    };
+    Object.keys(map).forEach(function(k){
+      map[k].units.sort(function(p1, p2){
+        return natCmp(unitLabelFor(p1), unitLabelFor(p2));
+      });
+    });
+
+    return Object.keys(map).sort(function(a,b){
+      return (map[a].label||a).localeCompare(map[b].label||b);
+    }).map(function(k){
+      return { key: k, name: k, label: map[k].label || k, units: map[k].units };
+    });
+  }
+
   function renderProperty(){
-    const propOpts = properties.map(p => `<option value="${p.id}" ${wizState.property_id===p.id?'selected':''}>${esc(p.name||p.address||p.id)}</option>`).join('');
+    var buildings = getBuildings();
+    if (!buildings.length){
+      return '<div style="color:#c33;font-size:13px;padding:14px;background:#fff4f4;border-radius:6px">No properties available. Open the Properties tab and confirm at least one is loaded, then re-open this wizard.</div>';
+    }
+    var bldOpts = buildings.map(function(b){
+      return `<option value="${esc(b.key)}" ${wizState.building===b.key?'selected':''}>${esc(b.label)} (${b.units.length} unit${b.units.length===1?'':'s'})</option>`;
+    }).join('');
+    var sel = buildings.find(function(b){ return b.key === wizState.building; });
+    var unitOpts = sel ? sel.units.map(function(p){
+      var ul = unitLabelFor(p);
+      return `<option value="${esc(ul)}" ${wizState.unit===ul?'selected':''}>${esc(ul)}${p.owner?' — '+esc(p.owner):''}</option>`;
+    }).join('') : '';
+    var selectedLabel = sel ? sel.label : '';
     return `
-      <label>Property</label>
-      <select onchange="lwSet('property_id',this.value)">
-        <option value="">-- Select property --</option>
-        ${propOpts}
+      <label>Choose an Address</label>
+      <select onchange="lwPickBuilding(this.value)">
+        <option value="">-- Select address --</option>
+        ${bldOpts}
       </select>
-      <label>Unit</label>
+      ${selectedLabel ? `<div style="font-size:12px;color:#1a2874;margin:4px 0 0">📍 ${esc(selectedLabel)}</div>` : ''}
+      <label>Unit Number</label>
+      <select onchange="lwSet('unit',this.value)" ${sel ? '' : 'disabled'}>
+        <option value="">${sel ? '-- Select unit --' : '(pick an address first)'}</option>
+        ${unitOpts}
+      </select>
+      <label style="margin-top:14px;font-size:11px;color:#888">Or type unit manually:</label>
       <input type="text" value="${esc(wizState.unit)}" oninput="lwSet('unit',this.value)" placeholder="e.g. 301">
     `;
   }
+  window.lwPickBuilding = function(name){
+    wizState.building = name || '';
+    wizState.unit = ''; // reset unit when building changes
+    // Sync legacy property_id if a building maps to a single property record
+    var b = getBuildings().find(function(x){ return x.name === name; });
+    if (b && b.units.length === 1) wizState.unit = unitLabelFor(b.units[0]);
+    lwRender();
+  };
 
   function renderTerms(){
     const tplOpts = templates.map(t => `<option value="${t.id}" ${wizState.template_id===t.id?'selected':''}>${esc(t.name)}${t.is_default?' (default)':''}</option>`).join('');
@@ -232,6 +435,24 @@
         <div><label>Security deposit ($)</label>
           <input type="number" step="0.01" value="${esc(wizState.security_deposit)}" oninput="lwSet('security_deposit',this.value)"></div>
       </div>
+      <div class="lw-row">
+        <div><label>Last month's rent held ($)</label>
+          <input type="number" step="0.01" value="${esc(wizState.last_month_rent)}" oninput="lwSet('last_month_rent',this.value)"></div>
+        <div></div>
+      </div>
+      <label style="margin-top:14px">Other charges</label>
+      <div id="lwExtraCharges">
+        ${(wizState.extra_charges||[]).map(function(c,i){
+          return `
+            <div class="lw-row" style="margin-bottom:6px">
+              <input type="text" placeholder="Label (e.g. Pet fee)" value="${esc(c.label||'')}" oninput="lwSetCharge(${i},'label',this.value)">
+              <input type="number" step="0.01" placeholder="Amount" value="${esc(c.amount||'')}" oninput="lwSetCharge(${i},'amount',this.value)">
+              <input type="text" placeholder="Note (optional)" value="${esc(c.note||'')}" oninput="lwSetCharge(${i},'note',this.value)">
+              <button type="button" onclick="lwRemoveCharge(${i})" style="padding:6px 10px;background:#fee;border:1px solid #f99;border-radius:4px;color:#c33;cursor:pointer">×</button>
+            </div>`;
+        }).join('')}
+      </div>
+      <button type="button" onclick="lwAddCharge()" style="margin-top:6px;padding:6px 12px;background:#eef1f8;border:1px solid #d6def0;border-radius:4px;color:#1a2874;cursor:pointer;font-size:12px">+ Add charge</button>
     `;
   }
 
@@ -262,8 +483,8 @@
 
   function renderReview(){
     const tplName = templates.find(t=>t.id===wizState.template_id)?.name || '—';
-    const prop = properties.find(p=>p.id===wizState.property_id);
-    const propName = prop ? (prop.name||prop.address) : '—';
+    const _b = getBuildings().find(function(b){ return b.key === wizState.building; });
+    const propName = (_b && _b.label) ? _b.label : (wizState.building || '—');
     const selAdds = addendums.filter(a => wizState.addendums[a.id]).map(a=>a.name);
     return `
       <div class="lw-review-sec"><h4>Tenants</h4>
@@ -277,20 +498,56 @@
         <div class="kv"><b>Start:</b> ${esc(wizState.lease_start||'—')}</div>
         ${wizState.lease_type==='fixed'?`<div class="kv"><b>End:</b> ${esc(wizState.lease_end||'—')}</div>`:''}
         <div class="kv"><b>Rent:</b> $${esc(wizState.monthly_rent||'0')} on day ${wizState.rent_due_day}</div>
-        <div class="kv"><b>Security deposit:</b> $${esc(wizState.security_deposit||'0')}</div></div>
+        <div class="kv"><b>Security deposit:</b> $${esc(wizState.security_deposit||'0')}</div>
+        <div class="kv"><b>Last month held:</b> $${esc(wizState.last_month_rent||'0')}</div>
+        ${(wizState.extra_charges||[]).filter(function(c){return c.label||c.amount;}).map(function(c){
+          return `<div class="kv"><b>${esc(c.label||'Charge')}:</b> $${esc(c.amount||'0')}${c.note?' — '+esc(c.note):''}</div>`;
+        }).join('')}</div>
       <div class="lw-review-sec"><h4>Utilities</h4>
         <div class="kv"><b>Tenant pays:</b> ${wizState.utilities_tenant.join(', ')||'—'}</div>
         <div class="kv"><b>Landlord pays:</b> ${wizState.utilities_landlord.join(', ')||'—'}</div></div>
       <div class="lw-review-sec"><h4>Addendums (${selAdds.length})</h4>
         <div class="kv">${selAdds.length?selAdds.map(n=>`<span style="background:#f4efe6;padding:3px 8px;border-radius:4px;margin-right:4px;font-size:12px">${esc(n)}</span>`).join(''):'—'}</div></div>
-      <div style="padding:10px;background:#f4efe6;border-radius:6px;font-size:13px;color:#5b4a2e">
-        <strong>Next step:</strong> Clicking <em>Save & Send for Signing</em> will create the lease, generate signing links for each tenant, and log email_queued events. (Real email delivery wires up in Phase 6.)
+      <div class="lw-review-sec" style="background:#eef1f8;border-left:4px solid #1a2874;padding:12px;border-radius:5px;border-bottom:0">
+        <h4 style="color:#1a2874">What happens when you click Send</h4>
+        <div style="font-size:13px;color:#1a2874;margin-bottom:8px">Each tenant will receive a secure signing link via:</div>
+        ${wizState.tenants.map(t => `
+          <div class="kv" style="align-items:center">
+            <b>${esc(t.name||'—')}</b>
+            <span style="color:${t.email?'#1f7a4d':'#b83228'}">✉ ${t.email ? esc(t.email) : 'NO EMAIL — will fail'}</span>
+            <span style="color:${t.phone?'#1f7a4d':'#8a93a8'}">📱 ${t.phone ? esc(t.phone) : 'no phone — SMS will be skipped'}</span>
+          </div>`).join('')}
+        <div style="font-size:12px;color:#5a6378;margin-top:8px">
+          Email via DNSMadeEasy SMTP · SMS via your messaging provider. Each link is unique per tenant. You'll get a delivery report after sending.
+        </div>
       </div>
     `;
   }
 
   // ── State mutators (exposed to inline handlers) ──
-  window.lwSet = (k,v) => { wizState[k] = v; if (k==='lease_type' && v==='mtm') wizState.lease_end=''; lwRender(); };
+  // Only re-render when a change actually affects layout (e.g. lease_type
+  // toggles the lease_end disabled state). Pure value updates skip render
+  // so date/number inputs keep focus while the user types.
+  window.lwSet = (k,v) => {
+    wizState[k] = v;
+    if (k==='lease_type' && v==='mtm') wizState.lease_end='';
+    var rerenderKeys = ['lease_type','template_id','building'];
+    if (rerenderKeys.indexOf(k) !== -1) lwRender();
+  };
+  window.lwAddCharge = function(){
+    if (!wizState.extra_charges) wizState.extra_charges = [];
+    wizState.extra_charges.push({ label:'', amount:'', note:'' });
+    lwRender();
+  };
+  window.lwRemoveCharge = function(i){
+    wizState.extra_charges.splice(i, 1);
+    lwRender();
+  };
+  // No re-render — keep focus while typing in label/amount/note
+  window.lwSetCharge = function(i, k, v){
+    if (!wizState.extra_charges[i]) wizState.extra_charges[i] = { label:'', amount:'', note:'' };
+    wizState.extra_charges[i][k] = v;
+  };
   window.lwSetT = (i,k,v) => { wizState.tenants[i][k] = v; };
 
   window.lwNameInput = (i, val) => {
@@ -326,17 +583,16 @@
     const a = applicants.find(x => x.id === id);
     if (!a) return;
     wizState.tenants[i] = { name: a.name, email: a.email, phone: a.phone, application_id: a.id };
-    // Auto-fill property/unit/application_id on first tenant pick if still empty
+    // Auto-fill building/unit/application_id on first tenant pick if still empty
     if (i === 0){
       if (!wizState.application_id) wizState.application_id = a.id;
       if (!wizState.unit && a.unit) wizState.unit = a.unit;
-      // Match applicant.property (text) to properties list
-      if (!wizState.property_id && a.property){
-        const match = properties.find(p =>
-          (p.name||'').toLowerCase() === a.property.toLowerCase() ||
-          (p.address||'').toLowerCase().includes(a.property.toLowerCase())
-        );
-        if (match) wizState.property_id = match.id;
+      // Match applicant.property (text) to building list
+      if (!wizState.building && a.property){
+        const blds = getBuildings();
+        const q = a.property.toLowerCase();
+        const m = blds.find(b => b.name.toLowerCase() === q || b.name.toLowerCase().includes(q) || q.includes(b.name.toLowerCase()));
+        if (m) wizState.building = m.name;
       }
     }
     lwCloseSuggest(i);
@@ -370,8 +626,8 @@
       }
     }
     if (wizState.step === 1){
-      if (!wizState.property_id) return 'Pick a property';
-      if (!wizState.unit.trim()) return 'Enter the unit';
+      if (!wizState.building.trim()) return 'Pick a building';
+      if (!wizState.unit.trim()) return 'Pick or enter the unit';
     }
     if (wizState.step === 2){
       if (!wizState.template_id) return 'Pick a lease template';
@@ -392,53 +648,60 @@
       const tpl = templates.find(t => t.id === wizState.template_id);
       const tenants = wizState.tenants;
       const snapshot = buildSnapshot(tpl, tenants);
-      const prop = properties.find(p=>p.id===wizState.property_id);
+      // property = full address (text column on leases table) — not just the street key
+      const _bld = getBuildings().find(function(b){ return b.key === wizState.building; });
+      const propText = (_bld && _bld.label) ? _bld.label : (wizState.building || '');
+      // Schema lease_type values: 'lt' or 'mtm' (not 'fixed')
+      const leaseTypeDb = wizState.lease_type === 'fixed' ? 'lt' : wizState.lease_type;
 
       const lease = {
-        application_id: wizState.application_id,
-        template_id: wizState.template_id,
-        property_id: wizState.property_id,
+        property: propText,
         unit: wizState.unit,
-        lease_type: wizState.lease_type,
-        lease_start: wizState.lease_start || null,
-        lease_end: wizState.lease_type==='fixed' ? (wizState.lease_end||null) : null,
-        monthly_rent: parseFloat(wizState.monthly_rent)||0,
-        rent_due_day: wizState.rent_due_day,
-        security_deposit: parseFloat(wizState.security_deposit)||0,
-        utilities_tenant: wizState.utilities_tenant,
-        utilities_landlord: wizState.utilities_landlord,
-        status: action==='send' ? 'out_for_signature' : 'draft',
-        body_html_snapshot: snapshot,
-        sent_at: action==='send' ? new Date().toISOString() : null,
         landlord_name: 'Willow Partnership',
-        landlord_email: 'kevin@willowpa.com'
+        template_id: wizState.template_id || null,
+        lease_type: leaseTypeDb,
+        lease_start: wizState.lease_start || null,
+        lease_end: leaseTypeDb === 'lt' ? (wizState.lease_end || null) : null,
+        monthly_rent: parseFloat(wizState.monthly_rent) || 0,
+        security_deposit: parseFloat(wizState.security_deposit) || 0,
+        last_month_rent: parseFloat(wizState.last_month_rent) || 0,
+        extra_charges: (wizState.extra_charges||[])
+          .map(function(c){ return { label:String(c.label||'').trim(), amount: parseFloat(c.amount)||0, note:String(c.note||'').trim() }; })
+          .filter(function(c){ return c.label || c.amount; }),
+        utilities_included: [...wizState.utilities_landlord], // schema only stores landlord-paid
+        status: action === 'send' ? 'out_for_signature' : 'draft',
+        body_html_snapshot: snapshot,
+        sent_at: action === 'send' ? new Date().toISOString() : null,
+        created_from_application_id: wizState.application_id || null,
+        created_by: 'admin'
       };
 
       const { data: leaseRow, error: le } = await s.from('leases').insert(lease).select().single();
       if (le) throw le;
 
-      // Tenants as signers
-      const signers = tenants.map((t,i) => ({
+      // Tenants as signers — schema: name, sign_order, application_id, signature_png
+      const signers = tenants.map((t, i) => ({
         lease_id: leaseRow.id,
         role: 'tenant',
-        sort_order: i,
-        full_name: t.name,
+        sign_order: i + 1,
+        name: t.name,
         email: t.email,
-        phone: t.phone || null
+        phone: t.phone || null,
+        application_id: t.application_id || null
       }));
-      // Landlord signer (countersigns)
+      // Landlord signer (countersigns last)
       signers.push({
         lease_id: leaseRow.id,
         role: 'landlord',
-        sort_order: 99,
-        full_name: lease.landlord_name,
-        email: lease.landlord_email
+        sign_order: 99,
+        name: lease.landlord_name,
+        email: 'kevin@willowpa.com'
       });
       const { error: se } = await s.from('lease_signers').insert(signers);
       if (se) throw se;
 
       // Selected addendums snapshot
-      const selAds = addendums.filter(a => wizState.addendums[a.id]).map((a,i) => ({
+      const selAds = addendums.filter(a => wizState.addendums[a.id]).map((a, i) => ({
         lease_id: leaseRow.id,
         addendum_id: a.id,
         sort_order: i,
@@ -446,33 +709,39 @@
         body_html_snapshot: a.body_html,
         requires_signature: a.requires_signature
       }));
-      if (selAds.length){
+      if (selAds.length) {
         const { error: ae } = await s.from('lease_addendums_selected').insert(selAds);
         if (ae) console.warn('addendum insert', ae);
       }
 
-      // Events
+      // Events (schema: lease_events has only `meta` jsonb — no actor/metadata cols)
       await s.from('lease_events').insert([
-        { lease_id: leaseRow.id, event_type: 'created', actor: 'admin' },
-        ...(action==='send' ? [{ lease_id: leaseRow.id, event_type: 'sent', actor: 'admin' }] : [])
+        { lease_id: leaseRow.id, event_type: 'created', meta: { actor: 'admin' } },
+        ...(action === 'send' ? [{ lease_id: leaseRow.id, event_type: 'sent', meta: { actor: 'admin' } }] : [])
       ]);
 
-      // Queue signing emails (stub)
-      if (action==='send'){
-        const { data: ins } = await s.from('lease_signers').select('id,full_name,email,signing_token').eq('lease_id', leaseRow.id).eq('role','tenant');
-        const evts = (ins||[]).map(sg => ({
-          lease_id: leaseRow.id,
-          event_type: 'email_queued',
-          actor: 'system',
-          metadata: { signer_id: sg.id, email: sg.email, token: sg.signing_token, link: `https://app.willowpa.com/sign.php?token=${sg.signing_token}` }
-        }));
-        if (evts.length) await s.from('lease_events').insert(evts);
+      // Send signing requests via EMAIL + SMS
+      let sendReport = null;
+      if (action === 'send') {
+        const { data: ins } = await s.from('lease_signers')
+          .select('id,name,email,phone,signing_token')
+          .eq('lease_id', leaseRow.id).eq('role', 'tenant');
+        sendReport = await sendSigningRequests(ins || [], leaseRow, lease);
       }
 
       closeLeaseWizard();
-      alert(action==='send'
-        ? `Lease created and sent for signing to ${tenants.length} tenant(s).`
-        : 'Draft lease saved.');
+      if (action === 'send' && sendReport){
+        alert(
+          `Lease sent for signing.\n\n` +
+          `Email: ${sendReport.emailOk}/${sendReport.total} delivered` +
+          (sendReport.emailFail.length ? ` (failed: ${sendReport.emailFail.join(', ')})` : '') + `\n` +
+          `SMS:   ${sendReport.smsOk}/${sendReport.smsAttempt} delivered` +
+          (sendReport.smsFail.length ? ` (failed: ${sendReport.smsFail.join(', ')})` : '') +
+          (sendReport.smsSkipped.length ? `\nSkipped (no phone): ${sendReport.smsSkipped.join(', ')}` : '')
+        );
+      } else {
+        alert('Draft lease saved.');
+      }
       if (typeof loadLeases === 'function') loadLeases();
     } catch(e){
       console.error(e);
@@ -483,30 +752,189 @@
     }
   };
 
+  // Send email + SMS signing requests to each tenant, log lease_events for each attempt.
+  // Returns a report used in the post-send confirmation dialog.
+  async function sendSigningRequests(signers, leaseRow, lease){
+    const s = sb();
+    const report = { total: signers.length, emailOk: 0, emailFail: [], smsOk: 0, smsAttempt: 0, smsFail: [], smsSkipped: [] };
+    const events = [];
+
+    const propLine = (lease.property || '') + (lease.unit ? ' · Unit ' + lease.unit : '');
+    const rentStr  = '$' + (parseFloat(lease.monthly_rent)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const termStr  = lease.lease_type === 'mtm'
+      ? 'Month-to-Month starting ' + (lease.lease_start||'')
+      : (lease.lease_start||'') + ' → ' + (lease.lease_end||'');
+
+    for (const sg of signers){
+      const link = `https://app.willowpa.com/sign.html?token=${sg.signing_token}`;
+
+      // ─── EMAIL ───
+      try {
+        const subject = `Your lease from Willow Partnership is ready to sign — ${propLine}`;
+        const bodyHtml = `
+          <p>Hi ${escapeHtml(sg.name||'')},</p>
+          <p>Your residential lease agreement for <b>${escapeHtml(propLine)}</b> is ready for your electronic signature.</p>
+          <p><b>Term:</b> ${escapeHtml(termStr)}<br>
+             <b>Rent:</b> ${rentStr} / month</p>
+          <p style="margin:24px 0">
+            <a href="${link}" style="background:#1a2874;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">
+              Review &amp; Sign Your Lease
+            </a>
+          </p>
+          <p style="font-size:12px;color:#666">Or paste this link into your browser:<br><a href="${link}">${link}</a></p>
+          <p style="font-size:12px;color:#666">This link is unique to you and should not be shared. If you have questions, reply to this email or call (267) 865-0001.</p>
+          <p>— Willow Partnership</p>`;
+        if (typeof sendEmail === 'function' && sg.email){
+          sendEmail(sg.email, subject, bodyHtml, { isHtml: true, headerTitle: 'Willow Partnership — Lease Agreement' });
+          report.emailOk++;
+          events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'email_sent',
+            meta: { channel: 'email', to: sg.email, link, actor: 'system' } });
+        } else {
+          throw new Error('sendEmail() not available or no email on record');
+        }
+      } catch(e){
+        report.emailFail.push(sg.name || sg.email || 'unknown');
+        events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'email_failed',
+          meta: { channel: 'email', to: sg.email, error: String(e.message||e), actor: 'system' } });
+      }
+
+      // ─── SMS ───
+      if (sg.phone){
+        report.smsAttempt++;
+        try {
+          const smsText = `Willow Partnership: your lease for ${propLine} is ready to sign. Open this secure link to review & sign: ${link}`;
+          if (typeof sendSMS === 'function'){
+            sendSMS(sg.phone, smsText);
+            report.smsOk++;
+            events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'sms_sent',
+              meta: { channel: 'sms', to: sg.phone, link, actor: 'system' } });
+          } else {
+            throw new Error('sendSMS() not available');
+          }
+        } catch(e){
+          report.smsFail.push(sg.name || sg.phone || 'unknown');
+          events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'sms_failed',
+            meta: { channel: 'sms', to: sg.phone, error: String(e.message||e), actor: 'system' } });
+        }
+      } else {
+        report.smsSkipped.push(sg.name || sg.email || 'unknown');
+      }
+    }
+
+    if (events.length) {
+      try { await s.from('lease_events').insert(events); } catch(e){ console.warn('lease_events insert:', e); }
+    }
+    return report;
+  }
+
   function buildSnapshot(tpl, tenants){
     if (!tpl) return '';
     const tenantList = tenants.map(t => t.name).join(', ');
+
+    // Resolve building + first unit (used for city/state/zip)
+    const _b = getBuildings().find(function(x){return x.key===wizState.building;});
+    const _firstUnit = _b && _b.units && _b.units[0] ? _b.units[0] : null;
+    const _street = _firstUnit ? getStreet(_firstUnit) : (wizState.building||'');
+    const _city   = _firstUnit ? getCity(_firstUnit)   : '';
+    const _state  = _firstUnit ? getState(_firstUnit)  : '';
+    const _zip    = _firstUnit ? getZip(_firstUnit)    : '';
+    const _fullAddr = _b ? _b.label : (wizState.building||'');
+
+    // Each {{TENANT_SIGNATURE_BLOCKS}} becomes ONE [[SIG]] marker per tenant,
+    // grouped in a small block. sign.html turns [[SIG]] into a signable canvas.
     const sigBlocks = tenants.map(t => `
-      <div class="sig-block">
-        <div>Tenant: <strong>${escapeHtml(t.name)}</strong></div>
-        <div>Signature: ____________________&nbsp;&nbsp;Date: __________</div>
+      <div class="sig-block" style="margin:14px 0;padding:10px 0;border-top:1px solid #d6def0">
+        <div style="margin-bottom:6px"><strong>Tenant:</strong> ${escapeHtml(t.name)}</div>
+        <div>Signature: [[SIG]] &nbsp;&nbsp; Date: ${new Date().toISOString().slice(0,10)}</div>
       </div>`).join('');
-    const prop = properties.find(p=>p.id===wizState.property_id);
+
     const tokens = {
+      // Tenant
       TENANT_NAMES: escapeHtml(tenantList),
+      TENANT_NAME:  escapeHtml(tenantList),
       TENANT_SIGNATURE_BLOCKS: sigBlocks,
-      PROPERTY_ADDRESS: escapeHtml(prop ? (prop.address||prop.name||'') : ''),
-      UNIT: escapeHtml(wizState.unit),
-      LEASE_START: wizState.lease_start||'',
-      LEASE_END: wizState.lease_end||'Month-to-Month',
-      MONTHLY_RENT: parseFloat(wizState.monthly_rent||0).toFixed(2),
-      RENT_DUE_DAY: wizState.rent_due_day,
+      TENANT_SIGNATURE: '[[SIG]]',
+      SIGNATURE: '[[SIG]]',
+      SIG: '[[SIG]]',
+
+      // Property / address (multiple aliases — templates vary)
+      PROPERTY:         escapeHtml(_street),
+      PROPERTY_NAME:    escapeHtml(_street),
+      PROPERTY_ADDRESS: escapeHtml(_fullAddr),
+      ADDRESS:          escapeHtml(_fullAddr),
+      FULL_ADDRESS:     escapeHtml(_fullAddr),
+      STREET:           escapeHtml(_street),
+      CITY:             escapeHtml(_city),
+      STATE:            escapeHtml(_state),
+      ZIP:              escapeHtml(_zip),
+      POSTAL_CODE:      escapeHtml(_zip),
+      UNIT:             escapeHtml(wizState.unit),
+      UNIT_NUMBER:      escapeHtml(wizState.unit),
+
+      // Term
+      LEASE_START: wizState.lease_start || '',
+      LEASE_END:   wizState.lease_end   || 'Month-to-Month',
+      START_DATE:  wizState.lease_start || '',
+      END_DATE:    wizState.lease_end   || 'Month-to-Month',
+      TERM_MONTHS: (function(){
+        if (wizState.lease_type==='mtm') return 'Month-to-Month';
+        if (!wizState.lease_start || !wizState.lease_end) return '';
+        var s = new Date(wizState.lease_start), e = new Date(wizState.lease_end);
+        if (isNaN(s) || isNaN(e)) return '';
+        var m = (e.getFullYear()-s.getFullYear())*12 + (e.getMonth()-s.getMonth());
+        return String(Math.max(0, m));
+      })(),
+      TODAY: new Date().toISOString().slice(0,10),
+      DATE:  new Date().toISOString().slice(0,10),
+
+      // Money
+      MONTHLY_RENT:     parseFloat(wizState.monthly_rent||0).toFixed(2),
+      RENT:             parseFloat(wizState.monthly_rent||0).toFixed(2),
+      RENT_DUE_DAY:     wizState.rent_due_day,
       SECURITY_DEPOSIT: parseFloat(wizState.security_deposit||0).toFixed(2),
-      LANDLORD_NAME: 'Willow Partnership',
-      UTILITIES_TENANT: wizState.utilities_tenant.join(', ')||'None',
-      UTILITIES_LANDLORD: wizState.utilities_landlord.join(', ')||'None'
+      DEPOSIT:          parseFloat(wizState.security_deposit||0).toFixed(2),
+      LAST_MONTH:       parseFloat(wizState.last_month_rent||0).toFixed(2),
+      LAST_MONTH_RENT:  parseFloat(wizState.last_month_rent||0).toFixed(2),
+      TOTAL_DEPOSIT: (
+        (parseFloat(wizState.security_deposit)||0) +
+        (parseFloat(wizState.last_month_rent)||0)
+      ).toFixed(2),
+
+      // Landlord
+      LANDLORD:         'Willow Partnership',
+      LANDLORD_NAME:    'Willow Partnership',
+      LANDLORD_ENTITY:  'Willow Partnership',
+      OWNER:            'Willow Partnership',
+      OWNER_NAME:       'Willow Partnership',
+
+      // Utilities
+      UTILITIES_INCLUDED: wizState.utilities_landlord.join(', ') || 'None',
+      UTILITIES_TENANT:   wizState.utilities_tenant.join(', ')   || 'None',
+      UTILITIES_LANDLORD: wizState.utilities_landlord.join(', ') || 'None',
+
+      // Extras
+      EXTRA_CHARGES_HTML: (function(){
+        var rows = (wizState.extra_charges||[]).filter(function(c){ return c.label || c.amount; });
+        if (!rows.length) return '<p><em>None</em></p>';
+        return '<ul>' + rows.map(function(c){
+          var amt = (parseFloat(c.amount)||0).toFixed(2);
+          var note = c.note ? ' — ' + escapeHtml(c.note) : '';
+          return '<li>' + escapeHtml(c.label||'Charge') + ': $' + amt + note + '</li>';
+        }).join('') + '</ul>';
+      })()
     };
-    return (tpl.body_html||'').replace(/\{\{([A-Z_]+)\}\}/g, (_, k) => (k in tokens) ? tokens[k] : `{{${k}}}`);
+
+    // Tolerant token regex: case-insensitive name, allows {{ NAME }} with spaces.
+    // Unknown tokens render as empty string (don't leak literals to tenants).
+    return (tpl.body_html||'').replace(
+      /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g,
+      function(_, k){
+        var key = k.toUpperCase();
+        if (key in tokens) return tokens[key];
+        try { console.warn('[lease-wizard] Unknown template token:', k); } catch(e){}
+        return ''; // hide unresolved tokens rather than showing literal {{X}}
+      }
+    );
   }
 
   function esc(v){ return String(v==null?'':v).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
