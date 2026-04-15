@@ -3270,6 +3270,18 @@ function openTenantDetail(idx) {
   if (!t) return;
   currentTenantIdx = idx;
 
+  // Local helper: format "2026-04-15" → "Apr 15, 2026"
+  function _formatDateUS(s){
+    if (!s) return '—';
+    try {
+      const d = new Date(s);
+      if (isNaN(d)) return s;
+      return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'2-digit' });
+    } catch(_){ return s; }
+  }
+  // Expose for use below
+  window._formatDateUS = _formatDateUS;
+
   // Highlight active in sidebar
   document.querySelectorAll('.tnt-list-item').forEach((el, i) => {
     el.classList.toggle('active', el.getAttribute('onclick')?.includes(`(${idx})`));
@@ -3300,24 +3312,62 @@ function openTenantDetail(idx) {
   // Current Lease info
   // Shared-lease rule: if multiple tenants on same lease, EVERY tenant shows the FULL rent
   // (the ledger is shared — a payment by one reduces the balance for both).
-  const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
+  //
+  // PRIORITY ORDER for lease data:
+  //   1) If the tenant row itself carries property+unit+rent+lease_start (from a real
+  //      cascade-created tenants_lt row), use those directly. This is the authoritative
+  //      source for any lease produced by the e-sign flow.
+  //   2) Otherwise, match INNAGO_LEASES with a STRICT check on property AND unit AND
+  //      first-name (avoids "David" colliding with "David Brooker" hardcoded lease).
+  //   3) Last-resort fallback: tenant fields with em-dashes for unknown dates.
+  let lease = null;
+  const hasRowLease = t && t.property && t.unitNum && (t.rent || t.lease_start);
+  if (hasRowLease) {
+    // Synthesize a lease object from the tenant row itself
+    lease = {
+      property: t.property,
+      unit: t.unitNum,
+      start: t.lease_start ? _formatDateUS(t.lease_start) : '—',
+      end: (t.lease_type === 'mtm' || !t.lease_end) ? 'M to M' : _formatDateUS(t.lease_end),
+      tenants: t.name,
+      _fromTenantRow: true
+    };
+  } else if (typeof INNAGO_LEASES !== 'undefined') {
+    // Strict match: property + unit + first-name all have to line up
+    const firstName = t.name.split(' ')[0];
+    lease = INNAGO_LEASES.find(l =>
+      l.property === t.property &&
+      String(l.unit) === String(t.unitNum) &&
+      l.tenants.includes(firstName)
+    ) || null;
+  }
   const fullRent = _getFullLeaseRent(t, lease);
   if (lease) {
     document.getElementById('tntLeaseProp').textContent = lease.property + ' | ' + lease.unit;
     document.getElementById('tntLeaseRent').textContent = '$' + fullRent.toLocaleString() + '.00';
     document.getElementById('tntLeaseRentOf').textContent = 'of $' + fullRent.toLocaleString() + '.00';
-    document.getElementById('tntLeaseStart').textContent = lease.start;
-    document.getElementById('tntLeaseEnd').textContent = lease.end === 'M to M' ? 'M to M' : lease.end;
+    document.getElementById('tntLeaseStart').textContent = lease.start || '—';
+    document.getElementById('tntLeaseEnd').textContent = lease.end === 'M to M' ? 'M to M' : (lease.end || '—');
   } else {
-    document.getElementById('tntLeaseProp').textContent = t.property + ' | ' + t.unitNum;
+    document.getElementById('tntLeaseProp').textContent = (t.property || '—') + ' | ' + (t.unitNum || '—');
     document.getElementById('tntLeaseRent').textContent = '$' + fullRent.toLocaleString() + '.00';
     document.getElementById('tntLeaseRentOf').textContent = 'of $' + fullRent.toLocaleString() + '.00';
     document.getElementById('tntLeaseStart').textContent = '—';
     document.getElementById('tntLeaseEnd').textContent = '—';
   }
 
-  // Collection data
-  const rentRecords = INNAGO_RENT.filter(r => r.tenant && r.tenant.includes(t.name.split(' ')[0]));
+  // Collection data — match on full name + property + unit to avoid first-name collisions
+  const _firstName = t.name.split(' ')[0];
+  const rentRecords = INNAGO_RENT.filter(r => {
+    if (!r.tenant) return false;
+    // Prefer full-name match; fall back to first-name only if tenant row has a matching property+unit
+    const nameMatch = r.tenant === t.name || r.tenant.includes(t.name);
+    if (nameMatch) return true;
+    const firstOnly = r.tenant.includes(_firstName);
+    if (!firstOnly) return false;
+    // Require property+unit to match when falling back to first-name
+    return lease && r.property === lease.property && String(r.unit) === String(lease.unit);
+  });
   const totalCollected = rentRecords.reduce((s, r) => s + r.paid, 0);
   const pastDue = rentRecords.filter(r => r.status === 'Late' || r.status === 'Overdue');
   const currentInvoices = rentRecords.length;
@@ -3332,10 +3382,10 @@ function openTenantDetail(idx) {
   // Generate sample messages based on tenant data
   const msgs = [];
   if (lease) {
-    msgs.push({ to: t.name.split(' ')[0], from: 'Willow Partnership LLC', subject: t.property + ' Lease Notification', date: lease.start });
+    msgs.push({ to: _firstName, from: 'Willow Partnership LLC', subject: (lease.property || t.property || '') + ' Lease Notification', date: lease.start });
   }
   if (rentRecords.length > 0) {
-    msgs.push({ to: t.name.split(' ')[0], from: 'Innago', subject: 'Payment Confirmation', date: 'Mar 15, 2026' });
+    msgs.push({ to: _firstName, from: 'Innago', subject: 'Payment Confirmation', date: 'Mar 15, 2026' });
   }
   if (msgs.length === 0) {
     msgBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);font-style:italic;padding:16px;">No messages</td></tr>';
