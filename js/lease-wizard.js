@@ -1,5 +1,5 @@
 /* ═══ LEASE WIZARD — Create Lease + send for signing ═══
-   v2026-04-14 2240 — Building + Unit dropdowns, reads window.propertiesData
+   v2026-04-14 2305 — Real email + SMS send on "Send for Signature", schema-safe lease_events
    Depends on: window.supa (shared Supabase client from app.js)
    Invoked by: leaseAction('newLease') in app.js
 */
@@ -367,8 +367,18 @@
         <div class="kv"><b>Landlord pays:</b> ${wizState.utilities_landlord.join(', ')||'—'}</div></div>
       <div class="lw-review-sec"><h4>Addendums (${selAdds.length})</h4>
         <div class="kv">${selAdds.length?selAdds.map(n=>`<span style="background:#f4efe6;padding:3px 8px;border-radius:4px;margin-right:4px;font-size:12px">${esc(n)}</span>`).join(''):'—'}</div></div>
-      <div style="padding:10px;background:#f4efe6;border-radius:6px;font-size:13px;color:#5b4a2e">
-        <strong>Next step:</strong> Clicking <em>Save & Send for Signing</em> will create the lease, generate signing links for each tenant, and log email_queued events. (Real email delivery wires up in Phase 6.)
+      <div class="lw-review-sec" style="background:#eef1f8;border-left:4px solid #1a2874;padding:12px;border-radius:5px;border-bottom:0">
+        <h4 style="color:#1a2874">What happens when you click Send</h4>
+        <div style="font-size:13px;color:#1a2874;margin-bottom:8px">Each tenant will receive a secure signing link via:</div>
+        ${wizState.tenants.map(t => `
+          <div class="kv" style="align-items:center">
+            <b>${esc(t.name||'—')}</b>
+            <span style="color:${t.email?'#1f7a4d':'#b83228'}">✉ ${t.email ? esc(t.email) : 'NO EMAIL — will fail'}</span>
+            <span style="color:${t.phone?'#1f7a4d':'#8a93a8'}">📱 ${t.phone ? esc(t.phone) : 'no phone — SMS will be skipped'}</span>
+          </div>`).join('')}
+        <div style="font-size:12px;color:#5a6378;margin-top:8px">
+          Email via DNSMadeEasy SMTP · SMS via your messaging provider. Each link is unique per tenant. You'll get a delivery report after sending.
+        </div>
       </div>
     `;
   }
@@ -573,6 +583,81 @@
       if (btn){ btn.disabled = false; }
     }
   };
+
+  // Send email + SMS signing requests to each tenant, log lease_events for each attempt.
+  // Returns a report used in the post-send confirmation dialog.
+  async function sendSigningRequests(signers, leaseRow, lease){
+    const s = sb();
+    const report = { total: signers.length, emailOk: 0, emailFail: [], smsOk: 0, smsAttempt: 0, smsFail: [], smsSkipped: [] };
+    const events = [];
+
+    const propLine = (lease.property || '') + (lease.unit ? ' · Unit ' + lease.unit : '');
+    const rentStr  = '$' + (parseFloat(lease.monthly_rent)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const termStr  = lease.lease_type === 'mtm'
+      ? 'Month-to-Month starting ' + (lease.lease_start||'')
+      : (lease.lease_start||'') + ' → ' + (lease.lease_end||'');
+
+    for (const sg of signers){
+      const link = `https://app.willowpa.com/sign.html?token=${sg.signing_token}`;
+
+      // ─── EMAIL ───
+      try {
+        const subject = `Your lease from Willow Partnership is ready to sign — ${propLine}`;
+        const bodyHtml = `
+          <p>Hi ${escapeHtml(sg.name||'')},</p>
+          <p>Your residential lease agreement for <b>${escapeHtml(propLine)}</b> is ready for your electronic signature.</p>
+          <p><b>Term:</b> ${escapeHtml(termStr)}<br>
+             <b>Rent:</b> ${rentStr} / month</p>
+          <p style="margin:24px 0">
+            <a href="${link}" style="background:#1a2874;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">
+              Review &amp; Sign Your Lease
+            </a>
+          </p>
+          <p style="font-size:12px;color:#666">Or paste this link into your browser:<br><a href="${link}">${link}</a></p>
+          <p style="font-size:12px;color:#666">This link is unique to you and should not be shared. If you have questions, reply to this email or call (267) 865-0001.</p>
+          <p>— Willow Partnership</p>`;
+        if (typeof sendEmail === 'function' && sg.email){
+          sendEmail(sg.email, subject, bodyHtml);
+          report.emailOk++;
+          events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'email_sent',
+            meta: { channel: 'email', to: sg.email, link, actor: 'system' } });
+        } else {
+          throw new Error('sendEmail() not available or no email on record');
+        }
+      } catch(e){
+        report.emailFail.push(sg.name || sg.email || 'unknown');
+        events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'email_failed',
+          meta: { channel: 'email', to: sg.email, error: String(e.message||e), actor: 'system' } });
+      }
+
+      // ─── SMS ───
+      if (sg.phone){
+        report.smsAttempt++;
+        try {
+          const smsText = `Willow Partnership: your lease for ${propLine} is ready to sign. Open this secure link to review & sign: ${link}`;
+          if (typeof sendSMS === 'function'){
+            sendSMS(sg.phone, smsText);
+            report.smsOk++;
+            events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'sms_sent',
+              meta: { channel: 'sms', to: sg.phone, link, actor: 'system' } });
+          } else {
+            throw new Error('sendSMS() not available');
+          }
+        } catch(e){
+          report.smsFail.push(sg.name || sg.phone || 'unknown');
+          events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'sms_failed',
+            meta: { channel: 'sms', to: sg.phone, error: String(e.message||e), actor: 'system' } });
+        }
+      } else {
+        report.smsSkipped.push(sg.name || sg.email || 'unknown');
+      }
+    }
+
+    if (events.length) {
+      try { await s.from('lease_events').insert(events); } catch(e){ console.warn('lease_events insert:', e); }
+    }
+    return report;
+  }
 
   function buildSnapshot(tpl, tenants){
     if (!tpl) return '';
