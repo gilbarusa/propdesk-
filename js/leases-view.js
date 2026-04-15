@@ -7,7 +7,7 @@
 //  v20260415-0500
 // ══════════════════════════════════════════════════════
 (function(){
-  const VERSION = '20260415-0600';
+  const VERSION = '20260415-0700';
   try { console.log('%c[leases-view] loaded v' + VERSION, 'background:#1a2874;color:#fff;padding:2px 8px;border-radius:3px'); } catch(e){}
 
   function getSb() { return window.sb; }
@@ -268,6 +268,17 @@
   function copyLink(url){ try { navigator.clipboard?.writeText(url); } catch(e){} lv_toast('Signing link copied','success'); }
 
   // ─── View Lease (preview snapshot with signatures) ───
+  // Format a full date+time for signature audit stamp
+  function lv_fmtSignedAt(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      const date = d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'2-digit' });
+      const time = d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
+      return date + ' at ' + time;
+    } catch(_){ return iso; }
+  }
+
   function buildSignedHtml(l){
     const tenants = (l.lease_signers||[]).filter(s=>s.role==='tenant').sort((a,b)=>a.sign_order-b.sign_order);
     const landlord = (l.lease_signers||[]).find(s=>s.role==='landlord');
@@ -277,7 +288,7 @@
     const replaced = body.replace(/\[\[SIG\]\]|\{\{\s*SIG\s*\}\}|\{\{\s*SIGN_HERE\s*\}\}|\{\{\s*TENANT_SIGNATURE\s*\}\}|\{\{\s*SIGNATURE\s*\}\}/g, () => {
       const t = tenants[sigIdx++ % Math.max(tenants.length, 1)];
       if (t && t.signature_png) {
-        return `<span style="display:inline-block; vertical-align:middle; border-bottom:1px solid #999; padding:0 4px;"><img src="${t.signature_png}" alt="signature" style="height:36px; vertical-align:middle;"> <small style="display:block; color:#555; font-size:9px;">${lv_escapeHtml(t.name)} · ${t.signed_at?lv_fmtDate(t.signed_at.slice(0,10)):''}</small></span>`;
+        return `<span style="display:inline-block; vertical-align:middle; border-bottom:1px solid #999; padding:0 4px;"><img src="${t.signature_png}" alt="signature" style="height:36px; vertical-align:middle;"> <small style="display:block; color:#555; font-size:9px;">${lv_escapeHtml(t.name)} · ${lv_fmtSignedAt(t.signed_at)}</small></span>`;
       }
       return `<span style="display:inline-block; min-width:200px; border-bottom:1px solid #999;">&nbsp;</span>`;
     });
@@ -292,7 +303,7 @@
           <div style="font-size:11px; color:#8a93a8;">${lv_escapeHtml(t.email)}</div>
           ${t.signature_png
             ? `<img src="${t.signature_png}" style="height:60px; margin-top:8px; border-bottom:1px solid #333;" alt="signature">
-               <div style="font-size:10px; color:#555; margin-top:4px;">Signed ${t.signed_at?lv_fmtDate(t.signed_at.slice(0,10)):''}</div>`
+               <div style="font-size:10px; color:#555; margin-top:4px;">Electronically signed on ${lv_fmtSignedAt(t.signed_at)}</div>`
             : `<div style="margin-top:10px; color:#b83228; font-size:12px;">⚠ Not signed</div>`}
         </div>`).join('')}
       ${landlord ? `
@@ -301,7 +312,7 @@
           <div style="font-size:11px; color:#8a93a8;">${lv_escapeHtml(landlord.email)}</div>
           ${landlord.signature_png
             ? `<img src="${landlord.signature_png}" style="height:60px; margin-top:8px; border-bottom:1px solid #333;" alt="landlord signature">
-               <div style="font-size:10px; color:#555; margin-top:4px;">Countersigned ${landlord.signed_at?lv_fmtDate(landlord.signed_at.slice(0,10)):''}</div>`
+               <div style="font-size:10px; color:#555; margin-top:4px;">Electronically countersigned on ${lv_fmtSignedAt(landlord.signed_at)}</div>`
             : `<div style="margin-top:10px; color:#8a5c00; font-size:12px;">Pending countersign</div>`}
         </div>`:''}`;
 
@@ -348,6 +359,8 @@
     document.getElementById('lvCsSubmit').disabled = false;
     document.getElementById('lvCsModal').classList.add('active');
     setupLandlordPad();
+    // Reset sig tab to Draw on open
+    setTimeout(()=>{ try { switchSigTab('draw'); } catch(_){} }, 50);
   }
   function closeCountersign(){ document.getElementById('lvCsModal').classList.remove('active'); }
 
@@ -377,10 +390,94 @@
   }
 
   function clearLandlordPad(){
-    if (!_padCtx) return;
-    const c = document.getElementById('lvLandlordPad');
-    _padCtx.fillStyle='#fff'; _padCtx.fillRect(0,0,c.width,c.height);
+    // Clear both draw canvas and typed canvas, plus reset typed input
+    if (_padCtx) {
+      const c = document.getElementById('lvLandlordPad');
+      _padCtx.fillStyle='#fff'; _padCtx.fillRect(0,0,c.width,c.height);
+    }
+    const tInput = document.getElementById('lvSigTypeInput');
+    if (tInput) tInput.value = '';
+    const tCanvas = document.getElementById('lvSigTypeCanvas');
+    if (tCanvas) {
+      const tx = tCanvas.getContext('2d');
+      tx.fillStyle='#fdfdfd'; tx.fillRect(0,0,tCanvas.width,tCanvas.height);
+    }
     _padHasInk = false;
+    _typedSigDataUrl = null;
+  }
+
+  // ─── Signature mode tabs (Draw / Type) ───
+  let _sigMode = 'draw';
+  let _typedSigFont = 'Great Vibes, cursive';
+  let _typedSigDataUrl = null;
+
+  function switchSigTab(mode){
+    _sigMode = mode;
+    document.querySelectorAll('.lv-sig-tab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === mode);
+      // visual active state via inline style fallback
+      if (b.dataset.tab === mode) {
+        b.style.background = '#1a2874'; b.style.color = '#fff';
+      } else {
+        b.style.background = ''; b.style.color = '';
+      }
+    });
+    document.getElementById('lvSigDrawWrap').style.display = (mode==='draw') ? '' : 'none';
+    document.getElementById('lvSigTypeWrap').style.display = (mode==='type') ? '' : 'none';
+    if (mode === 'type') {
+      // Make sure the type canvas reflects whatever is in the input box
+      renderTypedSig();
+    }
+  }
+
+  function pickSigFont(btnEl){
+    _typedSigFont = btnEl.dataset.font;
+    document.querySelectorAll('.lv-sig-font').forEach(b => {
+      b.style.borderColor = (b === btnEl) ? '#1a2874' : 'transparent';
+    });
+    renderTypedSig();
+  }
+
+  function renderTypedSig(){
+    const input = document.getElementById('lvSigTypeInput');
+    const canvas = document.getElementById('lvSigTypeCanvas');
+    if (!input || !canvas) return;
+    const text = (input.value || '').trim();
+    const ctx = canvas.getContext('2d');
+    // Bump pixel density so the rendered PNG is crisp
+    const dpr = window.devicePixelRatio || 1;
+    if (canvas.width !== Math.round(canvas.clientWidth * dpr)) {
+      canvas.width  = Math.round(canvas.clientWidth * dpr);
+      canvas.height = Math.round(canvas.clientHeight * dpr);
+      ctx.scale(dpr, dpr);
+    }
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    ctx.fillStyle = '#fdfdfd'; ctx.fillRect(0,0,w,h);
+    if (!text) { _typedSigDataUrl = null; _padHasInk = false; return; }
+    // Auto-fit font size to canvas width
+    let fontSize = 56;
+    ctx.fillStyle = '#000';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${fontSize}px ${_typedSigFont}`;
+    while (ctx.measureText(text).width > w - 30 && fontSize > 18) {
+      fontSize -= 2;
+      ctx.font = `${fontSize}px ${_typedSigFont}`;
+    }
+    ctx.fillText(text, 15, h/2);
+    _typedSigDataUrl = canvas.toDataURL('image/png');
+    _padHasInk = true; // submit guard
+  }
+
+  // Returns the active signature PNG dataURL based on current mode
+  function getActiveSignaturePng(){
+    if (_sigMode === 'type') {
+      // Make sure latest input is rendered
+      renderTypedSig();
+      return _typedSigDataUrl;
+    }
+    return document.getElementById('lvLandlordPad').toDataURL('image/png');
   }
 
   function progress(pct, txt){
@@ -401,7 +498,8 @@
 
     try {
       progress(10, 'Capturing landlord signature...');
-      const landlordSigPng = document.getElementById('lvLandlordPad').toDataURL('image/png');
+      const landlordSigPng = getActiveSignaturePng();
+      if (!landlordSigPng) throw new Error('No signature captured');
       const landlord = (l.lease_signers||[]).find(s=>s.role==='landlord');
 
       // 1) Save landlord signature + status to lease_signers
@@ -442,15 +540,45 @@
       }).from(wrap).outputPdf('blob');
       document.body.removeChild(wrap);
 
-      // 5) Upload to Supabase Storage
+      // 5) Upload to Supabase Storage with verification
       progress(60, 'Uploading PDF...');
       const filename = `${fresh.id}/${Date.now()}.pdf`;
-      const { error: upErr } = await sb.storage.from('leases-signed').upload(filename, pdfBlob, { contentType: 'application/pdf', upsert: true });
-      if (upErr) throw new Error('Upload PDF: ' + upErr.message);
+      console.log('[countersign] uploading PDF:', filename, 'size:', pdfBlob.size);
+      const { data: upData, error: upErr } = await sb.storage.from('leases-signed').upload(filename, pdfBlob, { contentType: 'application/pdf', upsert: true });
+      if (upErr) {
+        console.error('[countersign] upload error', upErr);
+        throw new Error('Upload PDF: ' + upErr.message);
+      }
+      console.log('[countersign] upload OK', upData);
       const { data: pub } = sb.storage.from('leases-signed').getPublicUrl(filename);
       const pdfUrl = pub.publicUrl;
+      console.log('[countersign] public URL:', pdfUrl);
 
-      // 6) Save URL on lease
+      // 5b) Verify the URL is actually fetchable before persisting it on the lease
+      progress(68, 'Verifying PDF...');
+      try {
+        const head = await fetch(pdfUrl, { method: 'HEAD' });
+        if (!head.ok) {
+          console.warn('[countersign] PDF HEAD check returned', head.status, '— retrying after 800ms');
+          await new Promise(r => setTimeout(r, 800));
+          const retry = await fetch(pdfUrl, { method: 'HEAD' });
+          if (!retry.ok) {
+            throw new Error('PDF uploaded but URL returns ' + retry.status + ' — check storage RLS read policy on bucket "leases-signed"');
+          }
+        }
+        console.log('[countersign] PDF URL verified OK');
+      } catch(verifyErr) {
+        // If HEAD fails entirely (CORS), try GET as fallback
+        try {
+          const g = await fetch(pdfUrl);
+          if (!g.ok) throw verifyErr;
+          console.log('[countersign] PDF GET fallback OK');
+        } catch(_) {
+          throw verifyErr;
+        }
+      }
+
+      // 6) Save URL on lease (only if verified)
       await sb.from('leases').update({ signed_pdf_url: pdfUrl }).eq('id', l.id);
 
       // 7) Cascade: tenants_lt + units rows
@@ -469,6 +597,21 @@
 
       progress(100, 'Done!');
       lv_toast('Lease countersigned, tenants notified, units updated', 'success');
+
+      // Refresh in-memory tenants/units so the new tenant card appears immediately
+      // in the Tenants tab without needing a full page reload.
+      try {
+        if (typeof window.WPA_hydrateTenantsLT === 'function') {
+          await window.WPA_hydrateTenantsLT();
+          console.log('[leases-view] tenants_lt re-hydrated post-cascade');
+        }
+        if (typeof window.renderPDLongTerm === 'function' && typeof window._pdCurrentProperty !== 'undefined' && window._pdCurrentProperty) {
+          window.renderPDLongTerm(window._pdCurrentProperty);
+        }
+        if (typeof window.renderTable === 'function') window.renderTable();
+        if (typeof window.renderMTMTenants === 'function') window.renderMTMTenants();
+      } catch(e) { console.warn('[leases-view] post-cascade refresh failed', e); }
+
       setTimeout(() => { closeCountersign(); closeDetail(); load(); }, 800);
     } catch (e) {
       console.error('[countersign]', e);
@@ -581,7 +724,7 @@
         <p>— Willow Partnership</p>`;
       try {
         if (typeof window.sendEmail === 'function') {
-          await window.sendEmail(t.email, subject, html, { isHtml: true, headerTitle: 'Willow Partnership' });
+          await window.sendEmail(t.email, subject, html, { isHtml: true, headerTitle: 'Willow Partnership', fromEmail: 'no-reply@willowpa.com', fromName: 'Willow Partnership' });
           await sb.from('lease_events').insert({ lease_id: lease.id, signer_id: t.id, event_type: 'email_sent', meta: { to: t.email, subject, kind: 'countersigned_pdf' } });
         } else {
           console.warn('[email] sendEmail not available; skipping', t.email);
@@ -619,7 +762,7 @@
       if (typeof window.sendEmail === 'function') {
         try {
           const html = `<p>Hi ${lv_escapeHtml(s.name)},</p><p>Please sign your lease for <strong>${lv_escapeHtml(_currentDetail.property)} ${lv_escapeHtml(_currentDetail.unit||'')}</strong>.</p><p><a href="${signUrl}" style="background:#1a2874;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;">Sign lease</a></p><p>Or paste this link: ${signUrl}</p>`;
-          await window.sendEmail(s.email, `Lease ready for your signature`, html, {isHtml:true, headerTitle:'Willow Partnership'});
+          await window.sendEmail(s.email, `Lease ready for your signature`, html, {isHtml:true, headerTitle:'Willow Partnership', fromEmail:'no-reply@willowpa.com', fromName:'Willow Partnership'});
         } catch(e){ console.warn('sendEmail failed', e); }
       }
     }
@@ -649,6 +792,7 @@
     load, init, openDetail, closeDetail,
     revokeLease, resendLease, countersignLease,
     openCountersign, closeCountersign, submitCountersign, clearLandlordPad,
+    switchSigTab, pickSigFont, renderTypedSig,
     viewLease, closeView, printLease,
     copyLink, exportCSV, setSort, newLease,
     get leases(){ return _leases; },

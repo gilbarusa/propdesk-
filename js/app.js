@@ -2996,6 +2996,8 @@ async function WPA_hydrateTenantsLT() {
     console.warn('[tenants_lt] hydrate error', e);
   }
 }
+// Expose hydrate so other modules (leases-view post-cascade) can re-trigger it
+window.WPA_hydrateTenantsLT = WPA_hydrateTenantsLT;
 // Kick off hydration ASAP (does not block initial render — fallback array shows first)
 WPA_hydrateTenantsLT();
 

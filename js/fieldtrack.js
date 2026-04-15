@@ -2460,6 +2460,8 @@ function FT_sendMessage(opts){
   if(opts.jobId) payload.jobId = opts.jobId;
   if(opts.isHtml) payload.isHtml = true;
   if(opts.headerTitle) payload.headerTitle = opts.headerTitle;
+  if(opts.fromEmail) payload.fromEmail = opts.fromEmail;
+  if(opts.fromName) payload.fromName = opts.fromName;
 
   return fetch(FT_MSG_BASE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
   .then(function(r){ return r.json(); })
@@ -2510,7 +2512,9 @@ function sendEmail(toEmail, subject, body, opts){
   var m = {to:toEmail, msg:body, channel:'email', toEmail:toEmail, subject:subject, silent:true};
   if (opts && opts.isHtml) m.isHtml = true;
   if (opts && opts.headerTitle) m.headerTitle = opts.headerTitle;
-  FT_sendMessage(m);
+  if (opts && opts.fromEmail) m.fromEmail = opts.fromEmail;
+  if (opts && opts.fromName) m.fromName = opts.fromName;
+  return FT_sendMessage(m);
 }
 
 // Toast for messaging feedback
