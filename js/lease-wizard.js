@@ -6,6 +6,10 @@
 (function(){
   'use strict';
 
+  const LEASE_WIZARD_VERSION = '20260415-0300';
+  try { console.log('%c[lease-wizard] loaded v' + LEASE_WIZARD_VERSION, 'background:#1a2874;color:#fff;padding:2px 8px;border-radius:3px'); } catch(e){}
+  window.LEASE_WIZARD_VERSION = LEASE_WIZARD_VERSION;
+
   const WIZ_STEPS = ['Tenants','Property','Terms','Utilities','Addendums','Review'];
   const UTILITIES = ['Water','Sewer','Trash','Electric','Gas','Heat','Hot water','Internet','Cable'];
 
@@ -785,7 +789,7 @@
           <p style="font-size:12px;color:#666">This link is unique to you and should not be shared. If you have questions, reply to this email or call (267) 865-0001.</p>
           <p>— Willow Partnership</p>`;
         if (typeof sendEmail === 'function' && sg.email){
-          sendEmail(sg.email, subject, bodyHtml);
+          sendEmail(sg.email, subject, bodyHtml, { isHtml: true, headerTitle: 'Willow Partnership — Lease Agreement' });
           report.emailOk++;
           events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'email_sent',
             meta: { channel: 'email', to: sg.email, link, actor: 'system' } });
@@ -830,23 +834,89 @@
   function buildSnapshot(tpl, tenants){
     if (!tpl) return '';
     const tenantList = tenants.map(t => t.name).join(', ');
+
+    // Resolve building + first unit (used for city/state/zip)
+    const _b = getBuildings().find(function(x){return x.key===wizState.building;});
+    const _firstUnit = _b && _b.units && _b.units[0] ? _b.units[0] : null;
+    const _street = _firstUnit ? getStreet(_firstUnit) : (wizState.building||'');
+    const _city   = _firstUnit ? getCity(_firstUnit)   : '';
+    const _state  = _firstUnit ? getState(_firstUnit)  : '';
+    const _zip    = _firstUnit ? getZip(_firstUnit)    : '';
+    const _fullAddr = _b ? _b.label : (wizState.building||'');
+
+    // Each {{TENANT_SIGNATURE_BLOCKS}} becomes ONE [[SIG]] marker per tenant,
+    // grouped in a small block. sign.html turns [[SIG]] into a signable canvas.
     const sigBlocks = tenants.map(t => `
-      <div class="sig-block">
-        <div>Tenant: <strong>${escapeHtml(t.name)}</strong></div>
-        <div>Signature: ____________________&nbsp;&nbsp;Date: __________</div>
+      <div class="sig-block" style="margin:14px 0;padding:10px 0;border-top:1px solid #d6def0">
+        <div style="margin-bottom:6px"><strong>Tenant:</strong> ${escapeHtml(t.name)}</div>
+        <div>Signature: [[SIG]] &nbsp;&nbsp; Date: ${new Date().toISOString().slice(0,10)}</div>
       </div>`).join('');
+
     const tokens = {
+      // Tenant
       TENANT_NAMES: escapeHtml(tenantList),
+      TENANT_NAME:  escapeHtml(tenantList),
       TENANT_SIGNATURE_BLOCKS: sigBlocks,
-      PROPERTY_ADDRESS: escapeHtml((function(){ var b = getBuildings().find(function(x){return x.key===wizState.building;}); return b? b.label : (wizState.building||''); })()),
-      UNIT: escapeHtml(wizState.unit),
-      LEASE_START: wizState.lease_start||'',
-      LEASE_END: wizState.lease_end||'Month-to-Month',
-      MONTHLY_RENT: parseFloat(wizState.monthly_rent||0).toFixed(2),
-      RENT_DUE_DAY: wizState.rent_due_day,
+      TENANT_SIGNATURE: '[[SIG]]',
+      SIGNATURE: '[[SIG]]',
+      SIG: '[[SIG]]',
+
+      // Property / address (multiple aliases — templates vary)
+      PROPERTY:         escapeHtml(_street),
+      PROPERTY_NAME:    escapeHtml(_street),
+      PROPERTY_ADDRESS: escapeHtml(_fullAddr),
+      ADDRESS:          escapeHtml(_fullAddr),
+      FULL_ADDRESS:     escapeHtml(_fullAddr),
+      STREET:           escapeHtml(_street),
+      CITY:             escapeHtml(_city),
+      STATE:            escapeHtml(_state),
+      ZIP:              escapeHtml(_zip),
+      POSTAL_CODE:      escapeHtml(_zip),
+      UNIT:             escapeHtml(wizState.unit),
+      UNIT_NUMBER:      escapeHtml(wizState.unit),
+
+      // Term
+      LEASE_START: wizState.lease_start || '',
+      LEASE_END:   wizState.lease_end   || 'Month-to-Month',
+      START_DATE:  wizState.lease_start || '',
+      END_DATE:    wizState.lease_end   || 'Month-to-Month',
+      TERM_MONTHS: (function(){
+        if (wizState.lease_type==='mtm') return 'Month-to-Month';
+        if (!wizState.lease_start || !wizState.lease_end) return '';
+        var s = new Date(wizState.lease_start), e = new Date(wizState.lease_end);
+        if (isNaN(s) || isNaN(e)) return '';
+        var m = (e.getFullYear()-s.getFullYear())*12 + (e.getMonth()-s.getMonth());
+        return String(Math.max(0, m));
+      })(),
+      TODAY: new Date().toISOString().slice(0,10),
+      DATE:  new Date().toISOString().slice(0,10),
+
+      // Money
+      MONTHLY_RENT:     parseFloat(wizState.monthly_rent||0).toFixed(2),
+      RENT:             parseFloat(wizState.monthly_rent||0).toFixed(2),
+      RENT_DUE_DAY:     wizState.rent_due_day,
       SECURITY_DEPOSIT: parseFloat(wizState.security_deposit||0).toFixed(2),
-      LANDLORD_NAME: 'Willow Partnership',
-      LAST_MONTH: parseFloat(wizState.last_month_rent||0).toFixed(2),
+      DEPOSIT:          parseFloat(wizState.security_deposit||0).toFixed(2),
+      LAST_MONTH:       parseFloat(wizState.last_month_rent||0).toFixed(2),
+      LAST_MONTH_RENT:  parseFloat(wizState.last_month_rent||0).toFixed(2),
+      TOTAL_DEPOSIT: (
+        (parseFloat(wizState.security_deposit)||0) +
+        (parseFloat(wizState.last_month_rent)||0)
+      ).toFixed(2),
+
+      // Landlord
+      LANDLORD:         'Willow Partnership',
+      LANDLORD_NAME:    'Willow Partnership',
+      LANDLORD_ENTITY:  'Willow Partnership',
+      OWNER:            'Willow Partnership',
+      OWNER_NAME:       'Willow Partnership',
+
+      // Utilities
+      UTILITIES_INCLUDED: wizState.utilities_landlord.join(', ') || 'None',
+      UTILITIES_TENANT:   wizState.utilities_tenant.join(', ')   || 'None',
+      UTILITIES_LANDLORD: wizState.utilities_landlord.join(', ') || 'None',
+
+      // Extras
       EXTRA_CHARGES_HTML: (function(){
         var rows = (wizState.extra_charges||[]).filter(function(c){ return c.label || c.amount; });
         if (!rows.length) return '<p><em>None</em></p>';
@@ -855,11 +925,20 @@
           var note = c.note ? ' — ' + escapeHtml(c.note) : '';
           return '<li>' + escapeHtml(c.label||'Charge') + ': $' + amt + note + '</li>';
         }).join('') + '</ul>';
-      })(),
-      UTILITIES_TENANT: wizState.utilities_tenant.join(', ')||'None',
-      UTILITIES_LANDLORD: wizState.utilities_landlord.join(', ')||'None'
+      })()
     };
-    return (tpl.body_html||'').replace(/\{\{([A-Z_]+)\}\}/g, (_, k) => (k in tokens) ? tokens[k] : `{{${k}}}`);
+
+    // Tolerant token regex: case-insensitive name, allows {{ NAME }} with spaces.
+    // Unknown tokens render as empty string (don't leak literals to tenants).
+    return (tpl.body_html||'').replace(
+      /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g,
+      function(_, k){
+        var key = k.toUpperCase();
+        if (key in tokens) return tokens[key];
+        try { console.warn('[lease-wizard] Unknown template token:', k); } catch(e){}
+        return ''; // hide unresolved tokens rather than showing literal {{X}}
+      }
+    );
   }
 
   function esc(v){ return String(v==null?'':v).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }

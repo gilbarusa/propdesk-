@@ -1,5 +1,9 @@
 /* FieldTrack v6 — embedded in PropDesk TechTrack module */
 /* Auto-namespaced: FT_ prefix on conflicting globals */
+try {
+  window.FIELDTRACK_VERSION = '20260415-0300';
+  console.log('%c[fieldtrack] loaded v' + window.FIELDTRACK_VERSION, 'background:#1a2874;color:#fff;padding:2px 8px;border-radius:3px');
+} catch(e){}
 
 /* 
    FIELDTRACK v6  app.js
