@@ -3552,6 +3552,12 @@ function viewTenantLease() {
 
 // ── Render Leases Table ──
 function renderMTMLeases() {
+  // New: real Supabase-backed LeasesView (replaces mock INNAGO_LEASES UI)
+  if (typeof window.LeasesView === 'object') {
+    try { window.LeasesView.init(); window.LeasesView.load(); return; }
+    catch(e) { console.error('[LeasesView] failed, falling back to mock:', e); }
+  }
+  // Legacy mock fallback (only runs if leases-view.js failed to load)
   const tbody = document.getElementById('mtmLeasesBody');
   if (!tbody) return;
   // Populate property filter
