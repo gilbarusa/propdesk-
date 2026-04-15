@@ -2454,6 +2454,8 @@ function FT_sendMessage(opts){
   if(opts.toEmail) payload.toEmail = opts.toEmail;
   if(opts.subject) payload.subject = opts.subject;
   if(opts.jobId) payload.jobId = opts.jobId;
+  if(opts.isHtml) payload.isHtml = true;
+  if(opts.headerTitle) payload.headerTitle = opts.headerTitle;
 
   return fetch(FT_MSG_BASE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
   .then(function(r){ return r.json(); })
@@ -2498,9 +2500,13 @@ function sendWhatsApp(to,msg){
   FT_sendMessage({to:to, msg:msg, channel:'whatsapp', silent:true});
 }
 
-// Quick send Email
-function sendEmail(toEmail, subject, body){
-  FT_sendMessage({to:toEmail, msg:body, channel:'email', toEmail:toEmail, subject:subject, silent:true});
+// Quick send Email. Pass opts={isHtml:true, headerTitle:'…'} to send raw HTML
+// with a custom banner.
+function sendEmail(toEmail, subject, body, opts){
+  var m = {to:toEmail, msg:body, channel:'email', toEmail:toEmail, subject:subject, silent:true};
+  if (opts && opts.isHtml) m.isHtml = true;
+  if (opts && opts.headerTitle) m.headerTitle = opts.headerTitle;
+  FT_sendMessage(m);
 }
 
 // Toast for messaging feedback
