@@ -7,7 +7,7 @@
 //  v20260415-0500
 // ══════════════════════════════════════════════════════
 (function(){
-  const VERSION = '20260415-0500';
+  const VERSION = '20260415-0600';
   try { console.log('%c[leases-view] loaded v' + VERSION, 'background:#1a2874;color:#fff;padding:2px 8px;border-radius:3px'); } catch(e){}
 
   function getSb() { return window.sb; }
@@ -486,33 +486,48 @@
     const status = isFuture ? 'Future' : 'Active';
     const leaseTypeLabel = lease.lease_type === 'mtm' ? 'month-to-month' : 'long-term';
 
-    // Insert/upsert tenants_lt rows (one per tenant)
+    // Insert/upsert tenants_lt rows (one per tenant). Schema has several NOT NULL
+    // columns (due_day, grace_days, late_fee_per_day, autopay_enabled, autopay_days_before)
+    // — supply defaults so insert doesn't fail.
     for (const t of tenants) {
       try {
         const tenantRow = {
           name: t.name,
           email: t.email || '',
           phone: t.phone || '',
-          property: lease.property || '',
-          unit: lease.unit || '',
+          property: lease.property || '—',
+          unit: lease.unit || '—',
+          address: lease.property || null,
           status,
           rent: parseFloat(lease.monthly_rent || 0),
-          roommates: tenants.length - 1,
+          roommates: Math.max(0, tenants.length - 1),
           since: lease.lease_start || today,
           lease_start: lease.lease_start || null,
           lease_end: lease.lease_end || null,
           lease_type: lease.lease_type || 'mtm',
           lease_id: lease.id,
+          // NOT NULL columns with sensible defaults
+          due_day: 1,
+          grace_days: 5,
+          late_fee_per_day: 0,
+          autopay_enabled: false,
+          autopay_days_before: 0,
         };
-        // Upsert by email (if email unique constraint exists), else insert
-        const { error } = await sb.from('tenants_lt').upsert(tenantRow, { onConflict: 'email' });
+        let { error } = await sb.from('tenants_lt').upsert(tenantRow, { onConflict: 'email' });
         if (error) {
-          // Fallback to plain insert if no conflict target
+          console.warn('[cascade] upsert failed, trying insert:', error.message);
           const { error: ie } = await sb.from('tenants_lt').insert(tenantRow);
-          if (ie) console.warn('[cascade] tenants_lt insert', ie.message);
+          if (ie) {
+            console.error('[cascade] tenants_lt INSERT FAILED:', ie.message, ie.details, ie.hint);
+            try { window.toast && window.toast('Tenant insert failed: '+ie.message, 'err'); } catch(_){}
+          } else {
+            console.log('[cascade] tenants_lt insert OK for', t.name);
+          }
+        } else {
+          console.log('[cascade] tenants_lt upsert OK for', t.name);
         }
         await sb.from('lease_events').insert({ lease_id: lease.id, signer_id: t.id, event_type: 'tenant_added', meta: { name: t.name, status } });
-      } catch(e) { console.warn('[cascade] tenant row failed', e); }
+      } catch(e) { console.error('[cascade] tenant row threw', e); }
     }
 
     // Insert units row(s) — one per tenant, type='long-term' or 'month-to-month'.
