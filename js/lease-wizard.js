@@ -217,13 +217,33 @@
   // ── Address handling ──
   // Properties may store address as a string ("46 Township Line Rd") OR an object {street, city, state, zip}.
   // Other address pieces live in p.city, p.state, p.zip (if set).
+  // Returns true if a string looks like a real street (e.g. "431 Valley Rd"),
+  // not an apt identifier ("A1", "3", "Studio").
+  function looksLikeStreet(s){
+    if (!s) return false;
+    return /^\s*\d+[A-Za-z]?\s+\S/.test(String(s));
+  }
   function getStreet(p){
     if (!p) return '';
+    // Collect every candidate field that might hold a street
+    var candidates = [];
     var a = p.address;
     if (typeof a === 'object' && a){
-      return String(a.street || a.address1 || a.line1 || '').trim();
+      candidates.push(a.address1, a.line1, a.street, a.address, a.full_address);
+    } else if (a){
+      candidates.push(a);
     }
-    return String(a || '').trim();
+    candidates.push(p.address1, p.line1, p.street, p.full_address);
+    // Prefer the first one that looks like a real street; else longest non-empty
+    for (var i=0; i<candidates.length; i++){
+      if (looksLikeStreet(candidates[i])) return String(candidates[i]).trim();
+    }
+    var best = '';
+    for (var j=0; j<candidates.length; j++){
+      var v = candidates[j] ? String(candidates[j]).trim() : '';
+      if (v.length > best.length) best = v;
+    }
+    return best;
   }
   function getCity(p){
     if (typeof p.address === 'object' && p.address && p.address.city) return String(p.address.city).trim();
@@ -482,7 +502,15 @@
   }
 
   // ── State mutators (exposed to inline handlers) ──
-  window.lwSet = (k,v) => { wizState[k] = v; if (k==='lease_type' && v==='mtm') wizState.lease_end=''; lwRender(); };
+  // Only re-render when a change actually affects layout (e.g. lease_type
+  // toggles the lease_end disabled state). Pure value updates skip render
+  // so date/number inputs keep focus while the user types.
+  window.lwSet = (k,v) => {
+    wizState[k] = v;
+    if (k==='lease_type' && v==='mtm') wizState.lease_end='';
+    var rerenderKeys = ['lease_type','template_id','building'];
+    if (rerenderKeys.indexOf(k) !== -1) lwRender();
+  };
   window.lwSetT = (i,k,v) => { wizState.tenants[i][k] = v; };
 
   window.lwNameInput = (i, val) => {
