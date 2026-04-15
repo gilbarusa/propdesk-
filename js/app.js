@@ -7296,15 +7296,22 @@ function openAppReviewModal(appId) {
     banner.style.display = 'none';
   }
 
-  // Show/hide approve/reject buttons based on status
+  // Show/hide approve/reject/create-lease buttons based on status
   var approveBtn = document.getElementById('arApproveBtn');
   var rejectBtn = document.getElementById('arRejectBtn');
-  if (app.status === 'approved' || app.status === 'denied') {
+  var createLeaseBtn = document.getElementById('arCreateLeaseBtn');
+  if (app.status === 'approved') {
     approveBtn.style.display = 'none';
     rejectBtn.style.display = 'none';
+    if (createLeaseBtn) createLeaseBtn.style.display = '';
+  } else if (app.status === 'denied') {
+    approveBtn.style.display = 'none';
+    rejectBtn.style.display = 'none';
+    if (createLeaseBtn) createLeaseBtn.style.display = 'none';
   } else {
     approveBtn.style.display = '';
     rejectBtn.style.display = '';
+    if (createLeaseBtn) createLeaseBtn.style.display = 'none';
   }
 
   // Screening reports placeholders
@@ -7320,6 +7327,21 @@ function openAppReviewModal(appId) {
 function closeAppReview() {
   document.getElementById('appReviewOverlay').style.display = 'none';
   _reviewAppId = null;
+}
+
+function createLeaseFromApp() {
+  var app = _liveApplications.find(a => a.id === _reviewAppId);
+  if (!app) { showToast('Applicant not found'); return; }
+  if (typeof openNewLeaseWizard !== 'function') { alert('Lease wizard not loaded.'); return; }
+  closeAppReview();
+  openNewLeaseWizard({
+    application_id: app.id,
+    tenant: app.name,
+    email: app.email,
+    phone: app.phone,
+    property_name: app.property,
+    unit: app.unit
+  });
 }
 
 // ── Confirm Dialog Flow ──

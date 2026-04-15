@@ -13,6 +13,7 @@
   let templates = [];
   let addendums = [];
   let properties = [];
+  let applicants = []; // [{id,name,email,phone,property,unit,status}]
 
   function sb(){ return window.sb || window.supa || window.supabaseClient || null; }
 
@@ -53,6 +54,11 @@
       #lwModal .lw-btn.primary:hover{background:#6f5836}
       #lwModal .lw-btn:disabled{opacity:.5;cursor:not-allowed}
       #lwModal .lw-err{color:#c33;font-size:13px;margin-top:8px}
+      #lwModal .lw-suggest{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #d0d0d0;border-top:0;border-radius:0 0 6px 6px;max-height:200px;overflow-y:auto;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.1)}
+      #lwModal .lw-sg-item{padding:7px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0;font-size:13px}
+      #lwModal .lw-sg-item:hover,#lwModal .lw-sg-item.active{background:#f4efe6}
+      #lwModal .lw-sg-item .lw-sg-sub{font-size:11px;color:#888;margin-top:2px}
+      #lwModal .lw-sg-empty{padding:10px;color:#888;font-size:12px;font-style:italic}
     `;
     const style = document.createElement('style');
     style.id = 'lwStyles'; style.textContent = css; document.head.appendChild(style);
@@ -81,7 +87,7 @@
     ensureModal();
     wizState = {
       step: 0,
-      tenants: [{name:'', email:'', phone:''}],
+      tenants: [{name:'', email:'', phone:'', application_id:null}],
       property_id: '', unit: '', property_address: '',
       template_id: '',
       lease_type: 'fixed', // fixed | mtm
@@ -92,13 +98,24 @@
       application_id: prefill?.application_id || null,
       error: ''
     };
-    if (prefill?.tenant) wizState.tenants[0] = {name: prefill.tenant||'', email: prefill.email||'', phone: prefill.phone||''};
+    if (prefill?.tenant) wizState.tenants[0] = {name: prefill.tenant||'', email: prefill.email||'', phone: prefill.phone||'', application_id: prefill.application_id||null};
     if (prefill?.property_id) wizState.property_id = prefill.property_id;
     if (prefill?.unit) wizState.unit = prefill.unit;
     if (prefill?.rent) wizState.monthly_rent = prefill.rent;
 
     document.getElementById('lwModal').style.display = 'flex';
     await lwLoadRefs();
+
+    // After refs are loaded, try to match a property_name string against the loaded properties
+    if (prefill?.property_name && !wizState.property_id){
+      const q = String(prefill.property_name).toLowerCase();
+      const m = properties.find(p =>
+        (p.name||'').toLowerCase() === q ||
+        (p.address||'').toLowerCase().includes(q) ||
+        (p.name||'').toLowerCase().includes(q)
+      );
+      if (m) wizState.property_id = m.id;
+    }
     lwRender();
   };
 
@@ -108,16 +125,47 @@
   };
 
   async function lwLoadRefs(){
-    const s = sb(); if (!s) return;
+    const s = sb();
+    // 1) Pull applicants from app.js's already-loaded _liveApplications (preferred — known to work)
+    if (Array.isArray(window._liveApplications) && window._liveApplications.length){
+      applicants = window._liveApplications.map(a => ({
+        id: a.id, name: a.name||'', email: a.email||'', phone: a.phone||'',
+        property: a.property||'', unit: a.unit||'', status: a.status||''
+      })).filter(a => a.name && a.name.trim());
+      console.log('[lease-wizard] loaded', applicants.length, 'applicants from window._liveApplications');
+    } else if (typeof window.fetchApplications === 'function'){
+      try {
+        await window.fetchApplications();
+        applicants = (window._liveApplications||[]).map(a => ({
+          id: a.id, name: a.name||'', email: a.email||'', phone: a.phone||'',
+          property: a.property||'', unit: a.unit||'', status: a.status||''
+        })).filter(a => a.name && a.name.trim());
+        console.log('[lease-wizard] fetched', applicants.length, 'applicants via fetchApplications');
+      } catch(e){ console.warn('[lease-wizard] fetchApplications failed', e); applicants = []; }
+    }
+
+    // 2) Use the same direct REST pattern as app.js for templates/addendums/properties
+    const SUPA_URL = window.CONFIG?.SUPABASE_URL;
+    const SUPA_KEY = window.CONFIG?.SUPABASE_KEY;
+    async function rest(path){
+      try {
+        const r = await fetch(SUPA_URL + '/rest/v1/' + path, {
+          headers: { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY }
+        });
+        if (!r.ok) { console.warn('[lease-wizard] REST', path, r.status); return []; }
+        return await r.json();
+      } catch(e){ console.warn('[lease-wizard] REST failed', path, e); return []; }
+    }
     try {
-      const [{data: tpls}, {data: ads}, {data: props}] = await Promise.all([
-        s.from('lease_templates').select('id,name,body_html,is_default,is_active').eq('is_active', true),
-        s.from('lease_addendums').select('id,name,description,body_html,requires_signature,is_active').eq('is_active', true),
-        s.from('properties').select('id,name,address').limit(500)
+      const [tpls, ads, props] = await Promise.all([
+        rest('lease_templates?select=id,name,body_html,is_default,is_active&is_active=eq.true'),
+        rest('lease_addendums?select=id,name,description,body_html,requires_signature,is_active&is_active=eq.true'),
+        rest('properties?select=id,name,address&limit=500')
       ]);
       templates = tpls || [];
       addendums = ads || [];
       properties = props || [];
+      console.log('[lease-wizard] templates:', templates.length, 'addendums:', addendums.length, 'properties:', properties.length);
       // Pre-select default template
       const def = templates.find(t => t.is_default);
       if (def && !wizState.template_id) wizState.template_id = def.id;
@@ -157,15 +205,23 @@
   function renderTenants(){
     const rows = wizState.tenants.map((t,i) => `
       <div class="lw-tenant">
-        <div><label>Tenant ${i+1} name</label>
-          <input type="text" value="${esc(t.name)}" oninput="lwSetT(${i},'name',this.value)" placeholder="Full name"></div>
+        <div style="position:relative">
+          <label>Tenant ${i+1} name</label>
+          <input type="text" id="lwTName${i}" value="${esc(t.name)}" autocomplete="off"
+                 oninput="lwNameInput(${i},this.value)" onfocus="lwNameInput(${i},this.value)" onblur="setTimeout(()=>lwCloseSuggest(${i}),150)"
+                 placeholder="Type name…">
+          <div class="lw-suggest" id="lwSuggest${i}" style="display:none"></div>
+        </div>
         <div><label>Email</label>
-          <input type="email" value="${esc(t.email)}" oninput="lwSetT(${i},'email',this.value)" placeholder="email@example.com"></div>
+          <input type="email" id="lwTEmail${i}" value="${esc(t.email)}" oninput="lwSetT(${i},'email',this.value)" placeholder="email@example.com"></div>
         <div><label>Phone</label>
-          <input type="tel" value="${esc(t.phone)}" oninput="lwSetT(${i},'phone',this.value)" placeholder="(opt.)"></div>
+          <input type="tel" id="lwTPhone${i}" value="${esc(t.phone)}" oninput="lwSetT(${i},'phone',this.value)" placeholder="(opt.)"></div>
         <button class="lw-del" onclick="lwDelT(${i})" ${wizState.tenants.length===1?'disabled':''}>&times;</button>
       </div>`).join('');
-    return `<h4 style="margin:0 0 12px">Tenants on this lease</h4>${rows}
+    const hint = applicants.length
+      ? `<div style="font-size:12px;color:#777;margin:-4px 0 10px">Start typing — matches from your ${applicants.length} applications will appear.</div>`
+      : `<div style="font-size:12px;color:#c83;margin:-4px 0 10px">No applications loaded — enter tenant info manually.</div>`;
+    return `<h4 style="margin:0 0 12px">Tenants on this lease</h4>${hint}${rows}
       <button class="lw-add" onclick="lwAddT()">+ Add another tenant</button>`;
   }
 
@@ -271,7 +327,57 @@
   // ── State mutators (exposed to inline handlers) ──
   window.lwSet = (k,v) => { wizState[k] = v; if (k==='lease_type' && v==='mtm') wizState.lease_end=''; lwRender(); };
   window.lwSetT = (i,k,v) => { wizState.tenants[i][k] = v; };
-  window.lwAddT = () => { wizState.tenants.push({name:'',email:'',phone:''}); lwRender(); };
+
+  window.lwNameInput = (i, val) => {
+    wizState.tenants[i].name = val;
+    const q = (val||'').toLowerCase().trim();
+    const box = document.getElementById('lwSuggest'+i);
+    if (!box) return;
+    if (!q){ box.style.display='none'; return; }
+    const matches = applicants.filter(a =>
+      a.name.toLowerCase().includes(q) ||
+      (a.email||'').toLowerCase().includes(q)
+    ).slice(0, 8);
+    if (!matches.length){
+      box.innerHTML = `<div class="lw-sg-empty">No match — continue typing to add manually.</div>`;
+      box.style.display = 'block';
+      return;
+    }
+    box.innerHTML = matches.map(m => {
+      const sub = [m.email, m.phone, m.property&&m.unit?(m.property+' / '+m.unit):(m.property||''), m.status].filter(Boolean).join(' · ');
+      return `<div class="lw-sg-item" onmousedown="lwPickApplicant(${i},'${m.id}')">
+        <div><strong>${esc(m.name)}</strong></div>
+        <div class="lw-sg-sub">${esc(sub)}</div></div>`;
+    }).join('');
+    box.style.display = 'block';
+  };
+
+  window.lwCloseSuggest = (i) => {
+    const box = document.getElementById('lwSuggest'+i);
+    if (box) box.style.display = 'none';
+  };
+
+  window.lwPickApplicant = (i, id) => {
+    const a = applicants.find(x => x.id === id);
+    if (!a) return;
+    wizState.tenants[i] = { name: a.name, email: a.email, phone: a.phone, application_id: a.id };
+    // Auto-fill property/unit/application_id on first tenant pick if still empty
+    if (i === 0){
+      if (!wizState.application_id) wizState.application_id = a.id;
+      if (!wizState.unit && a.unit) wizState.unit = a.unit;
+      // Match applicant.property (text) to properties list
+      if (!wizState.property_id && a.property){
+        const match = properties.find(p =>
+          (p.name||'').toLowerCase() === a.property.toLowerCase() ||
+          (p.address||'').toLowerCase().includes(a.property.toLowerCase())
+        );
+        if (match) wizState.property_id = match.id;
+      }
+    }
+    lwCloseSuggest(i);
+    lwRender();
+  };
+  window.lwAddT = () => { wizState.tenants.push({name:'',email:'',phone:'',application_id:null}); lwRender(); };
   window.lwDelT = (i) => { if (wizState.tenants.length>1){ wizState.tenants.splice(i,1); lwRender(); } };
   window.lwToggleUtil = (who, util, on) => {
     const arr = wizState['utilities_'+who];
