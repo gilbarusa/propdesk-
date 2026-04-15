@@ -6,7 +6,7 @@
 (function(){
   'use strict';
 
-  const LEASE_WIZARD_VERSION = '20260415-0900';
+  const LEASE_WIZARD_VERSION = '20260415-0300';
   try { console.log('%c[lease-wizard] loaded v' + LEASE_WIZARD_VERSION, 'background:#1a2874;color:#fff;padding:2px 8px;border-radius:3px'); } catch(e){}
   window.LEASE_WIZARD_VERSION = LEASE_WIZARD_VERSION;
 
@@ -226,12 +226,7 @@
   // not an apt identifier ("A1", "3", "Studio").
   function looksLikeStreet(s){
     if (!s) return false;
-    var str = String(s).trim();
-    // Numbered street: "46 Township Line Rd", "7845 Montgomery Ave"
-    if (/^\s*\d+[A-Za-z]?\s+\S/.test(str)) return true;
-    // Named street ending in a common type: "Valley Road", "Fox Chase Road", "Central Avenue"
-    if (str.length >= 5 && /\b(road|rd|street|st|avenue|ave|blvd|boulevard|lane|ln|drive|dr|court|ct|place|pl|terrace|ter|parkway|pkwy|highway|hwy|circle|cir|square|sq|trail|trl|way)\.?\s*$/i.test(str)) return true;
-    return false;
+    return /^\s*\d+[A-Za-z]?\s+\S/.test(String(s));
   }
   function getStreet(p){
     if (!p) return '';
@@ -300,37 +295,16 @@
     return s;
   }
 
-  // Building grouping key. First try a real street (so "46 Township Line Rd"
-  // and "46 Township Line Road" group together). If no real street is present
-  // (data scrambled — e.g. Melrose apartments have "A1, Melrose Park..." in
-  // the street field), fall back to the owner field so all units of the same
-  // building still collapse into one dropdown entry.
+  // Building grouping key — normalized street only (so "46 Township Line Rd"
+  // and "46 Township Line Road" group together).
   function buildingKeyFor(p){
     var street = getStreet(p);
-    if (street && looksLikeStreet(street)) return 'st:' + normalizeStreet(street);
-    var owner = String(p.owner || '').trim();
-    if (owner) return 'own:' + owner.toLowerCase();
-    // Last resort: city+zip so at least same-city scrambled rows cluster
-    var city = getCity(p), zip = getZip(p);
-    if (city || zip) return 'cz:' + (city + '|' + zip).toLowerCase();
-    return '';
+    if (street) return normalizeStreet(street);
+    return ''; // no street → not a building
   }
-  // Display label for the dropdown. Prefer a proper street+city+state+zip.
-  // If we're grouping by owner, prefer city+state+zip (+ owner name in parens)
-  // so the user sees "Melrose Park, PA 19027 (Melrose Properties)" instead of
-  // "A1, Melrose Park, PA 19027".
+  // Display label for the dropdown (street + city, state, zip)
   function buildingLabelFor(p){
-    var street = getStreet(p);
-    if (street && looksLikeStreet(street)) {
-      return formatBuildingAddress(p) || street;
-    }
-    var city  = getCity(p), state = getState(p), zip = getZip(p);
-    var cityLine = [city, [state, zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
-    var owner = String(p.owner || '').trim();
-    if (cityLine && owner) return cityLine + ' (' + owner + ')';
-    if (owner) return owner;
-    if (cityLine) return cityLine;
-    return formatBuildingAddress(p) || street || '(unnamed)';
+    return formatBuildingAddress(p) || getStreet(p);
   }
   // Unit dropdown label
   function unitLabelFor(p){
