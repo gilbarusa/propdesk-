@@ -1528,7 +1528,10 @@ function createJob(){
 function renderMyJobs(){
   var searchTerm=(document.getElementById('myjobs-search')||{}).value||'';
   var myJobs=FT_state.jobs.filter(function(j){
-    return j.techId===FT_currentUser.techId&&j.status==='open'&&jobMatchesSearch(j,searchTerm);
+    // Show any job the tech is actively working on (open, in_progress, waiting_parts)
+    // so starting the timer doesn't make the card disappear. Matches fieldapp.js.
+    var activeStatus=(j.status==='open'||j.status==='in_progress'||j.status==='waiting_parts');
+    return j.techId===FT_currentUser.techId&&activeStatus&&jobMatchesSearch(j,searchTerm);
   });
   myJobs.sort(function(a,b){
     // NEW jobs first
