@@ -14,7 +14,7 @@
   let addendums = [];
   let properties = [];
 
-  function sb(){ return window.supa || window.supabaseClient || null; }
+  function sb(){ return window.sb || window.supa || window.supabaseClient || null; }
 
   function ensureModal(){
     if (document.getElementById('lwModal')) return;

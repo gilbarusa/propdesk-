@@ -850,6 +850,7 @@ const SUPA_KEY = CONFIG.SUPABASE_KEY;
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
+window.sb = sb; // expose for lease-wizard.js and other modules
 
 function dbRow(r) {
   return {
