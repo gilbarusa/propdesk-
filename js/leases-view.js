@@ -489,6 +489,17 @@
     if (txt) document.getElementById('lvCsProgressText').textContent = txt;
   }
 
+  // P2 helper: slugify a property/unit segment for the private PDF path.
+  // Lowercase, alnum-only, runs of non-alnum collapsed to a single '-',
+  // leading/trailing hyphens trimmed. Empty input → 'unknown' to avoid
+  // producing paths like "documents//leases//unit//id.pdf".
+  function lv_slug(s) {
+    const v = String(s || '').trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return v || 'unknown';
+  }
+
   async function submitCountersign(){
     if (!_currentDetail) return;
     if (!_padHasInk) { lv_toast('Please sign first','error'); return; }
@@ -503,7 +514,11 @@
       if (!landlordSigPng) throw new Error('No signature captured');
       const landlord = (l.lease_signers||[]).find(s=>s.role==='landlord');
 
-      // 1) Save landlord signature + status to lease_signers
+      // 1) Save landlord signature to lease_signers.
+      //    Status update is deferred to step 7 — we only want the
+      //    leases_on_countersign trigger to fire AFTER the private
+      //    PDF upload succeeds, so ensure_lease_agreement_assignments
+      //    sees tenant_pdf_{bucket,path} already populated.
       if (landlord) {
         const { error } = await sb.from('lease_signers').update({
           signature_png: landlordSigPng,
@@ -513,19 +528,18 @@
         if (error) throw new Error('Save landlord sig: ' + error.message);
       }
 
-      // 2) Update lease status (refresh lease object so PDF includes landlord sig)
-      progress(20, 'Updating lease status...');
-      await sb.from('leases').update({
-        status: 'countersigned',
-        countersigned_at: new Date().toISOString(),
-      }).eq('id', l.id);
-
-      // 3) Reload signers so we have the freshest data for PDF
+      // 2) Reload signers so we have the freshest data for PDF.
+      progress(20, 'Preparing final PDF...');
       const { data: fresh, error: fe } = await sb.from('leases').select('*, lease_signers(*)').eq('id', l.id).single();
       if (fe) throw fe;
+      // In-memory state for PDF rendering only — DB columns get set
+      // in the consolidated PATCH at step 7.
+      const nowIso = new Date().toISOString();
+      fresh.status = 'countersigned';
+      fresh.countersigned_at = nowIso;
       _currentDetail = fresh;
 
-      // 4) Generate PDF (browser-side via html2pdf)
+      // 3) Generate PDF (browser-side via html2pdf)
       progress(35, 'Generating signed PDF...');
       const html = buildSignedHtml(fresh);
       const wrap = document.createElement('div');
@@ -541,22 +555,22 @@
       }).from(wrap).outputPdf('blob');
       document.body.removeChild(wrap);
 
-      // 5) Upload to Supabase Storage with verification
-      progress(60, 'Uploading PDF...');
+      // 4) Upload to public bucket (admin/system copy) — leases-signed
+      progress(55, 'Uploading admin copy...');
       const filename = `${fresh.id}/${Date.now()}.pdf`;
-      console.log('[countersign] uploading PDF:', filename, 'size:', pdfBlob.size);
+      console.log('[countersign] uploading PDF (public):', filename, 'size:', pdfBlob.size);
       const { data: upData, error: upErr } = await sb.storage.from('leases-signed').upload(filename, pdfBlob, { contentType: 'application/pdf', upsert: true });
       if (upErr) {
-        console.error('[countersign] upload error', upErr);
-        throw new Error('Upload PDF: ' + upErr.message);
+        console.error('[countersign] public upload error', upErr);
+        throw new Error('Upload PDF (admin): ' + upErr.message);
       }
-      console.log('[countersign] upload OK', upData);
+      console.log('[countersign] public upload OK', upData);
       const { data: pub } = sb.storage.from('leases-signed').getPublicUrl(filename);
       const pdfUrl = pub.publicUrl;
       console.log('[countersign] public URL:', pdfUrl);
 
-      // 5b) Verify the URL is actually fetchable before persisting it on the lease
-      progress(68, 'Verifying PDF...');
+      // 4b) Verify the public URL is actually fetchable before persisting
+      progress(62, 'Verifying admin copy...');
       try {
         const head = await fetch(pdfUrl, { method: 'HEAD' });
         if (!head.ok) {
@@ -579,21 +593,57 @@
         }
       }
 
-      // 6) Save URL on lease (only if verified)
-      await sb.from('leases').update({ signed_pdf_url: pdfUrl }).eq('id', l.id);
+      // 5) Upload to PRIVATE bucket (tenant-facing copy) — documents.
+      //    MANDATORY: if this fails, we do not PATCH the lease.
+      //    Tenant_doc_get must never fall back to the raw public URL,
+      //    so the lease stays in its pre-countersign status until the
+      //    private copy is in place.
+      progress(72, 'Uploading tenant copy...');
+      const tenantPdfBucket = 'documents';
+      const tenantPdfPath = `leases/${lv_slug(fresh.property)}/${lv_slug(fresh.unit)}/${fresh.id}.pdf`;
+      console.log('[countersign] uploading PDF (private):', tenantPdfBucket + '/' + tenantPdfPath, 'size:', pdfBlob.size);
+      const { data: privData, error: privErr } = await sb.storage
+        .from(tenantPdfBucket)
+        .upload(tenantPdfPath, pdfBlob, { contentType: 'application/pdf', upsert: true });
+      if (privErr) {
+        console.error('[countersign] private upload error', privErr);
+        // Mandatory: abort. No PATCH, no status change, no trigger fire.
+        throw new Error('Upload PDF (tenant copy): ' + privErr.message
+          + '. Lease was NOT marked countersigned — please retry. '
+          + '(Admin copy at leases-signed/' + filename + ' succeeded, but the private copy is required before the tenant portal can serve it.)');
+      }
+      console.log('[countersign] private upload OK', privData);
+
+      // 6) Consolidated PATCH: all three URL fields + status transition
+      //    in a single write. The trigger (leases_on_countersign) fires
+      //    on this UPDATE with status → countersigned, at which point
+      //    ensure_lease_agreement_assignments sees tenant_pdf_{bucket,
+      //    path} already set and writes file_url = "<bucket>/<path>"
+      //    onto the auto-generated lease_document_assignments row. The
+      //    bridge trigger mirrors that to tenant_documents.file_url.
+      progress(82, 'Finalizing lease...');
+      const { error: patchErr } = await sb.from('leases').update({
+        signed_pdf_url:    pdfUrl,
+        tenant_pdf_bucket: tenantPdfBucket,
+        tenant_pdf_path:   tenantPdfPath,
+        status:            'countersigned',
+        countersigned_at:  nowIso,
+      }).eq('id', l.id);
+      if (patchErr) throw new Error('Finalize lease: ' + patchErr.message);
 
       // 7) Cascade: tenants_lt + units rows
-      progress(75, 'Adding tenants & units...');
+      progress(88, 'Adding tenants & units...');
       await cascadeTenantsAndUnits(fresh, pdfUrl);
 
       // 8) Email signed PDF link to all tenants
-      progress(90, 'Emailing signed PDF...');
+      progress(94, 'Emailing signed PDF...');
       await emailSignedPdf(fresh, pdfUrl);
 
       // 9) Audit
       await sb.from('lease_events').insert([
         { lease_id: l.id, event_type: 'countersigned', meta: {} },
-        { lease_id: l.id, event_type: 'pdf_generated', meta: { url: pdfUrl } },
+        { lease_id: l.id, event_type: 'pdf_generated',      meta: { url: pdfUrl } },
+        { lease_id: l.id, event_type: 'tenant_pdf_stored',  meta: { bucket: tenantPdfBucket, path: tenantPdfPath } },
       ]);
 
       progress(100, 'Done!');
