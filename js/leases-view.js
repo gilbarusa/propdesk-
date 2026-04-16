@@ -203,6 +203,7 @@
           <span class="lv-pill lv-status-${st.key}" style="margin-bottom:8px;">${st.label}</span>
           <div class="lv-detail-prop">${lv_escapeHtml(l.property||'')}${l.unit?' | '+lv_escapeHtml(l.unit):''}</div>
           ${l.signed_pdf_url ? `<div style="margin-top:6px;"><a href="${l.signed_pdf_url}" target="_blank" style="color:#1a2874; font-size:12px;">📄 Signed PDF ↗</a></div>`:''}
+          <div style="margin-top:6px;"><a href="documents.html?lease_id=${encodeURIComponent(l.id)}&property=${encodeURIComponent(l.property||'')}&unit=${encodeURIComponent(l.unit||'')}${tenants[0]&&tenants[0].email?('&tenant_email='+encodeURIComponent(tenants[0].email)):''}" target="_blank" style="color:#3651b5; font-size:12px;">📁 Manage documents ↗</a></div>
         </div>
         <div class="lv-detail-rent">
           <div>${lv_fmtDate(l.lease_start)} — ${l.lease_type==='mtm' ? 'M to M' : lv_fmtDate(l.lease_end)}</div>
