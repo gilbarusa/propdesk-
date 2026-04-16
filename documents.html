@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Willow — Documents | v2026-04-16</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --accent: #3651b5;
+  --accent-dark: #2a3f8f;
+  --surface: #fff;
+  --surface2: #f7f8fb;
+  --surface3: #eef1f8;
+  --text: #1a1f2e;
+  --text2: #5a6378;
+  --text3: #8a93a8;
+  --border: #e1e5ee;
+  --border2: #c9cfdd;
+  --green: #1f7a4d;
+  --red: #b83228;
+  --amber: #b5791f;
+}
+* { box-sizing: border-box; }
+body { margin:0; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--surface2); color: var(--text); font-size: 14px; }
+
+.header { display:flex; align-items:center; gap:14px; padding:12px 20px; background: var(--surface); border-bottom:1px solid var(--border); }
+.header-brand { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; color: var(--accent); }
+.header-right { margin-left:auto; }
+.back-btn { padding:6px 12px; background: var(--surface2); border:1px solid var(--border); border-radius:6px; color: var(--text); text-decoration:none; font-size:12px; }
+.back-btn:hover { background: var(--surface3); }
+
+.page-title-bar { display:flex; align-items:center; gap:14px; padding:18px 24px 0; max-width:1400px; margin:0 auto; }
+.page-title { font-size:24px; font-weight:600; margin:0; }
+.page-sub   { font-size:12px; color: var(--text3); margin-left:10px; }
+
+.tabs { display:flex; gap:0; padding:0 24px; max-width:1400px; margin:14px auto 0; border-bottom:1px solid var(--border); }
+.tab { padding:12px 18px; cursor:pointer; font-size:13px; font-weight:600; color: var(--text2); border-bottom:2px solid transparent; margin-bottom:-1px; text-transform:uppercase; letter-spacing:.5px; background:none; border-top:0; border-left:0; border-right:0; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.layout { max-width:1400px; margin:0 auto; padding:20px 24px; }
+.toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.filter-input { flex:1 1 320px; padding:9px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; background: var(--surface); }
+.btn { padding:9px 14px; border:1px solid var(--border); border-radius:8px; background: var(--surface); color: var(--text); cursor:pointer; font-size:13px; font-weight:500; font-family:inherit; }
+.btn:hover { background: var(--surface2); }
+.btn-primary { background: var(--accent); color:#fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-sm { padding:6px 10px; font-size:12px; }
+.btn-danger { color: var(--red); border-color:#f0c9c5; background:#fff; }
+
+.card { background: var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+table { width:100%; border-collapse:collapse; }
+th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.6px; color: var(--text3); padding:12px 14px; background: var(--surface2); border-bottom:1px solid var(--border); font-weight:600; }
+td { padding:12px 14px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:top; }
+tr:last-child td { border-bottom:0; }
+tr:hover td { background: var(--surface2); }
+
+.empty { padding:40px 20px; text-align:center; color: var(--text3); }
+.loading { padding:40px 20px; text-align:center; color: var(--text3); }
+
+.pill { display:inline-block; padding:2px 8px; border-radius:20px; font-size:10px; font-weight:600; background: var(--surface3); color: var(--text2); text-transform:uppercase; letter-spacing:.5px; }
+.pill-accent { background:#e6f0ff; color:#2a3f8f; }
+.pill-green  { background:#dff3e6; color:#1f7a4d; }
+.pill-amber  { background:#fff4d9; color:#8a5c00; }
+.pill-gray   { background: var(--surface3); color: var(--text2); }
+
+.view { display:none; }
+.view.active { display:block; }
+
+.modal-backdrop { position:fixed; inset:0; background:rgba(20,25,40,.55); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+.modal-backdrop.active { display:flex; }
+.modal { background: var(--surface); border-radius:14px; max-width:720px; width:100%; max-height:92vh; overflow-y:auto; box-shadow:0 16px 48px rgba(0,0,0,.22); }
+.modal-head { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.modal-head h3 { margin:0; font-size:17px; font-weight:600; }
+.modal-head .close { margin-left:auto; cursor:pointer; border:none; background:transparent; font-size:22px; color: var(--text3); padding:4px 8px; }
+.modal-body { padding:20px 22px; }
+.modal-foot { padding:14px 22px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end; }
+
+.form-row { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+.form-row label { font-size:12px; font-weight:600; color: var(--text2); }
+.form-row input[type=text], .form-row input[type=email], .form-row input[type=date], .form-row input[type=number], .form-row select, .form-row textarea, .form-row input[type=url] {
+  padding:9px 11px; border:1px solid var(--border); border-radius:6px; font-size:13px; font-family:inherit; background: var(--surface); color: var(--text);
+}
+.form-row textarea { min-height:80px; resize:vertical; }
+.form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:640px) { .form-grid-2 { grid-template-columns:1fr; } }
+.chk-row { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px; cursor:pointer; }
+.hint { font-size:11px; color: var(--text3); }
+
+.pkg-items { border:1px solid var(--border); border-radius:8px; padding:10px; background: var(--surface2); }
+.pkg-item  { display:grid; grid-template-columns: 1fr 90px 90px 28px; gap:8px; padding:8px 6px; align-items:center; font-size:13px; border-bottom:1px dashed var(--border); }
+.pkg-item:last-child { border-bottom:0; }
+.pkg-item .name { font-weight:500; }
+.pkg-item .meta { font-size:11px; color: var(--text3); }
+.pkg-item-add { display:grid; grid-template-columns:1fr 90px 90px 80px; gap:8px; margin-top:10px; }
+.pkg-item-add select, .pkg-item-add button { padding:8px 10px; border:1px solid var(--border); border-radius:6px; font-size:13px; }
+
+.toast { position:fixed; bottom:20px; right:20px; padding:12px 18px; background: var(--text); color:#fff; border-radius:8px; font-size:13px; opacity:0; transform:translateY(10px); transition:all .25s; z-index:3000; }
+.toast.show { opacity:1; transform:translateY(0); }
+.toast.success { background: var(--green); }
+.toast.error   { background: var(--red); }
+
+.ctx-banner { background:#e6f0ff; border:1px solid #c3d4ef; color:#2a3f8f; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:13px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.ctx-banner b { font-weight:600; }
+.ctx-banner .ctx-clear { margin-left:auto; font-size:12px; color:#2a3f8f; text-decoration:underline; cursor:pointer; background:none; border:0; }
+
+.row-actions { display:flex; gap:6px; flex-wrap:wrap; }
+.upload-drop { border:2px dashed var(--border2); border-radius:10px; padding:18px; text-align:center; color: var(--text2); font-size:13px; }
+.upload-drop input { display:block; margin:8px auto 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">Willow PropDesk</div>
+  <span style="color:var(--border2);">›</span>
+  <div style="font-size:14px;color:var(--text2);">Documents</div>
+  <div class="header-right">
+    <a href="leases.html" class="back-btn">← Leases</a>
+    <a href="index.html" class="back-btn">← PropDesk</a>
+  </div>
+</div>
+
+<div class="page-title-bar">
+  <h1 class="page-title">Documents</h1>
+  <span class="page-sub">Library · Packages · Assignments</span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-view="library">Library</button>
+  <button class="tab" data-view="packages">Packages</button>
+  <button class="tab" data-view="assignments">Assignments</button>
+</div>
+
+<div class="layout">
+
+  <!-- LIBRARY -->
+  <div id="view-library" class="view active">
+    <div class="toolbar">
+      <input id="libFilter" class="filter-input" type="text" placeholder="Search templates by title, slug, or type…">
+      <button class="btn btn-primary" onclick="DocsAdmin.openTemplate()">+ New template</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th>Title</th>
+          <th>Type</th>
+          <th>Source</th>
+          <th>Defaults</th>
+          <th>Scope</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="libBody"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PACKAGES -->
+  <div id="view-packages" class="view">
+    <div class="toolbar">
+      <input id="pkgFilter" class="filter-input" type="text" placeholder="Search packages…">
+      <button class="btn btn-primary" onclick="DocsAdmin.openPackage()">+ New package</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Items</th>
+          <th>Scope</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="pkgBody"><tr><td colspan="6" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ASSIGNMENTS -->
+  <div id="view-assignments" class="view">
+    <div id="asgCtx" class="ctx-banner" style="display:none;"></div>
+    <div class="toolbar">
+      <input id="asgFilter" class="filter-input" type="text" placeholder="Search assignments by tenant, property, unit, or title…">
+      <button class="btn" onclick="DocsAdmin.openAssignFromPackage()">Apply package…</button>
+      <button class="btn btn-primary" onclick="DocsAdmin.openAssignment()">+ New assignment</button>
+    </div>
+    <div class="card">
+      <table>
+        <thead><tr>
+          <th>Tenant / Lease</th>
+          <th>Document</th>
+          <th>Type</th>
+          <th>Flags</th>
+          <th>Status</th>
+          <th>Shared</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="asgBody"><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- TEMPLATE MODAL -->
+<div id="tplModal" class="modal-backdrop" onclick="if(event.target===this)DocsAdmin.closeTemplate()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="tplModalTitle">New template</h3>
+      <button class="close" onclick="DocsAdmin.closeTemplate()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="tplId">
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Title *</label>
+          <input id="tplTitle" type="text" placeholder="e.g. House Rules 2026">
+        </div>
+        <div class="form-row">
+          <label>Slug</label>
+          <input id="tplSlug" type="text" placeholder="house-rules-2026">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Description</label>
+        <textarea id="tplDescription" placeholder="Optional notes for admin use"></textarea>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Document type *</label>
+          <select id="tplDocType">
+            <option value="lease">Lease</option>
+            <option value="addendum">Addendum</option>
+            <option value="rules" selected>House Rules</option>
+            <option value="disclosure">Disclosure</option>
+            <option value="parking">Parking</option>
+            <option value="move_in">Move-in</option>
+            <option value="move_out">Move-out</option>
+            <option value="info">Information</option>
+            <option value="invoice">Invoice</option>
+            <option value="notice">Notice</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Source type *</label>
+          <select id="tplSourceType" onchange="DocsAdmin.onSourceTypeChange()">
+            <option value="upload" selected>Upload a file</option>
+            <option value="pdf_generated">PDF generated from HTML</option>
+            <option value="html">HTML body (rendered to tenant)</option>
+            <option value="external_url">External URL</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="tplSrcUpload" class="form-row">
+        <label>File</label>
+        <div class="upload-drop">
+          <span id="tplUploadHint">Drop file here or select</span>
+          <input id="tplFile" type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+        </div>
+        <div class="hint" id="tplFileMeta"></div>
+      </div>
+
+      <div id="tplSrcHtml" class="form-row" style="display:none;">
+        <label>HTML body</label>
+        <textarea id="tplHtml" style="min-height:160px;" placeholder="<h2>…</h2>"></textarea>
+      </div>
+
+      <div id="tplSrcExternal" class="form-row" style="display:none;">
+        <label>External URL</label>
+        <input id="tplExternalUrl" type="url" placeholder="https://…">
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Version label</label>
+          <input id="tplVersion" type="text" placeholder="v1">
+        </div>
+        <div class="form-row">
+          <label>Effective date</label>
+          <input id="tplEffectiveDate" type="date">
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label class="chk-row"><input id="tplRequiresSig" type="checkbox"> Requires signature (default)</label>
+          <label class="chk-row"><input id="tplIncludeWelcome" type="checkbox" checked> Include in welcome package (default)</label>
+        </div>
+        <div class="form-row">
+          <label class="chk-row"><input id="tplActive" type="checkbox" checked> Active</label>
+        </div>
+      </div>
+
+      <hr style="border:0; border-top:1px solid var(--border); margin:14px 0;">
+      <div class="form-row">
+        <label>Applies to (scope) <span class="hint">— blank = global</span></label>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Property</label>
+          <input id="tplScopeProperty" type="text" placeholder="e.g. Fox Chase">
+        </div>
+        <div class="form-row">
+          <label>Building</label>
+          <input id="tplScopeBuilding" type="text">
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>User type</label>
+          <select id="tplScopeUserType">
+            <option value="">(any)</option>
+            <option value="tenant">Tenant</option>
+            <option value="guarantor">Guarantor</option>
+            <option value="occupant">Occupant</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Lease type</label>
+          <select id="tplScopeLeaseType">
+            <option value="">(any)</option>
+            <option value="lt">Long term</option>
+            <option value="mtm">Month-to-month</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="tplDeleteBtn" onclick="DocsAdmin.deleteTemplate()" style="margin-right:auto; display:none;">Delete</button>
+      <button class="btn" onclick="DocsAdmin.closeTemplate()">Cancel</button>
+      <button class="btn btn-primary" onclick="DocsAdmin.saveTemplate()">Save template</button>
+    </div>
+  </div>
+</div>
+
+<!-- PACKAGE MODAL -->
+<div id="pkgModal" class="modal-backdrop" onclick="if(event.target===this)DocsAdmin.closePackage()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="pkgModalTitle">New package</h3>
+      <button class="close" onclick="DocsAdmin.closePackage()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pkgId">
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Name *</label>
+          <input id="pkgName" type="text" placeholder="Welcome Package - Fox Chase">
+        </div>
+        <div class="form-row">
+          <label>Type</label>
+          <select id="pkgType">
+            <option value="welcome" selected>Welcome</option>
+            <option value="lease">Lease</option>
+            <option value="move_in">Move-in</option>
+            <option value="move_out">Move-out</option>
+            <option value="manual">Manual</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Description</label>
+        <textarea id="pkgDescription" placeholder="Optional"></textarea>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Applies to property <span class="hint">— blank = any</span></label>
+          <input id="pkgProperty" type="text">
+        </div>
+        <div class="form-row">
+          <label>Applies to lease type</label>
+          <select id="pkgLeaseType">
+            <option value="">(any)</option>
+            <option value="lt">Long term</option>
+            <option value="mtm">Month-to-month</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="chk-row"><input id="pkgActive" type="checkbox" checked> Active</label>
+      </div>
+
+      <hr style="border:0; border-top:1px solid var(--border); margin:14px 0;">
+      <div class="form-row">
+        <label>Items</label>
+        <div id="pkgItemsBox" class="pkg-items"><div class="empty">No items yet</div></div>
+        <div class="pkg-item-add">
+          <select id="pkgItemTpl"><option value="">— choose a template —</option></select>
+          <select id="pkgItemSig"><option value="">Sig: default</option><option value="1">Sig: yes</option><option value="0">Sig: no</option></select>
+          <select id="pkgItemWelcome"><option value="">Welcome: default</option><option value="1">Welcome: yes</option><option value="0">Welcome: no</option></select>
+          <button class="btn btn-sm" onclick="DocsAdmin.addPackageItem()">Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="pkgDeleteBtn" onclick="DocsAdmin.deletePackage()" style="margin-right:auto; display:none;">Delete</button>
+      <button class="btn" onclick="DocsAdmin.closePackage()">Cancel</button>
+      <button class="btn btn-primary" onclick="DocsAdmin.savePackage()">Save package</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGNMENT MODAL -->
+<div id="asgModal" class="modal-backdrop" onclick="if(event.target===this)DocsAdmin.closeAssignment()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="asgModalTitle">New assignment</h3>
+      <button class="close" onclick="DocsAdmin.closeAssignment()">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="asgId">
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Lease</label>
+          <select id="asgLeaseId"><option value="">— none —</option></select>
+          <div class="hint">Or fill tenant/property fields below for a one-off</div>
+        </div>
+        <div class="form-row">
+          <label>Template (optional)</label>
+          <select id="asgTplId" onchange="DocsAdmin.onAsgTemplateChange()"><option value="">— none / one-off —</option></select>
+        </div>
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Tenant email</label>
+          <input id="asgTenantEmail" type="email">
+        </div>
+        <div class="form-row">
+          <label>Tenant name</label>
+          <input id="asgTenantName" type="text">
+        </div>
+      </div>
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Property</label>
+          <input id="asgProperty" type="text">
+        </div>
+        <div class="form-row">
+          <label>Unit</label>
+          <input id="asgUnit" type="text">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Title *</label>
+        <input id="asgTitle" type="text" placeholder="Document title shown to tenant">
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label>Document type</label>
+          <select id="asgDocType">
+            <option value="rules">House Rules</option>
+            <option value="lease">Lease</option>
+            <option value="addendum">Addendum</option>
+            <option value="disclosure">Disclosure</option>
+            <option value="parking">Parking</option>
+            <option value="move_in">Move-in</option>
+            <option value="move_out">Move-out</option>
+            <option value="info">Information</option>
+            <option value="invoice">Invoice</option>
+            <option value="notice">Notice</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Source</label>
+          <select id="asgSourceType" onchange="DocsAdmin.onAsgSourceChange()">
+            <option value="upload" selected>Upload</option>
+            <option value="pdf_generated">PDF generated</option>
+            <option value="html">HTML</option>
+            <option value="external_url">External URL</option>
+            <option value="lease_link">Lease link (signed PDF)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="asgSrcUpload" class="form-row">
+        <label>File</label>
+        <div class="upload-drop">
+          <input id="asgFile" type="file">
+        </div>
+        <label class="chk-row"><input id="asgSaveAsTemplate" type="checkbox"> Also save to Library as a reusable template</label>
+      </div>
+      <div id="asgSrcExternal" class="form-row" style="display:none;">
+        <label>External URL</label>
+        <input id="asgExternalUrl" type="url">
+      </div>
+
+      <div class="form-grid-2">
+        <div class="form-row">
+          <label class="chk-row"><input id="asgRequiresSig" type="checkbox"> Requires signature</label>
+          <label class="chk-row"><input id="asgIncludeWelcome" type="checkbox" checked> Include in welcome package</label>
+        </div>
+        <div class="form-row">
+          <label class="chk-row"><input id="asgShared" type="checkbox" checked> Shared with tenant</label>
+          <label class="chk-row"><input id="asgRequired" type="checkbox"> Required (must sign/return)</label>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Status</label>
+        <select id="asgStatus">
+          <option value="draft">Draft</option>
+          <option value="pending" selected>Pending</option>
+          <option value="sent">Sent</option>
+          <option value="viewed">Viewed</option>
+          <option value="signed">Signed</option>
+          <option value="completed">Completed</option>
+          <option value="waived">Waived</option>
+          <option value="not_required">Not required</option>
+          <option value="void">Void</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="asgDeleteBtn" onclick="DocsAdmin.deleteAssignment()" style="margin-right:auto; display:none;">Delete</button>
+      <button class="btn" onclick="DocsAdmin.closeAssignment()">Cancel</button>
+      <button class="btn btn-primary" onclick="DocsAdmin.saveAssignment()">Save assignment</button>
+    </div>
+  </div>
+</div>
+
+<!-- APPLY PACKAGE MODAL -->
+<div id="applyModal" class="modal-backdrop" onclick="if(event.target===this)DocsAdmin.closeAssignFromPackage()">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-head">
+      <h3>Apply package to lease</h3>
+      <button class="close" onclick="DocsAdmin.closeAssignFromPackage()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>Package *</label>
+        <select id="applyPkg"><option value="">— choose package —</option></select>
+      </div>
+      <div class="form-row">
+        <label>Lease *</label>
+        <select id="applyLease"><option value="">— choose lease —</option></select>
+      </div>
+      <div class="hint">Creates one assignment row per template in the package for each tenant on the lease. Items with a default signature/welcome flag will inherit from the package item override (if set) or the template default.</div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="DocsAdmin.closeAssignFromPackage()">Cancel</button>
+      <button class="btn btn-primary" onclick="DocsAdmin.runAssignFromPackage()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div id="docsToast" class="toast"></div>
+
+<script src="js/config.js"></script>
+<script>
+  window.sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+</script>
+<script src="js/documents-admin.js?v=20260416"></script>
+</body>
+</html>
