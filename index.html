@@ -1870,11 +1870,13 @@
             <option value="all" selected>All Statuses</option>
             <option value="Active">Active</option>
             <option value="Future">Future</option>
+            <option value="Past">Past</option>
           </select>
           <select class="tnt-filter-sel" id="tntPropFilter" onchange="filterTenantList()">
             <option value="all">All Properties</option>
           </select>
         </div>
+        <button onclick="addTenantManual()" style="width:100%;padding:8px;margin-top:6px;border:1px dashed var(--accent);border-radius:6px;background:transparent;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">+ Add Tenant</button>
       </div>
       <div class="tnt-list" id="tntList"></div>
     </div>
@@ -3757,7 +3759,7 @@
 <script src="js/config.js"></script>
 <script src="js/ft-db.js"></script>
 <script src="js/fieldtrack.js?v=20260415-0300"></script>
-<script src="js/app.js?v=20260415-2040-tnt-actions"></script>
+<script src="js/app.js?v=20260415-2050-add-tnt"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
