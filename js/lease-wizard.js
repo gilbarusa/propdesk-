@@ -897,6 +897,8 @@
           </p>
           <p style="font-size:12px;color:#666">Or paste this link into your browser:<br><a href="${link}">${link}</a></p>
           <p style="font-size:12px;color:#666">This link is unique to you and should not be shared. If you have questions, reply to this email or call (267) 865-0001.</p>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
+          <p style="font-size:13px;color:#555">Once your lease is fully signed, your <b>Tenant Portal</b> at <a href="https://app.willowpa.com">app.willowpa.com</a> will be activated — where you can manage payments, maintenance requests, parking, documents, and more.</p>
           <p>— Willow Partnership</p>`;
         if (typeof sendEmail === 'function' && sg.email){
           sendEmail(sg.email, subject, bodyHtml, { isHtml: true, headerTitle: 'Willow Partnership — Lease Agreement' });

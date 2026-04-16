@@ -3303,7 +3303,6 @@ function openTenantDetail(idx) {
   emailEl.textContent = t.email || '(not set)';
   emailEl.href = t.email ? 'mailto:' + t.email : '#';
   document.getElementById('tntSince').textContent = t.since || 'N/A';
-  document.getElementById('tntAcctStatus').innerHTML = t.email ? '&#x2705;' : '&#x274C;';
 
   // Notes count
   const notes = TENANT_NOTES[t.name] || [];
@@ -3552,7 +3551,7 @@ function tenantAction(action) {
   if (!t) return;
   document.getElementById('tntActionsMenu')?.classList.remove('open');
   switch(action) {
-    case 'edit': alert(`Edit Tenant\n\nName: ${t.name}\nUnit: ${t.unitNum}\nRent: $${t.rent}\n\nThis would open the tenant editor form.`); break;
+    case 'edit': openTenantEditMode(t, currentTenantIdx); break;
     case 'addNote': {
       const note = prompt('Add a note for ' + t.name + ':');
       if (note && note.trim()) {
@@ -3563,6 +3562,8 @@ function tenantAction(action) {
       break;
     }
     case 'resendVerification': alert(`Verification link would be resent to ${t.email || '(no email on file)'}`); break;
+    case 'terminate': terminateTenant(t, currentTenantIdx); break;
+    case 'cancel': cancelDeleteTenant(t, currentTenantIdx); break;
     case 'requestInsurance': alert(`Renter's insurance request would be sent to ${t.name}`); break;
     case 'viewInvoices': {
       // Try to open the most recent REAL invoice for this tenant's property+unit.
@@ -3623,6 +3624,230 @@ function viewTenantLease() {
   if (leaseIdx >= 0) {
     showSubPage('mtm-lt-leases');
     setTimeout(() => openLeaseDetailNew(leaseIdx), 100);
+  }
+}
+
+// ── Terminate Lease (archive tenant, void lease) ──────────
+async function terminateTenant(t, idx) {
+  if (!t || !t.id) return;
+  const endDate = prompt(
+    `Terminate lease for ${t.name}?\n\nEnter termination date (YYYY-MM-DD) or leave blank for today:`,
+    new Date().toISOString().slice(0, 10)
+  );
+  if (endDate === null) return; // cancelled
+
+  const termDate = endDate.trim() || new Date().toISOString().slice(0, 10);
+  if (!confirm(`This will:\n• Set lease end to ${termDate}\n• Change status to "Past"\n• Archive the tenant record\n• Void the lease (if linked)\n\nContinue?`)) return;
+
+  try {
+    // Update tenants_lt: set status=Past, lease_end=termDate
+    const { error: tErr } = await sb.from('tenants_lt').update({
+      status: 'Past',
+      lease_end: termDate
+    }).eq('id', t.id);
+    if (tErr) throw new Error(tErr.message);
+
+    // If lease_id exists, update lease status to terminated
+    if (t.lease_id) {
+      await sb.from('leases').update({
+        status: 'terminated',
+        lease_end: termDate
+      }).eq('id', t.lease_id);
+
+      // Log lease event
+      await sb.from('lease_events').insert({
+        lease_id: t.lease_id,
+        event_type: 'terminated',
+        meta: { actor: 'admin', termination_date: termDate, tenant: t.name }
+      });
+    }
+
+    // Update in-memory
+    t.status = 'Past';
+    t.lease_end = termDate;
+
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    closeTenantDetail();
+    filterTenantList();
+    toast(`Lease terminated for ${t.name} (effective ${termDate}) ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Cancel & Delete Tenant ────────────────────────────────
+async function cancelDeleteTenant(t, idx) {
+  if (!t || !t.id) return;
+  if (!confirm(`DELETE ${t.name} from the system?\n\nThis will:\n• Delete the tenant record\n• Void the linked lease (if any)\n• Remove associated documents\n\nThis cannot be undone!`)) return;
+  if (!confirm(`Are you sure? Type the tenant name below to confirm.\n\n(Click OK to proceed)`)) return;
+
+  try {
+    // If lease_id, void the lease first
+    if (t.lease_id) {
+      await sb.from('leases').update({ status: 'voided' }).eq('id', t.lease_id);
+      await sb.from('lease_events').insert({
+        lease_id: t.lease_id,
+        event_type: 'voided',
+        meta: { actor: 'admin', reason: 'Tenant cancelled/deleted', tenant: t.name }
+      });
+    }
+
+    // Delete tenant_documents for this tenant
+    if (t.email) {
+      await sb.from('tenant_documents').delete().eq('tenant_email', t.email.toLowerCase().trim());
+    }
+
+    // Delete tenants_lt row
+    const { error } = await sb.from('tenants_lt').delete().eq('id', t.id);
+    if (error) throw new Error(error.message);
+
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    closeTenantDetail();
+    filterTenantList();
+    toast(`${t.name} deleted ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Tenant Edit Mode ──────────────────────────────────────
+function openTenantEditMode(t, idx) {
+  // Replace the profile card and lease section with editable fields
+  const profileEl = document.querySelector('.tnt-profile-card');
+  if (!profileEl) return;
+
+  // Save original HTML for cancel
+  if (!window._tntOrigProfile) window._tntOrigProfile = profileEl.innerHTML;
+  if (!window._tntOrigLease)  window._tntOrigLease = document.querySelector('.tnt-info-row')?.innerHTML;
+
+  const leaseType = t.lease_type || (t.lease_end ? 'lt' : 'mtm');
+
+  profileEl.innerHTML = `
+    <div style="padding:16px">
+      <h4 style="margin:0 0 16px;font-size:15px;font-weight:600;color:var(--text1)">Edit Tenant</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Name</label>
+          <input id="tntEditName" value="${(t.name||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Email</label>
+          <input id="tntEditEmail" value="${(t.email||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Phone</label>
+          <input id="tntEditPhone" value="${(t.phone||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Unit</label>
+          <input id="tntEditUnit" value="${(t.unitNum||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Property</label>
+          <input id="tntEditProperty" value="${(t.property||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Rent</label>
+          <input id="tntEditRent" type="number" value="${t.rent||0}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Lease Type</label>
+          <select id="tntEditLeaseType" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;background:#fff">
+            <option value="lt" ${leaseType==='lt'?'selected':''}>Fixed Term</option>
+            <option value="mtm" ${leaseType==='mtm'?'selected':''}>Month-to-Month</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Phone (E.164)</label>
+          <input id="tntEditPhoneE164" value="${(t.phone_e164||'').replace(/"/g,'&quot;')}" placeholder="+12155551234" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Lease Start</label>
+          <input id="tntEditLeaseStart" type="date" value="${t.lease_start||''}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Lease End</label>
+          <input id="tntEditLeaseEnd" type="date" value="${t.lease_end||''}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Status</label>
+          <select id="tntEditStatus" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;background:#fff">
+            <option value="Active" ${t.status==='Active'?'selected':''}>Active</option>
+            <option value="Future" ${t.status==='Future'?'selected':''}>Future</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+        <button onclick="cancelTenantEdit()" style="padding:8px 20px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-family:inherit">Cancel</button>
+        <button onclick="saveTenantEdit()" style="padding:8px 20px;border:none;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600;font-size:13px;font-family:inherit">Save Changes</button>
+      </div>
+    </div>`;
+
+  // Hide lease section while editing
+  const leaseRow = document.querySelector('.tnt-info-row');
+  if (leaseRow) leaseRow.style.display = 'none';
+}
+
+function cancelTenantEdit() {
+  const profileEl = document.querySelector('.tnt-profile-card');
+  if (profileEl && window._tntOrigProfile) {
+    profileEl.innerHTML = window._tntOrigProfile;
+    window._tntOrigProfile = null;
+  }
+  const leaseRow = document.querySelector('.tnt-info-row');
+  if (leaseRow) {
+    if (window._tntOrigLease) leaseRow.innerHTML = window._tntOrigLease;
+    leaseRow.style.display = '';
+    window._tntOrigLease = null;
+  }
+  // Re-render to restore bindings
+  if (currentTenantIdx !== null) openTenantDetail(currentTenantIdx);
+}
+
+async function saveTenantEdit() {
+  const t = INNAGO_TENANTS[currentTenantIdx];
+  if (!t || !t.id) { toast('No tenant selected', 'error'); return; }
+
+  const patch = {
+    name:        (document.getElementById('tntEditName')?.value || '').trim(),
+    email:       (document.getElementById('tntEditEmail')?.value || '').trim().toLowerCase(),
+    phone:       (document.getElementById('tntEditPhone')?.value || '').trim(),
+    phone_e164:  (document.getElementById('tntEditPhoneE164')?.value || '').trim() || null,
+    unit:        (document.getElementById('tntEditUnit')?.value || '').trim(),
+    property:    (document.getElementById('tntEditProperty')?.value || '').trim(),
+    rent:        parseFloat(document.getElementById('tntEditRent')?.value) || 0,
+    lease_type:  document.getElementById('tntEditLeaseType')?.value || 'lt',
+    lease_start: document.getElementById('tntEditLeaseStart')?.value || null,
+    lease_end:   document.getElementById('tntEditLeaseEnd')?.value || null,
+    status:      document.getElementById('tntEditStatus')?.value || 'Active'
+  };
+
+  if (!patch.name) { toast('Name is required', 'error'); return; }
+
+  try {
+    const { error } = await sb.from('tenants_lt').update(patch).eq('id', t.id);
+    if (error) throw new Error(error.message);
+
+    // Update in-memory data
+    Object.assign(t, patch);
+    t.unitNum = patch.unit;
+
+    window._tntOrigProfile = null;
+    window._tntOrigLease = null;
+
+    // Re-render
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    openTenantDetail(currentTenantIdx);
+    filterTenantList();
+    toast('Tenant updated ✓', 'success');
+  } catch(e) {
+    toast('Save failed: ' + e.message, 'error');
   }
 }
 
@@ -11207,6 +11432,47 @@ async function saveCalBooking() {
         updated_at: new Date().toISOString()
       };
       await sb.from('bookings').insert(bookingRow);
+
+      // ── ST Welcome Message (email + SMS) ──────────────────────
+      // Send welcome to guest with link to portal for pre-arrival form
+      try {
+        const _gName = (name || 'Guest').split(' ')[0];
+        const _propLine = _calApt || 'your rental';
+        const _ciDate = checkin ? new Date(checkin).toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'}) : '';
+        const _portalLink = 'https://app.willowpa.com';
+
+        if (gEmail) {
+          const _subj = 'Welcome! Your stay at ' + _propLine + ' — Action Required';
+          const _body = '<p>Hi ' + (typeof escapeHtml === 'function' ? escapeHtml(_gName) : _gName) + ',</p>' +
+            '<p>Thank you for your booking at <b>' + (typeof escapeHtml === 'function' ? escapeHtml(_propLine) : _propLine) + '</b>!' +
+            (_ciDate ? ' Your check-in date is <b>' + _ciDate + '</b>.' : '') + '</p>' +
+            '<p>Before your stay, please visit your <b>Guest Portal</b> to complete your pre-arrival form and sign the house rules agreement:</p>' +
+            '<p style="margin:24px 0">' +
+              '<a href="' + _portalLink + '" style="background:#1a2874;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">' +
+                'Complete Pre-Arrival Form' +
+              '</a>' +
+            '</p>' +
+            '<p style="font-size:13px;color:#555">Your portal access (parking, messages, payments, and more) will be activated once your agreement is approved.</p>' +
+            '<p style="font-size:12px;color:#666">If you have questions, reply to this email or call (267) 865-0001.</p>' +
+            '<p>— Willow Partnership</p>';
+          if (typeof sendEmail === 'function') {
+            sendEmail(gEmail, _subj, _body, { isHtml: true, headerTitle: 'Willow Partnership — Guest Welcome' });
+          }
+        }
+
+        if (gPhone) {
+          const _smsText = 'Willow Partnership: Welcome! Your stay at ' + _propLine +
+            (_ciDate ? ' (check-in: ' + _ciDate + ')' : '') +
+            ' — please complete your pre-arrival form at ' + _portalLink +
+            ' to activate your guest portal.';
+          if (typeof sendSMS === 'function') {
+            sendSMS(gPhone, _smsText);
+          }
+        }
+      } catch(_welcErr) {
+        console.warn('[booking] Welcome message failed (non-critical):', _welcErr);
+      }
+
     } catch(syncErr) {
       console.warn('Pipeline sync failed (non-critical):', syncErr);
     }
@@ -11327,6 +11593,30 @@ async function deleteCalBooking() {
   try {
     const { error } = await sb.from('units').delete().eq('id', _calBookingPanelId);
     if (error) throw new Error(error.message);
+
+    // ── Cascade: cancel matching booking in Pipeline (bookings table) ──
+    if (rec) {
+      try {
+        const _apt = (rec.apt || '').trim();
+        const _name = (rec.name || '').trim();
+        const _ci = rec.checkin || '';
+        const _co = rec.checkout || '';
+        // Match by unit + guest name + dates; set status to cancelled
+        if (_apt && _name && _ci) {
+          let q = sb.from('bookings')
+            .update({ booking_status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('unit_apt', _apt)
+            .eq('guest_name', _name)
+            .eq('check_in', _ci);
+          if (_co) q = q.eq('check_out', _co);
+          const { error: bErr } = await q;
+          if (bErr) console.warn('[deleteCalBooking] bookings cancel failed:', bErr);
+        }
+      } catch(_bCascErr) {
+        console.warn('[deleteCalBooking] bookings cascade error:', _bCascErr);
+      }
+    }
+
     closeCalBookingPanel();
     await loadAll();
     renderCalendar();
