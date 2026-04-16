@@ -763,11 +763,16 @@
         const _firstUnitForAddr = (_bld && _bld.units && _bld.units[0]) ? _bld.units[0] : null;
         const _shortStreet = _firstUnitForAddr ? (getStreet(_firstUnitForAddr) || propText) : propText;
         const _tenantRows = tenants.map(function(t){
+          // Build E.164 phone for portal OTP login
+          var rawPhone = (t.phone || '').replace(/\D/g, '');
+          if (rawPhone.length === 10) rawPhone = '1' + rawPhone;
+          var e164 = (rawPhone.length === 11 && rawPhone[0] === '1') ? '+' + rawPhone : '';
           return {
             lease_id:   leaseRow.id,
             name:       t.name,
             email:      t.email || '',
             phone:      t.phone || '',
+            phone_e164: e164,
             property:   _shortStreet,
             unit:       wizState.unit,
             rent:       parseFloat(wizState.monthly_rent) || 0,
