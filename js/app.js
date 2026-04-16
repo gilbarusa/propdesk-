@@ -3627,6 +3627,59 @@ function viewTenantLease() {
   }
 }
 
+// ── Add Tenant Manually ───────────────────────────────────
+async function addTenantManual() {
+  const name = prompt('Tenant full name:');
+  if (!name || !name.trim()) return;
+  const email = (prompt('Email (optional):') || '').trim().toLowerCase();
+  const phone = (prompt('Phone (optional):') || '').trim();
+  const property = (prompt('Property address (e.g. "46 Township Line Rd"):') || '').trim();
+  const unit = (prompt('Unit number:') || '').trim();
+  const rent = parseFloat(prompt('Monthly rent:', '0') || '0') || 0;
+  const leaseType = (prompt('Lease type? (lt / mtm):', 'lt') || 'lt').trim().toLowerCase();
+  const status = (prompt('Status? (Active / Future):', 'Active') || 'Active').trim();
+
+  // Normalize phone to E.164 if 10 or 11 digits
+  let phoneE164 = null;
+  if (phone) {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) phoneE164 = '+1' + digits;
+    else if (digits.length === 11 && digits[0] === '1') phoneE164 = '+' + digits;
+  }
+
+  const row = {
+    name: name.trim(),
+    email: email || null,
+    phone: phone || null,
+    phone_e164: phoneE164,
+    property: property || null,
+    unit: unit || null,
+    rent: rent,
+    lease_type: leaseType === 'mtm' ? 'mtm' : 'lt',
+    status: status,
+    lease_start: null,
+    lease_end: null
+  };
+
+  try {
+    const { data, error } = await sb.from('tenants_lt').insert(row).select().single();
+    if (error) throw new Error(error.message);
+
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    filterTenantList();
+
+    // Find the new tenant in the list and open their detail
+    const newIdx = INNAGO_TENANTS.findIndex(t => t.id === data.id);
+    if (newIdx >= 0) openTenantDetail(newIdx);
+
+    toast('Tenant added: ' + name.trim() + ' ✓', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
 // ── Terminate Lease (archive tenant, void lease) ──────────
 async function terminateTenant(t, idx) {
   if (!t || !t.id) return;
@@ -3836,6 +3889,16 @@ async function saveTenantEdit() {
     Object.assign(t, patch);
     t.unitNum = patch.unit;
 
+    // Restore original HTML structure before re-rendering
+    const profileEl = document.querySelector('.tnt-profile-card');
+    if (profileEl && window._tntOrigProfile) {
+      profileEl.innerHTML = window._tntOrigProfile;
+    }
+    const leaseRow = document.querySelector('.tnt-info-row');
+    if (leaseRow) {
+      if (window._tntOrigLease) leaseRow.innerHTML = window._tntOrigLease;
+      leaseRow.style.display = '';
+    }
     window._tntOrigProfile = null;
     window._tntOrigLease = null;
 
