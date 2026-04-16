@@ -14553,3 +14553,166 @@ function WPA_hsCreateSettingsTable() {
   alert('Please create the hs_settings table in Supabase SQL Editor:\\n\\nCREATE TABLE hs_settings (\\n  key TEXT PRIMARY KEY,\\n  value TEXT,\\n  updated_at TIMESTAMPTZ DEFAULT now()\\n);\\n\\nINSERT INTO hs_settings (key, value) VALUES\\n(\\\'weekend_evening_surcharge_pct\\\', \\\'20\\\'),\\n(\\\'default_stripe_account\\\', \\\'\\\');');
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+//  TENANT DOCUMENTS MODULE (v20260415-1900)
+//  Populates the "Documents" tnt-section on the tenant card.
+//  Reads/writes tenant_documents table, uploads to 'wpforms' bucket.
+// ═══════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  // Called by openTenantDetail — hook by wrapping the existing function
+  var _origOpenTenant = window.openTenantDetail;
+  if (typeof _origOpenTenant === 'function') {
+    window.openTenantDetail = function(idx){
+      _origOpenTenant(idx);
+      try { WPA_loadTenantDocs(idx); } catch(e){ console.warn('[tnt-docs]', e); }
+    };
+  }
+
+  async function WPA_loadTenantDocs(idx){
+    var t = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS[idx] : null;
+    if (!t) return;
+    window._wpaDocsTenant = t;
+    var tbody = document.getElementById('tntDocsBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#8a93a8;text-align:center">Loading…</td></tr>';
+
+    var email = (t.email || '').toLowerCase().trim();
+    if (!email) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#8a93a8;text-align:center">Tenant has no email — documents require an email address.</td></tr>';
+      return;
+    }
+    try {
+      var { data, error } = await sb.from('tenant_documents')
+        .select('id,title,doc_type,created_at,shared_with_tenant,file_url')
+        .eq('tenant_email', email)
+        .order('created_at', { ascending:false });
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#8a93a8;text-align:center">No documents yet. Upload one to get started.</td></tr>';
+        return;
+      }
+      var rows = data.map(function(d){
+        var dt = d.created_at ? new Date(d.created_at).toLocaleDateString() : '';
+        var checked = d.shared_with_tenant ? 'checked' : '';
+        var typeLabel = (d.doc_type || 'other').charAt(0).toUpperCase() + (d.doc_type || 'other').slice(1);
+        return '<tr>'+
+          '<td>'+escapeHtml(d.title || 'Untitled')+'</td>'+
+          '<td><span class="lv-pill">'+typeLabel+'</span></td>'+
+          '<td>'+dt+'</td>'+
+          '<td><label style="cursor:pointer"><input type="checkbox" '+checked+' onchange="WPA_toggleDocShare('+d.id+', this.checked)"> Share</label></td>'+
+          '<td><a href="#" onclick="WPA_viewDoc('+d.id+');return false;">View</a></td>'+
+        '</tr>';
+      }).join('');
+      tbody.innerHTML = rows;
+    } catch(e) {
+      console.warn('[tnt-docs] load failed', e);
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#b83228;text-align:center">Error loading documents.</td></tr>';
+    }
+  }
+
+  async function WPA_toggleDocShare(docId, isShared){
+    try {
+      var payload = {
+        shared_with_tenant: isShared,
+        shared_at: isShared ? new Date().toISOString() : null
+      };
+      var { error } = await sb.from('tenant_documents').update(payload).eq('id', docId);
+      if (error) { alert('Could not update: '+error.message); return; }
+    } catch(e) { alert('Error: '+e.message); }
+  }
+
+  async function WPA_shareAllDocs(){
+    var t = window._wpaDocsTenant;
+    if (!t || !t.email) return;
+    if (!confirm('Share ALL documents with '+t.name+'?')) return;
+    var { error } = await sb.from('tenant_documents')
+      .update({ shared_with_tenant: true, shared_at: new Date().toISOString() })
+      .eq('tenant_email', t.email.toLowerCase().trim());
+    if (error) { alert('Error: '+error.message); return; }
+    WPA_loadTenantDocs(currentTenantIdx);
+  }
+
+  function WPA_uploadDocClick(){
+    var el = document.getElementById('tntDocFileInput');
+    if (el) el.click();
+  }
+
+  async function WPA_uploadDocFile(evt){
+    var file = evt.target.files[0];
+    if (!file) return;
+    evt.target.value = ''; // reset
+
+    var t = window._wpaDocsTenant;
+    if (!t || !t.email) { alert('Tenant has no email'); return; }
+
+    var title = prompt('Document title:', file.name.replace(/\.[^.]+$/, '')) || file.name;
+    var typeIn = prompt('Document type? (lease / invoice / letter / email / other)', 'other') || 'other';
+    typeIn = typeIn.toLowerCase().trim();
+    if (['lease','invoice','letter','email','other','form'].indexOf(typeIn) === -1) typeIn = 'other';
+
+    var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    var key = 'tenants/'+(t.unitNum || 'unknown')+'/'+Date.now()+'_'+safeName;
+
+    try {
+      var { error: upErr } = await sb.storage.from('wpforms').upload(key, file, {
+        cacheControl: '3600', upsert: false
+      });
+      if (upErr) { alert('Upload failed: '+upErr.message); return; }
+
+      var { error: insErr } = await sb.from('tenant_documents').insert({
+        tenant_email: t.email.toLowerCase().trim(),
+        tenant_name: t.name,
+        unit: t.unitNum || '',
+        property: t.property || '',
+        doc_type: typeIn,
+        title: title,
+        file_url: 'wpforms/'+key,
+        file_name: file.name,
+        file_size_bytes: file.size,
+        created_by: 'admin',
+        shared_with_tenant: (typeIn === 'lease')  // leases auto-shared
+      });
+      if (insErr) { alert('Saved to storage but record insert failed: '+insErr.message); return; }
+      WPA_loadTenantDocs(currentTenantIdx);
+    } catch(e) { alert('Error: '+e.message); }
+  }
+
+  async function WPA_viewDoc(docId){
+    try {
+      var { data, error } = await sb.from('tenant_documents')
+        .select('*').eq('id', docId).single();
+      if (error || !data) { alert('Not found'); return; }
+      if (data.file_url) {
+        var parts = data.file_url.split('/');
+        var bucket = parts.shift();
+        var key = parts.join('/');
+        var { data: urlData, error: uErr } = await sb.storage.from(bucket)
+          .createSignedUrl(key, 300);
+        if (uErr) { alert('Could not get URL: '+uErr.message); return; }
+        window.open(urlData.signedUrl, '_blank');
+      } else if (data.body_html) {
+        var w = window.open('', '_blank');
+        w.document.write('<title>'+(data.title||'Doc')+'</title>'+data.body_html);
+      } else {
+        alert('No content for this document');
+      }
+    } catch(e) { alert('Error: '+e.message); }
+  }
+
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  // Expose
+  window.WPA_loadTenantDocs = WPA_loadTenantDocs;
+  window.WPA_toggleDocShare = WPA_toggleDocShare;
+  window.tntShareAllDocs    = WPA_shareAllDocs;
+  window.tntUploadDocClick  = WPA_uploadDocClick;
+  window.tntUploadDocFile   = WPA_uploadDocFile;
+  window.WPA_viewDoc        = WPA_viewDoc;
+})();
