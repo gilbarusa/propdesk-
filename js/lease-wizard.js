@@ -880,7 +880,7 @@
       : (lease.lease_start||'') + ' → ' + (lease.lease_end||'');
 
     for (const sg of signers){
-      const link = `https://app.willowpa.com/sign.html?token=${sg.signing_token}`;
+      const portalLink = 'https://app.willowpa.com';
 
       // ─── EMAIL ───
       try {
@@ -891,20 +891,20 @@
           <p><b>Term:</b> ${escapeHtml(termStr)}<br>
              <b>Rent:</b> ${rentStr} / month</p>
           <p style="margin:24px 0">
-            <a href="${link}" style="background:#1a2874;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">
-              Review &amp; Sign Your Lease
+            <a href="${portalLink}" style="background:#1a2874;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">
+              Open Your Tenant Portal to Sign
             </a>
           </p>
-          <p style="font-size:12px;color:#666">Or paste this link into your browser:<br><a href="${link}">${link}</a></p>
-          <p style="font-size:12px;color:#666">This link is unique to you and should not be shared. If you have questions, reply to this email or call (267) 865-0001.</p>
+          <p style="font-size:12px;color:#666">Go to <a href="${portalLink}">app.willowpa.com</a> and log in with your phone number. Your lease will be waiting for you under <b>Forms &amp; Documents</b>.</p>
+          <p style="font-size:12px;color:#666">If you have questions, reply to this email or call (267) 865-0001.</p>
           <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0">
-          <p style="font-size:13px;color:#555">Once your lease is fully signed, your <b>Tenant Portal</b> at <a href="https://app.willowpa.com">app.willowpa.com</a> will be activated — where you can manage payments, maintenance requests, parking, documents, and more.</p>
+          <p style="font-size:13px;color:#555">Your <b>Tenant Portal</b> at <a href="${portalLink}">app.willowpa.com</a> is where you'll manage payments, maintenance requests, parking, documents, and more.</p>
           <p>— Willow Partnership</p>`;
         if (typeof sendEmail === 'function' && sg.email){
           sendEmail(sg.email, subject, bodyHtml, { isHtml: true, headerTitle: 'Willow Partnership — Lease Agreement' });
           report.emailOk++;
           events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'email_sent',
-            meta: { channel: 'email', to: sg.email, link, actor: 'system' } });
+            meta: { channel: 'email', to: sg.email, link: portalLink, actor: 'system' } });
         } else {
           throw new Error('sendEmail() not available or no email on record');
         }
@@ -918,12 +918,12 @@
       if (sg.phone){
         report.smsAttempt++;
         try {
-          const smsText = `Willow Partnership: your lease for ${propLine} is ready to sign. Open this secure link to review & sign: ${link}`;
+          const smsText = `Willow Partnership: your lease for ${propLine} is ready to sign. Log in at app.willowpa.com with your phone number to review & sign.`;
           if (typeof sendSMS === 'function'){
             sendSMS(sg.phone, smsText);
             report.smsOk++;
             events.push({ lease_id: leaseRow.id, signer_id: sg.id, event_type: 'sms_sent',
-              meta: { channel: 'sms', to: sg.phone, link, actor: 'system' } });
+              meta: { channel: 'sms', to: sg.phone, link: portalLink, actor: 'system' } });
           } else {
             throw new Error('sendSMS() not available');
           }
