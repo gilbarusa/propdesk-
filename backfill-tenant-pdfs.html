@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Backfill Tenant-Facing Lease PDFs</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root {
+    --bg:#f5f6fa; --card:#fff; --ink:#1a2874; --muted:#6b7280;
+    --border:#e5e7eb; --ok:#16a34a; --err:#dc2626; --warn:#b45309;
+  }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); margin: 0; padding: 24px; color: #111; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { color: var(--ink); margin: 0 0 4px; font-size: 22px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 15px; color: var(--ink); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button { background: var(--ink); color: #fff; border: 0; border-radius: 4px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .log { background: #0b1020; color: #d1d5db; font-family: Menlo, Consolas, monospace; font-size: 12px; padding: 12px; border-radius: 4px; max-height: 420px; overflow-y: auto; white-space: pre-wrap; }
+  .log .ok { color: #86efac; }
+  .log .err { color: #fca5a5; }
+  .log .warn { color: #fcd34d; }
+  .log .dim { color: #94a3b8; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+  th { color: var(--muted); font-weight: 600; }
+  .k { font-family: Menlo, monospace; font-size: 12px; color: #4b5563; }
+  .bar-wrap { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .bar { height: 100%; background: var(--ink); width: 0%; transition: width .2s; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .pill.ok   { background: #dcfce7; color: #166534; }
+  .pill.err  { background: #fee2e2; color: #991b1b; }
+  .pill.skip { background: #fef3c7; color: #92400e; }
+  .warn-box { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 10px 12px; border-radius: 4px; font-size: 13px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Backfill Tenant-Facing Lease PDFs</h1>
+  <p class="sub">One-time copy of every countersigned lease's signed PDF from <code>leases-signed</code> (public) to <code>documents/leases/&lt;property&gt;/&lt;unit&gt;/&lt;lease_id&gt;.pdf</code> (private), then patches <code>leases.tenant_pdf_bucket</code> + <code>leases.tenant_pdf_path</code>. The SQL migration's retrofit UPDATE (re-run it after this finishes) then propagates the private path onto existing <code>lease_document_assignments</code> rows, and the bridge trigger re-mirrors to <code>tenant_documents</code>.</p>
+
+  <div class="warn-box">
+    <strong>Preconditions</strong><br>
+    1. Migration <code>2026-04-18-tenant-facing-lease-pdf.sql</code> has been applied (adds <code>tenant_pdf_bucket</code> / <code>tenant_pdf_path</code> columns, widens the partial unique index).<br>
+    2. A private storage bucket named <code>documents</code> exists in Supabase Storage.<br>
+    3. You are an admin — this tool talks to Supabase directly with the anon key under the existing RLS policies.
+  </div>
+
+  <div class="card">
+    <h2>Step 1 — Scan candidates</h2>
+    <div class="row">
+      <button id="btnScan">Scan</button>
+      <span id="scanSummary" class="sub"></span>
+    </div>
+    <div id="scanResult" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card">
+    <h2>Step 2 — Run backfill</h2>
+    <div class="row">
+      <button id="btnRun" disabled>Run backfill</button>
+      <button id="btnDryRun" class="secondary" disabled>Dry run (log only, no uploads)</button>
+      <span id="runSummary" class="sub"></span>
+    </div>
+    <div class="bar-wrap"><div id="bar" class="bar"></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Log</h2>
+    <div id="log" class="log">Ready.</div>
+  </div>
+
+  <div class="card">
+    <h2>Step 3 — After backfill finishes</h2>
+    <p class="sub">Paste this into the Supabase SQL editor to propagate the private file_url onto existing <code>lease_document_assignments</code> rows:</p>
+<pre style="background:#0b1020;color:#d1d5db;padding:10px;border-radius:4px;font-size:12px;overflow:auto;">update lease_document_assignments a
+   set file_url    = l.tenant_pdf_bucket || '/' || l.tenant_pdf_path,
+       file_bucket = l.tenant_pdf_bucket,
+       file_path   = l.tenant_pdf_path,
+       source_type = 'upload',
+       updated_at  = now()
+  from leases l
+ where a.lease_id       = l.id
+   and a.auto_generated = true
+   and a.document_type  = 'lease'
+   and a.source_type    = 'lease_link'
+   and a.file_url       is null
+   and l.tenant_pdf_bucket is not null
+   and l.tenant_pdf_path   is not null;</pre>
+    <p class="sub">(Also included in the migration file — re-running the whole migration has the same effect.)</p>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script>
+(function(){
+  const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+  const logEl = document.getElementById('log');
+  const barEl = document.getElementById('bar');
+  let candidates = [];
+
+  function now() { return new Date().toISOString().slice(11,19); }
+  function log(msg, cls) {
+    const line = document.createElement('div');
+    line.className = cls || '';
+    line.textContent = '[' + now() + '] ' + msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function setBar(pct) { barEl.style.width = Math.max(0, Math.min(100, pct)) + '%'; }
+
+  // Slug matches lv_slug() in js/leases-view.js — keep in sync.
+  function slug(s) {
+    const v = String(s || '').trim().toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return v || 'unknown';
+  }
+
+  async function scan() {
+    log('Scanning leases: status=countersigned, signed_pdf_url present, tenant_pdf_bucket OR tenant_pdf_path missing…', 'dim');
+    const { data, error } = await sb
+      .from('leases')
+      .select('id, property, unit, signed_pdf_url, tenant_pdf_bucket, tenant_pdf_path, status, countersigned_at')
+      .eq('status', 'countersigned')
+      .not('signed_pdf_url', 'is', null)
+      .order('countersigned_at', { ascending: false });
+    if (error) {
+      log('Scan failed: ' + error.message, 'err');
+      return;
+    }
+    // Filter client-side for missing tenant_pdf_* (PostgREST `or` with two null checks gets awkward).
+    candidates = (data || []).filter(r => !r.tenant_pdf_bucket || !r.tenant_pdf_path);
+
+    const sum = document.getElementById('scanSummary');
+    sum.textContent = `Scanned ${data.length} countersigned lease(s) with a public PDF. ${candidates.length} need backfill.`;
+
+    const host = document.getElementById('scanResult');
+    if (candidates.length === 0) {
+      host.innerHTML = '<div class="pill ok">All caught up — no leases need a tenant-facing private copy.</div>';
+      log('No candidates.', 'ok');
+      return;
+    }
+    let html = '<table><thead><tr><th>#</th><th>Lease ID</th><th>Property</th><th>Unit</th><th>Public PDF</th></tr></thead><tbody>';
+    candidates.forEach((r, i) => {
+      html += '<tr>'
+        + '<td>' + (i+1) + '</td>'
+        + '<td class="k">' + r.id + '</td>'
+        + '<td>' + (r.property || '<em>—</em>') + '</td>'
+        + '<td>' + (r.unit || '<em>—</em>') + '</td>'
+        + '<td class="k" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (r.signed_pdf_url || '') + '</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table>';
+    host.innerHTML = html;
+
+    document.getElementById('btnRun').disabled = false;
+    document.getElementById('btnDryRun').disabled = false;
+    log('Ready to backfill ' + candidates.length + ' lease(s).', 'ok');
+  }
+
+  async function processOne(row, dryRun) {
+    const privKey = 'leases/' + slug(row.property) + '/' + slug(row.unit) + '/' + row.id + '.pdf';
+    log('• ' + row.id + ' → documents/' + privKey + (dryRun ? '  [dry]' : ''), 'dim');
+
+    if (dryRun) return { ok: true, skipped: true };
+
+    // 1) Fetch bytes from public URL
+    let blob;
+    try {
+      const r = await fetch(row.signed_pdf_url);
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' fetching public PDF');
+      blob = await r.blob();
+      if (!blob || blob.size < 100) throw new Error('Fetched blob suspiciously small (size=' + (blob && blob.size) + ')');
+    } catch (e) {
+      log('   ✗ fetch public failed: ' + e.message, 'err');
+      return { ok: false, step: 'fetch', error: e.message };
+    }
+
+    // 2) Upload to private bucket
+    try {
+      const { error: upErr } = await sb.storage
+        .from('documents')
+        .upload(privKey, blob, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw upErr;
+    } catch (e) {
+      log('   ✗ private upload failed: ' + e.message, 'err');
+      return { ok: false, step: 'upload', error: e.message };
+    }
+
+    // 3) Patch the lease row
+    try {
+      const { error: patchErr } = await sb
+        .from('leases')
+        .update({ tenant_pdf_bucket: 'documents', tenant_pdf_path: privKey })
+        .eq('id', row.id);
+      if (patchErr) throw patchErr;
+    } catch (e) {
+      log('   ✗ lease PATCH failed: ' + e.message + ' (private upload did succeed; retry will upsert and repatch)', 'err');
+      return { ok: false, step: 'patch', error: e.message };
+    }
+
+    log('   ✓ ok', 'ok');
+    return { ok: true };
+  }
+
+  async function run(dryRun) {
+    if (!candidates.length) { log('Nothing to do — scan first.', 'warn'); return; }
+    document.getElementById('btnRun').disabled = true;
+    document.getElementById('btnDryRun').disabled = true;
+    document.getElementById('btnScan').disabled = true;
+    log((dryRun ? 'DRY RUN: ' : 'RUN: ') + 'processing ' + candidates.length + ' lease(s)…');
+
+    let ok = 0, err = 0;
+    for (let i = 0; i < candidates.length; i++) {
+      const r = await processOne(candidates[i], dryRun);
+      if (r.ok) ok++; else err++;
+      setBar(((i+1) / candidates.length) * 100);
+      document.getElementById('runSummary').textContent = 'Processed ' + (i+1) + ' / ' + candidates.length + '  (ok=' + ok + ', err=' + err + ')';
+    }
+
+    log('', 'dim');
+    log('Done. ok=' + ok + ', err=' + err + (dryRun ? ' (dry run — no writes)' : ''), err > 0 ? 'warn' : 'ok');
+    if (!dryRun && ok > 0) {
+      log('Now run the Step-3 SQL block in Supabase to propagate the file_url onto lease_document_assignments.', 'warn');
+    }
+    document.getElementById('btnScan').disabled = false;
+    // Leave run buttons disabled — require a fresh scan after a run to avoid
+    // re-processing already-patched leases.
+  }
+
+  document.getElementById('btnScan').addEventListener('click', scan);
+  document.getElementById('btnRun').addEventListener('click', () => run(false));
+  document.getElementById('btnDryRun').addEventListener('click', () => run(true));
+})();
+</script>
+</body>
+</html>
