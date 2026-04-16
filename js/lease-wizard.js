@@ -802,6 +802,38 @@
         console.warn('[lease-wizard] tenants_lt cascade error:', e);
       }
 
+      // ── Auto-log lease into tenant_documents for each tenant ──────────
+      try {
+        const _leaseTitle = leaseTypeDb === 'lt'
+          ? 'Lease Agreement (' + (wizState.lease_start||'').slice(0,7) + ' – ' + (wizState.lease_end||'MTM').slice(0,7) + ')'
+          : 'Month-to-Month Lease Agreement (' + (wizState.lease_start||'').slice(0,7) + ')';
+        const _docRows = tenants
+          .filter(function(t){ return t.email; })
+          .map(function(t){
+            return {
+              tenant_email: t.email.toLowerCase().trim(),
+              tenant_name:  t.name,
+              unit:         wizState.unit || '',
+              property:     _shortStreet || propText,
+              doc_type:     'lease',
+              title:        _leaseTitle,
+              file_url:     null,                       // no file yet — points at lease record
+              file_name:    null,
+              file_size_bytes: null,
+              created_by:   'admin',
+              shared_with_tenant: true,                 // leases always shared
+              shared_at:    new Date().toISOString(),
+              lease_id:     leaseRow.id                 // FK back to leases table
+            };
+          });
+        if (_docRows.length) {
+          const { error: _dErr } = await s.from('tenant_documents').insert(_docRows);
+          if (_dErr) console.warn('[lease-wizard] tenant_documents auto-log failed:', _dErr);
+        }
+      } catch(e) {
+        console.warn('[lease-wizard] tenant_documents auto-log error:', e);
+      }
+
       // Send signing requests via EMAIL + SMS
       let sendReport = null;
       if (action === 'send') {
