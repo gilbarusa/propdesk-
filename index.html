@@ -1894,6 +1894,9 @@
                 <div class="tnt-action-item" onclick="tenantAction('resendVerification')"><span class="tnt-action-icon">&#x2709;</span> Resend Verification Link</div>
                 <div class="tnt-action-item" onclick="tenantAction('edit')"><span class="tnt-action-icon">&#x270E;</span> Edit Tenant</div>
                 <div class="tnt-action-item" onclick="tenantAction('addNote')"><span class="tnt-action-icon">&#x2795;</span> Add Notes <span class="tnt-action-count" id="tntNoteCount">0</span></div>
+                <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+                <div class="tnt-action-item" onclick="tenantAction('terminate')" style="color:#e67e22"><span class="tnt-action-icon">&#x1F6D1;</span> Terminate Lease</div>
+                <div class="tnt-action-item" onclick="tenantAction('cancel')" style="color:#e74c3c"><span class="tnt-action-icon">&#x274C;</span> Cancel &amp; Delete</div>
               </div>
             </div>
             <button class="tnt-close-btn" onclick="closeTenantDetail()">&times;</button>
@@ -1911,7 +1914,6 @@
             </div>
           </div>
           <div class="tnt-profile-meta">
-            <div class="tnt-account-status"><span class="tnt-status-icon">&#x1F464;</span> Innago Account Status <span class="tnt-status-check" id="tntAcctStatus">&#x2705;</span></div>
             <div class="tnt-tenant-since">Tenant Since<br><strong id="tntSince">—</strong></div>
           </div>
           <div class="tnt-profile-insurance">
@@ -3755,7 +3757,7 @@
 <script src="js/config.js"></script>
 <script src="js/ft-db.js"></script>
 <script src="js/fieldtrack.js?v=20260415-0300"></script>
-<script src="js/app.js?v=20260415-1900-docs"></script>
+<script src="js/app.js?v=20260415-2040-tnt-actions"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
