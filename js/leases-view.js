@@ -540,12 +540,56 @@
       _currentDetail = fresh;
 
       // 3) Generate PDF (browser-side via html2pdf)
+      //    IMPORTANT: html2canvas captures whatever is painted at the
+      //    moment it runs. If we call html2pdf() synchronously after
+      //    appendChild(wrap), the browser has not yet painted the
+      //    off-screen div (position:fixed; left:-9999px) and the
+      //    capture returns an empty frame → a blank single-page PDF.
+      //    We must wait for:
+      //      (a) two animation frames so the layout actually paints,
+      //      (b) every <img> inside wrap (tenant signature PNGs + any
+      //          inline images from body_html_snapshot) to finish
+      //          decoding — otherwise they capture as blank boxes,
+      //      (c) document.fonts.ready so custom fonts inside the
+      //          snapshot body are laid out at their final metrics,
+      //      (d) a small safety buffer (300 ms) on top of all of the
+      //          above; html2canvas on GoDaddy-served cPanel pages has
+      //          shown race-y behaviour without this extra breather.
       progress(35, 'Generating signed PDF...');
       const html = buildSignedHtml(fresh);
       const wrap = document.createElement('div');
       wrap.style.cssText = 'position:fixed; left:-9999px; top:0; width:780px; padding:30px; background:#fff;';
       wrap.innerHTML = html;
       document.body.appendChild(wrap);
+
+      // (a) wait two paint cycles
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      // (b) wait for every image inside wrap to load (or fail)
+      try {
+        const imgs = Array.from(wrap.querySelectorAll('img'));
+        await Promise.all(imgs.map(img => {
+          if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+          return new Promise(res => {
+            const done = () => res();
+            img.addEventListener('load',  done, { once: true });
+            img.addEventListener('error', done, { once: true });
+            // Hard cap so a stuck image never blocks the whole flow.
+            setTimeout(done, 2500);
+          });
+        }));
+      } catch (imgErr) {
+        console.warn('[countersign] image preload warning (continuing)', imgErr);
+      }
+
+      // (c) wait for custom fonts referenced by body_html_snapshot
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch (_) {}
+      }
+
+      // (d) extra safety buffer — covers any late reflow / Georgia fallback
+      await new Promise(r => setTimeout(r, 300));
+
       const pdfBlob = await window.html2pdf().set({
         margin: [10,10,10,10],
         filename: `lease-${(fresh.property||'lease').replace(/\s+/g,'_')}-${(fresh.unit||'').replace(/\s+/g,'_')}.pdf`,
@@ -553,6 +597,17 @@
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
       }).from(wrap).outputPdf('blob');
+
+      // Sanity check: a blank letter-page PDF from html2pdf is roughly
+      // 3–5 KB. A properly rendered multi-page lease PDF is always well
+      // above ~30 KB. Bail out if the blob is suspiciously small so we
+      // never upload another blank file.
+      console.log('[countersign] generated PDF size:', pdfBlob.size, 'bytes');
+      if (!pdfBlob || pdfBlob.size < 15000) {
+        document.body.removeChild(wrap);
+        throw new Error('Generated PDF is suspiciously small (' + (pdfBlob ? pdfBlob.size : 0) + ' bytes). The lease body likely failed to render — please retry. No upload was attempted.');
+      }
+
       document.body.removeChild(wrap);
 
       // 4) Upload to public bucket (admin/system copy) — leases-signed
