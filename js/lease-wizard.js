@@ -684,10 +684,22 @@
       // Schema lease_type values: 'lt' or 'mtm' (not 'fixed')
       const leaseTypeDb = wizState.lease_type === 'fixed' ? 'lt' : wizState.lease_type;
 
+      // Landlord identity is derived from the property owner column (e.g.
+      // "Elkins LT", "ERA LT", "Melrose Properties"), not a hardcode.
+      // Prefer the specific selected unit's owner; fall back to the first
+      // unit in the building; last-resort fall back to the Willow management
+      // company so the lease is never blank if properties.owner is missing.
+      const _selectedUnit = (_bld && _bld.units || []).find(function(p){
+        var ul = (typeof unitLabelFor === 'function') ? unitLabelFor(p) : (p && p.apt || '');
+        return ul === wizState.unit;
+      }) || ((_bld && _bld.units && _bld.units[0]) || null);
+      const _landlordEntity = String((_selectedUnit && _selectedUnit.owner) || '').trim() || 'Willow Partnership LLC';
+
       const lease = {
         property: propText,
         unit: wizState.unit,
-        landlord_name: 'Willow Partnership',
+        landlord_name: _landlordEntity,
+        landlord_entity: _landlordEntity,
         template_id: wizState.template_id || null,
         lease_type: leaseTypeDb,
         lease_start: wizState.lease_start || null,
@@ -719,13 +731,14 @@
         phone: t.phone || null,
         application_id: t.application_id || null
       }));
-      // Landlord signer (countersigns last)
+      // Landlord signer (countersigns last). Name tracks the property
+      // owner derived above; email routes to the shared Willow inbox.
       signers.push({
         lease_id: leaseRow.id,
         role: 'landlord',
         sign_order: 99,
         name: lease.landlord_name,
-        email: 'kevin@willowpa.com'
+        email: 'general@willowpa.com'
       });
       const { error: se } = await s.from('lease_signers').insert(signers);
       if (se) throw se;
@@ -1049,6 +1062,17 @@
     const _zip    = _firstUnit ? getZip(_firstUnit)    : '';
     const _fullAddr = _b ? _b.label : (wizState.building||'');
 
+    // Landlord identity: pull the owner name from the actual property
+    // record (e.g. "Elkins LT"), preferring the specifically selected
+    // unit so mixed-owner buildings work correctly. Fall back to the
+    // first unit, then the Willow management company as a last resort.
+    const _selectedUnitSnap = (_b && _b.units || []).find(function(p){
+      var ul = (typeof unitLabelFor === 'function') ? unitLabelFor(p) : (p && p.apt || '');
+      return ul === wizState.unit;
+    }) || _firstUnit;
+    const _landlord = String((_selectedUnitSnap && _selectedUnitSnap.owner) || '').trim()
+                   || 'Willow Partnership LLC';
+
     // Each {{TENANT_SIGNATURE_BLOCKS}} becomes ONE [[SIG]] marker per tenant,
     // grouped in a small block. sign.html turns [[SIG]] into a signable canvas.
     const sigBlocks = tenants.map(t => `
@@ -1109,12 +1133,16 @@
         (parseFloat(wizState.last_month_rent)||0)
       ).toFixed(2),
 
-      // Landlord
-      LANDLORD:         'Willow Partnership',
-      LANDLORD_NAME:    'Willow Partnership',
-      LANDLORD_ENTITY:  'Willow Partnership',
-      OWNER:            'Willow Partnership',
-      OWNER_NAME:       'Willow Partnership',
+      // Landlord — resolved from properties.owner for the selected unit.
+      // LANDLORD_NAME and LANDLORD_ENTITY are intentionally the same value
+      // so the pre-existing template markup "{{LANDLORD_ENTITY}} — {{LANDLORD_NAME}}"
+      // no longer renders "Willow Partnership — Willow Partnership". A follow-up
+      // SQL UPDATE collapses the duplicated token pair in document_templates.body_html.
+      LANDLORD:         escapeHtml(_landlord),
+      LANDLORD_NAME:    escapeHtml(_landlord),
+      LANDLORD_ENTITY:  escapeHtml(_landlord),
+      OWNER:            escapeHtml(_landlord),
+      OWNER_NAME:       escapeHtml(_landlord),
 
       // Utilities
       UTILITIES_INCLUDED: wizState.utilities_landlord.join(', ') || 'None',

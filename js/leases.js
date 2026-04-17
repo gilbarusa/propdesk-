@@ -507,7 +507,7 @@ async function wizSubmit(action) {
         role:       'landlord',
         sign_order: 99,
         name:       leasePayload.landlord_name,
-        email:      'kevin@willowpa.com',   // TODO: make configurable
+        email:      'general@willowpa.com',   // Willow Partnership countersign inbox
       },
     ];
     const { data: insertedSigners, error: se } = await sb.from('lease_signers').insert(signers).select();
