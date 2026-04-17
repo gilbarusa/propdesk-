@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Regenerate Signed Lease PDF (single lease)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --bg:#f5f6fa; --card:#fff; --ink:#1a2874; --muted:#6b7280;
+    --border:#e5e7eb; --ok:#16a34a; --err:#dc2626; --warn:#b45309;
+  }
+  body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; background: var(--bg); margin: 0; padding: 24px; color: #111; }
+  .wrap { max-width: 960px; margin: 0 auto; }
+  h1 { color: var(--ink); margin: 0 0 4px; font-size: 22px; }
+  .sub { color: var(--muted); margin: 0 0 20px; font-size: 13px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { margin: 0 0 8px; font-size: 15px; color: var(--ink); }
+  label { display:block; font-size:12px; color:var(--muted); margin: 8px 0 4px; }
+  input[type=text] { width: 100%; padding: 8px 10px; border:1px solid var(--border); border-radius:4px; font-family: Menlo, monospace; font-size: 13px; box-sizing: border-box; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  button { background: var(--ink); color: #fff; border: 0; border-radius: 4px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #fff; color: var(--ink); border: 1px solid var(--ink); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .log { background: #0b1020; color: #d1d5db; font-family: Menlo, Consolas, monospace; font-size: 12px; padding: 12px; border-radius: 4px; max-height: 520px; overflow-y: auto; white-space: pre-wrap; }
+  .log .ok { color: #86efac; }
+  .log .err { color: #fca5a5; }
+  .log .warn { color: #fcd34d; }
+  .log .dim { color: #94a3b8; }
+  .warn-box { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; padding: 10px 12px; border-radius: 4px; font-size: 13px; margin-bottom: 16px; }
+  .ok-box   { background: #dcfce7; border: 1px solid #86efac; color: #166534; padding: 10px 12px; border-radius: 4px; font-size: 13px; margin-bottom: 16px; display:none; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .meta code { color: #111; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
+  .kv { display:grid; grid-template-columns: 180px 1fr; gap:4px 12px; font-size: 13px; margin-top:8px; }
+  .kv b { color: var(--ink); font-weight:600; }
+  /* The off-screen render wrapper — html2canvas captures this, so it must
+     actually paint. position:fixed + large negative left keeps it out of
+     view while still being a real, painted element. */
+  #renderWrap { position: fixed; left: -9999px; top: 0; width: 780px; padding: 30px; background: #fff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Regenerate Signed Lease PDF</h1>
+  <p class="sub">Rebuilds the signed PDF for <b>one</b> countersigned lease from its <code>body_html_snapshot</code> + <code>lease_signers</code>, uploads a fresh copy to <code>leases-signed</code>, and updates <code>leases.signed_pdf_url</code>. Use this to fix leases whose existing signed PDF rendered blank because of the html2canvas timing bug. Does NOT touch <code>tenant_pdf_bucket</code>, <code>tenant_pdf_path</code>, <code>tenant_documents</code>, <code>lease_document_assignments</code>, or any P2 plumbing.</p>
+
+  <div class="warn-box">
+    <strong>Preconditions</strong><br>
+    1. The lease row has <code>status = 'countersigned'</code>, a landlord signer with <code>signature_png</code>, and a non-empty <code>body_html_snapshot</code>.<br>
+    2. You are an admin — this tool talks to Supabase directly with the anon key under existing RLS policies.<br>
+    3. This page pulls the same <code>CONFIG.SUPABASE_URL</code> / <code>CONFIG.SUPABASE_KEY</code> that the main app uses.
+  </div>
+
+  <div class="card">
+    <h2>Step 1 — Load lease</h2>
+    <label for="leaseId">Lease ID (uuid)</label>
+    <input id="leaseId" type="text" value="83757a15-1843-4775-95fa-5e0e6bfc510a" placeholder="e.g. 83757a15-1843-4775-95fa-5e0e6bfc510a">
+    <div class="row" style="margin-top:10px;">
+      <button id="btnLoad">Load lease</button>
+      <span id="loadSummary" class="sub"></span>
+    </div>
+    <div id="loadDetails" class="kv"></div>
+  </div>
+
+  <div class="card">
+    <h2>Step 2 — Regenerate + upload + persist</h2>
+    <div class="row">
+      <button id="btnRegen" disabled>Regenerate PDF</button>
+      <button id="btnPreview" class="secondary" disabled>Preview rebuilt HTML only</button>
+      <span id="regenSummary" class="sub"></span>
+    </div>
+    <div class="meta">Uploads to <code>leases-signed/&lt;lease_id&gt;/&lt;ts&gt;.pdf</code>, then PATCHes <code>leases.signed_pdf_url</code> and writes a <code>pdf_regenerated</code> row to <code>lease_events</code>.</div>
+  </div>
+
+  <div class="ok-box" id="okBox"></div>
+
+  <div class="card">
+    <h2>Log</h2>
+    <div id="log" class="log">Ready.</div>
+  </div>
+</div>
+
+<!-- off-screen render target -->
+<div id="renderWrap"></div>
+
+<script src="js/config.js"></script>
+<script>
+(function(){
+  const sb = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+  const logEl = document.getElementById('log');
+  const okBox = document.getElementById('okBox');
+  const renderWrap = document.getElementById('renderWrap');
+  let _lease = null;
+
+  function now() { return new Date().toISOString().slice(11,19); }
+  function log(msg, cls) {
+    const line = document.createElement('div');
+    line.className = cls || '';
+    line.textContent = '[' + now() + '] ' + msg;
+    logEl.appendChild(line);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]); }
+  function fmtSignedAt(iso){
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'2-digit' })
+        + ' at ' + d.toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit', timeZoneName:'short' });
+    } catch(_){ return iso; }
+  }
+
+  // Mirrors buildSignedHtml() in js/leases-view.js — keep in sync.
+  function buildSignedHtml(l){
+    const tenants  = (l.lease_signers||[]).filter(s=>s.role==='tenant')
+      .sort((a,b)=> (a.sign_order||0) - (b.sign_order||0));
+    const landlord = (l.lease_signers||[]).find(s=>s.role==='landlord');
+    const body = l.body_html_snapshot
+      || '<p style="color:#b83228;">No lease body snapshot. (Lease was not sent for signing yet.)</p>';
+
+    let sigIdx = 0;
+    const replaced = body.replace(/\[\[SIG\]\]|\{\{\s*SIG\s*\}\}|\{\{\s*SIGN_HERE\s*\}\}|\{\{\s*TENANT_SIGNATURE\s*\}\}|\{\{\s*SIGNATURE\s*\}\}/g, () => {
+      const t = tenants[sigIdx++ % Math.max(tenants.length, 1)];
+      if (t && t.signature_png) {
+        return `<span style="display:inline-block; vertical-align:middle; border-bottom:1px solid #999; padding:0 4px;"><img src="${t.signature_png}" alt="signature" style="height:36px; vertical-align:middle;"> <small style="display:block; color:#555; font-size:9px;">${esc(t.name)} · ${fmtSignedAt(t.signed_at)}</small></span>`;
+      }
+      return `<span style="display:inline-block; min-width:200px; border-bottom:1px solid #999;">&nbsp;</span>`;
+    });
+
+    const sigBlocks = `
+      <hr style="margin:30px 0; border:0; border-top:1px solid #ccc;">
+      <h3 style="font-size:14px; text-transform:uppercase; letter-spacing:0.5px; color:#1a2874;">Signatures</h3>
+      ${tenants.map(t => `
+        <div style="margin:18px 0; padding:12px; border:1px solid #e1e5ee; border-radius:6px;">
+          <div style="font-size:11px; color:#5a6378; font-weight:600;">TENANT: ${esc(t.name)}</div>
+          <div style="font-size:11px; color:#8a93a8;">${esc(t.email)}</div>
+          ${t.signature_png
+            ? `<img src="${t.signature_png}" style="height:60px; margin-top:8px; border-bottom:1px solid #333;" alt="signature">
+               <div style="font-size:10px; color:#555; margin-top:4px;">Electronically signed on ${fmtSignedAt(t.signed_at)}</div>`
+            : `<div style="margin-top:10px; color:#b83228; font-size:12px;">&#9888; Not signed</div>`}
+        </div>`).join('')}
+      ${landlord ? `
+        <div style="margin:18px 0; padding:12px; border:2px solid #1a2874; border-radius:6px; background:#f7f8fb;">
+          <div style="font-size:11px; color:#1a2874; font-weight:600;">LANDLORD: ${esc(landlord.name)}</div>
+          <div style="font-size:11px; color:#8a93a8;">${esc(landlord.email)}</div>
+          ${landlord.signature_png
+            ? `<img src="${landlord.signature_png}" style="height:60px; margin-top:8px; border-bottom:1px solid #333;" alt="landlord signature">
+               <div style="font-size:10px; color:#555; margin-top:4px;">Electronically countersigned on ${fmtSignedAt(landlord.signed_at)}</div>`
+            : `<div style="margin-top:10px; color:#8a5c00; font-size:12px;">Pending countersign</div>`}
+        </div>`:''}`;
+
+    return `<div style="font-family:Georgia, serif; max-width:780px; margin:0 auto;">
+      <div style="text-align:center; margin-bottom:24px; padding-bottom:16px; border-bottom:2px solid #1a2874;">
+        <div style="font-size:18px; font-weight:700; color:#1a2874;">RESIDENTIAL LEASE AGREEMENT</div>
+        <div style="font-size:12px; color:#5a6378; margin-top:4px;">${esc(l.property||'')}${l.unit?' &middot; Unit '+esc(l.unit):''}</div>
+      </div>
+      ${replaced}
+      ${sigBlocks}
+    </div>`;
+  }
+
+  async function loadLease() {
+    okBox.style.display = 'none';
+    document.getElementById('btnRegen').disabled = true;
+    document.getElementById('btnPreview').disabled = true;
+    document.getElementById('loadDetails').innerHTML = '';
+
+    const id = document.getElementById('leaseId').value.trim();
+    if (!id) { log('Please paste a lease ID.', 'err'); return; }
+
+    log('Loading lease ' + id + '…', 'dim');
+    const { data, error } = await sb
+      .from('leases')
+      .select('*, lease_signers(*)')
+      .eq('id', id)
+      .single();
+    if (error) { log('Load failed: ' + error.message, 'err'); return; }
+    _lease = data;
+
+    const tenants  = (data.lease_signers||[]).filter(s=>s.role==='tenant');
+    const landlord = (data.lease_signers||[]).find(s=>s.role==='landlord');
+    const bodyLen  = data.body_html_snapshot ? data.body_html_snapshot.length : 0;
+    const landlordInked  = !!(landlord && landlord.signature_png);
+    const tenantsInked   = tenants.filter(t => !!t.signature_png).length;
+
+    document.getElementById('loadDetails').innerHTML = `
+      <b>Lease</b><span>${esc(data.property||'')} &middot; Unit ${esc(data.unit||'')}</span>
+      <b>Status</b><span>${esc(data.status)}${data.countersigned_at ? ' · countersigned ' + esc(data.countersigned_at) : ''}</span>
+      <b>body_html_snapshot</b><span>${bodyLen ? bodyLen.toLocaleString() + ' chars' : '<span style="color:#b83228">MISSING — cannot regenerate</span>'}</span>
+      <b>Tenants</b><span>${tenants.length} (${tenantsInked} with signature_png)</span>
+      <b>Landlord sig</b><span>${landlordInked ? 'present' : '<span style="color:#b83228">MISSING — cannot regenerate</span>'}</span>
+      <b>Current signed_pdf_url</b><span style="word-break:break-all;">${esc(data.signed_pdf_url||'(none)')}</span>
+    `;
+
+    const ok = bodyLen > 0 && landlordInked;
+    document.getElementById('btnRegen').disabled  = !ok;
+    document.getElementById('btnPreview').disabled = !ok;
+    log('Loaded. body_html_snapshot=' + bodyLen + ' chars, tenants=' + tenants.length + ', landlord_sig=' + landlordInked, ok ? 'ok' : 'warn');
+    if (!ok) log('Regenerate is disabled — preconditions not met.', 'warn');
+  }
+
+  async function previewHtml() {
+    if (!_lease) return;
+    renderWrap.innerHTML = buildSignedHtml(_lease);
+    log('Preview HTML rendered into off-screen wrapper (' + renderWrap.scrollHeight + 'px tall).', 'dim');
+    const w = window.open('', '_blank');
+    w.document.write('<!doctype html><html><head><title>Lease preview</title></head><body>' + renderWrap.innerHTML + '</body></html>');
+    w.document.close();
+  }
+
+  async function waitForPaintAndAssets(el) {
+    // (a) two paint cycles so layout is committed before capture.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // (b) wait for every <img> inside the wrapper to load or fail.
+    const imgs = Array.from(el.querySelectorAll('img'));
+    log('Waiting for ' + imgs.length + ' image(s) to decode…', 'dim');
+    await Promise.all(imgs.map(img => {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise(res => {
+        const done = () => res();
+        img.addEventListener('load',  done, { once: true });
+        img.addEventListener('error', done, { once: true });
+        setTimeout(done, 2500); // hard cap
+      });
+    }));
+    // (c) fonts ready.
+    if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(_){} }
+    // (d) extra safety buffer.
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  async function regenerate() {
+    if (!_lease) return;
+    document.getElementById('btnRegen').disabled = true;
+    document.getElementById('btnPreview').disabled = true;
+    okBox.style.display = 'none';
+
+    try {
+      log('Rebuilding HTML…', 'dim');
+      renderWrap.innerHTML = buildSignedHtml(_lease);
+
+      await waitForPaintAndAssets(renderWrap);
+
+      log('Generating PDF via html2pdf…', 'dim');
+      const pdfBlob = await window.html2pdf().set({
+        margin: [10,10,10,10],
+        filename: `lease-${(_lease.property||'lease').replace(/\s+/g,'_')}-${(_lease.unit||'').replace(/\s+/g,'_')}.pdf`,
+        image: { type: 'jpeg', quality: 0.92 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+      }).from(renderWrap).outputPdf('blob');
+
+      log('Generated PDF size: ' + pdfBlob.size + ' bytes', pdfBlob.size < 15000 ? 'err' : 'ok');
+      if (!pdfBlob || pdfBlob.size < 15000) {
+        throw new Error('Generated PDF is suspiciously small (' + (pdfBlob ? pdfBlob.size : 0) + ' bytes). Aborting — nothing uploaded, nothing patched.');
+      }
+
+      const filename = `${_lease.id}/${Date.now()}.pdf`;
+      log('Uploading to leases-signed/' + filename + '…', 'dim');
+      const { error: upErr } = await sb.storage
+        .from('leases-signed')
+        .upload(filename, pdfBlob, { contentType: 'application/pdf', upsert: true });
+      if (upErr) throw new Error('Upload: ' + upErr.message);
+
+      const { data: pub } = sb.storage.from('leases-signed').getPublicUrl(filename);
+      const pdfUrl = pub.publicUrl;
+      log('Public URL: ' + pdfUrl, 'ok');
+
+      // HEAD-verify (with one retry) before persisting the URL.
+      log('Verifying URL reachable…', 'dim');
+      let ok = false;
+      try { const h = await fetch(pdfUrl, { method:'HEAD' }); ok = h.ok; } catch(_){}
+      if (!ok) { await new Promise(r=>setTimeout(r, 800)); try { const h = await fetch(pdfUrl, { method:'HEAD' }); ok = h.ok; } catch(_){} }
+      if (!ok) throw new Error('URL verify failed — check storage RLS read policy on bucket "leases-signed".');
+
+      // PATCH leases.signed_pdf_url ONLY. Do not touch status, countersigned_at,
+      // tenant_pdf_bucket, tenant_pdf_path — this tool is strictly a PDF fixup.
+      log('Patching leases.signed_pdf_url…', 'dim');
+      const { error: patchErr } = await sb
+        .from('leases')
+        .update({ signed_pdf_url: pdfUrl })
+        .eq('id', _lease.id);
+      if (patchErr) throw new Error('Patch: ' + patchErr.message);
+
+      // Audit row.
+      await sb.from('lease_events').insert([{
+        lease_id: _lease.id,
+        event_type: 'pdf_regenerated',
+        meta: { url: pdfUrl, size_bytes: pdfBlob.size, reason: 'html2canvas timing fix' }
+      }]);
+
+      log('Done. New signed_pdf_url is live on the lease row.', 'ok');
+      okBox.innerHTML = 'PDF regenerated. <a href="' + pdfUrl + '" target="_blank">Open new PDF</a>';
+      okBox.style.display = 'block';
+      _lease.signed_pdf_url = pdfUrl;
+    } catch (e) {
+      log('ERROR: ' + e.message, 'err');
+    } finally {
+      document.getElementById('btnRegen').disabled = false;
+      document.getElementById('btnPreview').disabled = false;
+    }
+  }
+
+  document.getElementById('btnLoad').addEventListener('click', loadLease);
+  document.getElementById('btnPreview').addEventListener('click', previewHtml);
+  document.getElementById('btnRegen').addEventListener('click', regenerate);
+})();
+</script>
+</body>
+</html>
