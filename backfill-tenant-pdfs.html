@@ -41,12 +41,12 @@
 <body>
 <div class="wrap">
   <h1>Backfill Tenant-Facing Lease PDFs</h1>
-  <p class="sub">One-time copy of every countersigned lease's signed PDF from <code>leases-signed</code> (public) to <code>documents/leases/&lt;property&gt;/&lt;unit&gt;/&lt;lease_id&gt;.pdf</code> (private), then patches <code>leases.tenant_pdf_bucket</code> + <code>leases.tenant_pdf_path</code>. The SQL migration's retrofit UPDATE (re-run it after this finishes) then propagates the private path onto existing <code>lease_document_assignments</code> rows, and the bridge trigger re-mirrors to <code>tenant_documents</code>.</p>
+  <p class="sub">One-time copy of every countersigned lease's signed PDF from <code>leases-signed</code> (public) to <code>wpforms/leases/&lt;property&gt;/&lt;unit&gt;/&lt;lease_id&gt;.pdf</code> (private), then patches <code>leases.tenant_pdf_bucket</code> + <code>leases.tenant_pdf_path</code>. The SQL migration's retrofit UPDATE (re-run it after this finishes) then propagates the private path onto existing <code>lease_document_assignments</code> rows, and the bridge trigger re-mirrors to <code>tenant_documents</code>.</p>
 
   <div class="warn-box">
     <strong>Preconditions</strong><br>
     1. Migration <code>2026-04-18-tenant-facing-lease-pdf.sql</code> has been applied (adds <code>tenant_pdf_bucket</code> / <code>tenant_pdf_path</code> columns, widens the partial unique index).<br>
-    2. A private storage bucket named <code>documents</code> exists in Supabase Storage.<br>
+    2. A storage bucket named <code>wpforms</code> exists in Supabase Storage. For true P2 privacy it should be <em>not public</em> — tenant_doc_get mints signed URLs regardless, but a public bucket means the raw path is still fetchable if discovered.<br>
     3. You are an admin — this tool talks to Supabase directly with the anon key under the existing RLS policies.
   </div>
 
@@ -163,9 +163,11 @@
     log('Ready to backfill ' + candidates.length + ' lease(s).', 'ok');
   }
 
+  const TENANT_PDF_BUCKET = 'wpforms';   // keep in sync with js/leases-view.js
+
   async function processOne(row, dryRun) {
     const privKey = 'leases/' + slug(row.property) + '/' + slug(row.unit) + '/' + row.id + '.pdf';
-    log('• ' + row.id + ' → documents/' + privKey + (dryRun ? '  [dry]' : ''), 'dim');
+    log('• ' + row.id + ' → ' + TENANT_PDF_BUCKET + '/' + privKey + (dryRun ? '  [dry]' : ''), 'dim');
 
     if (dryRun) return { ok: true, skipped: true };
 
@@ -184,7 +186,7 @@
     // 2) Upload to private bucket
     try {
       const { error: upErr } = await sb.storage
-        .from('documents')
+        .from(TENANT_PDF_BUCKET)
         .upload(privKey, blob, { contentType: 'application/pdf', upsert: true });
       if (upErr) throw upErr;
     } catch (e) {
@@ -196,7 +198,7 @@
     try {
       const { error: patchErr } = await sb
         .from('leases')
-        .update({ tenant_pdf_bucket: 'documents', tenant_pdf_path: privKey })
+        .update({ tenant_pdf_bucket: TENANT_PDF_BUCKET, tenant_pdf_path: privKey })
         .eq('id', row.id);
       if (patchErr) throw patchErr;
     } catch (e) {
