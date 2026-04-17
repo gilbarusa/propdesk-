@@ -593,13 +593,14 @@
         }
       }
 
-      // 5) Upload to PRIVATE bucket (tenant-facing copy) — documents.
+      // 5) Upload to PRIVATE bucket (tenant-facing copy) — wpforms.
       //    MANDATORY: if this fails, we do not PATCH the lease.
       //    Tenant_doc_get must never fall back to the raw public URL,
       //    so the lease stays in its pre-countersign status until the
-      //    private copy is in place.
+      //    private copy is in place. Bucket name kept in one const so
+      //    it stays in sync with backfill-tenant-pdfs.html + docs-admin.
       progress(72, 'Uploading tenant copy...');
-      const tenantPdfBucket = 'documents';
+      const tenantPdfBucket = 'wpforms';
       const tenantPdfPath = `leases/${lv_slug(fresh.property)}/${lv_slug(fresh.unit)}/${fresh.id}.pdf`;
       console.log('[countersign] uploading PDF (private):', tenantPdfBucket + '/' + tenantPdfPath, 'size:', pdfBlob.size);
       const { data: privData, error: privErr } = await sb.storage

@@ -11,7 +11,7 @@
   const VERSION = '20260416-0100';
   try { console.log('%c[documents-admin] v'+VERSION, 'background:#3651b5;color:#fff;padding:2px 8px;border-radius:3px'); } catch(e){}
 
-  const UPLOAD_BUCKET = 'documents'; // create this bucket in Supabase (or change here)
+  const UPLOAD_BUCKET = 'wpforms';   // document templates + tenant-facing lease copies share this bucket
 
   // ── state ─────────────────────────────────────────────
   let _templates = [];
