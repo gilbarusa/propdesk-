@@ -754,14 +754,59 @@
       // (app.js hydrates INNAGO_TENANTS exclusively from tenants_lt). One row
       // per tenant on the lease, all pointing at the same lease_id. Status
       // reflects lease status: draft/out_for_signature → 'Future', signed → 'Active'.
+      //
+      // Integrity rules enforced here (see diagnosis 2026-04-16 for 426-2):
+      //   1. tenants_lt has UNIQUE(email) AND UNIQUE(phone_e164). When a
+      //      tenant reuses a phone that another tenants_lt row (typically
+      //      an ended test row) already owns, the email-keyed upsert fails
+      //      with a phone_e164 collision. Pre-clear the conflicting
+      //      phone_e164 on other-email rows before the upsert.
+      //   2. All three tables (leases / tenants_lt / tenant_documents) MUST
+      //      store the same unit string. Normalize wizState.unit once and
+      //      use it everywhere.
+      //   3. Companion-insert failures are never swallowed: they throw so
+      //      the outer try/catch surfaces a real error to the admin.
+      const _tenantStatus = (lease.status === 'draft' || lease.status === 'out_for_signature' || lease.status === 'future') ? 'Future' : 'Active';
+      // tenants_lt.property must match the short street form stored on
+      // properties.address (e.g. "46 Township Line Rd") so the Tenants list
+      // filter (t.property === propertyName) lines up. Derive from the first
+      // unit of the selected building; fall back to the full label if missing.
+      const _firstUnitForAddr = (_bld && _bld.units && _bld.units[0]) ? _bld.units[0] : null;
+      const _shortStreet = _firstUnitForAddr ? (getStreet(_firstUnitForAddr) || propText) : propText;
+      // Unit normalization — strip any trailing street-word echo from the
+      // label (e.g. "426-2 Central" where street is "426 Central Avenue"
+      // should store as "426-2"). Keeps lease.unit / tenants_lt.unit /
+      // tenant_documents.unit in lock-step so the portal resolver matches.
+      const _normalizedUnit = (function(label, street){
+        var u = String(label || '').trim();
+        if (!u) return u;
+        var s = String(street || '').trim();
+        if (s){
+          var tokens = s.toLowerCase().split(/\s+/).filter(function(w){
+            // only drop non-numeric street-body tokens (keep leading house number)
+            return w && !/^\d/.test(w);
+          });
+          for (var i=0; i<tokens.length; i++){
+            u = u.replace(new RegExp('[\\s,]+' + tokens[i].replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '\\s*$', 'i'), '').trim();
+          }
+        }
+        return u;
+      })(wizState.unit, _shortStreet);
+      // Write the normalized unit back so leases.unit (already inserted above
+      // with the raw value) plus downstream rows agree. We UPDATE the lease
+      // row rather than reinserting — insert already ran.
+      if (_normalizedUnit && _normalizedUnit !== wizState.unit){
+        try {
+          await s.from('leases')
+            .update({ unit: _normalizedUnit })
+            .eq('id', leaseRow.id);
+        } catch(e){
+          console.warn('[lease-wizard] unit normalization update on leases failed:', e);
+        }
+      }
+      const _unitForWrite = _normalizedUnit || wizState.unit || '';
+
       try {
-        const _tenantStatus = (lease.status === 'draft' || lease.status === 'out_for_signature' || lease.status === 'future') ? 'Future' : 'Active';
-        // tenants_lt.property must match the short street form stored on
-        // properties.address (e.g. "46 Township Line Rd") so the Tenants list
-        // filter (t.property === propertyName) lines up. Derive from the first
-        // unit of the selected building; fall back to the full label if missing.
-        const _firstUnitForAddr = (_bld && _bld.units && _bld.units[0]) ? _bld.units[0] : null;
-        const _shortStreet = _firstUnitForAddr ? (getStreet(_firstUnitForAddr) || propText) : propText;
         const _tenantRows = tenants.map(function(t){
           // Build E.164 phone for portal OTP login
           var rawPhone = (t.phone || '').replace(/\D/g, '');
@@ -774,7 +819,7 @@
             phone:      t.phone || '',
             phone_e164: e164,
             property:   _shortStreet,
-            unit:       wizState.unit,
+            unit:       _unitForWrite,
             rent:       parseFloat(wizState.monthly_rent) || 0,
             status:     _tenantStatus,
             lease_start: wizState.lease_start || null,
@@ -783,9 +828,38 @@
           };
         });
         if (_tenantRows.length){
-          // Upsert on email so re-leasing an existing tenant updates their row
-          // instead of colliding with tenants_lt_email_unique. Rows without an
-          // email fall through to plain insert.
+          // Step 1 — pre-clear conflicting phone_e164 on OTHER-email rows so
+          // the email-keyed upsert below can't be blocked by the UNIQUE
+          // constraint on phone_e164. We only ever null the field; we never
+          // delete another tenant's row.
+          const _e164s = _tenantRows
+            .map(function(r){ return r.phone_e164; })
+            .filter(function(v){ return !!v; });
+          const _emails = _tenantRows
+            .map(function(r){ return String(r.email || '').toLowerCase(); })
+            .filter(function(v){ return !!v; });
+          for (var i=0; i<_e164s.length; i++){
+            const e164 = _e164s[i];
+            // Find any existing row with this phone_e164 whose email is NOT
+            // one of ours. Null its phone_e164 so the upsert can claim it.
+            let q = s.from('tenants_lt').update({ phone_e164: null }).eq('phone_e164', e164);
+            if (_emails.length){
+              // PostgREST: not.in expects "(a,b,c)" comma-separated
+              q = q.not('email', 'in', '(' + _emails.map(function(e){
+                return '"' + e.replace(/"/g, '""') + '"';
+              }).join(',') + ')');
+            }
+            const { error: _clrErr } = await q;
+            if (_clrErr) {
+              // Non-fatal — the upsert may still succeed if there was no
+              // real collision — but log loudly.
+              console.warn('[lease-wizard] phone_e164 pre-clear warning for ' + e164 + ':', _clrErr);
+            }
+          }
+
+          // Step 2 — email-keyed upsert. Rows without email (should not
+          // happen post-validation, but defensive) fall through to plain
+          // insert.
           const _withEmail = _tenantRows.filter(function(r){ return r.email; });
           const _noEmail   = _tenantRows.filter(function(r){ return !r.email; });
           let _anyErr = null;
@@ -798,13 +872,21 @@
             const { error: ie } = await s.from('tenants_lt').insert(_noEmail);
             if (ie) _anyErr = ie;
           }
-          if (_anyErr) console.warn('[lease-wizard] tenants_lt upsert failed:', _anyErr);
-          else if (typeof window.WPA_hydrateTenantsLT === 'function') {
+          if (_anyErr) {
+            console.error('[lease-wizard] tenants_lt upsert failed:', _anyErr);
+            throw new Error('Tenant record could not be saved: ' +
+              (_anyErr.message || _anyErr.details || 'unknown DB error') +
+              ' (code ' + (_anyErr.code || '?') + ')');
+          }
+          if (typeof window.WPA_hydrateTenantsLT === 'function') {
             try { await window.WPA_hydrateTenantsLT(); } catch(e){ console.warn('rehydrate', e); }
           }
         }
       } catch(e) {
-        console.warn('[lease-wizard] tenants_lt cascade error:', e);
+        // Re-throw so the outer try/catch (line ~865) surfaces it to the
+        // admin via wizState.error instead of silently succeeding.
+        console.error('[lease-wizard] tenants_lt cascade error:', e);
+        throw e;
       }
 
       // ── Auto-log lease into tenant_documents for each tenant ──────────
@@ -818,7 +900,7 @@
             return {
               tenant_email: t.email.toLowerCase().trim(),
               tenant_name:  t.name,
-              unit:         wizState.unit || '',
+              unit:         _unitForWrite,
               property:     _shortStreet || propText,
               doc_type:     'lease',
               title:        _leaseTitle,
@@ -833,10 +915,16 @@
           });
         if (_docRows.length) {
           const { error: _dErr } = await s.from('tenant_documents').insert(_docRows);
-          if (_dErr) console.warn('[lease-wizard] tenant_documents auto-log failed:', _dErr);
+          if (_dErr) {
+            console.error('[lease-wizard] tenant_documents auto-log failed:', _dErr);
+            throw new Error('Lease document record could not be saved: ' +
+              (_dErr.message || _dErr.details || 'unknown DB error') +
+              ' (code ' + (_dErr.code || '?') + ')');
+          }
         }
       } catch(e) {
-        console.warn('[lease-wizard] tenant_documents auto-log error:', e);
+        console.error('[lease-wizard] tenant_documents auto-log error:', e);
+        throw e;
       }
 
       // Send signing requests via EMAIL + SMS
