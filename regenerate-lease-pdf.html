@@ -34,10 +34,34 @@
   .meta code { color: #111; background: #f1f5f9; padding: 1px 4px; border-radius: 3px; }
   .kv { display:grid; grid-template-columns: 180px 1fr; gap:4px 12px; font-size: 13px; margin-top:8px; }
   .kv b { color: var(--ink); font-weight:600; }
-  /* The off-screen render wrapper — html2canvas captures this, so it must
-     actually paint. position:fixed + large negative left keeps it out of
-     view while still being a real, painted element. */
-  #renderWrap { position: fixed; left: -9999px; top: 0; width: 780px; padding: 30px; background: #fff; }
+  /* Full-viewport overlay shown only during PDF capture. The render
+     wrap inside it is a normal in-flow element (no position:fixed, no
+     negative offsets) so html2canvas clones a real, painted element
+     into its iframe — not an empty off-viewport clone. */
+  #renderOverlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: #ffffff;
+    z-index: 99999;
+    overflow: auto;
+    padding: 80px 0 40px;
+  }
+  #renderOverlay.active { display: block; }
+  #renderOverlay .banner {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: #1a2874; color: #fff;
+    padding: 12px 24px; border-radius: 8px;
+    font-size: 14px; font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 100000;
+  }
+  #renderWrap {
+    width: 780px;
+    padding: 30px;
+    background: #fff;
+    margin: 0 auto;
+    box-sizing: content-box;
+  }
 </style>
 </head>
 <body>
@@ -81,8 +105,13 @@
   </div>
 </div>
 
-<!-- off-screen render target -->
-<div id="renderWrap"></div>
+<!-- Visible-only-during-capture render target. Opacity overlay hides
+     the lease body from the user; html2canvas sees a real, painted,
+     in-flow element with normal positioning. -->
+<div id="renderOverlay">
+  <div class="banner">Generating signed PDF — please wait…</div>
+  <div id="renderWrap"></div>
+</div>
 
 <script src="js/config.js"></script>
 <script>
@@ -236,20 +265,36 @@
     document.getElementById('btnPreview').disabled = true;
     okBox.style.display = 'none';
 
+    const overlay = document.getElementById('renderOverlay');
+
     try {
       log('Rebuilding HTML…', 'dim');
       renderWrap.innerHTML = buildSignedHtml(_lease);
 
+      // Show the overlay BEFORE capture so the wrap is visible/in-flow
+      // in the live DOM (not display:none). html2canvas clones a real
+      // painted element into its iframe, not an empty clone.
+      overlay.classList.add('active');
+      overlay.scrollTop = 0;
+
       await waitForPaintAndAssets(renderWrap);
+
+      log('renderWrap dimensions: offsetWidth=' + renderWrap.offsetWidth
+          + ', offsetHeight=' + renderWrap.offsetHeight
+          + ', scrollHeight=' + renderWrap.scrollHeight, 'dim');
 
       log('Generating PDF via html2pdf…', 'dim');
       const pdfBlob = await window.html2pdf().set({
         margin: [10,10,10,10],
         filename: `lease-${(_lease.property||'lease').replace(/\s+/g,'_')}-${(_lease.unit||'').replace(/\s+/g,'_')}.pdf`,
         image: { type: 'jpeg', quality: 0.92 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' },
         jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
       }).from(renderWrap).outputPdf('blob');
+
+      // Hide overlay as soon as capture is complete — user shouldn't
+      // see the lease content longer than necessary.
+      overlay.classList.remove('active');
 
       log('Generated PDF size: ' + pdfBlob.size + ' bytes', pdfBlob.size < 15000 ? 'err' : 'ok');
       if (!pdfBlob || pdfBlob.size < 15000) {
@@ -297,6 +342,9 @@
     } catch (e) {
       log('ERROR: ' + e.message, 'err');
     } finally {
+      // Always drop the overlay so the tool never leaves a stuck white
+      // full-screen cover even if html2pdf/Supabase throws mid-flow.
+      overlay.classList.remove('active');
       document.getElementById('btnRegen').disabled = false;
       document.getElementById('btnPreview').disabled = false;
     }
