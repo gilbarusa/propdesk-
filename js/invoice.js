@@ -1156,13 +1156,43 @@
         property, unit, rent, lease_start, lease_end, lease_type,
         due_day (default 1), grace_days (default 5),
         primary_tenant_id,   // optional — UUID of first tenant on the lease
-        tenant_name          // optional — for logging
+        tenant_name,         // optional — for logging
+
+        // ── Phase-2 extensions ───────────────────────────────────────
+        security_deposit,    // optional number — creates a separate deposit invoice
+        last_month_rent,     // optional number — creates a separate last-month invoice
+        extra_charges        // optional array of { label, amount, type, note? }
+                             //   type = 'monthly' → added as a line on every rent invoice
+                             //   type = 'one_time' → creates a separate invoice per label
       }
-      Returns { expected, existing, created, errors }
+
+      Returns { expected, existing, created, errors,
+                created_rent, created_deposit, created_last_month, created_one_time }
+
+      Idempotency keys (primary = structural, secondary = notes for logging):
+        • Rent invoices      — (property, unit, period_month)
+        • Deposit invoice    — existence of invoice_lines.kind = 'deposit'
+        • Last-month invoice — existence of invoice_lines.kind = 'last_month'
+        • One-time extras    — existence of invoice_lines.kind = 'one_time_charge'
+                               with the same normalized label prefix in
+                               description
+      All one-time invoices share period_month = lease_start first-of-month;
+      they're disambiguated by their line kind / description, NOT by the
+      notes sentinel (which exists only for human display / audit).
+      This means renaming a sentinel in a later build, or admins editing
+      invoices.notes by hand, won't cause duplicates on re-run.
+
+      Monthly extras are added as additional invoice_lines at creation time.
+      Rent invoices already on file are NOT rewritten — the lease-wizard
+      hook fires once at lease creation, before any invoice exists, so the
+      skip branch only matters for re-sends / edits.
   */
   window.WPA_refreshInvoicesForUnit = async function (ctx) {
     ctx = ctx || {};
-    const res = { expected: 0, existing: 0, created: 0, errors: [] };
+    const res = {
+      expected: 0, existing: 0, created: 0, errors: [],
+      created_rent: 0, created_deposit: 0, created_last_month: 0, created_one_time: 0
+    };
     if (!ctx.property || !ctx.unit || !ctx.rent || !ctx.lease_start) {
       res.errors.push('Missing required ctx fields (property, unit, rent, lease_start).');
       return res;
@@ -1173,11 +1203,25 @@
 
     const expected = _buildExpectedMonths(ctx.lease_start, ctx.lease_end, leaseType);
     res.expected = expected.length;
-    if (!expected.length) return res;
 
-    // Fetch existing invoices for this (property, unit)
-    const q = 'invoices?select=id,period_month&property=eq.' + encodeURIComponent(ctx.property)
-            + '&unit=eq.' + encodeURIComponent(ctx.unit);
+    // Normalize Phase-2 inputs up front so the loop bodies stay small.
+    const secDeposit   = Math.max(0, parseFloat(ctx.security_deposit) || 0);
+    const lastMoRent   = Math.max(0, parseFloat(ctx.last_month_rent)  || 0);
+    const extraCharges = Array.isArray(ctx.extra_charges) ? ctx.extra_charges : [];
+    const monthlyExtras = extraCharges.filter(c =>
+      c && c.type === 'monthly' && parseFloat(c.amount) > 0 && String(c.label || '').trim()
+    );
+    const oneTimeExtras = extraCharges.filter(c =>
+      c && c.type !== 'monthly' && parseFloat(c.amount) > 0 && String(c.label || '').trim()
+    );
+
+    // Fetch existing invoices for this (property, unit). We need period_month
+    // for rent-schedule dedup AND the embedded invoice_lines (kind,description)
+    // for structural one-time-invoice dedup. PostgREST embed syntax:
+    //   invoice_lines(kind,description)  → joins children in one round trip.
+    const q = 'invoices?select=id,period_month,notes,invoice_lines(kind,description)'
+            + '&property=eq.' + encodeURIComponent(ctx.property)
+            + '&unit=eq.'     + encodeURIComponent(ctx.unit);
     let existing = [];
     try {
       existing = await _sb(q);
@@ -1188,13 +1232,57 @@
     const existSet = new Set(existing.map(x => (x.period_month || '').slice(0, 10)));
     res.existing = existSet.size;
 
-    // Create each missing invoice + its rent line
+    // ── Structural dedup sets (kind-based, not notes-based) ─────────────
+    // For deposit / last-month we need only "does a line of this kind
+    // already exist on ANY invoice for this (property,unit)?". For
+    // one-time extras we need a per-label check, so we normalize the
+    // first token of description (label, before the " — note" separator)
+    // and lowercase it.
+    //
+    //   _normLabel('Pet fee — monthly extra') → 'pet fee'
+    //   _normLabel('Pet Fee')                  → 'pet fee'
+    const _normLabel = (s) => String(s || '')
+      .split(/\s+[—\-–]\s+/)[0]   // strip trailing " — …" descriptor
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+
+    let existHasDeposit   = false;
+    let existHasLastMonth = false;
+    const existOneTimeLabels = new Set();
+    for (const inv of existing) {
+      const lines = Array.isArray(inv.invoice_lines) ? inv.invoice_lines : [];
+      for (const ln of lines) {
+        const k = String(ln.kind || '').toLowerCase().trim();
+        if (k === 'deposit')    existHasDeposit   = true;
+        if (k === 'last_month') existHasLastMonth = true;
+        if (k === 'one_time_charge') {
+          const lbl = _normLabel(ln.description);
+          if (lbl) existOneTimeLabels.add(lbl);
+        }
+      }
+    }
+
+    // Anchor for all one-time invoices — first-of-month of lease_start.
+    const anchorDate   = new Date(ctx.lease_start + 'T12:00:00');
+    const anchorMonth  = _toIsoDate(_firstOfMonth(anchorDate));
+    const anchorDue    = _toIsoDate(new Date(anchorDate.getFullYear(), anchorDate.getMonth(), dueDay));
+
+    // ── 1. Per-period rent invoices (+ monthly-extra lines) ───────────
     for (const m of expected) {
       if (existSet.has(m.period_month)) continue;
       try {
         const periodDate = new Date(m.period_month + 'T12:00:00');
-        // due_date = first of month + (due_day - 1) days, but cap at end-of-month
+        const monthLabel = periodDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         const due = new Date(periodDate.getFullYear(), periodDate.getMonth(), dueDay);
+
+        // Invoice total = rent + sum of monthly extras (so the header
+        // amount matches the sum of the lines).
+        const monthlyExtrasTotal = monthlyExtras.reduce(
+          (sum, c) => sum + (parseFloat(c.amount) || 0), 0
+        );
+        const invTotal = Number(ctx.rent) + monthlyExtrasTotal;
+
         const invPayload = {
           tenant_id: ctx.primary_tenant_id || null,
           property: ctx.property,
@@ -1202,9 +1290,9 @@
           period_month: m.period_month,
           due_date: _toIsoDate(due),
           status: 'open',
-          total: Number(ctx.rent),
+          total: invTotal,
           paid: 0,
-          notes: 'Rent — ' + periodDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+          notes: 'Rent — ' + monthLabel
         };
         const inserted = await _sbInsert('invoices', invPayload);
         const invId = Array.isArray(inserted) ? inserted[0].id : inserted.id;
@@ -1213,16 +1301,129 @@
         await _sbInsert('invoice_lines', {
           invoice_id: invId,
           kind: 'rent',
-          description: 'Monthly rent — ' + periodDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          description: 'Monthly rent — ' + monthLabel,
           amount: Number(ctx.rent),
           day_offset: null,
           created_by: 'System (auto-generator)'
         });
+
+        // Recurring extras — one line per monthly extra, on every rent invoice.
+        for (const c of monthlyExtras) {
+          try {
+            await _sbInsert('invoice_lines', {
+              invoice_id: invId,
+              kind: 'recurring_charge',
+              description: String(c.label).trim() + ' — ' + monthLabel,
+              amount: parseFloat(c.amount) || 0,
+              day_offset: null,
+              created_by: 'System (auto-generator)'
+            });
+          } catch (eLine) {
+            res.errors.push(m.period_month + ' line [' + c.label + ']: ' + eLine.message);
+          }
+        }
+
         res.created++;
+        res.created_rent++;
       } catch (e) {
         res.errors.push(m.period_month + ': ' + e.message);
       }
     }
+
+    // ── Shared one-time-invoice writer ────────────────────────────────
+    // Dedup is the caller's responsibility (kind-based checks below).
+    // `notesText` is cosmetic only — shown in admin lists / the portal;
+    // it is NEVER used as an idempotency key.
+    async function _writeOneTime(notesText, lineKind, lineDesc, amount) {
+      if (!(amount > 0)) return false;
+      const invPayload = {
+        tenant_id: ctx.primary_tenant_id || null,
+        property: ctx.property,
+        unit: ctx.unit,
+        period_month: anchorMonth,
+        due_date: anchorDue,
+        status: 'open',
+        total: Number(amount),
+        paid: 0,
+        notes: notesText
+      };
+      const inserted = await _sbInsert('invoices', invPayload);
+      const invId = Array.isArray(inserted) ? inserted[0].id : inserted.id;
+      await _sbInsert('invoice_lines', {
+        invoice_id: invId,
+        kind: lineKind,
+        description: lineDesc,
+        amount: Number(amount),
+        day_offset: null,
+        created_by: 'System (auto-generator)'
+      });
+      return true;
+    }
+
+    // ── 2. Security-deposit invoice (excluded from the payment gate) ──
+    // Dedup on invoice_lines.kind='deposit'. Only one deposit invoice
+    // per (property, unit) — matches the wizard's single-deposit field.
+    if (secDeposit > 0 && !existHasDeposit) {
+      try {
+        const wrote = await _writeOneTime(
+          'Security Deposit',
+          'deposit',
+          'Security deposit (refundable)',
+          secDeposit
+        );
+        if (wrote) {
+          res.created++; res.created_deposit++;
+          existHasDeposit = true; // guard against caller re-entry
+        }
+      } catch (e) {
+        res.errors.push('deposit: ' + e.message);
+      }
+    }
+
+    // ── 3. Last-month-rent invoice (gates check-in / unlock) ──────────
+    // Dedup on invoice_lines.kind='last_month'.
+    if (lastMoRent > 0 && !existHasLastMonth) {
+      try {
+        const wrote = await _writeOneTime(
+          "Last Month's Rent (Held)",
+          'last_month',
+          'Last month rent (held)',
+          lastMoRent
+        );
+        if (wrote) {
+          res.created++; res.created_last_month++;
+          existHasLastMonth = true;
+        }
+      } catch (e) {
+        res.errors.push('last_month: ' + e.message);
+      }
+    }
+
+    // ── 4. One-time extra charges (each becomes its own invoice) ──────
+    // Dedup on (kind='one_time_charge', normalized label). Re-running
+    // with the same label is a no-op; re-running with a new label adds
+    // a new invoice. Notes text is cosmetic.
+    for (const c of oneTimeExtras) {
+      try {
+        const label     = String(c.label).trim();
+        const labelKey  = _normLabel(label);
+        if (!labelKey || existOneTimeLabels.has(labelKey)) continue;
+
+        const wrote = await _writeOneTime(
+          'Extra: ' + label,
+          'one_time_charge',
+          label + (c.note ? ' — ' + String(c.note).trim() : ''),
+          parseFloat(c.amount) || 0
+        );
+        if (wrote) {
+          res.created++; res.created_one_time++;
+          existOneTimeLabels.add(labelKey); // guard same-run duplicates
+        }
+      } catch (e) {
+        res.errors.push('extra[' + (c && c.label) + ']: ' + e.message);
+      }
+    }
+
     return res;
   };
 

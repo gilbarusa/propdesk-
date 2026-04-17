@@ -97,7 +97,7 @@
       lease_type: 'fixed', // fixed | mtm
       lease_start: '', lease_end: '',
       monthly_rent: '', rent_due_day: 1, security_deposit: '', last_month_rent: '',
-      extra_charges: [], // [{label, amount, note}]
+      extra_charges: [], // [{label, amount, type:'monthly'|'one_time', note}]
       utilities_tenant: [], utilities_landlord: [],
       addendums: {}, // {id: true}
       application_id: prefill?.application_id || null,
@@ -471,12 +471,21 @@
         <div></div>
       </div>
       <label style="margin-top:14px">Other charges</label>
+      <div style="font-size:11px;color:#6b7280;margin:-4px 0 6px">
+        <b>Monthly</b> charges appear as a recurring line on every rent invoice.
+        <b>One-time</b> charges each produce a separate invoice at lease start.
+      </div>
       <div id="lwExtraCharges">
         ${(wizState.extra_charges||[]).map(function(c,i){
+          var _t = (c.type === 'monthly') ? 'monthly' : 'one_time';
           return `
-            <div class="lw-row" style="margin-bottom:6px">
+            <div class="lw-row" style="margin-bottom:6px;grid-template-columns:1.3fr 0.8fr 0.9fr 1.3fr auto">
               <input type="text" placeholder="Label (e.g. Pet fee)" value="${esc(c.label||'')}" oninput="lwSetCharge(${i},'label',this.value)">
               <input type="number" step="0.01" placeholder="Amount" value="${esc(c.amount||'')}" oninput="lwSetCharge(${i},'amount',this.value)">
+              <select onchange="lwSetCharge(${i},'type',this.value)" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:4px;background:#fff">
+                <option value="one_time" ${_t==='one_time'?'selected':''}>One-time</option>
+                <option value="monthly"  ${_t==='monthly' ?'selected':''}>Monthly</option>
+              </select>
               <input type="text" placeholder="Note (optional)" value="${esc(c.note||'')}" oninput="lwSetCharge(${i},'note',this.value)">
               <button type="button" onclick="lwRemoveCharge(${i})" style="padding:6px 10px;background:#fee;border:1px solid #f99;border-radius:4px;color:#c33;cursor:pointer">×</button>
             </div>`;
@@ -531,7 +540,8 @@
         <div class="kv"><b>Security deposit:</b> $${esc(wizState.security_deposit||'0')}</div>
         <div class="kv"><b>Last month held:</b> $${esc(wizState.last_month_rent||'0')}</div>
         ${(wizState.extra_charges||[]).filter(function(c){return c.label||c.amount;}).map(function(c){
-          return `<div class="kv"><b>${esc(c.label||'Charge')}:</b> $${esc(c.amount||'0')}${c.note?' — '+esc(c.note):''}</div>`;
+          var _typeLabel = (c.type === 'monthly') ? 'Monthly' : 'One-time';
+          return `<div class="kv"><b>${esc(c.label||'Charge')}:</b> $${esc(c.amount||'0')} <span style="font-size:11px;color:#6b7280;background:#eef1f8;padding:1px 6px;border-radius:3px">${_typeLabel}</span>${c.note?' — '+esc(c.note):''}</div>`;
         }).join('')}</div>
       <div class="lw-review-sec"><h4>Utilities</h4>
         <div class="kv"><b>Tenant pays:</b> ${wizState.utilities_tenant.join(', ')||'—'}</div>
@@ -566,16 +576,25 @@
   };
   window.lwAddCharge = function(){
     if (!wizState.extra_charges) wizState.extra_charges = [];
-    wizState.extra_charges.push({ label:'', amount:'', note:'' });
+    // New charges default to 'one_time' so a stray Add click does not
+    // silently attach a recurring fee to every rent invoice.
+    wizState.extra_charges.push({ label:'', amount:'', type:'one_time', note:'' });
     lwRender();
   };
   window.lwRemoveCharge = function(i){
     wizState.extra_charges.splice(i, 1);
     lwRender();
   };
-  // No re-render — keep focus while typing in label/amount/note
+  // No re-render — keep focus while typing in label/amount/note.
+  // Exception: the 'type' select also doesn't need a re-render — its
+  // value is captured directly on change and the review step reads it
+  // fresh when the user advances.
   window.lwSetCharge = function(i, k, v){
-    if (!wizState.extra_charges[i]) wizState.extra_charges[i] = { label:'', amount:'', note:'' };
+    if (!wizState.extra_charges[i]) wizState.extra_charges[i] = { label:'', amount:'', type:'one_time', note:'' };
+    if (k === 'type') {
+      // Normalize — only 'monthly' and 'one_time' are valid.
+      v = (v === 'monthly') ? 'monthly' : 'one_time';
+    }
     wizState.extra_charges[i][k] = v;
   };
   window.lwSetT = (i,k,v) => { wizState.tenants[i][k] = v; };
@@ -938,6 +957,99 @@
       } catch(e) {
         console.error('[lease-wizard] tenant_documents auto-log error:', e);
         throw e;
+      }
+
+      // ── Auto-generate monthly rent invoices for the full lease term ──
+      // Reuses the existing WPA_refreshInvoicesForUnit generator from
+      // js/invoice.js (loaded before lease-wizard.js in index.html). The
+      // generator is idempotent — it skips months that already have an
+      // invoice for the (property, unit, period_month) tuple, so clicking
+      // "Send" twice on the same draft lease will not produce duplicates.
+      //
+      // Why here and not in a DB trigger: the invoice row needs
+      // primary_tenant_id, and we only have the tenants_lt row available
+      // after the email-keyed upsert above. Calling from JS also keeps
+      // this feature opt-out via a feature flag later without a schema
+      // change.
+      //
+      // MTM leases: generator rolls from start through today+1 and keeps
+      // extending when WPA_saveLease re-fires on date edits. LT leases
+      // get the complete start→end schedule immediately.
+      //
+      // Failures here must NOT throw — an invoice-gen issue (e.g. the
+      // invoices table temporarily unavailable) should never block a
+      // lease from being sent for signature. Log and toast, keep going.
+      try {
+        if (typeof window.WPA_refreshInvoicesForUnit === 'function') {
+          // Look up the first tenant's tenants_lt id for the FK on invoices.
+          let _primaryTenantId = null;
+          try {
+            const _firstEmail = (tenants[0] && tenants[0].email || '').toLowerCase().trim();
+            if (_firstEmail) {
+              const { data: _tRow } = await s.from('tenants_lt')
+                .select('id')
+                .eq('email', _firstEmail)
+                .limit(1)
+                .maybeSingle();
+              if (_tRow && _tRow.id) _primaryTenantId = _tRow.id;
+            }
+          } catch(_e) {
+            // Non-fatal — generator accepts null primary_tenant_id.
+            console.warn('[lease-wizard] primary_tenant_id lookup skipped:', _e);
+          }
+
+          // Normalize extra charges so the generator doesn't have to
+          // defend against blank rows, NaN amounts, or a missing type.
+          const _extraCharges = (wizState.extra_charges || [])
+            .map(function(c){
+              return {
+                label:  String(c && c.label || '').trim(),
+                amount: parseFloat(c && c.amount) || 0,
+                type:   (c && c.type === 'monthly') ? 'monthly' : 'one_time',
+                note:   String(c && c.note || '').trim()
+              };
+            })
+            .filter(function(c){ return c.label && c.amount > 0; });
+
+          const _invCtx = {
+            property: _shortStreet || propText,
+            unit: _unitForWrite,
+            rent: parseFloat(wizState.monthly_rent) || 0,
+            lease_start: wizState.lease_start || null,
+            lease_end: leaseTypeDb === 'lt' ? (wizState.lease_end || null) : null,
+            lease_type: leaseTypeDb, // 'lt' or 'mtm'
+            due_day: parseInt(wizState.rent_due_day, 10) || 1,
+            primary_tenant_id: _primaryTenantId,
+            tenant_name: (tenants[0] && tenants[0].name) || '',
+
+            // ── Phase-2 auto-invoicing extensions ────────────────
+            // Generator creates additional invoices for these when
+            // non-zero. All are idempotent (keyed on notes sentinel)
+            // so re-running on an existing lease is safe.
+            security_deposit: parseFloat(wizState.security_deposit) || 0,
+            last_month_rent:  parseFloat(wizState.last_month_rent)  || 0,
+            extra_charges:    _extraCharges
+          };
+
+          if (_invCtx.property && _invCtx.unit && _invCtx.rent > 0 && _invCtx.lease_start) {
+            const _gen = await window.WPA_refreshInvoicesForUnit(_invCtx);
+            if (_gen && _gen.created > 0) {
+              console.log('[lease-wizard] Created ' + _gen.created +
+                          ' invoice(s) for lease ' + leaseRow.id +
+                          ' (expected ' + _gen.expected + ', existing ' + _gen.existing + ').');
+            }
+            if (_gen && _gen.errors && _gen.errors.length) {
+              console.warn('[lease-wizard] invoice-gen errors:', _gen.errors);
+            }
+          } else {
+            console.warn('[lease-wizard] invoice ctx incomplete — skipping generation', _invCtx);
+          }
+        } else {
+          console.warn('[lease-wizard] WPA_refreshInvoicesForUnit not loaded — skipping invoice generation');
+        }
+      } catch(_invErr) {
+        // Swallow: never block lease send on invoice-gen failure.
+        console.error('[lease-wizard] invoice generation failed (lease was still created):', _invErr);
       }
 
       // Send signing requests via EMAIL + SMS
