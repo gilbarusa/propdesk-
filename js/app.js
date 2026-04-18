@@ -2744,10 +2744,27 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, 
   if(pageId === 'pipeline') renderPipeline();
   if(pageId === 'properties') renderProperties();
   if(pageId === 'units') renderTable();
-  if(pageId === 'mtm-lt') { renderMTMDashboard(); setTimeout(() => renderMTMDashboardInteractive(), 50); }
+  // MTM pages depend on the live rent roll — re-hydrate on nav so stats
+  // reflect payments made since page load. Fire-and-forget render ensures
+  // the UI paints immediately from whatever's in INNAGO_RENT, then the
+  // live fetch mutates the array and a second paint reflects the update.
+  if(pageId === 'mtm-lt') {
+    renderMTMDashboard();
+    setTimeout(() => renderMTMDashboardInteractive(), 50);
+    if (typeof window.WPA_hydrateRentRoll === 'function') {
+      window.WPA_hydrateRentRoll().then(function(ok){
+        if (ok) { renderMTMDashboard(); setTimeout(() => renderMTMDashboardInteractive(), 50); }
+      });
+    }
+  }
   if(pageId === 'mtm-lt-tenants') renderMTMTenants();
   if(pageId === 'mtm-lt-leases') renderMTMLeases();
-  if(pageId === 'mtm-lt-rent') renderMTMRent();
+  if(pageId === 'mtm-lt-rent') {
+    renderMTMRent();
+    if (typeof window.WPA_hydrateRentRoll === 'function') {
+      window.WPA_hydrateRentRoll().then(function(ok){ if (ok) renderMTMRent(); });
+    }
+  }
   if(pageId === 'mtm-lt-messages') renderMTMMessages();
   if(pageId === 'mtm-lt-applications') renderMTMApps();
   if(pageId === 'mtm-lt-expenses') renderExpensesPage();
@@ -2985,6 +3002,22 @@ async function WPA_hydrateTenantsLT() {
         console.log('[tenants_lt] leases now total', INNAGO_LEASES.length);
       }
     } catch(e) { console.warn('[tenants_lt] lease synth error', e); }
+
+    // ── Hydrate live rent roll ──
+    // Replaces the legacy 33-row INNAGO_RENT mock with the current-month
+    // invoices/payments from Supabase. Runs AFTER tenants are hydrated
+    // because rent-roll.js walks INNAGO_TENANTS to attach tenant names.
+    // Fire-and-forget: the module logs + mutates window.INNAGO_RENT in
+    // place, so any render that later reads INNAGO_RENT will pick up the
+    // live rows. Renders that fire *immediately* after boot (before this
+    // resolves) will see [] — that's acceptable and correct; nav back to
+    // the MTM pages re-hydrates explicitly (see ROUTING above).
+    try {
+      if (typeof window.WPA_hydrateRentRoll === 'function') {
+        await window.WPA_hydrateRentRoll();
+      }
+    } catch(e) { console.warn('[tenants_lt] rent-roll hydrate error', e); }
+
     // Re-render the PD long-term view if it's currently open
     try {
       if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty &&
@@ -3032,7 +3065,40 @@ let INNAGO_LEASES = [
   {status:"Active",property:"7845 Montgomery Avenue",unit:"Unit 1A",tenants:"Joshua Bluestine, Marissa Bluestine",start:"Feb 01, 2024",end:"M to M",type:"mtm"}
 ];
 
-const INNAGO_RENT = [
+// ═══════════════════════════════════════════════════════════════════
+// INNAGO_RENT — LIVE current-month rent roll
+// ═══════════════════════════════════════════════════════════════════
+// Was a 33-row hardcoded mock. Now populated by js/rent-roll.js
+// (WPA_hydrateRentRoll) from Supabase `invoices` + `payments` on
+// page boot and on nav to the MTM dashboard / Rent pages.
+//
+// Declared as `let` (not `const`) only to signal that the contents are
+// filled in asynchronously; the array reference itself never changes
+// — rent-roll.js mutates it in place via `.length=0; .push(...)` so
+// every one of the ~49 existing call sites keeps seeing the same
+// live array without any refactor.
+//
+// Shape per row (unchanged from the old mock for compatibility):
+//   { property, unit, tenants, amount, paid, processing, balance, status,
+//     invoice_id, due_date, period_month, tenant_id, notes }
+// The trailing five fields are new (not present in the old mock) —
+// safe additions, existing call sites ignore them.
+//
+// If rent-roll.js ever fails to load or query, this stays [] rather
+// than faking rows — per product rule "If a property/unit has no
+// current-month rent invoice, do NOT fake one. Only show real data."
+// ═══════════════════════════════════════════════════════════════════
+let INNAGO_RENT = [];
+// Expose on window so rent-roll.js can mutate it in place.
+window.INNAGO_RENT = INNAGO_RENT;
+
+/* ── Legacy hardcoded rent roll kept for reference only ──────────────
+   Preserved here so we can eyeball-compare the live data's first
+   render against the known-good mock after migration. REMOVE this
+   commented block once the live dashboard has been validated end-
+   to-end against production data (task #17 verification).
+
+const _INNAGO_RENT_MOCK_LEGACY = [
   {property:"426 Central",unit:"Office",tenants:"Clamira Smith",amount:1450,paid:0,processing:0,balance:1450,status:"pending"},
   {property:"426 Central",unit:"Unit 1",tenants:"Liana Mratkhuzina, Pavel Artyshevskii",amount:2070,paid:0,processing:2070,balance:0,status:"processing"},
   {property:"431 Valley Rd",unit:"Unit CH",tenants:"Otar Khaniashvili",amount:2750,paid:2750,processing:0,balance:0,status:"paid"},
@@ -3066,6 +3132,7 @@ const INNAGO_RENT = [
   {property:"1614 Valley Glen Rd",unit:"1",tenants:"Tarsha R. Scovens",amount:2255,paid:2255,processing:0,balance:0,status:"paid"},
   {property:"7845 Montgomery Avenue",unit:"Unit 9-CH",tenants:"Whitney Diane Rustin",amount:27000,paid:27000,processing:0,balance:0,status:"paid"}
 ];
+────────────────────────────────────────────────────────────────── */
 
 // ── Render MTM Dashboard ──
 function renderMTMDashboard() {
