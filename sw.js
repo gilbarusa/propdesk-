@@ -1,11 +1,16 @@
-/* Willow PropDesk — Service Worker v5 — force reload on update */
-const CACHE_NAME = 'willow-propdesk-v5';
+/* Willow PropDesk — Service Worker v6 — force reload on update
+   v6: add rent-roll.js to the shell so the live rent-roll loader is
+       installed/primed alongside app.js. Without this entry, first-visit
+       installs wouldn't pre-cache it (fetch handler still covers it on
+       demand, but being explicit avoids a second network round-trip). */
+const CACHE_NAME = 'willow-propdesk-v6';
 const SHELL_FILES = [
   '/propdesk-/index.html',
   '/propdesk-/css/main.css',
   '/propdesk-/css/fieldtrack.css',
   '/propdesk-/css/property-settings.css',
   '/propdesk-/js/app.js',
+  '/propdesk-/js/rent-roll.js',
   '/propdesk-/js/mobile.js',
   '/propdesk-/js/pipeline.js',
   '/propdesk-/js/fieldtrack.js',

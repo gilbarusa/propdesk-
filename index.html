@@ -3760,7 +3760,10 @@
 <script src="js/config.js"></script>
 <script src="js/ft-db.js"></script>
 <script src="js/fieldtrack.js?v=20260415-0300"></script>
-<script src="js/app.js?v=20260415-2050-add-tnt"></script>
+<!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
+     defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
+<script src="js/rent-roll.js?v=20260418-rentroll1"></script>
+<script src="js/app.js?v=20260418-rentroll1"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
