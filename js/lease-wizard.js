@@ -97,6 +97,12 @@
       lease_type: 'fixed', // fixed | mtm
       lease_start: '', lease_end: '',
       monthly_rent: '', rent_due_day: 1, security_deposit: '', last_month_rent: '',
+      // Late-fee knobs — read by the Step-4c cron when it generates
+      // late_fee invoice_lines on the 2nd+ monthly rent invoices:
+      //   late_fee_total = max(0, days_past_due - grace_days) * per_day_late_fee
+      // Defaults track the `leases` table defaults (3 days / $30/day) so
+      // existing rows without these values still behave correctly.
+      grace_days: 3, per_day_late_fee: 30,
       extra_charges: [], // [{label, amount, type:'monthly'|'one_time', note}]
       utilities_tenant: [], utilities_landlord: [],
       addendums: {}, // {id: true}
@@ -470,6 +476,16 @@
           <input type="number" step="0.01" value="${esc(wizState.last_month_rent)}" oninput="lwSet('last_month_rent',this.value)"></div>
         <div></div>
       </div>
+      <div class="lw-row">
+        <div><label>Grace days (before late fees)</label>
+          <input type="number" min="0" max="31" value="${wizState.grace_days}" oninput="lwSet('grace_days',parseInt(this.value)||0)"></div>
+        <div><label>Late fee per day ($)</label>
+          <input type="number" step="0.01" min="0" value="${esc(wizState.per_day_late_fee)}" oninput="lwSet('per_day_late_fee',parseFloat(this.value)||0)"></div>
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin:-4px 0 6px">
+        Late fees apply only to monthly rent invoices after the 1st month.
+        Move-in, deposit, and last-month invoices never accrue late fees.
+      </div>
       <label style="margin-top:14px">Other charges</label>
       <div style="font-size:11px;color:#6b7280;margin:-4px 0 6px">
         <b>Monthly</b> charges appear as a recurring line on every rent invoice.
@@ -539,6 +555,7 @@
         <div class="kv"><b>Rent:</b> $${esc(wizState.monthly_rent||'0')} on day ${wizState.rent_due_day}</div>
         <div class="kv"><b>Security deposit:</b> $${esc(wizState.security_deposit||'0')}</div>
         <div class="kv"><b>Last month held:</b> $${esc(wizState.last_month_rent||'0')}</div>
+        <div class="kv"><b>Grace period:</b> ${wizState.grace_days} day${wizState.grace_days===1?'':'s'} · $${esc(wizState.per_day_late_fee||'0')}/day after</div>
         ${(wizState.extra_charges||[]).filter(function(c){return c.label||c.amount;}).map(function(c){
           var _typeLabel = (c.type === 'monthly') ? 'Monthly' : 'One-time';
           return `<div class="kv"><b>${esc(c.label||'Charge')}:</b> $${esc(c.amount||'0')} <span style="font-size:11px;color:#6b7280;background:#eef1f8;padding:1px 6px;border-radius:3px">${_typeLabel}</span>${c.note?' — '+esc(c.note):''}</div>`;
@@ -726,6 +743,10 @@
         monthly_rent: parseFloat(wizState.monthly_rent) || 0,
         security_deposit: parseFloat(wizState.security_deposit) || 0,
         last_month_rent: parseFloat(wizState.last_month_rent) || 0,
+        // Late-fee knobs (columns added by 2026-04-18-leases-add-late-fee-columns.sql).
+        // Stored per-lease so they can be tuned independently of the unit/property.
+        grace_days: parseInt(wizState.grace_days, 10) || 0,
+        per_day_late_fee: parseFloat(wizState.per_day_late_fee) || 0,
         extra_charges: (wizState.extra_charges||[])
           .map(function(c){ return { label:String(c.label||'').trim(), amount: parseFloat(c.amount)||0, note:String(c.note||'').trim() }; })
           .filter(function(c){ return c.label || c.amount; }),
@@ -1028,7 +1049,13 @@
             // so re-running on an existing lease is safe.
             security_deposit: parseFloat(wizState.security_deposit) || 0,
             last_month_rent:  parseFloat(wizState.last_month_rent)  || 0,
-            extra_charges:    _extraCharges
+            extra_charges:    _extraCharges,
+
+            // Late-fee knobs forwarded so the generator (and the
+            // eventual Step-4c cron) can decide which invoices accrue
+            // fees. No-op for the initial split-invoice creation.
+            grace_days:       parseInt(wizState.grace_days, 10) || 0,
+            per_day_late_fee: parseFloat(wizState.per_day_late_fee) || 0
           };
 
           if (_invCtx.property && _invCtx.unit && _invCtx.rent > 0 && _invCtx.lease_start) {
@@ -1240,6 +1267,8 @@
       DEPOSIT:          parseFloat(wizState.security_deposit||0).toFixed(2),
       LAST_MONTH:       parseFloat(wizState.last_month_rent||0).toFixed(2),
       LAST_MONTH_RENT:  parseFloat(wizState.last_month_rent||0).toFixed(2),
+      GRACE_DAYS:        String(parseInt(wizState.grace_days, 10) || 0),
+      LATE_FEE_PER_DAY:  parseFloat(wizState.per_day_late_fee||0).toFixed(2),
       TOTAL_DEPOSIT: (
         (parseFloat(wizState.security_deposit)||0) +
         (parseFloat(wizState.last_month_rent)||0)
