@@ -1265,6 +1265,7 @@
       MONTHLY_RENT:     parseFloat(wizState.monthly_rent||0).toFixed(2),
       RENT:             parseFloat(wizState.monthly_rent||0).toFixed(2),
       RENT_DUE_DAY:     wizState.rent_due_day,
+      RENT_DUE_DAY_ORDINAL: _ordinal(wizState.rent_due_day),
       SECURITY_DEPOSIT: parseFloat(wizState.security_deposit||0).toFixed(2),
       DEPOSIT:          parseFloat(wizState.security_deposit||0).toFixed(2),
       LAST_MONTH:       parseFloat(wizState.last_month_rent||0).toFixed(2),
@@ -1330,6 +1331,24 @@
   // "2026-05-01". Inputs and DB columns stay ISO; only the rendered
   // document changes. Unparseable / empty values pass through unchanged
   // so tokens like LEASE_END still render "Month-to-Month" for MTM.
+  // Ordinal suffix for day-of-month in the rendered lease body:
+  // "the 1st day of each month", "the 2nd day...", "the 21st day..."
+  // Follows the standard English rule — 11/12/13 always take "th"
+  // regardless of last digit.
+  function _ordinal(n){
+    var num = parseInt(n, 10);
+    if (!num || num < 1) return String(n == null ? '' : n);
+    var mod100 = num % 100;
+    var mod10  = num % 10;
+    var suffix = 'th';
+    if (mod100 < 11 || mod100 > 13) {
+      if (mod10 === 1) suffix = 'st';
+      else if (mod10 === 2) suffix = 'nd';
+      else if (mod10 === 3) suffix = 'rd';
+    }
+    return num + suffix;
+  }
+
   var _PRETTY_MONTHS = ['January','February','March','April','May','June',
                         'July','August','September','October','November','December'];
   function _prettyDate(v){
