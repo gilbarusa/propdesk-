@@ -1217,7 +1217,7 @@
     const sigBlocks = tenants.map(t => `
       <div class="sig-block" style="margin:14px 0;padding:10px 0;border-top:1px solid #d6def0">
         <div style="margin-bottom:6px"><strong>Tenant:</strong> ${escapeHtml(t.name)}</div>
-        <div>Signature: [[SIG]] &nbsp;&nbsp; Date: ${new Date().toISOString().slice(0,10)}</div>
+        <div>Signature: [[SIG]] &nbsp;&nbsp; Date: ${_prettyDate(new Date().toISOString().slice(0,10))}</div>
       </div>`).join('');
 
     const tokens = {
@@ -1243,11 +1243,13 @@
       UNIT:             escapeHtml(wizState.unit),
       UNIT_NUMBER:      escapeHtml(wizState.unit),
 
-      // Term
-      LEASE_START: wizState.lease_start || '',
-      LEASE_END:   wizState.lease_end   || 'Month-to-Month',
-      START_DATE:  wizState.lease_start || '',
-      END_DATE:    wizState.lease_end   || 'Month-to-Month',
+      // Term — dates are rendered in the lease body in long form
+      // ("May 1, 2026") rather than ISO ("2026-05-01"). Storage stays
+      // ISO; only the rendered document changes.
+      LEASE_START: _prettyDate(wizState.lease_start) || '',
+      LEASE_END:   wizState.lease_end ? _prettyDate(wizState.lease_end) : 'Month-to-Month',
+      START_DATE:  _prettyDate(wizState.lease_start) || '',
+      END_DATE:    wizState.lease_end ? _prettyDate(wizState.lease_end) : 'Month-to-Month',
       TERM_MONTHS: (function(){
         if (wizState.lease_type==='mtm') return 'Month-to-Month';
         if (!wizState.lease_start || !wizState.lease_end) return '';
@@ -1256,8 +1258,8 @@
         var m = (e.getFullYear()-s.getFullYear())*12 + (e.getMonth()-s.getMonth());
         return String(Math.max(0, m));
       })(),
-      TODAY: new Date().toISOString().slice(0,10),
-      DATE:  new Date().toISOString().slice(0,10),
+      TODAY: _prettyDate(new Date().toISOString().slice(0,10)),
+      DATE:  _prettyDate(new Date().toISOString().slice(0,10)),
 
       // Money
       MONTHLY_RENT:     parseFloat(wizState.monthly_rent||0).toFixed(2),
@@ -1290,14 +1292,19 @@
       UTILITIES_TENANT:   wizState.utilities_tenant.join(', ')   || 'None',
       UTILITIES_LANDLORD: wizState.utilities_landlord.join(', ') || 'None',
 
-      // Extras
+      // Extras — each line now shows whether the charge recurs
+      // monthly or is a one-time fee, so tenants can tell at a glance
+      // (otherwise "Dog Fee - Deposit: $500.00" is ambiguous between
+      // a one-time deposit and a $500/month charge).
       EXTRA_CHARGES_HTML: (function(){
         var rows = (wizState.extra_charges||[]).filter(function(c){ return c.label || c.amount; });
         if (!rows.length) return '<p><em>None</em></p>';
         return '<ul>' + rows.map(function(c){
           var amt = (parseFloat(c.amount)||0).toFixed(2);
+          var typeLabel = (c.type === 'monthly') ? 'Monthly' : 'One-time';
+          var pill = '<span style="font-size:11px;color:#2a3f8f;background:#eef1f8;padding:1px 6px;border-radius:3px;margin-left:6px">' + typeLabel + '</span>';
           var note = c.note ? ' — ' + escapeHtml(c.note) : '';
-          return '<li>' + escapeHtml(c.label||'Charge') + ': $' + amt + note + '</li>';
+          return '<li>' + escapeHtml(c.label||'Charge') + ': $' + amt + pill + note + '</li>';
         }).join('') + '</ul>';
       })()
     };
@@ -1317,6 +1324,26 @@
 
   function esc(v){ return String(v==null?'':v).replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
   function escapeHtml(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // Format a YYYY-MM-DD (or any Date-parseable string) for display in
+  // the rendered lease body — tenants read "May 1, 2026", not
+  // "2026-05-01". Inputs and DB columns stay ISO; only the rendered
+  // document changes. Unparseable / empty values pass through unchanged
+  // so tokens like LEASE_END still render "Month-to-Month" for MTM.
+  var _PRETTY_MONTHS = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+  function _prettyDate(v){
+    if (v == null || v === '') return '';
+    var s = String(v);
+    // Accept both "YYYY-MM-DD" and "YYYY-MM-DDTHH:MM..." forms.
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+    if (!m) return s; // not a date (e.g. "Month-to-Month") — leave alone
+    var y = parseInt(m[1], 10);
+    var mo = parseInt(m[2], 10);
+    var d = parseInt(m[3], 10);
+    if (!y || !mo || !d || mo < 1 || mo > 12) return s;
+    return _PRETTY_MONTHS[mo - 1] + ' ' + d + ', ' + y;
+  }
 
   // Simple CSV export stub
   window.exportLeasesCSV = async function(){
