@@ -82,6 +82,67 @@
   }
 
   // ─────────────────────────────────────────────────────────────────
+  // Settings — singleton row in `late_fee_settings` (id=1).
+  //
+  // Controls the headless scheduler behavior entirely from the admin
+  // UI, so you never have to touch the Cowork sidebar to turn the
+  // job on/off or re-point SMS.
+  // ─────────────────────────────────────────────────────────────────
+  async function loadSettings(){
+    const s = sb();
+    if (!s) throw new Error('Supabase client unavailable');
+    const { data, error } = await s
+      .from('late_fee_settings')
+      .select('enabled, sms_to, schedule_time, last_run_date, updated_at')
+      .eq('id', 1)
+      .maybeSingle();
+    if (error && error.code !== 'PGRST116') throw error;
+    // maybeSingle returns null (not error) when the row is missing.
+    if (!data) {
+      return {
+        enabled:       true,
+        sms_to:        '2678650001',
+        schedule_time: '00:01',
+        last_run_date: null,
+        updated_at:    null
+      };
+    }
+    return data;
+  }
+
+  async function saveSettings(next){
+    const s = sb();
+    if (!s) throw new Error('Supabase client unavailable');
+    const payload = {
+      id:            1,
+      enabled:       !!next.enabled,
+      // Normalise phone to digits-only before persisting so the script
+      // doesn't have to care about paren/dash/space cosmetics.
+      sms_to:        String(next.sms_to || '').replace(/\D/g, ''),
+      schedule_time: String(next.schedule_time || '00:01'),
+      updated_at:    new Date().toISOString()
+    };
+    if (!/^\d{10,15}$/.test(payload.sms_to)) {
+      throw new Error('SMS destination must be 10–15 digits (got "' + payload.sms_to + '")');
+    }
+    if (!/^\d{1,2}:\d{2}$/.test(payload.schedule_time)) {
+      throw new Error('Schedule time must be HH:MM');
+    }
+    const { error } = await s.from('late_fee_settings').upsert(payload, { onConflict: 'id' });
+    if (error) throw error;
+    return payload;
+  }
+
+  // Format a raw digit-string back into human (###) ###-#### form,
+  // purely for display in the input.
+  function _prettyPhone(digits){
+    const d = String(digits || '').replace(/\D/g, '');
+    if (d.length === 10) return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
+    if (d.length === 11 && d[0] === '1') return '1 (' + d.slice(1,4) + ') ' + d.slice(4,7) + '-' + d.slice(7);
+    return d;
+  }
+
+  // ─────────────────────────────────────────────────────────────────
   // Core: compute the plan (dry-run).
   //
   // Returns {
@@ -292,10 +353,10 @@
   }
 
   // ─────────────────────────────────────────────────────────────────
-  // Preview modal — builds a table of proposed changes and wires the
-  // Apply button. Kept inline so this is one self-contained file.
+  // Preview modal — builds a table of proposed changes AND the
+  // scheduler settings panel. One modal, one self-contained file.
   // ─────────────────────────────────────────────────────────────────
-  function _openModal(plan){
+  function _openModal(plan, settings){
     const existing = document.getElementById('wpaLateFeeModal');
     if (existing) existing.remove();
 
@@ -345,29 +406,138 @@
         </ul>
       </div>` : '';
 
+    // Settings panel — "Automatic daily run" group at the top of the
+    // modal. Pre-filled from the late_fee_settings row. Save writes
+    // directly to Supabase; no live re-render is needed because the
+    // values drive the headless script, not this preview.
+    const lastRunLabel = settings && settings.last_run_date
+      ? settings.last_run_date
+      : '— never —';
+    const settingsHtml = `
+      <div style="margin-top:12px;padding:14px 16px;background:#f6f8fd;border:1px solid #d6def0;border-radius:6px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:13px;font-weight:600;color:#1a2874">Automatic daily run</div>
+          <div style="font-size:11px;color:#6b7280">Last run: <b>${_esc(lastRunLabel)}</b></div>
+        </div>
+        <div style="display:grid;grid-template-columns:auto 1fr auto 1fr;gap:10px 14px;align-items:center;font-size:12px;color:#374151">
+          <label style="font-weight:600">Enabled</label>
+          <div>
+            <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="wpaLfsEnabled" ${settings && settings.enabled ? 'checked' : ''} style="width:16px;height:16px">
+              <span id="wpaLfsEnabledLbl" style="color:${settings && settings.enabled ? '#2e7d32' : '#b23a48'};font-weight:600">
+                ${settings && settings.enabled ? 'On — scheduled sweep runs daily' : 'Off — scheduled sweep is paused'}
+              </span>
+            </label>
+          </div>
+
+          <label style="font-weight:600">Run at</label>
+          <div>
+            <input type="time" id="wpaLfsTime" value="${_esc((settings && settings.schedule_time) || '00:01')}"
+              style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:12px;width:120px">
+            <span style="color:#6b7280;font-size:11px;margin-left:6px">local time</span>
+          </div>
+
+          <label style="font-weight:600">SMS to</label>
+          <div style="grid-column:span 3">
+            <input type="tel" id="wpaLfsPhone"
+              value="${_esc(_prettyPhone((settings && settings.sms_to) || ''))}"
+              placeholder="(###) ###-####"
+              style="padding:5px 8px;border:1px solid #cbd5e1;border-radius:4px;font-size:12px;width:220px">
+            <span id="wpaLfsSaveStatus" style="font-size:11px;margin-left:10px;color:#6b7280"></span>
+            <button id="wpaLfsSaveBtn" style="margin-left:10px;padding:5px 12px;border:none;background:#1a2874;border-radius:4px;color:#fff;cursor:pointer;font-size:12px;font-weight:600">Save settings</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px dashed #d6def0;font-size:11px;color:#6b7280;line-height:1.5">
+          The scheduler heartbeat fires every 30 minutes. The script only acts
+          when <i>Enabled</i> is on, the current time is past <i>Run at</i>, and
+          it hasn't already run today. Changes here take effect on the next heartbeat.
+        </div>
+      </div>`;
+
     const html = `
       <div id="wpaLateFeeModal" style="position:fixed;inset:0;background:rgba(20,26,50,0.55);display:flex;align-items:center;justify-content:center;z-index:10000">
         <div style="background:#fff;border-radius:8px;max-width:900px;width:90%;max-height:85vh;overflow:auto;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <h2 style="margin:0;color:#1a2874;font-size:18px">Recalculate Late Fees — Preview</h2>
+            <h2 style="margin:0;color:#1a2874;font-size:18px">Recalculate Late Fees</h2>
             <button onclick="document.getElementById('wpaLateFeeModal').remove()" style="border:none;background:none;font-size:22px;color:#6b7280;cursor:pointer;padding:0 6px">×</button>
           </div>
-          <div style="font-size:13px;color:#374151;line-height:1.6">
-            Scanned <b>${plan.scanned}</b> invoice${plan.scanned===1?'':'s'} past due.
-            <b>${plan.totals.inserts}</b> new, <b>${plan.totals.updates}</b> updated,
-            <b>${plan.totals.deletes}</b> removed.
-            Net total change: <b style="color:${plan.totals.totalDelta>=0?'#2e7d32':'#b23a48'}">${(plan.totals.totalDelta>=0?'+':'') + _money(plan.totals.totalDelta).replace('$','$')}</b>
+          ${settingsHtml}
+          <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e5e7eb">
+            <div style="font-size:13px;font-weight:600;color:#1a2874;margin-bottom:6px">Run now — preview</div>
+            <div style="font-size:13px;color:#374151;line-height:1.6">
+              Scanned <b>${plan.scanned}</b> invoice${plan.scanned===1?'':'s'} past due.
+              <b>${plan.totals.inserts}</b> new, <b>${plan.totals.updates}</b> updated,
+              <b>${plan.totals.deletes}</b> removed.
+              Net total change: <b style="color:${plan.totals.totalDelta>=0?'#2e7d32':'#b23a48'}">${(plan.totals.totalDelta>=0?'+':'') + _money(plan.totals.totalDelta).replace('$','$')}</b>
+            </div>
+            ${tableHtml}
+            ${errHtml}
           </div>
-          ${tableHtml}
-          ${errHtml}
           <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
-            <button onclick="document.getElementById('wpaLateFeeModal').remove()" style="padding:8px 16px;border:1px solid #cbd5e1;background:#fff;border-radius:4px;color:#374151;cursor:pointer;font-size:13px">Cancel</button>
-            <button id="wpaLateFeeApplyBtn" ${rows.length === 0 ? 'disabled' : ''} style="padding:8px 16px;border:none;background:${rows.length?'#1a2874':'#cbd5e1'};border-radius:4px;color:#fff;cursor:${rows.length?'pointer':'not-allowed'};font-size:13px;font-weight:600">${rows.length ? 'Apply changes' : 'Nothing to apply'}</button>
+            <button onclick="document.getElementById('wpaLateFeeModal').remove()" style="padding:8px 16px;border:1px solid #cbd5e1;background:#fff;border-radius:4px;color:#374151;cursor:pointer;font-size:13px">Close</button>
+            <button id="wpaLateFeeApplyBtn" ${rows.length === 0 ? 'disabled' : ''} style="padding:8px 16px;border:none;background:${rows.length?'#1a2874':'#cbd5e1'};border-radius:4px;color:#fff;cursor:${rows.length?'pointer':'not-allowed'};font-size:13px;font-weight:600">${rows.length ? 'Apply changes now' : 'Nothing to apply'}</button>
           </div>
         </div>
       </div>`;
 
     document.body.insertAdjacentHTML('beforeend', html);
+
+    // ── Settings panel wiring ──────────────────────────────────────
+    const enabledChk = document.getElementById('wpaLfsEnabled');
+    const enabledLbl = document.getElementById('wpaLfsEnabledLbl');
+    const timeInp    = document.getElementById('wpaLfsTime');
+    const phoneInp   = document.getElementById('wpaLfsPhone');
+    const saveBtn    = document.getElementById('wpaLfsSaveBtn');
+    const statusLbl  = document.getElementById('wpaLfsSaveStatus');
+
+    if (enabledChk && enabledLbl) {
+      enabledChk.addEventListener('change', function(){
+        enabledLbl.textContent = enabledChk.checked
+          ? 'On — scheduled sweep runs daily'
+          : 'Off — scheduled sweep is paused';
+        enabledLbl.style.color = enabledChk.checked ? '#2e7d32' : '#b23a48';
+      });
+    }
+    // Live-reformat phone on blur so the input always stays readable.
+    if (phoneInp) {
+      phoneInp.addEventListener('blur', function(){
+        phoneInp.value = _prettyPhone(phoneInp.value);
+      });
+    }
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async function(){
+        saveBtn.disabled = true;
+        const prevTxt = saveBtn.textContent;
+        saveBtn.textContent = 'Saving…';
+        statusLbl.textContent = '';
+        statusLbl.style.color = '#6b7280';
+        try {
+          const saved = await saveSettings({
+            enabled:       enabledChk.checked,
+            sms_to:        phoneInp.value,
+            schedule_time: timeInp.value
+          });
+          statusLbl.textContent = 'Saved ✓';
+          statusLbl.style.color = '#2e7d32';
+          // Reflect normalised value back into the input so the user
+          // sees exactly what's stored.
+          phoneInp.value = _prettyPhone(saved.sms_to);
+          if (typeof window.toast === 'function') {
+            window.toast('Late-fee settings saved');
+          }
+        } catch (e) {
+          statusLbl.textContent = (e && e.message) || String(e);
+          statusLbl.style.color = '#b23a48';
+          console.error('[late-fees] save settings error:', e);
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = prevTxt;
+          setTimeout(function(){ if (statusLbl.textContent === 'Saved ✓') statusLbl.textContent = ''; }, 3000);
+        }
+      });
+    }
+
+    // ── Apply button (existing behavior) ───────────────────────────
     const applyBtn = document.getElementById('wpaLateFeeApplyBtn');
     if (applyBtn && rows.length) {
       applyBtn.onclick = async function(){
@@ -401,13 +571,26 @@
   window.WPA_recalcLateFees = async function(opts){
     opts = opts || {};
     try {
-      const plan = await computePlan();
+      // Kick off plan + settings in parallel — both are independent
+      // round-trips and the modal needs both before rendering.
+      const [plan, settings] = await Promise.all([
+        computePlan(),
+        loadSettings().catch(function(e){
+          console.warn('[late-fees] settings load failed, using defaults:', e);
+          return {
+            enabled: true,
+            sms_to: '',
+            schedule_time: '00:01',
+            last_run_date: null
+          };
+        })
+      ]);
       if (opts.dryRun === false) {
         // Headless apply — used by the future scheduled task. Skips
         // the modal entirely.
         return await applyPlan(plan);
       }
-      _openModal(plan);
+      _openModal(plan, settings);
       return plan;
     } catch (e) {
       console.error('[late-fees] computePlan error:', e);
@@ -418,8 +601,10 @@
 
   // Named exports for debugging / scheduler use.
   window.WPA_lateFees = {
-    computePlan: computePlan,
-    applyPlan:   applyPlan,
+    computePlan:  computePlan,
+    applyPlan:    applyPlan,
+    loadSettings: loadSettings,
+    saveSettings: saveSettings,
     ACCRUAL_DESCRIPTION: ACCRUAL_DESCRIPTION
   };
 })();
