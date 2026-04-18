@@ -218,6 +218,35 @@
     const lineByInv = new Map();
     for (const L of (existingLines || [])) lineByInv.set(L.invoice_id, L);
 
+    // ── Processing payments → pause late-fee accrual from initiation ──
+    // Product rule (see recalc-late-fees.mjs for the canonical comment):
+    // the earliest processing payment caps the chargeable window, even
+    // if it doesn't fully cover the balance. Payments table may be
+    // absent on pre-migration envs — we tolerate that quietly.
+    const earliestProcessingByInv = new Map();   // invoice_id -> ISO ts
+    try {
+      const resp = await s
+        .from('payments')
+        .select('invoice_id, created_at')
+        .eq('status', 'processing')
+        .in('invoice_id', invIds);
+      if (resp.error) {
+        // 42P01 = relation does not exist; PGRST200 = schema cache miss
+        if (resp.error.code !== '42P01' && resp.error.code !== 'PGRST200') {
+          console.warn('[late-fees] processing payments fetch warn:', resp.error);
+        }
+      } else {
+        for (const p of (resp.data || [])) {
+          const prev = earliestProcessingByInv.get(p.invoice_id);
+          if (!prev || p.created_at < prev) {
+            earliestProcessingByInv.set(p.invoice_id, p.created_at);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[late-fees] processing payments fetch error:', (e && e.message) || e);
+    }
+
     for (const inv of invoices) {
       if (_isExempt(inv.notes)) continue;
 
@@ -239,7 +268,23 @@
         continue;
       }
 
-      const daysPastDue = _daysBetween(dueDate, today);
+      // Cap the chargeable window at the earliest processing payment.
+      // Date-only granularity: a payment initiated at noon still credits
+      // the whole calendar day to the tenant. Only shrinks the window.
+      const earliestProcessingIso = earliestProcessingByInv.get(inv.id) || null;
+      let effectiveEnd = today;
+      let pausedAt = null;
+      if (earliestProcessingIso) {
+        const epMid = _toMidnight(earliestProcessingIso.slice(0, 10));
+        if (epMid && epMid.getTime() < today.getTime()) {
+          effectiveEnd = epMid;
+          pausedAt = earliestProcessingIso.slice(0, 10);
+        } else if (epMid) {
+          pausedAt = earliestProcessingIso.slice(0, 10);
+        }
+      }
+
+      const daysPastDue = _daysBetween(dueDate, effectiveEnd);
       const chargeable = Math.max(0, daysPastDue - grace);
       const expected = Math.round(chargeable * perDay * 100) / 100; // cents
 
@@ -274,6 +319,7 @@
         existing_amount: existingAmt,
         existing_line_id: existing ? existing.id : null,
         invoice_total: Number(inv.total) || 0,
+        paused_at: pausedAt,  // ISO date of earliest processing payment, or null
         action: action,
         delta: delta
       });
@@ -388,7 +434,7 @@
             <tr>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${_esc(a.property)} · ${_esc(a.unit)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${_esc(a.due_date)}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${a.days_past_due} <span style="color:#6b7280;font-size:10px">(grace ${a.grace_days})</span></td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${a.days_past_due} <span style="color:#6b7280;font-size:10px">(grace ${a.grace_days})</span>${a.paused_at ? `<div style="color:#b45309;font-size:10px;font-weight:600">paused ${_esc(a.paused_at)}</div>` : ''}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${_money(a.expected)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${_money(a.existing_amount)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;color:${a.delta>=0?'#2e7d32':'#b23a48'};font-weight:600">${(a.delta>=0?'+':'') + _money(a.delta).replace('$','$')}</td>
