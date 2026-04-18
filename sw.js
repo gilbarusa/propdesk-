@@ -1,5 +1,5 @@
-/* Willow PropDesk — Service Worker v4 — force reload on update */
-const CACHE_NAME = 'willow-propdesk-v4';
+/* Willow PropDesk — Service Worker v5 — force reload on update */
+const CACHE_NAME = 'willow-propdesk-v5';
 const SHELL_FILES = [
   '/propdesk-/index.html',
   '/propdesk-/css/main.css',
