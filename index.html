@@ -2078,6 +2078,7 @@
       <input type="text" class="lv-filter" id="lvFilter" placeholder="Filter by tenant, property, unit, status...">
       <span class="lv-count" id="lvCount">Showing 0 of 0</span>
       <button class="lv-btn lv-btn-sm" onclick="LeasesView.exportCSV()">Export</button>
+      <button class="lv-btn lv-btn-sm" onclick="WPA_recalcLateFees()" title="Scan overdue rent invoices and upsert late_fee lines per lease's grace/per-day settings">Recalc Late Fees</button>
       <button class="lv-btn lv-btn-primary" onclick="LeasesView.newLease()">+ New Lease</button>
     </div>
     <div class="lv-layout">
@@ -3767,6 +3768,7 @@
 <script src="js/pipeline.js"></script>
 <script src="js/invoice.js?v=20260418-split1"></script>
 <script src="js/lease-wizard.js?v=20260418-lfee2"></script>
+<script src="js/late-fees.js?v=20260418-lfee3"></script>
 <script src="js/leases-view.js?v=20260415-0700"></script>
 
 <!-- ══ GLOBAL Drill-Down & Invoice Panels (outside all pages) ══ -->
