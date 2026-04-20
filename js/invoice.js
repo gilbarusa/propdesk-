@@ -269,17 +269,43 @@
         who: 'by ' + _esc(l.created_by || 'System'),
       });
     });
-    // Payments
+    // Payments — accept both 'paid' and 'succeeded' as terminal-paid
+    // (portal writes 'paid', older rows may be 'succeeded').
     b.payments.forEach(p => {
-      if (p.status !== 'succeeded') return;
+      if (p.status !== 'succeeded' && p.status !== 'paid') return;
+      const methodLbl = p.method === 'ach' ? 'ACH' : 'Credit Card';
+      const piTag = p.stripe_payment_intent_id
+        ? ' · <code style="font-size:11px;color:#4d5670">' + _esc(p.stripe_payment_intent_id) + '</code>'
+        : '';
+      const base = Number(p.amount || 0) || 0;
+      const fee  = Number(p.surcharge_amount || 0) || 0;
+      const charged = base + fee;
+      // Fee breakdown in the Payment Received row when a card
+      // surcharge was collected — matches the synthetic cc_fee line
+      // item in the Line Items table so admins see the same number
+      // everywhere (invoice = $2.00, card charged = $2.07).
+      const feeNote = fee > 0.005
+        ? ' (' + _esc(MONEY(base)) + ' invoice + ' + _esc(MONEY(fee)) + ' processing fee)'
+        : '';
       rows.push({
         when: p.paid_at || p.created_at,
         pill: 'green',
         label: 'Payment Received',
-        body: '<b>' + _esc(MONEY(p.amount)) + '</b> paid via ' + _esc(p.method === 'ach' ? 'ACH' : 'Credit Card') +
-              (p.stripe_payment_intent_id ? ' · <code style="font-size:11px;color:#4d5670">' + _esc(p.stripe_payment_intent_id) + '</code>' : ''),
+        body: '<b>' + _esc(MONEY(charged)) + '</b> paid via ' + _esc(methodLbl) + feeNote + piTag,
         who: 'by Stripe',
       });
+      // Synthetic "Line Added: Credit Card Fee" audit-trail row so
+      // the history includes the fee alongside the rent / deposit
+      // lines, mirroring the Line Items table.
+      if (fee > 0.005) {
+        rows.push({
+          when: p.paid_at || p.created_at,
+          pill: 'blue',
+          label: 'Line Added',
+          body: 'Credit Card Fee — <b>' + _esc(MONEY(fee)) + '</b> (3.5% processing fee on ' + _esc(MONEY(base)) + ')',
+          who: 'by Stripe',
+        });
+      }
     });
     // Reminders
     b.reminders.forEach(r => {
@@ -306,6 +332,36 @@
     const paid = Number(inv.paid || 0);
     const total = Number(inv.total || 0);
     const due = total - paid;
+    // Pass-through card processing fees collected on paid rows. The
+    // portal's webhook writes status='paid'; some earlier records used
+    // 'succeeded'. Accept both so the fee breakdown works regardless.
+    const _isPaidRow = p => p.status === 'paid' || p.status === 'succeeded';
+    const paidFees = (b.payments || [])
+      .filter(_isPaidRow)
+      .reduce((s, p) => s + Number(p.surcharge_amount || 0), 0);
+    const paidCharged = paid + paidFees;
+    // When the card surcharge is non-zero, display the invoice total
+    // as amount + fee so the numbers reconcile with what Stripe
+    // actually charged ($2.07 = $2.00 + $0.07).
+    const invoiceTotalWithFee = total + paidFees;
+    // Synthetic "Credit Card Fee" row per paid card payment that
+    // carried a surcharge — renders in the Line Items table without
+    // persisting to invoice_lines.
+    const syntheticFeeLines = (b.payments || [])
+      .filter(p => _isPaidRow(p) && Number(p.surcharge_amount || 0) > 0.005)
+      .map(p => ({
+        id:          '_ccfee_' + (p.id || p.stripe_payment_intent_id || ''),
+        kind:        'cc_fee',
+        item_label:  'Credit Card Fee',
+        description: '3.5% processing fee on ' + MONEY(Number(p.amount || 0)),
+        amount:      Number(p.surcharge_amount || 0),
+        created_at:  p.paid_at || p.created_at,
+        created_by:  'Stripe',
+        day_offset:  1,
+        _synthetic:  true
+      }));
+    const renderedLines = b.lines.concat(syntheticFeeLines);
+    const ccFeeSum = paidFees;
     const sumByKind = k => b.lines.filter(l => l.kind === k).reduce((s, l) => s + Number(l.amount), 0);
     const rentSum = sumByKind('rent');
     const lateSum = sumByKind('late_fee');
@@ -366,7 +422,7 @@
             <div class="total-card ${status.key === 'paid' ? 'paid' : ''}">
               <div class="tc-lbl">Total Due</div>
               <div class="tc-val">${_esc(MONEY(due))}</div>
-              <div class="tc-sub">of ${_esc(MONEY(total))} invoice · ${_esc(MONEY(paid))} paid</div>
+              <div class="tc-sub">of ${_esc(MONEY(invoiceTotalWithFee))} invoice · ${_esc(MONEY(paidCharged))} paid</div>
             </div>
             <div class="stamp ${status.key}">${_esc(status.label)}</div>
           </div>
@@ -378,7 +434,9 @@
         <button class="wbtn" onclick="WPA_invoiceDownload('${_esc(inv.id)}')"><span>⬇</span> Download PDF</button>
         <div class="spacer"></div>
         ${status.key === 'paid' ? `
-          <span style="padding:9px 18px;color:#1f7a4d;font-weight:600;font-size:12px;">✓ Paid in full — thank you</span>
+          <span style="padding:9px 18px;color:#1f7a4d;font-weight:600;font-size:12px;">
+            ✓ Paid in full — thank you${paidFees > 0.005 ? ` <span style="color:#4d5670;font-weight:500">· ${_esc(MONEY(paidCharged))} charged (${_esc(MONEY(paid))} + ${_esc(MONEY(paidFees))} processing fee)</span>` : ''}
+          </span>
         ` : status.key === 'void' ? `
           <span style="padding:9px 18px;color:#8590a8;font-weight:600;font-size:12px;">${inv._is_pr ? 'This request has been cancelled' : 'This invoice has been voided'}</span>
         ` : inv._is_pr ? `
@@ -406,18 +464,18 @@
       </div>
 
       <div class="sec sec-items">
-        <div class="sec-hd"><div><h3>Line Items</h3><div class="sec-sub">${b.lines.length} charge${b.lines.length === 1 ? '' : 's'}</div></div></div>
+        <div class="sec-hd"><div><h3>Line Items</h3><div class="sec-sub">${renderedLines.length} charge${renderedLines.length === 1 ? '' : 's'}</div></div></div>
         <table class="items">
           <thead><tr><th style="width:30%">Item</th><th>Description</th><th class="num" style="width:80px">Qty</th><th class="num" style="width:110px">Rate</th><th class="num" style="width:120px">Amount</th><th style="width:60px"></th></tr></thead>
           <tbody>
-            ${b.lines.map(l => _renderLineRow(l)).join('') || '<tr><td colspan="6" class="pay-empty">No line items yet</td></tr>'}
+            ${renderedLines.map(l => _renderLineRow(l)).join('') || '<tr><td colspan="6" class="pay-empty">No line items yet</td></tr>'}
           </tbody>
         </table>
         ${_viewMode === 'admin' ? `<button class="add-line" onclick="WPA_invoiceAddLine('${_esc(inv.id)}')">＋ Add Line Item</button>` : ''}
       </div>
 
       <div class="sec">
-        <div class="sec-hd"><div><h3>Payments Received</h3><div class="sec-sub">${b.payments.filter(p=>p.status==='succeeded').length} payment(s) · ${_esc(MONEY(paid))}</div></div></div>
+        <div class="sec-hd"><div><h3>Payments Received</h3><div class="sec-sub">${b.payments.filter(_isPaidRow).length} payment(s) · ${_esc(MONEY(paidCharged))} charged${paidFees > 0.005 ? ' (incl. ' + _esc(MONEY(paidFees)) + ' processing fee)' : ''}</div></div></div>
         ${b.payments.length ? _renderPaymentsCard(b.payments) : '<div class="pay-card"><div class="pay-empty">No payments recorded yet.</div></div>'}
       </div>
 
@@ -433,8 +491,14 @@
           ${lateSum ? `<div class="totals-row"><span>Late fees</span><span>${_esc(MONEY(lateSum))}</span></div>` : ''}
           ${miscSum ? `<div class="totals-row"><span>Other</span><span>${_esc(MONEY(miscSum))}</span></div>` : ''}
           ${creditSum ? `<div class="totals-row credit"><span>Credits</span><span>${_esc(MONEY(creditSum))}</span></div>` : ''}
-          <div class="totals-row strong"><span>Invoice total</span><span>${_esc(MONEY(total))}</span></div>
-          ${paid ? `<div class="totals-row credit"><span>Payments received</span><span>${_esc(MONEY(-paid))}</span></div>` : ''}
+          ${ccFeeSum > 0.005 ? `
+            <div class="totals-row"><span>Invoice subtotal</span><span>${_esc(MONEY(total))}</span></div>
+            <div class="totals-row"><span>Credit card fee (3.5%)</span><span>${_esc(MONEY(ccFeeSum))}</span></div>
+            <div class="totals-row strong"><span>Invoice total</span><span>${_esc(MONEY(invoiceTotalWithFee))}</span></div>
+          ` : `
+            <div class="totals-row strong"><span>Invoice total</span><span>${_esc(MONEY(total))}</span></div>
+          `}
+          ${paid ? `<div class="totals-row credit"><span>Payments received</span><span>${_esc(MONEY(-(paid + ccFeeSum)))}</span></div>` : ''}
           <div class="totals-divider"></div>
           <div class="totals-row grand"><span class="lbl">Total Due</span><span>${_esc(MONEY(due))}</span></div>
         </div>
@@ -445,47 +509,76 @@
   function _renderLineRow(l) {
     const kind = l.kind || 'misc';
     const tagCls = 'tag-' + kind.replace('_', '-');
-    const tagLabel = { rent:'Rent', late_fee:'Late', credit:'Credit', misc:'Fee', service:'Service' }[kind] || 'Fee';
+    const tagLabel = { rent:'Rent', late_fee:'Late', credit:'Credit', misc:'Fee', service:'Service', cc_fee:'CC Fee' }[kind] || 'Fee';
     const itemName = l.item_label || tagLabel;
     const amtCls = Number(l.amount) < 0 ? 'amt credit' : 'amt';
     const qty = l.day_offset || 1;
     const rate = qty ? Number(l.amount) / qty : Number(l.amount);
+    // Synthetic lines (cc_fee reconstructed from payments.surcharge_amount)
+    // are read-only — no invoice_lines row exists to edit or remove.
+    // Also suppress the "Added by" desc since there's no real audit
+    // trail for the synthetic row.
+    const isSynthetic = !!l._synthetic;
     return `
       <tr>
         <td><span class="item-name">${_esc(itemName)}</span><span class="item-tag ${tagCls}">${_esc(tagLabel)}</span></td>
-        <td><div>${_esc(l.description || '')}</div>${l.created_by ? '<div class="desc">Added by ' + _esc(l.created_by) + ' · ' + _esc(FMT_DATE(l.created_at)) + '</div>' : ''}</td>
+        <td><div>${_esc(l.description || '')}</div>${!isSynthetic && l.created_by ? '<div class="desc">Added by ' + _esc(l.created_by) + ' · ' + _esc(FMT_DATE(l.created_at)) + '</div>' : ''}</td>
         <td class="num">${qty}</td>
         <td class="num">${_esc(MONEY(rate))}</td>
         <td class="num ${amtCls}">${_esc(MONEY(l.amount))}</td>
-        <td>${_viewMode === 'admin' ? `<div class="row-act"><button onclick="WPA_invoiceEditLine('${_esc(l.id)}')">✏️</button><button class="del" onclick="WPA_invoiceRemoveLine('${_esc(l.id)}')">✕</button></div>` : ''}</td>
+        <td>${(_viewMode === 'admin' && !isSynthetic) ? `<div class="row-act"><button onclick="WPA_invoiceEditLine('${_esc(l.id)}')">✏️</button><button class="del" onclick="WPA_invoiceRemoveLine('${_esc(l.id)}')">✕</button></div>` : ''}</td>
       </tr>`;
   }
 
   function _renderPaymentsCard(payments) {
+    // Accept both 'paid' and 'succeeded' as terminal-paid states.
+    // Amount column shows total charged to card (amount + surcharge),
+    // with a breakdown subtext when a non-zero fee was collected —
+    // matches the portal's post-2026-04-20 behavior so the admin
+    // view reconciles with what Stripe captured ($2.07, not $2.00).
+    const _isPaid = p => p.status === 'paid' || p.status === 'succeeded';
     const rows = payments.map(p => {
       const methodIcon = p.method === 'ach' ? '🏦' : '💳';
       const methodLbl = p.method === 'ach' ? 'ACH' : 'Credit Card';
-      // Stripe ref = internal admin info only
       const stripeRef = (_viewMode === 'admin' && p.stripe_payment_intent_id)
         ? ' · <code style="font-size:10px;color:#4d5670">' + _esc(p.stripe_payment_intent_id) + '</code>' : '';
-      const statusBadge = p.status !== 'succeeded' ? ` <span style="color:#b86818;font-size:10px;text-transform:uppercase;">(${_esc(p.status)})</span>` : '';
+      const statusBadge = !_isPaid(p) ? ` <span style="color:#b86818;font-size:10px;text-transform:uppercase;">(${_esc(p.status)})</span>` : '';
+      const base  = Number(p.amount || 0) || 0;
+      const fee   = Number(p.surcharge_amount || 0) || 0;
+      const total = base + fee;
+      const amtCell = fee > 0.005
+        ? `<b>${_esc(MONEY(total))}</b>`
+          + `<div style="font-size:11px;color:#4d5670;font-weight:400;margin-top:2px;white-space:nowrap">`
+          +   `${_esc(MONEY(base))} + ${_esc(MONEY(fee))} fee`
+          + `</div>`
+        : _esc(MONEY(base));
       return `<tr>
         <td><b>${_esc(p.payer_name || 'Tenant')}</b></td>
         <td>${_esc(FMT_DATETIME(p.created_at))}</td>
         <td>${_esc(p.paid_at ? FMT_DATE(p.paid_at) : '—')}${statusBadge}</td>
         <td><span class="method-pill">${methodIcon} ${methodLbl}${stripeRef}</span></td>
-        <td class="num">${_esc(MONEY(p.amount))}</td>
+        <td class="num">${amtCell}</td>
         <td>${_viewMode === 'admin' ? `<button class="wbtn ghost" style="padding:4px 10px;font-size:11px" onclick="WPA_invoiceRemovePayment('${_esc(p.id)}')">Remove</button>` : ''}</td>
       </tr>`;
     }).join('');
-    const total = payments.filter(p => p.status === 'succeeded').reduce((s, p) => s + Number(p.amount), 0);
+    const paidOnly = payments.filter(_isPaid);
+    const baseSum = paidOnly.reduce((s, p) => s + Number(p.amount || 0), 0);
+    const feeSum  = paidOnly.reduce((s, p) => s + Number(p.surcharge_amount || 0), 0);
+    const totalSum = baseSum + feeSum;
+    const footBreakdown = (feeSum > 0.005)
+      ? `<div class="pay-foot" style="padding-top:2px;font-size:11px;color:#4d5670;font-weight:400">`
+        +   `<span>Applied to invoice ${_esc(MONEY(baseSum))} · Processing fee ${_esc(MONEY(feeSum))}</span>`
+        +   `<span></span>`
+        + `</div>`
+      : '';
     return `
       <div class="pay-card">
         <table class="pays">
           <thead><tr><th>Payer</th><th>Submitted</th><th>Deposited</th><th>Method</th><th class="num">Amount</th><th></th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
-        <div class="pay-foot"><span>Total received</span><span>${_esc(MONEY(total))}</span></div>
+        <div class="pay-foot"><span>${feeSum > 0.005 ? 'Total charged to card' : 'Total received'}</span><span>${_esc(MONEY(totalSum))}</span></div>
+        ${footBreakdown}
       </div>`;
   }
 
