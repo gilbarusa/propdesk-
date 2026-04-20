@@ -648,7 +648,13 @@
     </div>
 
     <!-- Financial Overview -->
-    <div class="dash-section-label">Financial Overview</div>
+    <div class="dash-section-label" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <span>Financial Overview</span>
+      <button type="button" onclick="WPA_openPaymentsReport()"
+              style="background:#3651b5;color:#fff;border:0;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.02em">
+        💰 Payments Report
+      </button>
+    </div>
     <div class="dash-two-col">
       <div class="dash-panel">
         <h3>💰 Revenue This Month</h3>
@@ -3769,7 +3775,8 @@
 <script src="js/reply-kb.js"></script>
 <script src="js/inbox.js?v=20260408b"></script>
 <script src="js/pipeline.js"></script>
-<script src="js/invoice.js?v=20260420-phase5v1a"></script>
+<script src="js/invoice.js?v=20260420-phase7v1"></script>
+<script src="js/payments-report.js?v=20260420-phase7v1"></script>
 <script src="js/lease-wizard.js?v=20260418-lfee2"></script>
 <script src="js/late-fees.js?v=20260418-lfee5-pause"></script>
 <script src="js/leases-view.js?v=20260415-0700"></script>
