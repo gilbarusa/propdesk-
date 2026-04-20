@@ -1222,12 +1222,15 @@
      Default due = today + 14 days. No recurring, no edit-after-send.
      ──────────────────────────────────────────────────────────── */
 
+  // Kinds must match the invoice_lines_kind_check CHECK constraint.
+  // Allowed: rent | deposit | last_month | recurring_charge |
+  //          one_time_charge | late_fee | credit | service
   const _CI_KINDS = [
+    { v: 'service',         l: 'Service / Other' },
     { v: 'rent',            l: 'Rent' },
+    { v: 'one_time_charge', l: 'One-Time Charge' },
     { v: 'late_fee',        l: 'Late Fee' },
     { v: 'credit',          l: 'Credit (negative)' },
-    { v: 'one_time_charge', l: 'One-Time Charge' },
-    { v: 'misc',            l: 'Misc / Other' },
     { v: 'deposit',         l: 'Security Deposit' },
     { v: 'last_month',      l: 'Last Month Rent' }
   ];
@@ -1295,6 +1298,31 @@
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
   }
+  // Shift an ISO date (YYYY-MM-DD) by +n calendar months, clamping
+  // the day-of-month to the last day of the target month (so Jan 31
+  // → Feb 28/29 instead of rolling over into March).
+  function _ciShiftMonths(iso, n) {
+    if (!iso) return iso;
+    const base = new Date(iso + 'T12:00:00');
+    const y = base.getFullYear();
+    const m = base.getMonth() + Number(n || 0);
+    const day = base.getDate();
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    const out = new Date(y, m, Math.min(day, lastDay));
+    return out.toISOString().slice(0, 10);
+  }
+  // Label like "Oct 2026" for an ISO date.
+  function _ciMonthLabel(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  }
+  // First-of-month ISO for a given ISO date.
+  function _ciFirstOfMonthIso(iso) {
+    if (!iso) return _ciPeriodMonth();
+    const d = new Date(iso + 'T12:00:00');
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  }
 
   // Pull active tenants at (property, unit) from tenants_lt. Returns
   // array of {id, name} — empty if no active lease / no hydrated rows.
@@ -1317,16 +1345,19 @@
     _ciInjectCSS();
     ctx = ctx || {};
     _ciState = {
-      property: ctx.property || '',
-      unit:     ctx.unit || '',
-      tenants:  [],          // [{id, name, email}]
-      tenantId: '',
-      subject:  '',
-      dueDate:  _ciDefaultDue(),
-      periodMonth: _ciPeriodMonth(),
-      lines:    [ { kind: 'misc', description: '', amount: '' } ],
-      saving:   false,
-      error:    ''
+      property:   ctx.property || '',
+      unit:       ctx.unit || '',
+      tenants:    [],          // [{id, name, email}]
+      tenantId:   '',
+      subject:    '',
+      dueDate:    _ciDefaultDue(),
+      periodMonth:_ciPeriodMonth(),
+      lines:      [ { kind: 'service', description: '', amount: '' } ],
+      // Recurrence
+      recurType:  'one_time',   // 'one_time' | 'recurring'
+      recurMonths: 12,          // only used when recurType === 'recurring'
+      saving:     false,
+      error:      ''
     };
     // Initial render with loading pill for tenants
     _ciRender();
@@ -1413,9 +1444,32 @@
                 oninput="_ciUpdateField('subject',this.value)">
             </div>
             <div class="wpa-ci-row">
-              <label>Due Date</label>
-              <input type="date" value="${_esc(st.dueDate)}" oninput="_ciUpdateField('dueDate',this.value)">
+              <label>Type</label>
+              <select onchange="_ciSetRecurType(this.value)">
+                <option value="one_time"  ${st.recurType==='one_time'?'selected':''}>One-Time</option>
+                <option value="recurring" ${st.recurType==='recurring'?'selected':''}>Recurring (Monthly)</option>
+              </select>
             </div>
+            ${st.recurType === 'recurring' ? `
+              <div class="wpa-ci-row">
+                <label>Number of Months</label>
+                <input type="number" min="2" max="60" step="1"
+                  value="${Number(st.recurMonths) || 12}"
+                  oninput="_ciUpdateField('recurMonths', this.value)">
+              </div>
+            ` : ''}
+            <div class="wpa-ci-row">
+              <label>${st.recurType === 'recurring' ? 'First Due Date' : 'Due Date'}</label>
+              <input type="date" value="${_esc(st.dueDate)}" oninput="_ciSetDueDate(this.value)">
+            </div>
+            ${st.recurType === 'recurring' ? `
+              <div class="wpa-ci-row">
+                <label></label>
+                <div class="ro" style="color:#4d5670;font-size:12px" id="wpaCiRecurPreview">
+                  ${_esc(_ciRecurPreviewText())}
+                </div>
+              </div>
+            ` : ''}
 
             <div class="wpa-ci-lines">
               <h3>
@@ -1449,25 +1503,77 @@
     document.body.insertAdjacentHTML('beforeend', html);
   }
 
+  function _ciRecurPreviewText() {
+    if (!_ciState || _ciState.recurType !== 'recurring') return '';
+    const n = Math.max(2, Math.min(60, Number(_ciState.recurMonths) || 0));
+    const first = _ciState.dueDate;
+    const last  = _ciShiftMonths(first, n - 1);
+    return 'Will create ' + n + ' monthly invoices — first due ' + _ciMonthLabel(first)
+         + ', last due ' + _ciMonthLabel(last) + '.';
+  }
+
+  // Refresh just the recurring preview text without re-rendering the
+  // whole modal (so inputs keep focus).
+  function _ciRefreshRecurPreview() {
+    const el = document.getElementById('wpaCiRecurPreview');
+    if (el) el.textContent = _ciRecurPreviewText();
+  }
+
+  // Recompute the Total display without touching any input elements.
+  // Called from text/number oninput so we don't rebuild the DOM and
+  // kill the caret.
+  function _ciRefreshTotal() {
+    if (!_ciState) return;
+    const el = document.querySelector('#wpaCiOverlay .wpa-ci-tot .val');
+    if (!el) return;
+    const total = _ciState.lines.reduce((s, l) => {
+      const n = Number(l.amount || 0);
+      if (!isFinite(n)) return s;
+      return s + (l.kind === 'credit' ? -Math.abs(n) : n);
+    }, 0);
+    el.textContent = MONEY(total);
+  }
+
+  // Top-level field updates never need a re-render — the DOM already
+  // reflects the user's input. Just capture state.
   window._ciUpdateField = function (field, val) {
     if (!_ciState) return;
     _ciState[field] = val;
+    // Number-of-months change → refresh the recurring preview line
+    // without blowing away input focus.
+    if (field === 'recurMonths') _ciRefreshRecurPreview();
+  };
+  // Due-date change: update state + refresh preview (if visible).
+  window._ciSetDueDate = function (val) {
+    if (!_ciState) return;
+    _ciState.dueDate = val;
+    _ciRefreshRecurPreview();
+  };
+  // Type change is structural (shows/hides Months + preview rows), so
+  // we do a full re-render. Focus is on the <select> which we don't
+  // mind losing.
+  window._ciSetRecurType = function (val) {
+    if (!_ciState) return;
+    _ciState.recurType = (val === 'recurring') ? 'recurring' : 'one_time';
     _ciRender();
   };
+  // Line updates: text/number → state only + refresh total. Kind change
+  // also no re-render (the <select> already shows the chosen value);
+  // just refresh total since 'credit' flips sign.
   window._ciUpdateLine = function (idx, field, val) {
     if (!_ciState || !_ciState.lines[idx]) return;
     _ciState.lines[idx][field] = val;
-    _ciRender();
+    if (field === 'amount' || field === 'kind') _ciRefreshTotal();
   };
   window._ciAddLine = function () {
     if (!_ciState) return;
-    _ciState.lines.push({ kind: 'misc', description: '', amount: '' });
+    _ciState.lines.push({ kind: 'service', description: '', amount: '' });
     _ciRender();
   };
   window._ciRemoveLine = function (idx) {
     if (!_ciState) return;
     _ciState.lines.splice(idx, 1);
-    if (_ciState.lines.length === 0) _ciState.lines.push({ kind: 'misc', description: '', amount: '' });
+    if (_ciState.lines.length === 0) _ciState.lines.push({ kind: 'service', description: '', amount: '' });
     _ciRender();
   };
 
@@ -1504,43 +1610,88 @@
 
     const total = cleanLines.reduce((s, l) => s + l.amount, 0);
 
+    // Recurring: validate month count
+    const isRecurring = (st.recurType === 'recurring');
+    let occurrences = 1;
+    if (isRecurring) {
+      occurrences = Math.floor(Number(st.recurMonths) || 0);
+      if (!isFinite(occurrences) || occurrences < 2) {
+        st.error = 'Recurring requires at least 2 months.';
+        _ciRender();
+        return;
+      }
+      if (occurrences > 60) {
+        st.error = 'Maximum 60 months for a recurring series.';
+        _ciRender();
+        return;
+      }
+    }
+
     st.saving = true;
     _ciRender();
 
     try {
-      const invBody = {
-        tenant_id:    st.tenantId,
-        property:     st.property,
-        unit:         st.unit,
-        period_month: st.periodMonth,
-        due_date:     st.dueDate,
-        status:       asDraft ? 'draft' : 'open',
-        total:        total,
-        paid:         0,
-        notes:        st.subject || null
-      };
-      const inserted = await _sbInsert('invoices', invBody);
-      const row = Array.isArray(inserted) ? inserted[0] : inserted;
-      if (!row || !row.id) throw new Error('Invoice insert returned no id');
+      // Build N invoice rows + their line-item sets in parallel arrays.
+      const invBodies = [];
+      for (let i = 0; i < occurrences; i++) {
+        const dueIso = isRecurring ? _ciShiftMonths(st.dueDate, i) : st.dueDate;
+        const periodIso = _ciFirstOfMonthIso(dueIso);
+        // Subject: append "— MMM YYYY" for recurring so each invoice is identifiable
+        let notes = st.subject ? st.subject.trim() : '';
+        if (isRecurring && notes) {
+          notes = notes + ' — ' + _ciMonthLabel(dueIso);
+        } else if (isRecurring && !notes) {
+          notes = null; // let invoice-list derive subject from period_month
+        } else {
+          notes = notes || null;
+        }
+        invBodies.push({
+          tenant_id:    st.tenantId,
+          property:     st.property,
+          unit:         st.unit,
+          period_month: periodIso,
+          due_date:     dueIso,
+          status:       asDraft ? 'draft' : 'open',
+          total:        total,
+          paid:         0,
+          notes:        notes
+        });
+      }
 
-      const linesBody = cleanLines.map(l => ({
-        invoice_id:  row.id,
-        kind:        l.kind,
-        description: l.description,
-        amount:      l.amount,
-        day_offset:  null,
-        created_by:  'admin'
-      }));
-      await _sbInsert('invoice_lines', linesBody);
+      // Bulk-insert invoices (PostgREST accepts arrays). Response
+      // preserves order, so we can pair each returned row with its
+      // line-items group by index.
+      const inserted = await _sbInsert('invoices', invBodies);
+      const rows = Array.isArray(inserted) ? inserted : [inserted];
+      if (rows.length !== invBodies.length) {
+        throw new Error('Invoice insert returned ' + rows.length + ' rows, expected ' + invBodies.length);
+      }
 
-      // Success — close modal, refresh invoice list if open, and open the new invoice
+      // Build all line-item rows in a single flat array for one insert.
+      const allLines = [];
+      rows.forEach(row => {
+        if (!row || !row.id) throw new Error('Invoice insert returned no id');
+        cleanLines.forEach(l => {
+          allLines.push({
+            invoice_id:  row.id,
+            kind:        l.kind,
+            description: l.description,
+            amount:      l.amount,
+            day_offset:  null,
+            created_by:  'admin'
+          });
+        });
+      });
+      await _sbInsert('invoice_lines', allLines);
+
+      // Success — close modal, refresh invoice list, open the first new invoice
+      const firstId = rows[0].id;
       const listCtxCopy = _listCtx ? Object.assign({}, _listCtx) : null;
       WPA_closeCreateInvoice();
       if (listCtxCopy) {
         await WPA_openInvoiceList(listCtxCopy);
       }
-      // Small pop: auto-open the newly created invoice so admin can verify
-      setTimeout(() => { try { WPA_openInvoice(row.id); } catch (e) {} }, 150);
+      setTimeout(() => { try { WPA_openInvoice(firstId); } catch (e) {} }, 150);
     } catch (e) {
       console.error('[createInvoice] save failed', e);
       st.saving = false;
