@@ -112,10 +112,12 @@
     methods:    [],                 // empty = all
     statuses:   ['paid'],           // only paid by default
     property:   '',                 // empty = all
+    landlord:   '',                 // empty = all; matches lease.owner
     aggregation:'daily',            // daily | weekly | monthly
     raw:        [],                 // fetched rows (unfiltered)
     loading:    false,
-    error:      ''
+    error:      '',
+    mountId:    null                // null = full-screen overlay; else render inline into this element id
   };
 
   // ─── Styles ────────────────────────────────────────────────
@@ -198,6 +200,29 @@
       .wpa-pr-btn.primary{background:#3651b5;border-color:#3651b5;color:#fff}
       .wpa-pr-btn.primary:hover{background:#2b4399}
 
+      /* Inline-mode tweaks — when mounted inside Reports page (no overlay) */
+      .wpa-pr-inline{background:#fafbfe;border:1px solid #e4e8f2;border-radius:14px;overflow:hidden;font:14px/1.4 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#141c34}
+      .wpa-pr-inline .wpa-pr-hd{position:static}
+      .wpa-pr-inline .wpa-pr-close{display:none}
+
+      /* ─── 7-day cashflow summary card (main dashboard) ─── */
+      .wpa-cf-card{background:#fff;border:1px solid #e4e8f2;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:12px;font:13px/1.4 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#141c34}
+      .wpa-cf-hd{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+      .wpa-cf-hd h4{margin:0;font-size:13px;font-weight:700;color:#141c34}
+      .wpa-cf-hd .link{font-size:11px;color:#3651b5;text-decoration:none;cursor:pointer}
+      .wpa-cf-hd .link:hover{text-decoration:underline}
+      .wpa-cf-big{display:flex;align-items:baseline;gap:10px}
+      .wpa-cf-big .v{font-size:28px;font-weight:700;color:#141c34;font-variant-numeric:tabular-nums}
+      .wpa-cf-big .sub{font-size:11px;color:#4d5670}
+      .wpa-cf-spark{height:70px;position:relative}
+      .wpa-cf-spark svg{width:100%;height:100%;display:block}
+      .wpa-cf-cats{display:flex;flex-direction:column;gap:5px}
+      .wpa-cf-cat{display:flex;align-items:center;gap:8px;font-size:12px}
+      .wpa-cf-cat .sw{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+      .wpa-cf-cat .cat-lbl{flex:1;color:#4d5670}
+      .wpa-cf-cat .cat-val{font-weight:600;color:#141c34;font-variant-numeric:tabular-nums}
+      .wpa-cf-empty{padding:20px 0;text-align:center;color:#8590a8;font-size:12px}
+
       @media (max-width:820px){
         .wpa-pr-hd{padding:14px 18px}
         .wpa-pr-body{padding:12px 14px 20px}
@@ -215,7 +240,7 @@
     // without N+1 queries.
     const select =
       'id,invoice_id,amount,method,status,paid_at,created_at,payer_name,' +
-      'surcharge_amount,stripe_payment_intent_id,' +
+      'surcharge_amount,stripe_payment_intent_id,stripe_account_id,' +
       'invoices(id,property,unit,tenant_id,total,notes,' +
       'invoice_lines(kind,description,amount))';
     // paid_at filter: a COALESCE would be ideal, but PostgREST is
@@ -247,6 +272,30 @@
     return { primary: sorted[0].kind || 'unknown', count: lines.length, mixed: distinct > 1 };
   }
 
+  // ─── Landlord derivation ───────────────────────────────────
+  // Each landlord has their own Stripe account (1:1), so filtering by
+  // landlord = filtering by Stripe account. Data source: INNAGO_LEASES
+  // global populated by the main dashboard. Match by property + unit/apt.
+  function deriveLandlord(payment) {
+    const inv = payment.invoices || {};
+    const unit = inv.unit;
+    if (!unit) return '';
+    const leases = (window.INNAGO_LEASES || window.ROWS || []);
+    if (!Array.isArray(leases) || !leases.length) return '';
+    const u = String(unit).trim().toLowerCase();
+    const prop = String(inv.property || '').trim().toLowerCase();
+    // Try exact property+unit match first; fall back to unit-only (many
+    // legacy invoices have property = null but unique unit numbers).
+    let hit = leases.find(l =>
+      String(l.apt || '').trim().toLowerCase() === u &&
+      (!prop || String(l.property || '').trim().toLowerCase() === prop)
+    );
+    if (!hit && prop) {
+      hit = leases.find(l => String(l.apt || '').trim().toLowerCase() === u);
+    }
+    return (hit && hit.owner) || '';
+  }
+
   // ─── Apply client-side filters ─────────────────────────────
   function filteredRows() {
     const rows = state.raw || [];
@@ -259,6 +308,8 @@
       if (state.methods.length && state.methods.indexOf((p.method||'').toLowerCase()) === -1) return false;
       // Property
       if (state.property && inv.property !== state.property) return false;
+      // Landlord (1:1 with Stripe account)
+      if (state.landlord && deriveLandlord(p) !== state.landlord) return false;
       // Category
       if (state.categories.length) {
         const cat = deriveCategory(p).primary;
@@ -325,17 +376,26 @@
       total: Object.values(byBucket[k]).reduce((s,v)=>s+v, 0) }));
   }
 
-  // ─── Render main overlay ───────────────────────────────────
+  // ─── Render main report (overlay or inline) ───────────────
   function render() {
-    const host = document.getElementById('wpaPrOverlay');
     const body = renderBody();
-    if (!host) {
-      document.body.insertAdjacentHTML('beforeend',
-        '<div class="wpa-pr-ovr" id="wpaPrOverlay" onclick="if(event.target===this)WPA_closePaymentsReport()">' +
-          '<div class="wpa-pr" id="wpaPrRoot">' + body + '</div>' +
-        '</div>');
+    if (state.mountId) {
+      // Inline mode — render directly into the mount container
+      const mount = document.getElementById(state.mountId);
+      if (!mount) return;
+      mount.innerHTML = '<div class="wpa-pr wpa-pr-inline" id="wpaPrRoot">' + body + '</div>';
     } else {
-      document.getElementById('wpaPrRoot').innerHTML = body;
+      // Overlay mode
+      const host = document.getElementById('wpaPrOverlay');
+      if (!host) {
+        document.body.insertAdjacentHTML('beforeend',
+          '<div class="wpa-pr-ovr" id="wpaPrOverlay" onclick="if(event.target===this)WPA_closePaymentsReport()">' +
+            '<div class="wpa-pr" id="wpaPrRoot">' + body + '</div>' +
+          '</div>');
+      } else {
+        const root = document.getElementById('wpaPrRoot');
+        if (root) root.innerHTML = body;
+      }
     }
     // Draw chart after DOM is in
     drawChart();
@@ -345,6 +405,7 @@
     const rows = filteredRows();
     const k = computeKpis(rows);
     const properties = Array.from(new Set((state.raw||[]).map(p => p.invoices && p.invoices.property).filter(Boolean))).sort();
+    const landlords  = Array.from(new Set((state.raw||[]).map(p => deriveLandlord(p)).filter(Boolean))).sort();
 
     return `
       <div class="wpa-pr-hd">
@@ -359,7 +420,7 @@
         ${state.error ? `<div class="wpa-pr-err">${esc(state.error)}</div>` : ''}
         ${state.loading ? `<div class="wpa-pr-loading">Loading…</div>` : ''}
 
-        ${renderFilters(properties)}
+        ${renderFilters(properties, landlords)}
         ${renderKpis(k)}
         ${renderChart(rows)}
         ${renderSoonCard()}
@@ -368,7 +429,7 @@
     `;
   }
 
-  function renderFilters(properties) {
+  function renderFilters(properties, landlords) {
     const presets = [
       ['today',     'Today'],
       ['week',      'This Week'],
@@ -396,6 +457,10 @@
         <option value="">All properties</option>
         ${properties.map(p => `<option value="${esc(p)}" ${state.property===p?'selected':''}>${esc(p)}</option>`).join('')}
       </select>`;
+    const landlordSelect = `<select class="wpa-pr-select" onchange="WPA_prSetLandlord(this.value)" title="Each landlord maps 1:1 to a Stripe account">
+        <option value="">All landlords</option>
+        ${landlords.map(l => `<option value="${esc(l)}" ${state.landlord===l?'selected':''}>${esc(l)}</option>`).join('')}
+      </select>`;
 
     return `
       <div class="wpa-pr-filters">
@@ -416,6 +481,10 @@
           <div class="wpa-pr-chips">${methodChips}</div>
           <span class="lbl" style="margin-left:14px">Status</span>
           <div class="wpa-pr-chips">${statusChips}</div>
+        </div>
+        <div class="wpa-pr-filter-row">
+          <span class="lbl">Landlord / Stripe acct</span>
+          ${landlordSelect}
           <span class="lbl" style="margin-left:14px">Property</span>
           ${propSelect}
           <div style="flex:1"></div>
@@ -506,12 +575,15 @@
       const fee = Number(p.surcharge_amount || 0);
       const net = amt; // surcharge is pass-through, so "net to business" = amount
       const when = p.paid_at || p.created_at;
-      const stripeId = p.stripe_payment_intent_id ? ('…' + String(p.stripe_payment_intent_id).slice(-8)) : '—';
+      const stripePi   = p.stripe_payment_intent_id ? ('…' + String(p.stripe_payment_intent_id).slice(-8)) : '—';
+      const stripeAcct = p.stripe_account_id ? (String(p.stripe_account_id).slice(0, 12) + '…') : '—';
+      const landlord   = deriveLandlord(p) || '—';
       return `
         <tr onclick="WPA_prOpenInvoice('${esc(p.invoice_id||'')}')">
           <td>${esc(fmtDateTime(when))}</td>
           <td class="hide-sm">${esc(p.payer_name || '—')}</td>
           <td class="hide-sm">${esc(inv.property || '—')}${inv.unit?'<br><span style="color:#8590a8;font-size:11px">Unit '+esc(inv.unit)+'</span>':''}</td>
+          <td class="hide-sm">${esc(landlord)}</td>
           <td>
             <span class="wpa-pr-pill" style="background:${catColor}">${esc(CAT_LABEL[cat.primary] || cat.primary)}${cat.mixed?' +'+(cat.count-1):''}</span>
           </td>
@@ -519,7 +591,8 @@
           <td class="num">${esc(money(amt))}</td>
           <td class="num hide-sm">${esc(money(fee))}</td>
           <td class="num hide-sm">${esc(money(net))}</td>
-          <td class="hide-sm" style="color:#8590a8;font-family:monospace;font-size:11px">${esc(stripeId)}</td>
+          <td class="hide-sm" style="color:#8590a8;font-family:monospace;font-size:11px">${esc(stripeAcct)}</td>
+          <td class="hide-sm" style="color:#8590a8;font-family:monospace;font-size:11px">${esc(stripePi)}</td>
         </tr>
       `;
     }).join('');
@@ -535,12 +608,14 @@
               <th>Date</th>
               <th class="hide-sm">Tenant</th>
               <th class="hide-sm">Property</th>
+              <th class="hide-sm">Landlord</th>
               <th>Category</th>
               <th>Method</th>
               <th class="num">Amount</th>
               <th class="num hide-sm">Fee</th>
               <th class="num hide-sm">Net</th>
-              <th class="hide-sm">Stripe</th>
+              <th class="hide-sm">Stripe Acct</th>
+              <th class="hide-sm">Stripe PI</th>
             </tr></thead>
             <tbody>${body}</tbody>
           </table>
@@ -667,11 +742,14 @@
     render();
   };
   window.WPA_prSetProperty = function (v) { state.property = v; render(); };
+  window.WPA_prSetLandlord = function (v) { state.landlord = v; render(); };
   window.WPA_prSetAgg      = function (v) { state.aggregation = v; render(); };
   window.WPA_prOpenInvoice = function (id) {
     if (!id) return;
     if (typeof window.WPA_openInvoice === 'function') {
-      WPA_closePaymentsReport();
+      // Only close the overlay if we're in overlay mode — inline
+      // Reports-tab usage should stay put so the user can come back.
+      if (!state.mountId) WPA_closePaymentsReport();
       setTimeout(() => { try { window.WPA_openInvoice(id); } catch (e) {} }, 50);
     }
   };
@@ -683,7 +761,7 @@
       const tb = new Date(b.paid_at || b.created_at || 0).getTime();
       return tb - ta;
     });
-    const headers = ['Date','Tenant','Property','Unit','Category','Method','Status','Amount','Fee','Net','StripePI','InvoiceID'];
+    const headers = ['Date','Tenant','Property','Unit','Landlord','Category','Method','Status','Amount','Fee','Net','StripeAccount','StripePI','InvoiceID'];
     const lines = [headers.join(',')];
     const q = v => {
       if (v == null) return '';
@@ -700,12 +778,14 @@
         p.payer_name || '',
         inv.property || '',
         inv.unit || '',
+        deriveLandlord(p) || '',
         CAT_LABEL[cat.primary] || cat.primary,
         (p.method || '').toUpperCase(),
         p.status || '',
         Number(p.amount || 0).toFixed(2),
         Number(p.surcharge_amount || 0).toFixed(2),
         Number(p.amount || 0).toFixed(2),
+        p.stripe_account_id || '',
         p.stripe_payment_intent_id || '',
         p.invoice_id || ''
       ].map(q).join(','));
@@ -736,10 +816,7 @@
     render();
   }
 
-  window.WPA_openPaymentsReport = async function () {
-    injectCss();
-    // Reset transient state on each open so filters don't leak
-    // between sessions, but keep the preset as This Month.
+  function resetState(extra) {
     const r = presetRange('thismonth');
     state = Object.assign({}, state, {
       datePreset: 'thismonth',
@@ -749,18 +826,223 @@
       methods: [],
       statuses: ['paid'],
       property: '',
+      landlord: '',
       aggregation: 'daily',
       raw: [],
       loading: false,
-      error: ''
-    });
+      error: '',
+      mountId: null
+    }, extra || {});
+  }
+
+  // Open as full-screen overlay (legacy entry point).
+  window.WPA_openPaymentsReport = async function () {
+    injectCss();
+    resetState({ mountId: null });
     render();
     await reload();
   };
+
+  // Render inline into the given element id. Used by the Reports tab.
+  window.WPA_renderPaymentsReport = async function (mountId) {
+    if (!mountId || !document.getElementById(mountId)) return;
+    injectCss();
+    resetState({ mountId: mountId });
+    render();
+    await reload();
+  };
+
   window.WPA_closePaymentsReport = function () {
     const o = document.getElementById('wpaPrOverlay');
     if (o) o.remove();
     const tt = document.getElementById('wpaPrTt');
     if (tt) tt.remove();
   };
+
+  // Navigate to Reports tab + render inline. Used by main dashboard link.
+  window.WPA_gotoPaymentsReport = function () {
+    // Find any Reports nav tab (legacy .nav-tab or sidebar variant)
+    let navEl = null;
+    const candidates = document.querySelectorAll('[onclick*="reports"]');
+    for (let i = 0; i < candidates.length; i++) {
+      const oc = candidates[i].getAttribute('onclick') || '';
+      if (oc.indexOf('showPage') !== -1 && oc.indexOf('reports') !== -1) {
+        navEl = candidates[i];
+        break;
+      }
+    }
+    try {
+      if (typeof window.showPage === 'function') window.showPage('reports', navEl || null);
+      else if (navEl) navEl.click();
+    } catch (e) { /* noop */ }
+    setTimeout(() => {
+      const target = document.getElementById('wpaPrInline');
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (!target.firstChild) window.WPA_renderPaymentsReport('wpaPrInline');
+      }
+    }, 120);
+  };
+
+  /* ════════════════════════════════════════════════════════════
+     7-day cashflow summary card (main dashboard widget)
+     ────────────────────────────────────────────────────────────
+     Compact standalone widget — independent state from the main
+     report so filter changes there don't affect dashboard header.
+     ════════════════════════════════════════════════════════════ */
+
+  async function fetchLast7Days() {
+    const now = new Date();
+    const end = endOfDay(now);
+    const start = new Date(now); start.setDate(start.getDate() - 6); start.setHours(0,0,0,0);
+    const fromIso = start.toISOString();
+    const toIsoS  = end.toISOString();
+    const select =
+      'id,amount,method,status,paid_at,created_at,surcharge_amount,' +
+      'invoices(invoice_lines(kind,amount))';
+    const q = 'payments?select=' + encodeURIComponent(select)
+            + '&paid_at=gte.' + encodeURIComponent(fromIso)
+            + '&paid_at=lte.' + encodeURIComponent(toIsoS)
+            + '&order=paid_at.desc';
+    const r = await fetch(CONFIG.SUPABASE_URL + '/rest/v1/' + q, {
+      headers: { apikey: CONFIG.SUPABASE_KEY, Authorization: 'Bearer ' + CONFIG.SUPABASE_KEY }
+    });
+    if (!r.ok) throw new Error('Supabase ' + r.status);
+    return { rows: (await r.json()) || [], start: start, end: end };
+  }
+
+  function cashflowSparkSvg(dailyTotals) {
+    // dailyTotals: array of { label, value } length 7
+    const W = 300, H = 70, pad = 4;
+    const plotW = W - pad*2, plotH = H - pad*2;
+    const max = Math.max(1, ...dailyTotals.map(d => d.value));
+    const n = dailyTotals.length;
+    const barW = Math.max(6, (plotW - 8*(n-1)) / n);
+    const gap  = n > 1 ? (plotW - barW*n) / (n-1) : 0;
+    let bars = '';
+    dailyTotals.forEach((d, i) => {
+      const h = max > 0 ? (d.value / max) * plotH : 0;
+      const x = pad + i * (barW + gap);
+      const y = pad + plotH - h;
+      const fill = d.value > 0 ? '#3651b5' : '#e4e8f2';
+      bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(2,h).toFixed(1)}" rx="2" fill="${fill}">
+                 <title>${esc(d.label)}: ${esc(money(d.value))}</title>
+               </rect>`;
+    });
+    // Day letter labels under bars (tight)
+    const labels = dailyTotals.map((d, i) => {
+      const cx = pad + i * (barW + gap) + barW/2;
+      return `<text x="${cx.toFixed(1)}" y="${(H-0.5).toFixed(1)}" text-anchor="middle" font-size="8" fill="#8590a8">${esc(d.letter)}</text>`;
+    }).join('');
+    return `<svg viewBox="0 0 ${W} ${H+10}" preserveAspectRatio="none">${bars}${labels}</svg>`;
+  }
+
+  function renderCashflowCard(mount, data) {
+    const { rows, start } = data;
+    // Build 7 daily buckets (inclusive today → 6 days ago)
+    const buckets = [];
+    const WEEKDAY_LETTER = ['S','M','T','W','T','F','S'];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start); d.setDate(d.getDate() + i);
+      const key = d.toISOString().slice(0, 10);
+      buckets.push({
+        key: key,
+        label: d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+        letter: WEEKDAY_LETTER[d.getDay()],
+        value: 0
+      });
+    }
+    const idx = Object.fromEntries(buckets.map((b, i) => [b.key, i]));
+    let total = 0;
+    const catTotals = {};
+    rows.forEach(p => {
+      const when = p.paid_at || p.created_at;
+      if (!when) return;
+      const k = when.slice(0, 10);
+      if (!(k in idx)) return;
+      const amt = Number(p.amount || 0);
+      buckets[idx[k]].value += amt;
+      total += amt;
+      const cat = deriveCategory(p).primary;
+      catTotals[cat] = (catTotals[cat] || 0) + amt;
+    });
+    const topCats = Object.keys(catTotals).sort((a,b) => catTotals[b]-catTotals[a]).slice(0, 3);
+    const catsHtml = topCats.length
+      ? topCats.map(c => `<div class="wpa-cf-cat">
+            <span class="sw" style="background:${CAT_COLOR[c] || '#95a5a6'}"></span>
+            <span class="cat-lbl">${esc(CAT_LABEL[c] || c)}</span>
+            <span class="cat-val">${esc(money(catTotals[c]))}</span>
+          </div>`).join('')
+      : '<div class="wpa-cf-empty">No payments in the last 7 days</div>';
+    mount.innerHTML = `
+      <div class="wpa-cf-card">
+        <div class="wpa-cf-hd">
+          <h4>💸 7-Day Cashflow</h4>
+          <a class="link" onclick="WPA_gotoPaymentsReport()">View full report →</a>
+        </div>
+        <div class="wpa-cf-big">
+          <span class="v">${esc(money(total))}</span>
+          <span class="sub">collected · ${rows.length} payment${rows.length===1?'':'s'}</span>
+        </div>
+        <div class="wpa-cf-spark">${cashflowSparkSvg(buckets)}</div>
+        <div class="wpa-cf-cats">${catsHtml}</div>
+      </div>
+    `;
+  }
+
+  window.WPA_renderCashflowSummary = async function (mountId) {
+    const mount = document.getElementById(mountId);
+    if (!mount) return;
+    injectCss();
+    mount.innerHTML = '<div class="wpa-cf-card"><div class="wpa-cf-empty">Loading…</div></div>';
+    try {
+      const data = await fetchLast7Days();
+      renderCashflowCard(mount, data);
+    } catch (e) {
+      console.error('[cashflow-summary]', e);
+      mount.innerHTML = '<div class="wpa-cf-card"><div class="wpa-cf-empty" style="color:#b83228">Couldn’t load cashflow — check console.</div></div>';
+    }
+  };
+
+  /* ────────────────────────────────────────────────────────────
+     Auto-hooks — run after app.js has defined showPage.
+     1) Wrap window.showPage so opening the Reports tab auto-renders
+        the inline payments report (first visit only; cached after).
+     2) On DOMContentLoaded, if main dashboard has #wpaCashflowMount,
+        render the 7-day cashflow card there.
+     ──────────────────────────────────────────────────────────── */
+  function installShowPageHook() {
+    if (typeof window.showPage !== 'function' || window._wpaPrShowPageHooked) return;
+    const orig = window.showPage;
+    window._wpaPrShowPageHooked = true;
+    window.showPage = function (p, el) {
+      const r = orig.apply(this, arguments);
+      if (p === 'reports') {
+        setTimeout(() => {
+          const tgt = document.getElementById('wpaPrInline');
+          // Only auto-render the first time — subsequent tab visits keep state
+          if (tgt && !tgt.querySelector('.wpa-pr')) {
+            window.WPA_renderPaymentsReport('wpaPrInline');
+          }
+        }, 40);
+      }
+      return r;
+    };
+  }
+  function installCashflowAutoRender() {
+    const mount = document.getElementById('wpaCashflowMount');
+    if (mount) window.WPA_renderCashflowSummary('wpaCashflowMount');
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      installShowPageHook();
+      // showPage might be set after DOMContentLoaded — retry a beat later.
+      setTimeout(installShowPageHook, 200);
+      setTimeout(installCashflowAutoRender, 600);
+    });
+  } else {
+    setTimeout(installShowPageHook, 50);
+    setTimeout(installShowPageHook, 400);
+    setTimeout(installCashflowAutoRender, 600);
+  }
 })();
