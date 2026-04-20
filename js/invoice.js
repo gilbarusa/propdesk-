@@ -200,6 +200,15 @@
   };
   const _esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
   const DAYS_BETWEEN = (a, b) => Math.floor((new Date(b) - new Date(a)) / 86400000);
+  // Resolve the invoice logo to an absolute URL. Admin deploys on
+  // GitHub Pages sometimes under a subpath, so a bare relative
+  // 'logo.png' fails. Prefer an explicit window.WPA_LOGO_URL, else
+  // resolve relative to the current page.
+  const _logoSrc = () => {
+    if (window.WPA_LOGO_URL) return window.WPA_LOGO_URL;
+    try { return new URL('logo.png', window.location.href).toString(); }
+    catch (_) { return 'logo.png'; }
+  };
 
   // ─── Supabase fetch helpers ─────────────────────────────────
   async function _sb(path) {
@@ -329,13 +338,17 @@
     const inv = b.invoice;
     const tenant = b.tenant || {};
     const status = _deriveDisplayStatus(inv);
-    const paid = Number(inv.paid || 0);
-    const total = Number(inv.total || 0);
-    const due = total - paid;
-    // Pass-through card processing fees collected on paid rows. The
-    // portal's webhook writes status='paid'; some earlier records used
-    // 'succeeded'. Accept both so the fee breakdown works regardless.
+    // Derive paid from the payments table rather than inv.paid. The
+    // Stripe webhook reliably updates invoices.status='paid' and writes
+    // rows to payments, but the legacy invoices.paid column is not
+    // always kept in sync. Accept both 'paid' and legacy 'succeeded'.
     const _isPaidRow = p => p.status === 'paid' || p.status === 'succeeded';
+    const paid = (b.payments || [])
+      .filter(_isPaidRow)
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
+    const total = Number(inv.total || 0);
+    const due = Math.max(0, total - paid);
+    // Pass-through card processing fees collected on paid rows.
     const paidFees = (b.payments || [])
       .filter(_isPaidRow)
       .reduce((s, p) => s + Number(p.surcharge_amount || 0), 0);
@@ -398,7 +411,7 @@
       <div class="inv-hd">
         <div class="inv-hd-inner">
           <div>
-            <div class="inv-logo"><img src="${_esc(window.WPA_LOGO_URL || 'logo.png')}" alt="Willow Partnership" onerror="this.style.display='none'"></div>
+            <div class="inv-logo"><img src="${_esc(_logoSrc())}" alt="Willow Partnership" onerror="this.style.display='none'"></div>
             <div class="inv-lbl">Invoice</div>
             <div class="inv-num">${_esc(invNum)}</div>
             <div class="inv-addr">
