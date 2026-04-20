@@ -2947,14 +2947,54 @@
   window.WPA_invoiceRemovePayment = async function (paymentId) {
     if (!paymentId) return;
     const invId = _viewInvoiceId;
-    if (!confirm('Remove this payment row?\n\nIt will be deleted from the payments table. If the invoice was marked paid, you may need to flip its status back manually.')) return;
+    if (!confirm('Remove this payment row?\n\nThe payment is deleted and the invoice status is recomputed from the remaining paid rows (paid / partial / open). Void and draft invoices stay as-is.')) return;
     try {
       await _sbDelete('payments?id=eq.' + encodeURIComponent(paymentId));
+      await _reconcileInvoiceStatus(invId);
       _p9Refresh(invId);
     } catch (e) {
       alert('Remove failed: ' + e.message);
     }
   };
+
+  // Recompute invoices.status from the remaining payments. Called
+  // after a manual payment-row delete — the Stripe webhook does the
+  // same thing for real payments, but there's no DB trigger on
+  // payment rows, so we roll it up from JS.
+  //
+  //   paidSum >= total   → 'paid'
+  //   0 < paidSum < total → 'partial'
+  //   paidSum === 0      → 'open' (only if current status is paid
+  //                        or partial — leave void/draft alone)
+  //
+  // The `invoices_touch_updated_at` trigger takes care of clearing
+  // paid_at on the transition out of 'paid', so we don't have to.
+  async function _reconcileInvoiceStatus(invoiceId) {
+    if (!invoiceId) return;
+    try {
+      const [invArr, pays] = await Promise.all([
+        _sb('invoices?id=eq.' + encodeURIComponent(invoiceId) + '&select=total,status'),
+        _sb('payments?invoice_id=eq.' + encodeURIComponent(invoiceId) + '&select=amount,status')
+      ]);
+      if (!invArr.length) return;
+      const cur = invArr[0];
+      const curStatus = cur.status || 'open';
+      if (curStatus === 'void' || curStatus === 'draft') return; // admin intent wins
+      const total = Number(cur.total || 0);
+      const paidSum = (pays || [])
+        .filter(p => p.status === 'paid' || p.status === 'succeeded')
+        .reduce((s, p) => s + Number(p.amount || 0), 0);
+      let next;
+      if (paidSum >= total - 0.005 && total > 0) next = 'paid';
+      else if (paidSum > 0.005)                  next = 'partial';
+      else                                       next = 'open';
+      if (next !== curStatus) {
+        await _sbPatch('invoices?id=eq.' + encodeURIComponent(invoiceId), { status: next });
+      }
+    } catch (e) {
+      console.warn('[reconcileInvoiceStatus]', e);
+    }
+  }
 
   /* ─── Add / Edit / Remove individual line items ─────────────── */
 
