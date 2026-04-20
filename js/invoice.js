@@ -1224,10 +1224,11 @@
 
   // Kinds must match the invoice_lines_kind_check CHECK constraint.
   // Allowed: rent | deposit | last_month | recurring_charge |
-  //          one_time_charge | late_fee | credit | service
+  //          one_time_charge | late_fee | credit | service | parking
   const _CI_KINDS = [
     { v: 'service',         l: 'Service / Other' },
     { v: 'rent',            l: 'Rent' },
+    { v: 'parking',         l: 'Parking' },
     { v: 'one_time_charge', l: 'One-Time Charge' },
     { v: 'late_fee',        l: 'Late Fee' },
     { v: 'credit',          l: 'Credit (negative)' },
