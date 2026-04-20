@@ -859,7 +859,32 @@
     if (tt) tt.remove();
   };
 
-  // Navigate to Reports tab + render inline. Used by main dashboard link.
+  // Expand/collapse the Payments Report section on the Reports tab.
+  // First expand also triggers the fetch+render; subsequent toggles
+  // just show/hide the already-rendered content (state preserved).
+  window.WPA_prToggleSection = function () {
+    const body  = document.getElementById('wpaPrInline');
+    const label = document.getElementById('wpaPrToggleLbl');
+    const toggle= document.getElementById('wpaPrToggle');
+    if (!body) return;
+    const isHidden = body.style.display === 'none' || !body.style.display;
+    if (isHidden) {
+      body.style.display = 'block';
+      if (label) label.textContent = 'Collapse ▴';
+      if (toggle) toggle.style.borderBottomLeftRadius = '0', toggle.style.borderBottomRightRadius = '0';
+      // Lazy render on first expand
+      if (!body.querySelector('.wpa-pr')) {
+        window.WPA_renderPaymentsReport('wpaPrInline');
+      }
+    } else {
+      body.style.display = 'none';
+      if (label) label.textContent = 'Expand ▾';
+      if (toggle) toggle.style.borderBottomLeftRadius = '12px', toggle.style.borderBottomRightRadius = '12px';
+    }
+  };
+
+  // Navigate to Reports tab + auto-expand the section. Used by the
+  // "View full report →" link on the main dashboard cashflow card.
   window.WPA_gotoPaymentsReport = function () {
     // Find any Reports nav tab (legacy .nav-tab or sidebar variant)
     let navEl = null;
@@ -876,11 +901,14 @@
       else if (navEl) navEl.click();
     } catch (e) { /* noop */ }
     setTimeout(() => {
-      const target = document.getElementById('wpaPrInline');
-      if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        if (!target.firstChild) window.WPA_renderPaymentsReport('wpaPrInline');
+      const body = document.getElementById('wpaPrInline');
+      const section = document.getElementById('wpaPrSection');
+      if (!body) return;
+      // If collapsed, expand (triggers lazy render)
+      if (body.style.display === 'none' || !body.style.display) {
+        window.WPA_prToggleSection();
       }
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 120);
   };
 
@@ -1005,44 +1033,20 @@
   };
 
   /* ────────────────────────────────────────────────────────────
-     Auto-hooks — run after app.js has defined showPage.
-     1) Wrap window.showPage so opening the Reports tab auto-renders
-        the inline payments report (first visit only; cached after).
-     2) On DOMContentLoaded, if main dashboard has #wpaCashflowMount,
-        render the 7-day cashflow card there.
+     Auto-hooks
+     Reports tab: section is collapsed by default, user expands
+     manually (lazy fetch on first expand). No showPage hook needed.
+     Main dashboard: render the 7-day cashflow card on load.
      ──────────────────────────────────────────────────────────── */
-  function installShowPageHook() {
-    if (typeof window.showPage !== 'function' || window._wpaPrShowPageHooked) return;
-    const orig = window.showPage;
-    window._wpaPrShowPageHooked = true;
-    window.showPage = function (p, el) {
-      const r = orig.apply(this, arguments);
-      if (p === 'reports') {
-        setTimeout(() => {
-          const tgt = document.getElementById('wpaPrInline');
-          // Only auto-render the first time — subsequent tab visits keep state
-          if (tgt && !tgt.querySelector('.wpa-pr')) {
-            window.WPA_renderPaymentsReport('wpaPrInline');
-          }
-        }, 40);
-      }
-      return r;
-    };
-  }
   function installCashflowAutoRender() {
     const mount = document.getElementById('wpaCashflowMount');
     if (mount) window.WPA_renderCashflowSummary('wpaCashflowMount');
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-      installShowPageHook();
-      // showPage might be set after DOMContentLoaded — retry a beat later.
-      setTimeout(installShowPageHook, 200);
       setTimeout(installCashflowAutoRender, 600);
     });
   } else {
-    setTimeout(installShowPageHook, 50);
-    setTimeout(installShowPageHook, 400);
     setTimeout(installCashflowAutoRender, 600);
   }
 })();
