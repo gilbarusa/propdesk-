@@ -682,13 +682,22 @@
 <div class="page" id="page-reports">
   <div class="report-wrap">
 
-    <!-- ── Payments Report (Phase 8) — full filterable + charted view ── -->
+    <!-- ── Payments Report (Phase 8) — collapsed by default; lazy-loads ── -->
     <div class="r-section" id="wpaPrSection" style="padding:0;border:0;background:transparent;margin-bottom:22px">
-      <div id="wpaPrInline">
-        <div style="padding:40px 20px;text-align:center;color:#8590a8;font-size:13px;border:1px dashed #c4cdeb;border-radius:12px">
-          💰 Loading payments report…
+      <div id="wpaPrToggle" onclick="WPA_prToggleSection()"
+           style="display:flex;align-items:center;justify-content:space-between;gap:12px;
+                  background:#fff;border:1px solid #e4e8f2;border-radius:12px;
+                  padding:14px 18px;cursor:pointer;user-select:none;
+                  font:14px/1.4 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#141c34">💰 Payments Report</div>
+          <div style="font-size:11px;color:#8590a8;margin-top:2px">
+            Filterable payments — date · category · method · landlord / Stripe account · CSV export · stacked chart
+          </div>
         </div>
+        <div id="wpaPrToggleLbl" style="color:#3651b5;font-size:13px;font-weight:600;white-space:nowrap">Expand ▾</div>
       </div>
+      <div id="wpaPrInline" style="display:none;margin-top:10px"></div>
     </div>
 
     <div class="report-hdr">
@@ -3782,7 +3791,7 @@
 <script src="js/inbox.js?v=20260408b"></script>
 <script src="js/pipeline.js"></script>
 <script src="js/invoice.js?v=20260420-phase7v1"></script>
-<script src="js/payments-report.js?v=20260420-phase8v1"></script>
+<script src="js/payments-report.js?v=20260420-phase8v2"></script>
 <script src="js/lease-wizard.js?v=20260418-lfee2"></script>
 <script src="js/late-fees.js?v=20260418-lfee5-pause"></script>
 <script src="js/leases-view.js?v=20260415-0700"></script>
