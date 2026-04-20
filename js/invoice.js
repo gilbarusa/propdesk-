@@ -813,13 +813,15 @@
     }
   };
 
-  // ─── Action stubs (wired in later phases) ───────────────────
-  ['AddNote','Download','RecordPayment','Edit','Delete','AddLine','EditLine','RemoveLine','RemovePayment'].forEach(fn => {
-    const name = 'WPA_invoice' + fn;
-    if (!window[name]) window[name] = function (id) {
-      alert(fn + ' → ' + (id || '') + '\n\nThis action is wired in Phase 2 of the Rent module.');
+  // ─── Download stub (still placeholder) ──────────────────────
+  // Everything else (AddNote, RecordPayment, Edit, Delete, AddLine,
+  // EditLine, RemoveLine, RemovePayment) is wired for real below in
+  // the Phase-9 block.
+  if (!window.WPA_invoiceDownload) {
+    window.WPA_invoiceDownload = function (id) {
+      alert('Download PDF → ' + (id || '') + '\n\nPDF rendering is not wired yet.');
     };
-  });
+  }
 
   // ─── Press Esc to close ─────────────────────────────────────
   document.addEventListener('keydown', e => {
@@ -2420,6 +2422,654 @@
       if (_viewInvoiceId) WPA_openInvoice(_viewInvoiceId, { mode: _viewMode });
     } catch (e) {
       alert('Failed to record payment: ' + e.message);
+    }
+  };
+
+  /* ════════════════════════════════════════════════════════════
+     PHASE 9 — Admin Edit Invoice + Mark as Paid + Void, line
+     item CRUD, payment removal, and notes. Replaces the old
+     "wired in Phase 2 of the Rent module" stubs.
+
+     Uses the existing _sb / _sbInsert / _sbPatch helpers. Adds a
+     _sbDelete helper for the DELETE verb. Every modal is a
+     self-contained overlay that renders on top of the currently
+     open invoice overlay (z-index 10100+). On save, we close the
+     sub-modal and re-open the invoice via WPA_openInvoice so the
+     data refreshes cleanly.
+     ──────────────────────────────────────────────────────────── */
+
+  async function _sbDelete(path) {
+    const r = await fetch(CONFIG.SUPABASE_URL + '/rest/v1/' + path, {
+      method: 'DELETE',
+      headers: {
+        apikey: CONFIG.SUPABASE_KEY,
+        Authorization: 'Bearer ' + CONFIG.SUPABASE_KEY,
+        Prefer: 'return=minimal'
+      }
+    });
+    if (!r.ok) throw new Error('[' + path + '] HTTP ' + r.status + ' ' + (await r.text()));
+    return true;
+  }
+
+  // ─── Phase-9 CSS (injected once) ──────────────────────────────
+  function _p9InjectCSS() {
+    if (document.getElementById('wpaP9CSS')) return;
+    const s = document.createElement('style');
+    s.id = 'wpaP9CSS';
+    s.textContent = `
+      .wpa-p9-ovr{position:fixed;inset:0;background:rgba(20,28,52,.55);z-index:10100;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+      .wpa-p9{background:#fff;border-radius:14px;width:100%;max-width:640px;box-shadow:0 24px 80px rgba(20,28,52,.35);font:14px/1.4 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#141c34}
+      .wpa-p9.big{max-width:820px}
+      .wpa-p9-hd{padding:20px 24px 14px;border-bottom:1px solid #e4e8f2;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+      .wpa-p9-hd h2{margin:0 0 4px;font-size:17px;font-weight:700}
+      .wpa-p9-hd .sub{color:#4d5670;font-size:12px}
+      .wpa-p9-close{background:none;border:0;font-size:22px;line-height:1;color:#8590a8;cursor:pointer;padding:4px 8px}
+      .wpa-p9-close:hover{color:#141c34}
+      .wpa-p9-body{padding:18px 24px 6px}
+      .wpa-p9-err{background:#fdf1f0;border:1px solid #eebfba;color:#b83228;padding:8px 12px;border-radius:7px;margin:0 0 14px;font-size:12px}
+      .wpa-p9-row{display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:center;margin-bottom:12px}
+      .wpa-p9-row label{font-size:12px;color:#4d5670;font-weight:600}
+      .wpa-p9-row input[type=text],.wpa-p9-row input[type=date],.wpa-p9-row input[type=number],
+      .wpa-p9-row select,.wpa-p9-row textarea{
+        width:100%;padding:8px 10px;border:1px solid #c4cdeb;border-radius:7px;font-size:13px;background:#fff;color:#141c34;font-family:inherit;box-sizing:border-box
+      }
+      .wpa-p9-row textarea{min-height:64px;resize:vertical}
+      .wpa-p9-row input:focus,.wpa-p9-row select:focus,.wpa-p9-row textarea:focus{outline:0;border-color:#3651b5;box-shadow:0 0 0 3px rgba(54,81,181,.12)}
+      .wpa-p9-row .ro{color:#141c34;font-weight:500;padding:8px 0}
+      .wpa-p9-lines{margin-top:16px;border-top:1px solid #e4e8f2;padding-top:14px}
+      .wpa-p9-lines h3{margin:0 0 10px;font-size:13px;font-weight:700;display:flex;justify-content:space-between;align-items:center}
+      .wpa-p9-lines h3 .add{background:#eef1fb;border:1px solid #c4cdeb;color:#3651b5;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+      .wpa-p9-lines h3 .add:hover{background:#dde3f5}
+      .wpa-p9-tbl{width:100%;border-collapse:collapse;font-size:13px}
+      .wpa-p9-tbl th{text-align:left;padding:6px 8px;color:#4d5670;font-size:11px;font-weight:600;border-bottom:1px solid #e4e8f2;text-transform:uppercase;letter-spacing:.04em}
+      .wpa-p9-tbl td{padding:6px 4px;vertical-align:top}
+      .wpa-p9-tbl td input,.wpa-p9-tbl td select{width:100%;padding:6px 8px;border:1px solid #c4cdeb;border-radius:6px;font-size:13px;background:#fff;color:#141c34;box-sizing:border-box}
+      .wpa-p9-tbl td input[type=number]{text-align:right}
+      .wpa-p9-tbl th.amt,.wpa-p9-tbl td.amt{text-align:right;width:110px}
+      .wpa-p9-tbl th.kind,.wpa-p9-tbl td.kind{width:170px}
+      .wpa-p9-tbl th.rm,.wpa-p9-tbl td.rm{width:32px;text-align:center}
+      .wpa-p9-tbl .rm button{background:none;border:0;color:#8590a8;font-size:18px;line-height:1;cursor:pointer;padding:4px}
+      .wpa-p9-tbl .rm button:hover{color:#b83228}
+      .wpa-p9-tot{display:flex;justify-content:flex-end;gap:18px;padding:12px 4px 2px;font-size:14px;border-top:1px solid #e4e8f2;margin-top:6px}
+      .wpa-p9-tot .lbl{color:#4d5670;font-weight:600}
+      .wpa-p9-tot .val{font-weight:700;min-width:100px;text-align:right}
+      .wpa-p9-ft{padding:14px 24px 18px;border-top:1px solid #e4e8f2;display:flex;gap:10px;justify-content:flex-end;background:#fafbfe;border-radius:0 0 14px 14px;margin-top:10px;flex-wrap:wrap}
+      .wpa-p9-ft .spacer{flex:1}
+      .wpa-p9-btn{padding:9px 18px;border-radius:7px;border:1px solid #c4cdeb;background:#fff;color:#141c34;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+      .wpa-p9-btn:hover{background:#f5f7fb}
+      .wpa-p9-btn.primary{background:#3651b5;border-color:#3651b5;color:#fff}
+      .wpa-p9-btn.primary:hover{background:#2b4399}
+      .wpa-p9-btn.publish{background:#1f7a4d;border-color:#1f7a4d;color:#fff}
+      .wpa-p9-btn.publish:hover{background:#176138}
+      .wpa-p9-btn.danger{background:#fff;border-color:#eebfba;color:#b83228}
+      .wpa-p9-btn.danger:hover{background:#fdf1f0}
+      .wpa-p9-btn:disabled{opacity:.5;cursor:not-allowed}
+    `;
+    document.head.appendChild(s);
+  }
+
+  function _p9Close() {
+    const o = document.getElementById('wpaP9Overlay');
+    if (o) o.remove();
+  }
+  window.WPA_closeP9 = _p9Close;
+
+  // Refresh the open invoice overlay after any Phase-9 write.
+  function _p9Refresh(id) {
+    const invId = id || _viewInvoiceId;
+    if (invId && typeof WPA_openInvoice === 'function'
+        && document.getElementById('wpaInvOverlay')) {
+      WPA_openInvoice(invId, { mode: _viewMode });
+    }
+  }
+
+  /* ─── Edit Invoice (full: header + lines + status override) ─── */
+
+  let _editState = null;
+
+  window.WPA_invoiceEdit = async function (id) {
+    if (!id) return;
+    _p9InjectCSS();
+    // Open with a loading pane so the user sees something immediately
+    _editOpenShell('<div style="padding:40px;text-align:center;color:#8590a8">Loading invoice…</div>');
+    try {
+      const [invArr, lines] = await Promise.all([
+        _sb('invoices?id=eq.' + id + '&select=*'),
+        _sb('invoice_lines?invoice_id=eq.' + id + '&select=*&order=created_at.asc')
+      ]);
+      if (!invArr.length) throw new Error('Invoice not found');
+      const inv = invArr[0];
+      _editState = {
+        id: id,
+        property: inv.property || '',
+        unit: inv.unit || '',
+        subject: inv.subject || '',
+        notes: inv.notes || '',
+        dueDate: (inv.due_date || '').slice(0, 10),
+        status: inv.status || 'open',
+        // Keep original line ids so we can diff on save
+        lines: (lines || []).map(l => ({
+          id: l.id,
+          kind: l.kind || 'service',
+          description: l.description || '',
+          amount: (l.amount == null ? '' : String(l.amount))
+        })),
+        removedIds: [],
+        saving: false,
+        error: ''
+      };
+      if (!_editState.lines.length) {
+        _editState.lines.push({ id: null, kind: 'service', description: '', amount: '' });
+      }
+      _editRender();
+    } catch (e) {
+      _editOpenShell('<div style="padding:40px;text-align:center;color:#b83228">Failed to load: ' + _esc(e.message) + '</div>');
+    }
+  };
+
+  function _editOpenShell(inner) {
+    _p9Close();
+    const ovr = document.createElement('div');
+    ovr.id = 'wpaP9Overlay';
+    ovr.className = 'wpa-p9-ovr';
+    ovr.innerHTML = '<div class="wpa-p9 big">' + inner + '</div>';
+    ovr.addEventListener('click', e => { if (e.target === ovr) _p9Close(); });
+    document.body.appendChild(ovr);
+  }
+
+  function _editRender() {
+    if (!_editState) return;
+    const st = _editState;
+
+    const kindOpts = _CI_KINDS.map(k => ({ v: k.v, l: k.l }));
+    const statusOpts = [
+      { v: 'draft',   l: 'Draft' },
+      { v: 'open',    l: 'Open' },
+      { v: 'partial', l: 'Partial' },
+      { v: 'paid',    l: 'Paid' },
+      { v: 'void',    l: 'Void' }
+    ];
+
+    const lineRows = st.lines.map((l, i) => `
+      <tr>
+        <td class="kind">
+          <select onchange="_editLineUpd(${i},'kind',this.value)">
+            ${kindOpts.map(k => `<option value="${k.v}" ${l.kind===k.v?'selected':''}>${_esc(k.l)}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          <input type="text" placeholder="Description"
+            value="${_esc(l.description || '')}"
+            oninput="_editLineUpd(${i},'description',this.value)">
+        </td>
+        <td class="amt">
+          <input type="number" step="0.01" placeholder="0.00"
+            value="${l.amount === '' || l.amount == null ? '' : String(l.amount)}"
+            oninput="_editLineUpd(${i},'amount',this.value)">
+        </td>
+        <td class="rm">
+          ${st.lines.length > 1 ? `<button type="button" onclick="_editLineRm(${i})" title="Remove line">×</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    const total = st.lines.reduce((s, l) => {
+      const n = Number(l.amount || 0);
+      if (!isFinite(n)) return s;
+      return s + (l.kind === 'credit' ? -Math.abs(n) : n);
+    }, 0);
+
+    const html = `
+      <div class="wpa-p9-hd">
+        <div>
+          <h2>Edit Invoice</h2>
+          <div class="sub">${_esc(st.property || '—')}${st.unit ? ' · Unit ' + _esc(st.unit) : ''}</div>
+        </div>
+        <button class="wpa-p9-close" onclick="WPA_closeP9()" title="Close">✕</button>
+      </div>
+      <div class="wpa-p9-body">
+        ${st.error ? `<div class="wpa-p9-err">${_esc(st.error)}</div>` : ''}
+        <div class="wpa-p9-row">
+          <label>Subject</label>
+          <input type="text" placeholder="e.g. April rent"
+            value="${_esc(st.subject)}"
+            oninput="_editFieldUpd('subject',this.value)">
+        </div>
+        <div class="wpa-p9-row">
+          <label>Due Date</label>
+          <input type="date" value="${_esc(st.dueDate)}" oninput="_editFieldUpd('dueDate',this.value)">
+        </div>
+        <div class="wpa-p9-row">
+          <label>Status</label>
+          <select onchange="_editFieldUpd('status',this.value)">
+            ${statusOpts.map(o => `<option value="${o.v}" ${st.status===o.v?'selected':''}>${_esc(o.l)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="wpa-p9-row">
+          <label>Notes</label>
+          <textarea oninput="_editFieldUpd('notes',this.value)" placeholder="Internal notes (visible to admins; first line shows as subject if Subject is blank)">${_esc(st.notes || '')}</textarea>
+        </div>
+        <div class="wpa-p9-lines">
+          <h3>
+            <span>Line Items</span>
+            <span class="add" onclick="_editLineAdd()">+ Add Line</span>
+          </h3>
+          <table class="wpa-p9-tbl">
+            <thead><tr><th class="kind">Kind</th><th>Description</th><th class="amt">Amount</th><th class="rm"></th></tr></thead>
+            <tbody>${lineRows}</tbody>
+          </table>
+          <div class="wpa-p9-tot">
+            <span class="lbl">Total</span>
+            <span class="val" id="wpaEditTotal">${_esc(MONEY(total))}</span>
+          </div>
+        </div>
+      </div>
+      <div class="wpa-p9-ft">
+        <button class="wpa-p9-btn" onclick="WPA_closeP9()">Cancel</button>
+        <div class="spacer"></div>
+        <button class="wpa-p9-btn primary" ${st.saving?'disabled':''} onclick="_editSave()">Save Changes</button>
+      </div>
+    `;
+
+    _editOpenShell(html);
+  }
+
+  // Top-level field updates — don't re-render (would kill caret focus).
+  window._editFieldUpd = function (field, val) {
+    if (!_editState) return;
+    _editState[field] = val;
+  };
+  // Line updates: text/number/kind change → state only + refresh total.
+  window._editLineUpd = function (idx, field, val) {
+    if (!_editState || !_editState.lines[idx]) return;
+    _editState.lines[idx][field] = val;
+    if (field === 'amount' || field === 'kind') {
+      const el = document.getElementById('wpaEditTotal');
+      if (el) {
+        const total = _editState.lines.reduce((s, l) => {
+          const n = Number(l.amount || 0);
+          if (!isFinite(n)) return s;
+          return s + (l.kind === 'credit' ? -Math.abs(n) : n);
+        }, 0);
+        el.textContent = MONEY(total);
+      }
+    }
+  };
+  window._editLineAdd = function () {
+    if (!_editState) return;
+    _editState.lines.push({ id: null, kind: 'service', description: '', amount: '' });
+    _editRender();
+  };
+  window._editLineRm = function (idx) {
+    if (!_editState) return;
+    const removed = _editState.lines.splice(idx, 1)[0];
+    if (removed && removed.id) _editState.removedIds.push(removed.id);
+    if (_editState.lines.length === 0) {
+      _editState.lines.push({ id: null, kind: 'service', description: '', amount: '' });
+    }
+    _editRender();
+  };
+
+  window._editSave = async function () {
+    if (!_editState || _editState.saving) return;
+    const st = _editState;
+    st.error = '';
+
+    // Clean + validate
+    const cleanLines = st.lines.map(l => ({
+      id: l.id,
+      kind: l.kind,
+      description: (l.description || '').trim(),
+      amount: Number(l.amount || 0)
+    })).filter(l => isFinite(l.amount) && (Math.abs(l.amount) > 0.005 || l.id));
+    // Auto-negate credit lines
+    cleanLines.forEach(l => { if (l.kind === 'credit') l.amount = -Math.abs(l.amount); });
+    if (!cleanLines.filter(l => Math.abs(l.amount) > 0.005).length) {
+      st.error = 'At least one line item must have a non-zero amount.';
+      _editRender();
+      return;
+    }
+    const missingDesc = cleanLines.find(l => !l.description);
+    if (missingDesc) { st.error = 'Every line item needs a description.'; _editRender(); return; }
+    if (!st.dueDate) { st.error = 'Due date required.'; _editRender(); return; }
+
+    const total = cleanLines.reduce((s, l) => s + l.amount, 0);
+    st.saving = true;
+    _editRender();
+
+    try {
+      // 1. Remove deleted lines
+      for (const rid of st.removedIds) {
+        await _sbDelete('invoice_lines?id=eq.' + encodeURIComponent(rid));
+      }
+      // 2. Patch existing lines
+      const existing = cleanLines.filter(l => l.id);
+      for (const l of existing) {
+        await _sbPatch('invoice_lines?id=eq.' + encodeURIComponent(l.id), {
+          kind: l.kind, description: l.description, amount: l.amount
+        });
+      }
+      // 3. Insert new lines
+      const fresh = cleanLines.filter(l => !l.id).map(l => ({
+        invoice_id: st.id,
+        kind: l.kind,
+        description: l.description,
+        amount: l.amount,
+        day_offset: null,
+        created_by: 'admin'
+      }));
+      if (fresh.length) await _sbInsert('invoice_lines', fresh);
+
+      // 4. Patch the invoice header (subject/notes/due_date/status/total)
+      const patch = {
+        subject: st.subject || null,
+        notes:   st.notes   || null,
+        due_date: st.dueDate,
+        status: st.status,
+        total: total
+      };
+      await _sbPatch('invoices?id=eq.' + encodeURIComponent(st.id), patch);
+
+      _p9Close();
+      _editState = null;
+      _p9Refresh(st.id);
+    } catch (e) {
+      console.error('[editSave]', e);
+      st.saving = false;
+      st.error = 'Save failed: ' + (e && e.message ? e.message : String(e));
+      _editRender();
+    }
+  };
+
+  /* ─── Record Payment / Mark as Paid ─────────────────────────── */
+
+  let _recState = null;
+
+  window.WPA_invoiceRecordPayment = async function (id) {
+    if (!id) return;
+    _p9InjectCSS();
+    _editOpenShell('<div style="padding:40px;text-align:center;color:#8590a8">Loading invoice…</div>');
+    try {
+      const [invArr, pays] = await Promise.all([
+        _sb('invoices?id=eq.' + id + '&select=*'),
+        _sb('payments?invoice_id=eq.' + id + '&select=amount,status')
+      ]);
+      if (!invArr.length) throw new Error('Invoice not found');
+      const inv = invArr[0];
+      const paidSum = (pays || [])
+        .filter(p => p.status === 'paid' || p.status === 'succeeded')
+        .reduce((s, p) => s + Number(p.amount || 0), 0);
+      const remaining = Math.max(0, Number(inv.total || 0) - paidSum);
+      _recState = {
+        id: id,
+        property: inv.property || '',
+        unit: inv.unit || '',
+        invoiceTotal: Number(inv.total || 0),
+        paidSum: paidSum,
+        amount: remaining > 0 ? remaining.toFixed(2) : '0.00',
+        method: 'manual',
+        paidAt: new Date().toISOString().slice(0, 10),
+        payer: '',
+        memo: '',
+        flipStatus: true,  // default: mark the invoice paid too
+        saving: false,
+        error: ''
+      };
+      _recRender();
+    } catch (e) {
+      _editOpenShell('<div style="padding:40px;text-align:center;color:#b83228">Failed to load: ' + _esc(e.message) + '</div>');
+    }
+  };
+
+  function _recRender() {
+    if (!_recState) return;
+    const st = _recState;
+    const remaining = st.invoiceTotal - st.paidSum;
+    const methodOpts = [
+      { v: 'manual', l: 'Manual / Other' },
+      { v: 'cash',   l: 'Cash' },
+      { v: 'check',  l: 'Check' },
+      { v: 'ach',    l: 'ACH / Bank Transfer' },
+      { v: 'card',   l: 'Credit Card (offline)' }
+    ];
+    const html = `
+      <div class="wpa-p9-hd">
+        <div>
+          <h2>Record Payment</h2>
+          <div class="sub">${_esc(st.property || '—')}${st.unit ? ' · Unit ' + _esc(st.unit) : ''} · Remaining ${_esc(MONEY(remaining))}</div>
+        </div>
+        <button class="wpa-p9-close" onclick="WPA_closeP9()" title="Close">✕</button>
+      </div>
+      <div class="wpa-p9-body">
+        ${st.error ? `<div class="wpa-p9-err">${_esc(st.error)}</div>` : ''}
+        <div class="wpa-p9-row">
+          <label>Amount</label>
+          <input type="number" step="0.01" min="0" value="${_esc(st.amount)}" oninput="_recFieldUpd('amount',this.value)">
+        </div>
+        <div class="wpa-p9-row">
+          <label>Method</label>
+          <select onchange="_recFieldUpd('method',this.value)">
+            ${methodOpts.map(o => `<option value="${o.v}" ${st.method===o.v?'selected':''}>${_esc(o.l)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="wpa-p9-row">
+          <label>Paid On</label>
+          <input type="date" value="${_esc(st.paidAt)}" oninput="_recFieldUpd('paidAt',this.value)">
+        </div>
+        <div class="wpa-p9-row">
+          <label>Payer Name</label>
+          <input type="text" placeholder="Tenant / payer name" value="${_esc(st.payer)}" oninput="_recFieldUpd('payer',this.value)">
+        </div>
+        <div class="wpa-p9-row">
+          <label>Memo</label>
+          <textarea placeholder="Optional reference (check #, confirmation, etc.)" oninput="_recFieldUpd('memo',this.value)">${_esc(st.memo || '')}</textarea>
+        </div>
+        <div class="wpa-p9-row">
+          <label>Status</label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:#141c34">
+            <input type="checkbox" ${st.flipStatus?'checked':''} onchange="_recFieldUpd('flipStatus',this.checked)">
+            Also set invoice status to <b style="margin-left:4px">paid</b>
+          </label>
+        </div>
+      </div>
+      <div class="wpa-p9-ft">
+        <button class="wpa-p9-btn" onclick="WPA_closeP9()">Cancel</button>
+        <div class="spacer"></div>
+        <button class="wpa-p9-btn publish" ${st.saving?'disabled':''} onclick="_recSave()">Record Payment</button>
+      </div>
+    `;
+    _editOpenShell(html);
+  }
+
+  window._recFieldUpd = function (f, v) {
+    if (!_recState) return;
+    _recState[f] = v;
+  };
+
+  window._recSave = async function () {
+    if (!_recState || _recState.saving) return;
+    const st = _recState;
+    st.error = '';
+    const amt = Number(st.amount);
+    if (!isFinite(amt) || amt <= 0) {
+      st.error = 'Enter a positive amount.'; _recRender(); return;
+    }
+    if (!st.paidAt) { st.error = 'Paid-on date required.'; _recRender(); return; }
+
+    st.saving = true;
+    _recRender();
+    try {
+      const paidAtIso = new Date(st.paidAt + 'T12:00:00').toISOString();
+      const row = {
+        invoice_id: st.id,
+        amount: amt,
+        method: st.method || 'manual',
+        status: 'paid',
+        payer_name: st.payer || null,
+        paid_at: paidAtIso,
+        failure_reason: st.memo ? ('memo: ' + st.memo) : null
+      };
+      await _sbInsert('payments', row);
+
+      if (st.flipStatus) {
+        await _sbPatch('invoices?id=eq.' + encodeURIComponent(st.id), {
+          status: 'paid',
+          paid_at: paidAtIso
+        });
+      }
+
+      _p9Close();
+      _recState = null;
+      _p9Refresh(st.id);
+    } catch (e) {
+      console.error('[recSave]', e);
+      st.saving = false;
+      st.error = 'Save failed: ' + (e && e.message ? e.message : String(e));
+      _recRender();
+    }
+  };
+
+  /* ─── Delete / Void Invoice ─────────────────────────────────── */
+
+  window.WPA_invoiceDelete = async function (id) {
+    if (!id) return;
+    if (!confirm('Void this invoice?\n\nThe row stays in the database for audit — status flips to "void". This cannot be undone from the UI.')) return;
+    try {
+      await _sbPatch('invoices?id=eq.' + encodeURIComponent(id), { status: 'void' });
+      _p9Refresh(id);
+    } catch (e) {
+      alert('Void failed: ' + e.message);
+    }
+  };
+
+  /* ─── Remove Payment row ────────────────────────────────────── */
+
+  window.WPA_invoiceRemovePayment = async function (paymentId) {
+    if (!paymentId) return;
+    const invId = _viewInvoiceId;
+    if (!confirm('Remove this payment row?\n\nIt will be deleted from the payments table. If the invoice was marked paid, you may need to flip its status back manually.')) return;
+    try {
+      await _sbDelete('payments?id=eq.' + encodeURIComponent(paymentId));
+      _p9Refresh(invId);
+    } catch (e) {
+      alert('Remove failed: ' + e.message);
+    }
+  };
+
+  /* ─── Add / Edit / Remove individual line items ─────────────── */
+
+  function _lineKindPromptLabel() {
+    return _CI_KINDS.map((k, i) => (i + 1) + ') ' + k.l).join('\n');
+  }
+
+  window.WPA_invoiceAddLine = async function (invoiceId) {
+    if (!invoiceId) return;
+    const kindIdx = prompt('Line kind — enter number:\n\n' + _lineKindPromptLabel(), '1');
+    if (kindIdx === null) return;
+    const k = _CI_KINDS[(parseInt(kindIdx, 10) || 1) - 1];
+    if (!k) { alert('Invalid kind.'); return; }
+    const desc = prompt('Description for the "' + k.l + '" line:', '');
+    if (desc === null) return;
+    if (!desc.trim()) { alert('Description required.'); return; }
+    const amtStr = prompt('Amount (e.g. 125.00). Credits are auto-negated.', '0');
+    if (amtStr === null) return;
+    let amt = Number(amtStr);
+    if (!isFinite(amt) || Math.abs(amt) < 0.005) { alert('Invalid amount.'); return; }
+    if (k.v === 'credit') amt = -Math.abs(amt);
+    try {
+      await _sbInsert('invoice_lines', [{
+        invoice_id: invoiceId,
+        kind: k.v,
+        description: desc.trim(),
+        amount: amt,
+        day_offset: null,
+        created_by: 'admin'
+      }]);
+      // Recompute invoice.total
+      await _recomputeInvoiceTotal(invoiceId);
+      _p9Refresh(invoiceId);
+    } catch (e) {
+      alert('Add line failed: ' + e.message);
+    }
+  };
+
+  window.WPA_invoiceEditLine = async function (lineId) {
+    if (!lineId) return;
+    const invId = _viewInvoiceId;
+    try {
+      const arr = await _sb('invoice_lines?id=eq.' + encodeURIComponent(lineId) + '&select=*');
+      if (!arr.length) { alert('Line not found.'); return; }
+      const l = arr[0];
+      const curIdx = Math.max(0, _CI_KINDS.findIndex(k => k.v === l.kind));
+      const kindIdx = prompt('Line kind — enter number:\n\n' + _lineKindPromptLabel(),
+                             String(curIdx + 1));
+      if (kindIdx === null) return;
+      const k = _CI_KINDS[(parseInt(kindIdx, 10) || 1) - 1];
+      if (!k) { alert('Invalid kind.'); return; }
+      const desc = prompt('Description:', l.description || '');
+      if (desc === null) return;
+      if (!desc.trim()) { alert('Description required.'); return; }
+      const amtStr = prompt('Amount (credits auto-negated):',
+                            l.amount == null ? '0' : String(Math.abs(l.amount)));
+      if (amtStr === null) return;
+      let amt = Number(amtStr);
+      if (!isFinite(amt) || Math.abs(amt) < 0.005) { alert('Invalid amount.'); return; }
+      if (k.v === 'credit') amt = -Math.abs(amt);
+      await _sbPatch('invoice_lines?id=eq.' + encodeURIComponent(lineId), {
+        kind: k.v, description: desc.trim(), amount: amt
+      });
+      await _recomputeInvoiceTotal(invId);
+      _p9Refresh(invId);
+    } catch (e) {
+      alert('Edit line failed: ' + e.message);
+    }
+  };
+
+  window.WPA_invoiceRemoveLine = async function (lineId) {
+    if (!lineId) return;
+    const invId = _viewInvoiceId;
+    if (!confirm('Remove this line item?')) return;
+    try {
+      await _sbDelete('invoice_lines?id=eq.' + encodeURIComponent(lineId));
+      await _recomputeInvoiceTotal(invId);
+      _p9Refresh(invId);
+    } catch (e) {
+      alert('Remove line failed: ' + e.message);
+    }
+  };
+
+  // Recompute invoices.total from the sum of invoice_lines.amount.
+  // Used after AddLine / EditLine / RemoveLine so the header total
+  // stays in sync without forcing the admin to open the full Edit
+  // modal just to trigger the save.
+  async function _recomputeInvoiceTotal(invoiceId) {
+    if (!invoiceId) return;
+    try {
+      const lines = await _sb('invoice_lines?invoice_id=eq.' + encodeURIComponent(invoiceId) + '&select=amount');
+      const total = (lines || []).reduce((s, l) => s + Number(l.amount || 0), 0);
+      await _sbPatch('invoices?id=eq.' + encodeURIComponent(invoiceId), { total: total });
+    } catch (e) {
+      console.warn('[recomputeInvoiceTotal]', e);
+    }
+  }
+
+  /* ─── Add Note (append to invoices.notes) ───────────────────── */
+
+  window.WPA_invoiceAddNote = async function (invoiceId) {
+    if (!invoiceId) return;
+    const txt = prompt('Add a note to this invoice:\n\nAppended with a timestamp and [admin] tag. Visible on the admin invoice view.', '');
+    if (txt === null) return;
+    if (!txt.trim()) return;
+    try {
+      const arr = await _sb('invoices?id=eq.' + encodeURIComponent(invoiceId) + '&select=notes');
+      const prev = (arr[0] && arr[0].notes) ? String(arr[0].notes) : '';
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      const newLine = '[' + stamp + ' admin] ' + txt.trim();
+      const merged = prev ? (prev.replace(/\s+$/, '') + '\n' + newLine) : newLine;
+      await _sbPatch('invoices?id=eq.' + encodeURIComponent(invoiceId), { notes: merged });
+      _p9Refresh(invoiceId);
+    } catch (e) {
+      alert('Add note failed: ' + e.message);
     }
   };
 
