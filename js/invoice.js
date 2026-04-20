@@ -36,6 +36,7 @@
   .wpa-inv .sb-status.partial{color:#3651b5}
   .wpa-inv .sb-status.pending{color:#b86818}
   .wpa-inv .sb-status.void{color:#8590a8}
+  .wpa-inv .sb-status.draft{color:#4d5670;font-style:italic}
 
   /* header */
   .wpa-inv .inv-hd{background:linear-gradient(135deg,#ffffff 0%,#f3f6fc 60%,#e7edf8 100%);padding:32px 40px;position:relative;overflow:hidden;border-bottom:1px solid #d4dae6}
@@ -240,9 +241,10 @@
 
   // ─── Status / display derivation ────────────────────────────
   function _deriveDisplayStatus(invoice) {
-    // status from DB: open | paid | partial | void
+    // status from DB: draft | open | paid | partial | void
     // display: map open → 'late' if past due, else 'pending'
     const s = (invoice.status || 'open').toLowerCase();
+    if (s === 'draft') return { key: 'draft', label: 'Draft' };
     if (s === 'paid') return { key: 'paid', label: 'Paid' };
     if (s === 'partial') return { key: 'partial', label: 'Partial' };
     if (s === 'void') return { key: 'void', label: 'Void' };
@@ -864,6 +866,7 @@
   .wpa-il-pill.late,.wpa-il-pill.overdue{color:#b83228;background:#fdf1f0;border-color:#eebfba}
   .wpa-il-pill.partial{color:#3651b5;background:#eef1fb;border-color:#c4cdeb}
   .wpa-il-pill.void{color:#8590a8;background:#f5f7fb;border-color:#d4dae6}
+  .wpa-il-pill.draft{color:#4d5670;background:#f5f7fb;border-color:#c4cdeb;font-style:italic}
   .wpa-il-empty{padding:50px 20px;text-align:center;color:#8590a8;font-style:italic}
   /* hover popover */
   .wpa-il-pop{position:fixed;z-index:9200;background:#fff;border:1px solid #c4cdeb;border-radius:10px;box-shadow:0 8px 24px rgba(20,23,42,.18);padding:14px 16px;min-width:260px;font-size:11.5px;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity .12s}
@@ -1023,7 +1026,8 @@
       const dbStatus = (inv.status||'open').toLowerCase();
       let status = dbStatus;
       let daysLate = 0;
-      if (dbStatus === 'paid') status = 'paid';
+      if (dbStatus === 'draft') status = 'draft';
+      else if (dbStatus === 'paid') status = 'paid';
       else if (dbStatus === 'void') status = 'void';
       else if (paid > 0 && paid < total) status = 'partial';
       else if (due && due < today) { status = 'late'; daysLate = Math.floor((today-due)/86400000); }
@@ -1093,6 +1097,14 @@
         <div class="wpa-il-head">
           <h2 class="wpa-il-title">${_esc(title)}${sourceBadge}</h2>
           <div class="wpa-il-sub">${_esc(propLine || 'Full invoice ledger')}</div>
+          ${(ctx.property && ctx.unit) ? `
+            <div style="margin-top:10px;display:flex;gap:8px">
+              <button onclick="_wpaNewInvoiceFromList()"
+                style="padding:7px 14px;border-radius:7px;border:1px solid #3651b5;background:#3651b5;color:#fff;font-size:12px;font-weight:600;cursor:pointer">
+                + New Invoice
+              </button>
+            </div>
+          ` : ''}
           <div class="wpa-il-kpis">
             <div class="wpa-il-kpi"><div class="k-lbl">Total Billed</div><div class="k-val">${_fmt$(k.totalBilled)}</div></div>
             <div class="wpa-il-kpi"><div class="k-lbl">Total Paid</div><div class="k-val">${_fmt$(k.totalPaid)}</div></div>
@@ -1140,6 +1152,15 @@
   }
 
   window._wpaSetInvFilter = function (f) { _listFilter = f; _renderList(); };
+
+  window._wpaNewInvoiceFromList = function () {
+    if (!_listCtx || !_listCtx.property || !_listCtx.unit) return;
+    WPA_createInvoice({
+      property: _listCtx.property,
+      unit:     _listCtx.unit,
+      tenantName: _listCtx.tenantName || ''
+    });
+  };
   window._wpaOpenRow = function (idx) {
     const r = _filtered()[idx];
     if (!r) return;
@@ -1193,6 +1214,339 @@
   window._wpaHidePop = function () {
     const pop = document.getElementById('wpaInvListPop');
     if (pop) pop.classList.remove('on');
+  };
+
+  /* ════════════════════════════════════════════════════════════
+     CREATE INVOICE (Phase 5 v1) — admin-only flow to create a
+     one-off invoice as draft or published. Multi-line from day 1.
+     Default due = today + 14 days. No recurring, no edit-after-send.
+     ──────────────────────────────────────────────────────────── */
+
+  const _CI_KINDS = [
+    { v: 'rent',            l: 'Rent' },
+    { v: 'late_fee',        l: 'Late Fee' },
+    { v: 'credit',          l: 'Credit (negative)' },
+    { v: 'one_time_charge', l: 'One-Time Charge' },
+    { v: 'misc',            l: 'Misc / Other' },
+    { v: 'deposit',         l: 'Security Deposit' },
+    { v: 'last_month',      l: 'Last Month Rent' }
+  ];
+
+  function _ciInjectCSS() {
+    if (document.getElementById('wpaCiCSS')) return;
+    const s = document.createElement('style');
+    s.id = 'wpaCiCSS';
+    s.textContent = `
+      .wpa-ci-ovr{position:fixed;inset:0;background:rgba(20,28,52,.45);z-index:10050;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+      .wpa-ci{background:#fff;border-radius:14px;width:100%;max-width:760px;box-shadow:0 24px 80px rgba(20,28,52,.35);font:14px/1.4 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#141c34}
+      .wpa-ci-hd{padding:22px 26px 16px;border-bottom:1px solid #e4e8f2;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+      .wpa-ci-hd h2{margin:0 0 4px;font-size:18px;font-weight:700}
+      .wpa-ci-hd .sub{color:#4d5670;font-size:12px}
+      .wpa-ci-close{background:none;border:0;font-size:22px;line-height:1;color:#8590a8;cursor:pointer;padding:4px 8px}
+      .wpa-ci-close:hover{color:#141c34}
+      .wpa-ci-body{padding:20px 26px 8px}
+      .wpa-ci-row{display:grid;grid-template-columns:140px 1fr;gap:14px;align-items:center;margin-bottom:12px}
+      .wpa-ci-row label{font-size:12px;color:#4d5670;font-weight:600}
+      .wpa-ci-row input[type=text],.wpa-ci-row input[type=date],.wpa-ci-row select,.wpa-ci-row textarea{
+        width:100%;padding:8px 10px;border:1px solid #c4cdeb;border-radius:7px;font-size:13px;background:#fff;color:#141c34;font-family:inherit;box-sizing:border-box
+      }
+      .wpa-ci-row input:focus,.wpa-ci-row select:focus,.wpa-ci-row textarea:focus{outline:0;border-color:#3651b5;box-shadow:0 0 0 3px rgba(54,81,181,.12)}
+      .wpa-ci-row .ro{color:#141c34;font-weight:500;padding:8px 0}
+      .wpa-ci-err{background:#fdf1f0;border:1px solid #eebfba;color:#b83228;padding:8px 12px;border-radius:7px;margin:0 0 14px;font-size:12px}
+      .wpa-ci-lines{margin-top:20px;border-top:1px solid #e4e8f2;padding-top:16px}
+      .wpa-ci-lines h3{margin:0 0 10px;font-size:13px;font-weight:700;color:#141c34;display:flex;justify-content:space-between;align-items:center}
+      .wpa-ci-lines h3 .add{background:#eef1fb;border:1px solid #c4cdeb;color:#3651b5;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer}
+      .wpa-ci-lines h3 .add:hover{background:#dde3f5}
+      .wpa-ci-tbl{width:100%;border-collapse:collapse;font-size:13px}
+      .wpa-ci-tbl th{text-align:left;padding:6px 8px;color:#4d5670;font-size:11px;font-weight:600;border-bottom:1px solid #e4e8f2;text-transform:uppercase;letter-spacing:.04em}
+      .wpa-ci-tbl td{padding:6px 4px;vertical-align:top}
+      .wpa-ci-tbl td input,.wpa-ci-tbl td select{width:100%;padding:6px 8px;border:1px solid #c4cdeb;border-radius:6px;font-size:13px;background:#fff;color:#141c34;box-sizing:border-box}
+      .wpa-ci-tbl td input[type=number]{text-align:right}
+      .wpa-ci-tbl th.amt,.wpa-ci-tbl td.amt{text-align:right;width:110px}
+      .wpa-ci-tbl th.kind,.wpa-ci-tbl td.kind{width:170px}
+      .wpa-ci-tbl th.rm,.wpa-ci-tbl td.rm{width:32px;text-align:center}
+      .wpa-ci-tbl .rm button{background:none;border:0;color:#8590a8;font-size:18px;line-height:1;cursor:pointer;padding:4px}
+      .wpa-ci-tbl .rm button:hover{color:#b83228}
+      .wpa-ci-tot{display:flex;justify-content:flex-end;gap:18px;padding:14px 4px 2px;font-size:14px;color:#141c34;border-top:1px solid #e4e8f2;margin-top:6px}
+      .wpa-ci-tot .lbl{color:#4d5670;font-weight:600}
+      .wpa-ci-tot .val{font-weight:700;min-width:100px;text-align:right}
+      .wpa-ci-ft{padding:16px 26px 22px;border-top:1px solid #e4e8f2;display:flex;gap:10px;justify-content:flex-end;background:#fafbfe;border-radius:0 0 14px 14px;margin-top:10px}
+      .wpa-ci-btn{padding:9px 18px;border-radius:7px;border:1px solid #c4cdeb;background:#fff;color:#141c34;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+      .wpa-ci-btn:hover{background:#f5f7fb}
+      .wpa-ci-btn.primary{background:#3651b5;border-color:#3651b5;color:#fff}
+      .wpa-ci-btn.primary:hover{background:#2b4399}
+      .wpa-ci-btn.publish{background:#1f7a4d;border-color:#1f7a4d;color:#fff}
+      .wpa-ci-btn.publish:hover{background:#176138}
+      .wpa-ci-btn:disabled{opacity:.5;cursor:not-allowed}
+      .wpa-ci-ft .spacer{flex:1}
+    `;
+    document.head.appendChild(s);
+  }
+
+  // In-memory form state. Recreated on every WPA_createInvoice() open.
+  let _ciState = null;
+
+  function _ciDefaultDue() {
+    const d = new Date();
+    d.setDate(d.getDate() + 14);
+    return d.toISOString().slice(0, 10);
+  }
+  function _ciPeriodMonth() {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  }
+
+  // Pull active tenants at (property, unit) from tenants_lt. Returns
+  // array of {id, name} — empty if no active lease / no hydrated rows.
+  async function _ciLoadTenants(property, unit) {
+    if (!property || !unit) return [];
+    try {
+      const q = 'tenants_lt?select=id,name,email'
+              + '&property=eq.' + encodeURIComponent(property)
+              + '&unit=eq.' + encodeURIComponent(unit)
+              + '&order=name.asc';
+      const rows = await _sb(q);
+      return Array.isArray(rows) ? rows : [];
+    } catch (e) {
+      console.warn('[createInvoice] tenant fetch failed', e);
+      return [];
+    }
+  }
+
+  window.WPA_createInvoice = async function (ctx) {
+    _ciInjectCSS();
+    ctx = ctx || {};
+    _ciState = {
+      property: ctx.property || '',
+      unit:     ctx.unit || '',
+      tenants:  [],          // [{id, name, email}]
+      tenantId: '',
+      subject:  '',
+      dueDate:  _ciDefaultDue(),
+      periodMonth: _ciPeriodMonth(),
+      lines:    [ { kind: 'misc', description: '', amount: '' } ],
+      saving:   false,
+      error:    ''
+    };
+    // Initial render with loading pill for tenants
+    _ciRender();
+    _ciState.tenants = await _ciLoadTenants(_ciState.property, _ciState.unit);
+    if (_ciState.tenants.length === 1) _ciState.tenantId = _ciState.tenants[0].id;
+    if (_ciState.tenants.length === 0) {
+      _ciState.error = 'No tenant record found for ' + _ciState.property + ' · Unit ' + _ciState.unit
+                    + '. Create a tenant first (or check that tenants_lt has a matching row).';
+    }
+    _ciRender();
+  };
+
+  window.WPA_closeCreateInvoice = function () {
+    const o = document.getElementById('wpaCiOverlay');
+    if (o) o.remove();
+    _ciState = null;
+  };
+
+  function _ciRender() {
+    if (!_ciState) return;
+    const st = _ciState;
+    const lineRows = st.lines.map((l, i) => `
+      <tr>
+        <td class="kind">
+          <select onchange="_ciUpdateLine(${i},'kind',this.value)">
+            ${_CI_KINDS.map(k => `<option value="${k.v}" ${l.kind===k.v?'selected':''}>${_esc(k.l)}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          <input type="text" placeholder="Description"
+            value="${_esc(l.description || '')}"
+            oninput="_ciUpdateLine(${i},'description',this.value)">
+        </td>
+        <td class="amt">
+          <input type="number" step="0.01" placeholder="0.00"
+            value="${l.amount === '' || l.amount == null ? '' : String(l.amount)}"
+            oninput="_ciUpdateLine(${i},'amount',this.value)">
+        </td>
+        <td class="rm">
+          ${st.lines.length > 1 ? `<button type="button" onclick="_ciRemoveLine(${i})" title="Remove line">×</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    // Total auto-sums. Credit kind is user-entered as positive; we auto-negate on save.
+    const total = st.lines.reduce((s, l) => {
+      const n = Number(l.amount || 0);
+      if (!isFinite(n)) return s;
+      return s + (l.kind === 'credit' ? -Math.abs(n) : n);
+    }, 0);
+
+    const tenantSelect = st.tenants.length === 0
+      ? `<div class="ro muted">—</div>`
+      : `<select onchange="_ciUpdateField('tenantId',this.value)">
+           ${st.tenants.length > 1 ? `<option value="">— select tenant —</option>` : ''}
+           ${st.tenants.map(t => `<option value="${_esc(t.id)}" ${st.tenantId===t.id?'selected':''}>${_esc(t.name)}</option>`).join('')}
+         </select>`;
+
+    const html = `
+      <div class="wpa-ci-ovr" id="wpaCiOverlay" onclick="if(event.target===this)WPA_closeCreateInvoice()">
+        <div class="wpa-ci">
+          <div class="wpa-ci-hd">
+            <div>
+              <h2>New Invoice</h2>
+              <div class="sub">${_esc(st.property || '—')}${st.unit ? ' · Unit ' + _esc(st.unit) : ''}</div>
+            </div>
+            <button class="wpa-ci-close" onclick="WPA_closeCreateInvoice()" title="Close">✕</button>
+          </div>
+          <div class="wpa-ci-body">
+            ${st.error ? `<div class="wpa-ci-err">${_esc(st.error)}</div>` : ''}
+
+            <div class="wpa-ci-row">
+              <label>Property / Unit</label>
+              <div class="ro">${_esc(st.property || '—')}${st.unit ? ' · Unit ' + _esc(st.unit) : ''}</div>
+            </div>
+            <div class="wpa-ci-row">
+              <label>Tenant</label>
+              ${tenantSelect}
+            </div>
+            <div class="wpa-ci-row">
+              <label>Subject</label>
+              <input type="text" placeholder="e.g. April utilities"
+                value="${_esc(st.subject)}"
+                oninput="_ciUpdateField('subject',this.value)">
+            </div>
+            <div class="wpa-ci-row">
+              <label>Due Date</label>
+              <input type="date" value="${_esc(st.dueDate)}" oninput="_ciUpdateField('dueDate',this.value)">
+            </div>
+
+            <div class="wpa-ci-lines">
+              <h3>
+                <span>Line Items</span>
+                <span class="add" onclick="_ciAddLine()">+ Add Line</span>
+              </h3>
+              <table class="wpa-ci-tbl">
+                <thead>
+                  <tr><th class="kind">Kind</th><th>Description</th><th class="amt">Amount</th><th class="rm"></th></tr>
+                </thead>
+                <tbody>${lineRows}</tbody>
+              </table>
+              <div class="wpa-ci-tot">
+                <span class="lbl">Total</span>
+                <span class="val">${_esc(MONEY(total))}</span>
+              </div>
+            </div>
+          </div>
+          <div class="wpa-ci-ft">
+            <button class="wpa-ci-btn" onclick="WPA_closeCreateInvoice()">Cancel</button>
+            <div class="spacer"></div>
+            <button class="wpa-ci-btn primary" ${st.saving?'disabled':''} onclick="_ciSave(true)">Save Draft</button>
+            <button class="wpa-ci-btn publish" ${st.saving?'disabled':''} onclick="_ciSave(false)">Save &amp; Publish</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    let existing = document.getElementById('wpaCiOverlay');
+    if (existing) existing.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+  }
+
+  window._ciUpdateField = function (field, val) {
+    if (!_ciState) return;
+    _ciState[field] = val;
+    _ciRender();
+  };
+  window._ciUpdateLine = function (idx, field, val) {
+    if (!_ciState || !_ciState.lines[idx]) return;
+    _ciState.lines[idx][field] = val;
+    _ciRender();
+  };
+  window._ciAddLine = function () {
+    if (!_ciState) return;
+    _ciState.lines.push({ kind: 'misc', description: '', amount: '' });
+    _ciRender();
+  };
+  window._ciRemoveLine = function (idx) {
+    if (!_ciState) return;
+    _ciState.lines.splice(idx, 1);
+    if (_ciState.lines.length === 0) _ciState.lines.push({ kind: 'misc', description: '', amount: '' });
+    _ciRender();
+  };
+
+  window._ciSave = async function (asDraft) {
+    if (!_ciState || _ciState.saving) return;
+    const st = _ciState;
+    st.error = '';
+
+    // Validation
+    if (st.tenants.length === 0) { st.error = 'No tenant record for this unit.'; _ciRender(); return; }
+    if (!st.tenantId)             { st.error = 'Select a tenant.'; _ciRender(); return; }
+    if (!st.dueDate)              { st.error = 'Due date required.'; _ciRender(); return; }
+
+    const cleanLines = st.lines
+      .map(l => ({
+        kind:        l.kind,
+        description: (l.description || '').trim(),
+        amount:      Number(l.amount || 0)
+      }))
+      .filter(l => isFinite(l.amount) && Math.abs(l.amount) > 0.005);
+
+    if (cleanLines.length === 0) {
+      st.error = 'Add at least one line item with a non-zero amount.';
+      _ciRender();
+      return;
+    }
+    // Auto-negate credit lines
+    cleanLines.forEach(l => {
+      if (l.kind === 'credit') l.amount = -Math.abs(l.amount);
+    });
+    // Require descriptions
+    const missingDesc = cleanLines.find(l => !l.description);
+    if (missingDesc) { st.error = 'Every line item needs a description.'; _ciRender(); return; }
+
+    const total = cleanLines.reduce((s, l) => s + l.amount, 0);
+
+    st.saving = true;
+    _ciRender();
+
+    try {
+      const invBody = {
+        tenant_id:    st.tenantId,
+        property:     st.property,
+        unit:         st.unit,
+        period_month: st.periodMonth,
+        due_date:     st.dueDate,
+        status:       asDraft ? 'draft' : 'open',
+        total:        total,
+        paid:         0,
+        notes:        st.subject || null
+      };
+      const inserted = await _sbInsert('invoices', invBody);
+      const row = Array.isArray(inserted) ? inserted[0] : inserted;
+      if (!row || !row.id) throw new Error('Invoice insert returned no id');
+
+      const linesBody = cleanLines.map(l => ({
+        invoice_id:  row.id,
+        kind:        l.kind,
+        description: l.description,
+        amount:      l.amount,
+        day_offset:  null,
+        created_by:  'admin'
+      }));
+      await _sbInsert('invoice_lines', linesBody);
+
+      // Success — close modal, refresh invoice list if open, and open the new invoice
+      const listCtxCopy = _listCtx ? Object.assign({}, _listCtx) : null;
+      WPA_closeCreateInvoice();
+      if (listCtxCopy) {
+        await WPA_openInvoiceList(listCtxCopy);
+      }
+      // Small pop: auto-open the newly created invoice so admin can verify
+      setTimeout(() => { try { WPA_openInvoice(row.id); } catch (e) {} }, 150);
+    } catch (e) {
+      console.error('[createInvoice] save failed', e);
+      st.saving = false;
+      st.error = 'Save failed: ' + (e && e.message ? e.message : String(e));
+      _ciRender();
+    }
   };
 
   /* ════════════════════════════════════════════════════════════
