@@ -1021,16 +1021,27 @@
     const today = new Date(); today.setHours(0,0,0,0);
     return invoices.map(inv => {
       const pays = payByInv[inv.id] || [];
-      const paid = pays.filter(p => (p.status||'succeeded') === 'succeeded').reduce((s,p)=>s+Number(p.amount||0),0);
+      // Accept both 'paid' (portal + admin Record Payment) and the
+      // legacy 'succeeded' (older Stripe-written rows). The detail
+      // view uses the same dual filter — the list must match or the
+      // two screens disagree on "Paid $X".
+      const paid = pays
+        .filter(p => { const s = p.status || 'succeeded'; return s === 'succeeded' || s === 'paid'; })
+        .reduce((s, p) => s + Number(p.amount || 0), 0);
       const total = Number(inv.total||0);
       const remaining = Math.max(0, total - paid);
       const due = inv.due_date ? new Date(inv.due_date + 'T12:00:00') : null;
       const dbStatus = (inv.status||'open').toLowerCase();
       let status = dbStatus;
       let daysLate = 0;
+      // Trust the DB's terminal / explicit states first — draft, paid,
+      // void, partial are all set intentionally (draft by author,
+      // paid/partial by reconcile, void by delete). Only fall back to
+      // date-based derivation for 'open'.
       if (dbStatus === 'draft') status = 'draft';
       else if (dbStatus === 'paid') status = 'paid';
       else if (dbStatus === 'void') status = 'void';
+      else if (dbStatus === 'partial') status = 'partial';
       else if (paid > 0 && paid < total) status = 'partial';
       else if (due && due < today) { status = 'late'; daysLate = Math.floor((today-due)/86400000); }
       else if (due && due > today) status = 'upcoming';
