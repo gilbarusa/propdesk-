@@ -1573,6 +1573,12 @@
             <option value="">— None —</option>
           </select>
         </div>
+        <div class="form-group">
+          <label class="form-label">Stripe Account <span style="color:var(--muted);font-weight:400;font-size:11px;">(landlord — charges rent)</span></label>
+          <select id="propFormStripeCredId" class="form-input">
+            <option value="">— None (no online payments) —</option>
+          </select>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -3784,7 +3790,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260418-rentroll1"></script>
+<script src="js/app.js?v=20260420-phase10-2a"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
