@@ -2802,6 +2802,8 @@
       const remaining = Math.max(0, Number(inv.total || 0) - paidSum);
       _recState = {
         id: id,
+        tenantId: inv.tenant_id || null,    // payments.tenant_id is NOT NULL
+        leaseId:  inv.lease_id  || null,    // payments.lease_id may be NOT NULL too
         property: inv.property || '',
         unit: inv.unit || '',
         invoiceTotal: Number(inv.total || 0),
@@ -2896,12 +2898,20 @@
     }
     if (!st.paidAt) { st.error = 'Paid-on date required.'; _recRender(); return; }
 
+    if (!st.tenantId) {
+      st.error = 'This invoice has no tenant_id — can\'t record a payment until it\'s assigned. Use Edit Invoice to set it, or fix the row in Supabase.';
+      _recRender();
+      return;
+    }
+
     st.saving = true;
     _recRender();
     try {
       const paidAtIso = new Date(st.paidAt + 'T12:00:00').toISOString();
       const row = {
         invoice_id: st.id,
+        tenant_id: st.tenantId,
+        lease_id:  st.leaseId || null,
         amount: amt,
         method: st.method || 'manual',
         status: 'paid',
