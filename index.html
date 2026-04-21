@@ -1212,8 +1212,8 @@
       </select>
       <div class="prop-sidebar-section">Status</div>
       <select id="propStatusFilter" onchange="filterProperties()" class="prop-filter-sel">
-        <option value="Active">Active</option>
         <option value="">All Statuses</option>
+        <option value="Active">Active</option>
         <option value="Inactive">Inactive</option>
       </select>
       <div class="prop-sidebar-section">Owner</div>
@@ -3790,7 +3790,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260420-phase10-2a"></script>
+<script src="js/app.js?v=20260420-phase10-2a-fix1"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
