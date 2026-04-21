@@ -7269,6 +7269,7 @@ function openAddPropertyModal() {
   document.getElementById('propFormOwner').value = '';
   document.getElementById('propFormStatus').value = 'Active';
   loadParkingBuildingOptions('');
+  loadStripeCredOptions('');
   openModal('addPropertyModal');
 }
 
@@ -7288,7 +7289,35 @@ function openEditPropertyModal(apt) {
   document.getElementById('propFormHostfullyUid').value = p.hostfully_uid || '';
   document.getElementById('propFormApt').value = p.apt || '';
   loadParkingBuildingOptions(p.parking_building_id || '');
+  loadStripeCredOptions(p.stripe_cred_id || '');
   openModal('addPropertyModal');
+}
+
+// Populates the Stripe Account dropdown in the property edit modal.
+// Mirrors WPA_pkLoadStripeOptions (parking_buildings) — reads every
+// active service='stripe' credential row and renders one <option> per
+// landlord. The selected row's id becomes properties.stripe_cred_id,
+// which pay.php (Phase 10.2b) will resolve to the landlord's secret_key
+// when charging a rent invoice tied to this property.
+async function loadStripeCredOptions(selectedId) {
+  var sel = document.getElementById('propFormStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None (no online payments) —</option>';
+  try {
+    var res = await pkSB('app_credentials', 'select=id,label,credentials&service=eq.stripe&active=eq.true&order=label.asc');
+    if (Array.isArray(res)) {
+      res.forEach(function(r) {
+        var opt = document.createElement('option');
+        opt.value = r.id;
+        // Prefer landlord_name if set (the canonical match to properties.owner),
+        // fall back to the row label otherwise.
+        var landlord = (r.credentials && r.credentials.landlord_name) ? r.credentials.landlord_name.trim() : '';
+        opt.textContent = landlord ? (landlord + '  —  ' + r.label) : r.label;
+        if (r.id === selectedId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) { console.warn('loadStripeCredOptions failed:', e.message || e); }
 }
 
 async function loadParkingBuildingOptions(selectedId) {
@@ -7325,6 +7354,7 @@ async function saveProperty() {
     status:       document.getElementById('propFormStatus').value,
     hostfully_uid:document.getElementById('propFormHostfullyUid').value.trim() || null,
     parking_building_id: document.getElementById('propFormParkingBuilding').value || null,
+    stripe_cred_id: document.getElementById('propFormStripeCredId').value || null,
     tags: [],
     updated_at: new Date().toISOString()
   };
