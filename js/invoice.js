@@ -2813,7 +2813,6 @@
         paidAt: new Date().toISOString().slice(0, 10),
         payer: '',
         memo: '',
-        flipStatus: true,  // default: mark the invoice paid too
         saving: false,
         error: ''
       };
@@ -2868,10 +2867,9 @@
         </div>
         <div class="wpa-p9-row">
           <label>Status</label>
-          <label style="display:flex;align-items:center;gap:8px;font-weight:500;color:#141c34">
-            <input type="checkbox" ${st.flipStatus?'checked':''} onchange="_recFieldUpd('flipStatus',this.checked)">
-            Also set invoice status to <b style="margin-left:4px">paid</b>
-          </label>
+          <div style="color:#4d5670;font-size:12px">
+            Auto — full payment → <b>paid</b>, partial → <b>partial</b>. Override via Edit Invoice if needed.
+          </div>
         </div>
       </div>
       <div class="wpa-p9-ft">
@@ -2921,12 +2919,13 @@
       };
       await _sbInsert('payments', row);
 
-      if (st.flipStatus) {
-        await _sbPatch('invoices?id=eq.' + encodeURIComponent(st.id), {
-          status: 'paid',
-          paid_at: paidAtIso
-        });
-      }
+      // Always recompute status + the legacy paid column from the
+      // actual payment rows. Full coverage → 'paid', any coverage
+      // short of full → 'partial', none → 'open'. The invoice list
+      // reads invoices.paid (sum column), so we keep that in sync
+      // here too — the Stripe flow updates it via webhook, but manual
+      // inserts bypass that.
+      await _reconcileInvoiceStatus(st.id);
 
       _p9Close();
       _recState = null;
@@ -2967,15 +2966,18 @@
     }
   };
 
-  // Recompute invoices.status from the remaining payments. Called
-  // after a manual payment-row delete — the Stripe webhook does the
-  // same thing for real payments, but there's no DB trigger on
-  // payment rows, so we roll it up from JS.
+  // Recompute invoices.status + invoices.paid from the remaining
+  // payment rows. Called after a manual payment-row insert or delete
+  // — the Stripe webhook does the same thing for real payments, but
+  // there's no DB trigger on payment rows, so we roll it up from JS.
   //
   //   paidSum >= total   → 'paid'
   //   0 < paidSum < total → 'partial'
-  //   paidSum === 0      → 'open' (only if current status is paid
-  //                        or partial — leave void/draft alone)
+  //   paidSum === 0      → 'open' (leave void/draft alone — admin
+  //                        intent wins on those two)
+  //
+  // We also write `invoices.paid` = paidSum so the list view (which
+  // reads that legacy column directly) matches the detail view.
   //
   // The `invoices_touch_updated_at` trigger takes care of clearing
   // paid_at on the transition out of 'paid', so we don't have to.
@@ -2983,24 +2985,41 @@
     if (!invoiceId) return;
     try {
       const [invArr, pays] = await Promise.all([
-        _sb('invoices?id=eq.' + encodeURIComponent(invoiceId) + '&select=total,status'),
+        _sb('invoices?id=eq.' + encodeURIComponent(invoiceId) + '&select=total,status,paid'),
         _sb('payments?invoice_id=eq.' + encodeURIComponent(invoiceId) + '&select=amount,status')
       ]);
       if (!invArr.length) return;
       const cur = invArr[0];
       const curStatus = cur.status || 'open';
-      if (curStatus === 'void' || curStatus === 'draft') return; // admin intent wins
       const total = Number(cur.total || 0);
       const paidSum = (pays || [])
         .filter(p => p.status === 'paid' || p.status === 'succeeded')
         .reduce((s, p) => s + Number(p.amount || 0), 0);
+      const paidRounded = Math.round(paidSum * 100) / 100;
+
+      // void / draft: admin intent wins on status, but still keep the
+      // paid column truthful so the list doesn't lie.
+      if (curStatus === 'void' || curStatus === 'draft') {
+        const curPaid = Number(cur.paid || 0);
+        if (Math.abs(curPaid - paidRounded) > 0.005) {
+          await _sbPatch('invoices?id=eq.' + encodeURIComponent(invoiceId), { paid: paidRounded });
+        }
+        return;
+      }
+
       let next;
       if (paidSum >= total - 0.005 && total > 0) next = 'paid';
       else if (paidSum > 0.005)                  next = 'partial';
       else                                       next = 'open';
-      if (next !== curStatus) {
-        await _sbPatch('invoices?id=eq.' + encodeURIComponent(invoiceId), { status: next });
+
+      const patch = { paid: paidRounded };
+      if (next !== curStatus) patch.status = next;
+      // paid_at: stamp on entering 'paid'; the touch trigger clears
+      // it when leaving. Only set if we're the ones flipping to paid.
+      if (next === 'paid' && curStatus !== 'paid') {
+        patch.paid_at = new Date().toISOString();
       }
+      await _sbPatch('invoices?id=eq.' + encodeURIComponent(invoiceId), patch);
     } catch (e) {
       console.warn('[reconcileInvoiceStatus]', e);
     }
