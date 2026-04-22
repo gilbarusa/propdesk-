@@ -2639,6 +2639,7 @@ const MODULE_SUB_TABS = {
   'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'portal':      [{label:'Users',       page:'portal-users'}, {label:'Settings', page:'portal-settings'}],
+  'hoa':         [{label:'Communities', page:'hoa-communities'}, {label:'Units', page:'hoa-units'}, {label:'Contacts', page:'hoa-contacts'}, {label:'Assignments', page:'hoa-assignments'}, {label:'Documents', page:'hoa-documents'}, {label:'Invoices', page:'hoa-invoices'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Backup', page:'settings', settingsSec:'backup'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
 
@@ -2797,6 +2798,15 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, 
   if(pageId === 'mtm-lt-expenses') renderExpensesPage();
   if(pageId === 'expenses') renderExpensesPage();
   if(pageId === 'mtm-lt-maintenance') loadMaintenanceFromSupabase();
+  // ── HOA sub-page routing ── (all CRUD handled by js/hoa-admin.js)
+  if (pageId && pageId.indexOf('hoa-') === 0) {
+    var hoaSection = pageId.replace(/^hoa-/, '');
+    if (typeof WPA_hoaRender === 'function') {
+      try { WPA_hoaRender(hoaSection); } catch(e) { console.error('HOA render error:', e); }
+    } else {
+      console.warn('hoa-admin.js not loaded yet — WPA_hoaRender missing');
+    }
+  }
 }
 
 // ── Property Selector ──

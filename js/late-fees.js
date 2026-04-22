@@ -9,6 +9,11 @@
 //   and mirrored headlessly by scripts/recalc-late-fees.mjs on a daily
 //   cadence.
 //
+// VERSION TAG: 20260422-lfee6c-hoaskip
+//   v6c adds the HOA-skip filter on the invoices query (see computePlan).
+//   No rule changes — the engine ignores invoice_type='hoa' rows so the
+//   HOA module can run its own per-community sweep in Phase 2.
+//
 // RULES (v6 — 2026-04-22)
 //   Compute `originalAmount` = sum(invoice_lines where kind != 'late_fee').
 //   Compute `paidSum`        = sum(payments.amount where status in
@@ -197,10 +202,18 @@
     // due_date in the past window. Precise exemption filtering happens
     // client-side because Supabase's .not('notes','like',...) chaining
     // with OR is awkward and we want a clear audit trail anyway.
+    // HOA-skip (lfee6c): only the rental sweep runs here. HOA invoices
+    // (invoice_type='hoa') are filtered out at the query boundary so they
+    // never collide with the per-lease grace/per-diem config. Phase 2 of
+    // the HOA module adds a parallel pass that reads grace + per-diem
+    // from hoa_communities and writes its own canonical line. Rows with
+    // NULL invoice_type (pre-Phase-1a snapshots, shouldn't exist after
+    // the migration backfill) are also treated as 'rent' via the .or().
     const { data: invoices, error: ie } = await s
       .from('invoices')
-      .select('id, tenant_id, property, unit, period_month, due_date, status, total, paid, notes')
+      .select('id, tenant_id, property, unit, period_month, due_date, status, total, paid, notes, invoice_type')
       .in('status', ['open', 'partial'])
+      .or('invoice_type.eq.rent,invoice_type.is.null')
       .lt('due_date', todayIso)
       .gte('due_date', scanFloor);
     if (ie) throw ie;
@@ -269,27 +282,30 @@
     // in flight (processing|ach_processing), and WHEN each payment was
     // initiated (created_at) — to determine on-time vs late.
     //
-    // Payments table may be absent on pre-migration envs — tolerate.
+    // Error handling: tolerate ONLY the "table doesn't exist" codes from
+    // pre-migration bootstrap environments. Any other failure aborts the
+    // sweep — silently proceeding with an empty payments map would cause
+    // the engine to charge spurious late fees on invoices that are
+    // actually paid or have an in-flight on-time ACH. Better to fail
+    // loudly than to over-bill quietly.
     const paymentsByInv = new Map();   // invoice_id -> array of payments
-    try {
-      const resp = await s
-        .from('payments')
-        .select('invoice_id, method, status, amount, created_at')
-        .in('invoice_id', invIds);
-      if (resp.error) {
-        // 42P01 = relation does not exist; PGRST200 = schema cache miss
-        if (resp.error.code !== '42P01' && resp.error.code !== 'PGRST200') {
-          console.warn('[late-fees] payments fetch warn:', resp.error);
-        }
+    const { data: payData, error: pe } = await s
+      .from('payments')
+      .select('invoice_id, method, status, amount, created_at')
+      .in('invoice_id', invIds);
+    if (pe) {
+      // 42P01 = relation does not exist; PGRST200 = schema cache miss.
+      if (pe.code === '42P01' || pe.code === 'PGRST200') {
+        console.warn('[late-fees] payments table not present — pause/bonus/freeze logic disabled');
       } else {
-        for (const p of (resp.data || [])) {
-          let arr = paymentsByInv.get(p.invoice_id);
-          if (!arr) { arr = []; paymentsByInv.set(p.invoice_id, arr); }
-          arr.push(p);
-        }
+        throw pe;
       }
-    } catch (e) {
-      console.warn('[late-fees] payments fetch error:', (e && e.message) || e);
+    } else {
+      for (const p of (payData || [])) {
+        let arr = paymentsByInv.get(p.invoice_id);
+        if (!arr) { arr = []; paymentsByInv.set(p.invoice_id, arr); }
+        arr.push(p);
+      }
     }
 
     for (const inv of invoices) {
@@ -379,8 +395,18 @@
       for (const p of pays) {
         if (p.method !== 'ach') continue;
         if (!p.created_at) continue;
-        const initDate = _toMidnight(String(p.created_at).slice(0, 10));
-        if (!initDate) continue;
+        // payments.created_at is TIMESTAMPTZ (UTC ISO). invoices.due_date
+        // is DATE (local-interpreted). Parsing the ISO then extracting
+        // LOCAL y/m/d keeps the comparison apples-to-apples. Naively
+        // slicing the ISO string's first 10 chars gives the UTC date,
+        // which is off-by-one for any payment submitted after ~8pm ET.
+        const createdDt = new Date(p.created_at);
+        if (isNaN(createdDt.getTime())) continue;
+        const initDate = new Date(
+          createdDt.getFullYear(),
+          createdDt.getMonth(),
+          createdDt.getDate()
+        );
         if (initDate.getTime() > graceEndDate.getTime()) continue; // late-initiated
         const amt = Number(p.amount) || 0;
         if (amt < originalAmount - 0.005) continue;                // partial
