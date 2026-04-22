@@ -339,26 +339,49 @@
   function _renderBundle(b) {
     const inv = b.invoice;
     const tenant = b.tenant || {};
-    const status = _deriveDisplayStatus(inv);
     // Derive paid from the payments table rather than inv.paid. The
     // Stripe webhook reliably updates invoices.status='paid' and writes
     // rows to payments, but the legacy invoices.paid column is not
     // always kept in sync. Accept both 'paid' and legacy 'succeeded'.
     const _isPaidRow = p => p.status === 'paid' || p.status === 'succeeded';
+    // In-flight (card 'processing' or ACH 'ach_processing'). 10.3.5a:
+    // these count against the invoice balance so the admin view
+    // doesn't show "$1,450 due" while the tenant has already submitted
+    // an ACH that's waiting on settlement.
+    const _isInFlight = p => { const s = String(p.status || '').toLowerCase(); return s === 'processing' || s === 'ach_processing'; };
     const paid = (b.payments || [])
       .filter(_isPaidRow)
       .reduce((s, p) => s + Number(p.amount || 0), 0);
+    const processing = (b.payments || [])
+      .filter(_isInFlight)
+      .reduce((s, p) => s + Number(p.amount || 0), 0);
     const total = Number(inv.total || 0);
-    const due = Math.max(0, total - paid);
+    const due = Math.max(0, total - paid - processing);
     // Pass-through card processing fees collected on paid rows.
     const paidFees = (b.payments || [])
       .filter(_isPaidRow)
       .reduce((s, p) => s + Number(p.surcharge_amount || 0), 0);
+    const processingFees = (b.payments || [])
+      .filter(_isInFlight)
+      .reduce((s, p) => s + Number(p.surcharge_amount || 0), 0);
     const paidCharged = paid + paidFees;
-    // When the card surcharge is non-zero, display the invoice total
+    const processingCharged = processing + processingFees;
+    // When a card surcharge is non-zero, display the invoice total
     // as amount + fee so the numbers reconcile with what Stripe
-    // actually charged ($2.07 = $2.00 + $0.07).
-    const invoiceTotalWithFee = total + paidFees;
+    // actually charged ($2.07 = $2.00 + $0.07). Processing fees are
+    // included too — the tenant IS on the hook for them once Stripe
+    // settles; better to surface the obligation now than have the
+    // total jump after the webhook fires.
+    const invoiceTotalWithFee = total + paidFees + processingFees;
+    // 10.3.5a: promote status to 'partial' when the DB says open/late
+    // but there's an in-flight payment covering part of the balance.
+    // The webhook only flips invoices.status on payment_intent.succeeded,
+    // so 'ach_processing' rows leave the DB status stuck at 'open'.
+    let status = _deriveDisplayStatus(inv);
+    const _canPromote = s => s.key !== 'paid' && s.key !== 'draft' && s.key !== 'void' && s.key !== 'partial';
+    if (_canPromote(status) && (paid > 0 || processing > 0) && (paid + processing) < total) {
+      status = { key: 'partial', label: 'Partial' };
+    }
     // Synthetic "Credit Card Fee" row per paid card payment that
     // carried a surcharge — renders in the Line Items table without
     // persisting to invoice_lines.
@@ -437,7 +460,7 @@
             <div class="total-card ${status.key === 'paid' ? 'paid' : ''}">
               <div class="tc-lbl">Total Due</div>
               <div class="tc-val">${_esc(MONEY(due))}</div>
-              <div class="tc-sub">of ${_esc(MONEY(invoiceTotalWithFee))} invoice · ${_esc(MONEY(paidCharged))} paid</div>
+              <div class="tc-sub">of ${_esc(MONEY(invoiceTotalWithFee))} invoice · ${_esc(MONEY(paidCharged))} paid${processing > 0.005 ? ' · ' + _esc(MONEY(processingCharged)) + ' processing' : ''}</div>
             </div>
             <div class="stamp ${status.key}">${_esc(status.label)}</div>
           </div>
@@ -1039,8 +1062,16 @@
       const paid = pays
         .filter(p => { const s = p.status || 'succeeded'; return s === 'succeeded' || s === 'paid'; })
         .reduce((s, p) => s + Number(p.amount || 0), 0);
+      // 10.3.5a: count in-flight rows (card 'processing' or
+      // 'ach_processing') against the invoice balance. Without this
+      // the list showed "Pay $1,450" while the detail view correctly
+      // showed "$1,441 remaining" — two views of the same invoice
+      // disagreeing.
+      const processing = pays
+        .filter(p => { const s = String(p.status || '').toLowerCase(); return s === 'processing' || s === 'ach_processing'; })
+        .reduce((s, p) => s + Number(p.amount || 0), 0);
       const total = Number(inv.total||0);
-      const remaining = Math.max(0, total - paid);
+      const remaining = Math.max(0, total - paid - processing);
       const due = inv.due_date ? new Date(inv.due_date + 'T12:00:00') : null;
       const dbStatus = (inv.status||'open').toLowerCase();
       let status = dbStatus;
@@ -1054,6 +1085,11 @@
       else if (dbStatus === 'void') status = 'void';
       else if (dbStatus === 'partial') status = 'partial';
       else if (paid > 0 && paid < total) status = 'partial';
+      // 10.3.5a: in-flight-only (no terminal paid yet) also qualifies
+      // as partial — the tenant has committed money, webhook just
+      // hasn't fired succeeded yet. Keeps the grid in lockstep with
+      // the detail view and the tenant dashboard.
+      else if (processing > 0 && processing < total) status = 'partial';
       else if (due && due < today) { status = 'late'; daysLate = Math.floor((today-due)/86400000); }
       else if (due && due > today) status = 'upcoming';
       else status = 'open';
