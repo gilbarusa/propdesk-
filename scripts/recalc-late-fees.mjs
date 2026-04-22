@@ -146,10 +146,17 @@ async function computePlan(){
   const scanFloor = isoDay(new Date(today.getFullYear(), today.getMonth() - SCAN_MONTHS, 1));
 
   // Candidate invoices.
+  // HOA-skip (lfee6c): rental sweep only. `or=` is URL-encoded manually
+  // because PostgREST requires parenthesized boolean expressions and the
+  // '&' inside a nested `or` would otherwise terminate the param. HOA
+  // invoices (invoice_type='hoa') are handled by the Phase 2 sweep.
+  // Rows with NULL invoice_type are included defensively — should be zero
+  // after the Phase 1a backfill, but we don't want silent drops.
   const invoices = await restFetch(
     '/invoices' +
-    '?select=id,tenant_id,property,unit,period_month,due_date,status,total,paid,notes' +
+    '?select=id,tenant_id,property,unit,period_month,due_date,status,total,paid,notes,invoice_type' +
     '&status=in.(open,partial)' +
+    '&or=' + encodeURIComponent('(invoice_type.eq.rent,invoice_type.is.null)') +
     '&due_date=lt.' + encodeURIComponent(todayIso) +
     '&due_date=gte.' + encodeURIComponent(scanFloor)
   );
@@ -214,8 +221,12 @@ async function computePlan(){
   // (processing|ach_processing), and WHEN each payment was initiated
   // (created_at) — to determine on-time vs late.
   //
-  // The payments table may be absent on pre-migration environments
-  // (42P01). Treat its absence as "no pause / no bonus" — never abort.
+  // Error handling: tolerate ONLY the "table doesn't exist" shapes from
+  // pre-migration bootstrap environments (42P01 / 404). Any other
+  // failure aborts the sweep — silently proceeding with an empty map
+  // would cause the engine to charge spurious fees on invoices that
+  // are actually paid or have an in-flight on-time ACH. Better to fail
+  // loudly than to over-bill quietly.
   const paymentsByInv = new Map(); // invoice_id -> array of payments
   try {
     const pays = await restFetch(
@@ -231,9 +242,11 @@ async function computePlan(){
   } catch (e) {
     const msg = (e && e.message) || String(e);
     if (/payments/.test(msg) && (/42P01/.test(msg) || /404/.test(msg))) {
-      console.error('[recalc-late-fees] payments table not present — pause/bonus logic disabled');
+      console.error('[recalc-late-fees] payments table not present — pause/bonus/freeze logic disabled');
     } else {
-      console.error('[recalc-late-fees] payments fetch warning: ' + msg);
+      // Real error — re-raise so the sweep aborts and the scheduled
+      // task alerts via the fatal SMS path.
+      throw e;
     }
   }
 
@@ -324,8 +337,18 @@ async function computePlan(){
     for (const p of pays) {
       if (p.method !== 'ach') continue;
       if (!p.created_at) continue;
-      const initDate = toMidnight(String(p.created_at).slice(0, 10));
-      if (!initDate) continue;
+      // payments.created_at is TIMESTAMPTZ (UTC ISO). invoices.due_date
+      // is DATE (local-interpreted). Parse the ISO then extract LOCAL
+      // y/m/d so the comparison against grace-end is apples-to-apples.
+      // A raw slice(0,10) of the ISO gives the UTC date, which is
+      // off-by-one for any payment submitted after ~8pm ET.
+      const createdDt = new Date(p.created_at);
+      if (isNaN(createdDt.getTime())) continue;
+      const initDate = new Date(
+        createdDt.getFullYear(),
+        createdDt.getMonth(),
+        createdDt.getDate()
+      );
       if (initDate.getTime() > graceEndDate.getTime()) continue; // late-initiated
       const amt = Number(p.amount) || 0;
       if (amt < originalAmount - 0.005) continue;                // partial
