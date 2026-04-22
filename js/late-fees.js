@@ -4,27 +4,52 @@
 // WHY
 //   Step 4b wired grace_days + per_day_late_fee onto leases and exposed
 //   them in the wizard and the LT lease body, but nothing actually
-//   CREATES late-fee invoice_lines when a tenant is past due. This file
-//   is the first cut — a manual sweep the admin runs from a button on
-//   the Leases page. Once it's proved out, a daily scheduled task can
-//   call the same function with dryRun=false.
+//   CREATES late-fee invoice_lines when a tenant is past due. This is
+//   the engine — invoked from the admin Recalculate Late Fees button
+//   and mirrored headlessly by scripts/recalc-late-fees.mjs on a daily
+//   cadence.
+//
+// RULES (v6 — 2026-04-22)
+//   Compute `originalAmount` = sum(invoice_lines where kind != 'late_fee').
+//   Compute `paidSum`        = sum(payments.amount where status in
+//                                   ('paid','succeeded')).
+//
+//   R1. Universal buffer: no late fee within (due + grace_days).
+//       `grace_days` is per-lease.
+//   R2. On-time full-amount ACH bonus: if the tenant initiated ANY
+//       single ACH payment for >= originalAmount on or before
+//       (due + grace_days), the effective grace becomes grace + 1
+//       calendar days. Bonus is earned at initiation and is NOT
+//       revoked if the ACH later fails.
+//   R3. Pause: if that on-time full-amount ACH is currently in flight
+//       (status = 'processing' OR 'ach_processing'), the chargeable
+//       window is capped at the earliest such payment's init date.
+//   R4. Partial payments and late-initiated payments NEVER earn bonus
+//       or pause. Card payments are treated as instant — method='ach'
+//       is the only participant in pause/bonus logic.
+//   R5. Freeze: once paidSum >= originalAmount, accrual stops
+//       permanently. Any already-accrued canonical late_fee line stays
+//       as an owed ledger item — we do NOT delete it.
+//       (No late fees on late fees: `originalAmount` excludes late_fee
+//       lines, so fees can never compound.)
 //
 // HOW
-//   For every overdue, non-exempt, unpaid rent invoice:
-//     days_past_due   = today − due_date              (calendar days)
-//     chargeable_days = max(0, days_past_due − grace_days)
-//     expected_fee    = chargeable_days × per_day_late_fee
+//   days_past_due   = (effectiveEnd − due_date) in calendar days,
+//                     where effectiveEnd = min(today, earliest in-flight
+//                     on-time full-amount ACH init date).
+//   chargeable_days = max(0, days_past_due − graceOffset),
+//                     where graceOffset = grace_days (+1 if R2 applies).
+//   expected_fee    = chargeable_days × per_day_late_fee.
 //
-//   Then we upsert ONE deterministic late_fee line per invoice, keyed
-//   on description='Late fee accrual'. Any other late_fee lines an
-//   admin added manually are left untouched.
+//   We upsert ONE deterministic late_fee line per invoice, keyed on
+//   description='Late fee accrual'. Manual admin-entered late_fee
+//   lines (any other description) are left untouched.
 //
 // NOT HANDLED (yet)
-//   - Daily scheduler — run this manually for now.
-//   - Prorated first-month rent — anchor is still lease_start, and
-//     MOVE_IN invoices are excluded from the sweep.
-//   - Partial-payment fee discounts — we treat "late" as a binary
-//     state, not a function of the remaining balance. Admin agreed.
+//   - ACH return fee (future task): a flat lease-configured fee when
+//     a payment_intent.payment_failed fires post-submission.
+//   - Prorated first-month rent — MOVE_IN invoices are excluded from
+//     the sweep via [MOVE_IN] tag in invoices.notes.
 // ═══════════════════════════════════════════════════════════════════
 
 (function(){
@@ -206,45 +231,65 @@
       if (!leaseMap.has(k)) leaseMap.set(k, L);
     }
 
-    // Batch-fetch existing late-fee lines for every candidate invoice.
+    // Batch-fetch ALL invoice_lines for every candidate invoice so we
+    // can compute the "original amount" (sum of kind != 'late_fee')
+    // AND locate the canonical late-fee accrual line in one round-trip.
     const invIds = invoices.map(i => i.id);
-    const { data: existingLines, error: lfe } = await s
+    const { data: allLines, error: lfe } = await s
       .from('invoice_lines')
       .select('id, invoice_id, kind, description, amount')
-      .in('invoice_id', invIds)
-      .eq('kind', 'late_fee')
-      .eq('description', ACCRUAL_DESCRIPTION);
+      .in('invoice_id', invIds);
     if (lfe) throw lfe;
-    const lineByInv = new Map();
-    for (const L of (existingLines || [])) lineByInv.set(L.invoice_id, L);
 
-    // ── Processing payments → pause late-fee accrual from initiation ──
-    // Product rule (see recalc-late-fees.mjs for the canonical comment):
-    // the earliest processing payment caps the chargeable window, even
-    // if it doesn't fully cover the balance. Payments table may be
-    // absent on pre-migration envs — we tolerate that quietly.
-    const earliestProcessingByInv = new Map();   // invoice_id -> ISO ts
+    // linesByInv[invoice_id] = { original: number, existingLateFee: row|null }
+    // `original` sums every non-late-fee line — rent, deposit, credits
+    // (negative), service, parking, etc. Late fees explicitly excluded
+    // so they never compound ("no late fees on late fees" rule).
+    const linesByInv = new Map();
+    for (const L of (allLines || [])) {
+      let entry = linesByInv.get(L.invoice_id);
+      if (!entry) {
+        entry = { original: 0, existingLateFee: null };
+        linesByInv.set(L.invoice_id, entry);
+      }
+      if (L.kind === 'late_fee') {
+        // Only the canonical bot-managed line is touched by the engine.
+        // Any manual admin-entered late-fee lines (different description)
+        // are preserved untouched and excluded from `original`.
+        if (L.description === ACCRUAL_DESCRIPTION && !entry.existingLateFee) {
+          entry.existingLateFee = L;
+        }
+      } else {
+        entry.original += Number(L.amount) || 0;
+      }
+    }
+
+    // Batch-fetch ALL payments for every candidate invoice. The new
+    // rules care about: what's been paid (status=paid|succeeded), what's
+    // in flight (processing|ach_processing), and WHEN each payment was
+    // initiated (created_at) — to determine on-time vs late.
+    //
+    // Payments table may be absent on pre-migration envs — tolerate.
+    const paymentsByInv = new Map();   // invoice_id -> array of payments
     try {
       const resp = await s
         .from('payments')
-        .select('invoice_id, created_at')
-        .eq('status', 'processing')
+        .select('invoice_id, method, status, amount, created_at')
         .in('invoice_id', invIds);
       if (resp.error) {
         // 42P01 = relation does not exist; PGRST200 = schema cache miss
         if (resp.error.code !== '42P01' && resp.error.code !== 'PGRST200') {
-          console.warn('[late-fees] processing payments fetch warn:', resp.error);
+          console.warn('[late-fees] payments fetch warn:', resp.error);
         }
       } else {
         for (const p of (resp.data || [])) {
-          const prev = earliestProcessingByInv.get(p.invoice_id);
-          if (!prev || p.created_at < prev) {
-            earliestProcessingByInv.set(p.invoice_id, p.created_at);
-          }
+          let arr = paymentsByInv.get(p.invoice_id);
+          if (!arr) { arr = []; paymentsByInv.set(p.invoice_id, arr); }
+          arr.push(p);
         }
       }
     } catch (e) {
-      console.warn('[late-fees] processing payments fetch error:', (e && e.message) || e);
+      console.warn('[late-fees] payments fetch error:', (e && e.message) || e);
     }
 
     for (const inv of invoices) {
@@ -268,38 +313,116 @@
         continue;
       }
 
-      // Cap the chargeable window at the earliest processing payment.
-      // Date-only granularity: a payment initiated at noon still credits
-      // the whole calendar day to the tenant. Only shrinks the window.
-      const earliestProcessingIso = earliestProcessingByInv.get(inv.id) || null;
-      let effectiveEnd = today;
-      let pausedAt = null;
-      if (earliestProcessingIso) {
-        const epMid = _toMidnight(earliestProcessingIso.slice(0, 10));
-        if (epMid && epMid.getTime() < today.getTime()) {
-          effectiveEnd = epMid;
-          pausedAt = earliestProcessingIso.slice(0, 10);
-        } else if (epMid) {
-          pausedAt = earliestProcessingIso.slice(0, 10);
+      // ── Derived invoice state ─────────────────────────────────────
+      const linesEntry = linesByInv.get(inv.id) || { original: 0, existingLateFee: null };
+      const originalAmount = Math.round(linesEntry.original * 100) / 100;
+      const existing = linesEntry.existingLateFee;
+      const existingAmt = existing ? Number(existing.amount) : 0;
+
+      const pays = paymentsByInv.get(inv.id) || [];
+      const paidSum = pays
+        .filter(p => p.status === 'paid' || p.status === 'succeeded')
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const paidSumRounded = Math.round(paidSum * 100) / 100;
+
+      // Grace-end day: the last calendar day still INSIDE grace.
+      // Example: due 1/1, grace 3 → grace-end = 1/4 (days 1/2, 1/3, 1/4).
+      // "On-time" payment = initiated on or before this day.
+      const graceEndDate = new Date(dueDate.getTime());
+      graceEndDate.setDate(graceEndDate.getDate() + grace);
+
+      // ── Rule 5: Freeze if original fully paid ─────────────────────
+      // Once sum(paid) >= original (non-late-fee lines), late fees stop
+      // accruing permanently. Any already-accrued late_fee line stays
+      // on the ledger as an owed item — we do NOT delete it.
+      if (originalAmount > 0.005 && paidSumRounded >= originalAmount - 0.005) {
+        plan.eligible++;
+        plan.actions.push({
+          invoice_id: inv.id,
+          property: inv.property,
+          unit: inv.unit,
+          period: inv.period_month,
+          due_date: inv.due_date,
+          days_past_due: _daysBetween(dueDate, today),
+          grace_days: grace,
+          grace_offset: grace,
+          per_day_late_fee: perDay,
+          chargeable_days: 0,
+          expected: existingAmt,          // frozen at whatever we last accrued
+          original_amount: originalAmount,
+          paid_sum: paidSumRounded,
+          existing_amount: existingAmt,
+          existing_line_id: existing ? existing.id : null,
+          invoice_total: Number(inv.total) || 0,
+          paused_at: null,
+          frozen: true,
+          on_time_full_ach: false,
+          action: 'noop',
+          reason: 'original_paid',
+          delta: 0
+        });
+        continue;
+      }
+
+      // ── Rules 1–4: On-time full-amount ACH detection ──────────────
+      // - "On-time" = initiated on or before grace-end.
+      // - "Full amount" = individual payment amount >= originalAmount.
+      //   (Aggregate/split-payment logic intentionally not supported in
+      //    v1 — keeps the rule simple and matches the tenant-facing
+      //    pattern of one ACH per pay attempt.)
+      // - Partial payments (amt < original) NEVER earn bonus or pause,
+      //   regardless of when they were initiated.
+      // - Card payments are treated as instant; their processing state
+      //   never triggers a pause.
+      let onTimeFullAchExists = false;   // any on-time full-amount ACH, any status
+      let earliestInFlightOnTime = null; // Date of earliest currently-in-flight on-time full-amount ACH
+      for (const p of pays) {
+        if (p.method !== 'ach') continue;
+        if (!p.created_at) continue;
+        const initDate = _toMidnight(String(p.created_at).slice(0, 10));
+        if (!initDate) continue;
+        if (initDate.getTime() > graceEndDate.getTime()) continue; // late-initiated
+        const amt = Number(p.amount) || 0;
+        if (amt < originalAmount - 0.005) continue;                // partial
+        onTimeFullAchExists = true;
+        const st = String(p.status || '').toLowerCase();
+        if (st === 'processing' || st === 'ach_processing') {
+          if (earliestInFlightOnTime === null ||
+              initDate.getTime() < earliestInFlightOnTime.getTime()) {
+            earliestInFlightOnTime = initDate;
+          }
         }
       }
 
-      const daysPastDue = _daysBetween(dueDate, effectiveEnd);
-      const chargeable = Math.max(0, daysPastDue - grace);
-      const expected = Math.round(chargeable * perDay * 100) / 100; // cents
+      // Bonus day: granted if ANY on-time full-amount ACH was initiated
+      // (regardless of current status — a later failure doesn't revoke
+      // the bonus the tenant earned by attempting on time).
+      const graceOffset = onTimeFullAchExists ? grace + 1 : grace;
 
-      const existing = lineByInv.get(inv.id) || null;
-      const existingAmt = existing ? Number(existing.amount) : 0;
+      // Pause: only if an on-time full-amount ACH is currently in flight.
+      // Chargeable window caps at the earliest such payment's init date.
+      let effectiveEnd = today;
+      let pausedAt = null;
+      if (earliestInFlightOnTime) {
+        if (earliestInFlightOnTime.getTime() < today.getTime()) {
+          effectiveEnd = earliestInFlightOnTime;
+        }
+        pausedAt = earliestInFlightOnTime.toISOString().slice(0, 10);
+      }
+
+      const daysPastDue = _daysBetween(dueDate, effectiveEnd);
+      const chargeable = Math.max(0, daysPastDue - graceOffset);
+      const expected = Math.round(chargeable * perDay * 100) / 100; // cents
 
       let action = 'noop';
       let delta = 0;
-      if (expected > 0 && !existing) {
+      if (expected > 0.005 && !existing) {
         action = 'insert';
         delta  = expected;
-      } else if (expected > 0 && existing && Math.abs(existingAmt - expected) > 0.001) {
+      } else if (expected > 0.005 && existing && Math.abs(existingAmt - expected) > 0.005) {
         action = 'update';
         delta  = expected - existingAmt;
-      } else if (expected === 0 && existing) {
+      } else if (expected < 0.005 && existing) {
         action = 'delete';
         delta  = -existingAmt;
       }
@@ -313,13 +436,18 @@
         due_date: inv.due_date,
         days_past_due: daysPastDue,
         grace_days: grace,
+        grace_offset: graceOffset,        // grace or grace+1 (after bonus)
         per_day_late_fee: perDay,
         chargeable_days: chargeable,
         expected: expected,
+        original_amount: originalAmount,
+        paid_sum: paidSumRounded,
         existing_amount: existingAmt,
         existing_line_id: existing ? existing.id : null,
         invoice_total: Number(inv.total) || 0,
-        paused_at: pausedAt,  // ISO date of earliest processing payment, or null
+        paused_at: pausedAt,              // ISO date of in-flight pause, or null
+        frozen: false,
+        on_time_full_ach: onTimeFullAchExists,
         action: action,
         delta: delta
       });
@@ -327,7 +455,7 @@
       if (action === 'insert') plan.totals.inserts++;
       else if (action === 'update') plan.totals.updates++;
       else if (action === 'delete') plan.totals.deletes++;
-      plan.totals.totalDelta += delta;
+      plan.totals.totalDelta = Math.round((plan.totals.totalDelta + delta) * 100) / 100;
     }
 
     return plan;
@@ -410,6 +538,13 @@
       .filter(a => a.action !== 'noop')
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 
+    // Informational counts — noop actions with state flags. Surfaced in
+    // the summary line so the admin can see "why" an invoice isn't in
+    // the action table even though it's past due.
+    const frozenCount = plan.actions.filter(a => a.frozen).length;
+    const pausedCount = plan.actions.filter(a => a.paused_at).length;
+    const bonusCount  = plan.actions.filter(a => a.on_time_full_ach).length;
+
     const actColor = {
       insert: '#2e7d32',
       update: '#1a2874',
@@ -434,7 +569,7 @@
             <tr>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${_esc(a.property)} · ${_esc(a.unit)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0">${_esc(a.due_date)}</td>
-              <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${a.days_past_due} <span style="color:#6b7280;font-size:10px">(grace ${a.grace_days})</span>${a.paused_at ? `<div style="color:#b45309;font-size:10px;font-weight:600">paused ${_esc(a.paused_at)}</div>` : ''}</td>
+              <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${a.days_past_due} <span style="color:#6b7280;font-size:10px">(grace ${a.grace_days}${a.grace_offset > a.grace_days ? ` <span style="color:#2e7d32;font-weight:600">+${a.grace_offset - a.grace_days} bonus</span>` : ''})</span>${a.paused_at ? `<div style="color:#b45309;font-size:10px;font-weight:600">paused ${_esc(a.paused_at)}</div>` : ''}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${_money(a.expected)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${_money(a.existing_amount)}</td>
               <td style="padding:6px 8px;border-bottom:1px solid #f0f0f0;text-align:right;color:${a.delta>=0?'#2e7d32':'#b23a48'};font-weight:600">${(a.delta>=0?'+':'') + _money(a.delta).replace('$','$')}</td>
@@ -516,6 +651,14 @@
               <b>${plan.totals.deletes}</b> removed.
               Net total change: <b style="color:${plan.totals.totalDelta>=0?'#2e7d32':'#b23a48'}">${(plan.totals.totalDelta>=0?'+':'') + _money(plan.totals.totalDelta).replace('$','$')}</b>
             </div>
+            ${(frozenCount || pausedCount || bonusCount) ? `
+              <div style="margin-top:6px;font-size:11px;color:#6b7280;line-height:1.6">
+                ${frozenCount ? `<span style="color:#1a2874"><b>${frozenCount}</b> frozen (original paid — existing fee kept as owed)</span>` : ''}
+                ${frozenCount && (pausedCount || bonusCount) ? ' · ' : ''}
+                ${pausedCount ? `<span style="color:#b45309"><b>${pausedCount}</b> paused (on-time full-amount ACH in flight)</span>` : ''}
+                ${pausedCount && bonusCount ? ' · ' : ''}
+                ${bonusCount ? `<span style="color:#2e7d32"><b>${bonusCount}</b> earned +1 bonus day</span>` : ''}
+              </div>` : ''}
             ${tableHtml}
             ${errHtml}
           </div>
