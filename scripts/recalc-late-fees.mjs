@@ -121,6 +121,25 @@ async function restFetch(path, init = {}){
 }
 
 // ── CORE: plan ────────────────────────────────────────────────────
+// Mirrors the browser `computePlan` in js/late-fees.js (v6 rule set).
+//
+// Rules:
+//   1. Universal buffer: no late fee within (due + grace_days). Grace
+//      is configured per-lease.
+//   2. On-time full-amount ACH bonus: if the tenant initiated a single
+//      ACH payment for >= originalAmount on or before (due + grace),
+//      the effective grace becomes grace + 1 calendar days.
+//   3. Pause: if that on-time full-amount ACH is currently in flight
+//      (status = processing OR ach_processing), cap the chargeable
+//      window at its initiation date.
+//   4. Partial payments and late-initiated payments never earn bonus
+//      or pause. Card payments are treated as instant and never pause.
+//   5. Freeze: once sum(paid) >= originalAmount, late-fee accrual
+//      stops permanently. Any existing late_fee line is kept as an
+//      owed ledger item — we do NOT delete it. No fees on fees.
+//
+// `originalAmount` excludes existing late_fee lines so fees can never
+// compound on themselves.
 async function computePlan(){
   const today     = todayMidnight();
   const todayIso  = isoDay(today);
@@ -155,54 +174,65 @@ async function computePlan(){
     if (!leaseByKey.has(k)) leaseByKey.set(k, L); // first-seen wins (most recent)
   }
 
-  // Existing late_fee lines keyed on our canonical description.
-  // Using `invoice_id=in.(...)` so we only pull lines for candidates.
-  // PostgREST has a URL-length limit; chunk if we ever blow past ~2k IDs.
+  // Fetch ALL invoice_lines for every candidate invoice — we need both
+  // the existing canonical late-fee line AND the sum of non-late-fee
+  // lines (originalAmount) in a single round-trip. PostgREST has a URL
+  // length cap; chunk if we ever exceed ~2k candidate IDs.
   const invIds = invoices.map(i => i.id);
-  const existingLines = await restFetch(
+  const allLines = await restFetch(
     '/invoice_lines' +
     '?select=id,invoice_id,kind,description,amount' +
-    '&invoice_id=in.(' + invIds.join(',') + ')' +
-    '&kind=eq.late_fee' +
-    '&description=eq.' + encodeURIComponent(ACCRUAL_DESCRIPTION)
+    '&invoice_id=in.(' + invIds.join(',') + ')'
   );
-  const lineByInv = new Map();
-  for (const L of (existingLines || [])) lineByInv.set(L.invoice_id, L);
 
-  // ── Processing payments → pause late-fee accrual from initiation ──
-  // Product rule: the moment a payment enters `status='processing'`,
-  // further late-fee accrual for that invoice is paused — even if the
-  // processing amount doesn't cover the full balance. This cap only
-  // SHRINKS chargeable_days; it never extends them past `today`.
+  // linesByInv[invoice_id] = { original: number, existingLateFee: row|null }
+  // `original` sums every non-late-fee line — rent, deposit, credits
+  // (negative), service, parking, etc. Late fees explicitly excluded
+  // so the engine never compounds them ("no late fees on late fees").
+  const linesByInv = new Map();
+  for (const L of (allLines || [])) {
+    let entry = linesByInv.get(L.invoice_id);
+    if (!entry) {
+      entry = { original: 0, existingLateFee: null };
+      linesByInv.set(L.invoice_id, entry);
+    }
+    if (L.kind === 'late_fee') {
+      // Only the canonical bot-managed line is touched by the engine.
+      // Manual admin-entered late-fee lines (any other description) are
+      // preserved untouched and are excluded from `original` so they
+      // never feed back into the next accrual cycle.
+      if (L.description === ACCRUAL_DESCRIPTION && !entry.existingLateFee) {
+        entry.existingLateFee = L;
+      }
+    } else {
+      entry.original += Number(L.amount) || 0;
+    }
+  }
+
+  // Fetch ALL payments for every candidate invoice. The new rules care
+  // about: what's paid (status=paid|succeeded), what's in flight
+  // (processing|ach_processing), and WHEN each payment was initiated
+  // (created_at) — to determine on-time vs late.
   //
-  // We take the EARLIEST processing `created_at` per invoice as the
-  // pause anchor: if a tenant initiated a partial payment on day 3 and
-  // another on day 7, accrual pauses at day 3.
-  //
-  // The `payments` table may not exist yet in pre-migration environments
-  // (42P01). Treat its absence as "no pauses" — never abort the sweep.
-  const earliestProcessingByInv = new Map(); // invoice_id -> ISO timestamp
+  // The payments table may be absent on pre-migration environments
+  // (42P01). Treat its absence as "no pause / no bonus" — never abort.
+  const paymentsByInv = new Map(); // invoice_id -> array of payments
   try {
-    const processingPayments = await restFetch(
+    const pays = await restFetch(
       '/payments' +
-      '?select=invoice_id,created_at' +
-      '&status=eq.processing' +
+      '?select=invoice_id,method,status,amount,created_at' +
       '&invoice_id=in.(' + invIds.join(',') + ')'
     );
-    for (const p of (processingPayments || [])) {
-      const prev = earliestProcessingByInv.get(p.invoice_id);
-      if (!prev || p.created_at < prev) {
-        earliestProcessingByInv.set(p.invoice_id, p.created_at);
-      }
+    for (const p of (pays || [])) {
+      let arr = paymentsByInv.get(p.invoice_id);
+      if (!arr) { arr = []; paymentsByInv.set(p.invoice_id, arr); }
+      arr.push(p);
     }
   } catch (e) {
     const msg = (e && e.message) || String(e);
-    // 42P01 = relation does not exist; 404 in the PostgREST text.
     if (/payments/.test(msg) && (/42P01/.test(msg) || /404/.test(msg))) {
-      console.error('[recalc-late-fees] payments table not present — pause logic disabled');
+      console.error('[recalc-late-fees] payments table not present — pause/bonus logic disabled');
     } else {
-      // Other errors: log but don't crash. Worst case: we over-bill by
-      // whatever accrued during the pause window. Admin can reconcile.
       console.error('[recalc-late-fees] payments fetch warning: ' + msg);
     }
   }
@@ -228,41 +258,116 @@ async function computePlan(){
       continue;
     }
 
-    // Cap the chargeable window at the earliest processing payment, if
-    // any. Using date-only (midnight) so a payment initiated at 2pm on
-    // the same calendar day fully credits that day against the tenant.
-    const earliestProcessingIso = earliestProcessingByInv.get(inv.id) || null;
-    let effectiveEnd = today;
-    let pausedAt = null;
-    if (earliestProcessingIso) {
-      const epMid = toMidnight(earliestProcessingIso.slice(0, 10));
-      if (epMid && epMid.getTime() < today.getTime()) {
-        effectiveEnd = epMid;
-        pausedAt = earliestProcessingIso.slice(0, 10);
-      } else if (epMid) {
-        // Processing initiated today — the invoice is paused at *now*
-        // but today's accrual already stopped at midnight, so nothing
-        // to do. Record the pause for visibility.
-        pausedAt = earliestProcessingIso.slice(0, 10);
+    // ── Derived invoice state ────────────────────────────────────────
+    const linesEntry = linesByInv.get(inv.id) || { original: 0, existingLateFee: null };
+    const originalAmount = Math.round(linesEntry.original * 100) / 100;
+    const existing = linesEntry.existingLateFee;
+    const existingAmt = existing ? Number(existing.amount) : 0;
+
+    const pays = paymentsByInv.get(inv.id) || [];
+    const paidSum = pays
+      .filter(p => p.status === 'paid' || p.status === 'succeeded')
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const paidSumRounded = Math.round(paidSum * 100) / 100;
+
+    // Grace-end day: the last calendar day still INSIDE grace.
+    // Example: due 1/1, grace 3 → grace-end = 1/4 (days 1/2, 1/3, 1/4).
+    // "On-time" payment = initiated on or before this day.
+    const graceEndDate = new Date(dueDate.getTime());
+    graceEndDate.setDate(graceEndDate.getDate() + grace);
+
+    // ── Rule 5: Freeze if original fully paid ────────────────────────
+    // Once sum(paid) >= original (non-late-fee lines), late fees stop
+    // accruing permanently. Any already-accrued late_fee line stays
+    // on the ledger as an owed item — we do NOT delete it.
+    if (originalAmount > 0.005 && paidSumRounded >= originalAmount - 0.005) {
+      plan.eligible++;
+      plan.actions.push({
+        invoice_id: inv.id,
+        property: inv.property,
+        unit: inv.unit,
+        period: inv.period_month,
+        due_date: inv.due_date,
+        days_past_due: daysBetween(dueDate, today),
+        grace_days: grace,
+        grace_offset: grace,
+        per_day_late_fee: perDay,
+        chargeable_days: 0,
+        expected: existingAmt,         // frozen at whatever we last accrued
+        original_amount: originalAmount,
+        paid_sum: paidSumRounded,
+        existing_amount: existingAmt,
+        existing_line_id: existing ? existing.id : null,
+        invoice_total: Number(inv.total) || 0,
+        paused_at: null,
+        frozen: true,
+        on_time_full_ach: false,
+        action: 'noop',
+        reason: 'original_paid',
+        delta: 0
+      });
+      continue;
+    }
+
+    // ── Rules 1–4: On-time full-amount ACH detection ────────────────
+    // - "On-time" = initiated on or before grace-end.
+    // - "Full amount" = individual payment amount >= originalAmount.
+    //   (Aggregate/split-payment logic intentionally not supported in
+    //    v1 — keeps the rule simple and matches the tenant-facing
+    //    pattern of one ACH per pay attempt.)
+    // - Partial payments (amt < original) NEVER earn bonus or pause,
+    //   regardless of when they were initiated.
+    // - Card payments are treated as instant; only method === 'ach'
+    //   participates in pause/bonus logic.
+    let onTimeFullAchExists = false;     // any on-time full-amount ACH, any status
+    let earliestInFlightOnTime = null;   // Date of earliest in-flight on-time full-amount ACH
+    for (const p of pays) {
+      if (p.method !== 'ach') continue;
+      if (!p.created_at) continue;
+      const initDate = toMidnight(String(p.created_at).slice(0, 10));
+      if (!initDate) continue;
+      if (initDate.getTime() > graceEndDate.getTime()) continue; // late-initiated
+      const amt = Number(p.amount) || 0;
+      if (amt < originalAmount - 0.005) continue;                // partial
+      onTimeFullAchExists = true;
+      const st = String(p.status || '').toLowerCase();
+      if (st === 'processing' || st === 'ach_processing') {
+        if (earliestInFlightOnTime === null ||
+            initDate.getTime() < earliestInFlightOnTime.getTime()) {
+          earliestInFlightOnTime = initDate;
+        }
       }
     }
 
-    const daysPastDue = daysBetween(dueDate, effectiveEnd);
-    const chargeable  = Math.max(0, daysPastDue - grace);
-    const expected    = Math.round(chargeable * perDay * 100) / 100;
+    // Bonus day: granted if ANY on-time full-amount ACH was initiated
+    // (regardless of current status — a later failure doesn't revoke
+    // the bonus the tenant earned by attempting on time).
+    const graceOffset = onTimeFullAchExists ? grace + 1 : grace;
 
-    const existing    = lineByInv.get(inv.id) || null;
-    const existingAmt = existing ? Number(existing.amount) : 0;
+    // Pause: only if an on-time full-amount ACH is currently in flight.
+    // Chargeable window caps at the earliest such payment's init date.
+    let effectiveEnd = today;
+    let pausedAt = null;
+    if (earliestInFlightOnTime) {
+      if (earliestInFlightOnTime.getTime() < today.getTime()) {
+        effectiveEnd = earliestInFlightOnTime;
+      }
+      pausedAt = isoDay(earliestInFlightOnTime);
+    }
+
+    const daysPastDue = daysBetween(dueDate, effectiveEnd);
+    const chargeable  = Math.max(0, daysPastDue - graceOffset);
+    const expected    = Math.round(chargeable * perDay * 100) / 100;
 
     let action = 'noop';
     let delta  = 0;
-    if (expected > 0 && !existing) {
+    if (expected > 0.005 && !existing) {
       action = 'insert';
       delta  = expected;
-    } else if (expected > 0 && existing && Math.abs(existingAmt - expected) > 0.001) {
+    } else if (expected > 0.005 && existing && Math.abs(existingAmt - expected) > 0.005) {
       action = 'update';
       delta  = expected - existingAmt;
-    } else if (expected === 0 && existing) {
+    } else if (expected < 0.005 && existing) {
       action = 'delete';
       delta  = -existingAmt;
     }
@@ -272,16 +377,22 @@ async function computePlan(){
       invoice_id: inv.id,
       property: inv.property,
       unit: inv.unit,
+      period: inv.period_month,
       due_date: inv.due_date,
       days_past_due: daysPastDue,
       grace_days: grace,
+      grace_offset: graceOffset,        // grace or grace+1 (after bonus)
       per_day_late_fee: perDay,
       chargeable_days: chargeable,
       expected,
+      original_amount: originalAmount,
+      paid_sum: paidSumRounded,
       existing_amount: existingAmt,
       existing_line_id: existing ? existing.id : null,
       invoice_total: Number(inv.total) || 0,
-      paused_at: pausedAt,       // ISO date of earliest processing payment, or null
+      paused_at: pausedAt,              // ISO date of in-flight pause, or null
+      frozen: false,
+      on_time_full_ach: onTimeFullAchExists,
       action,
       delta
     });
