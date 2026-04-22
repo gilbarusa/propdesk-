@@ -42,12 +42,47 @@
     { k: 'manual', l: 'Manual' }
   ];
 
+  // Statuses on the filter bar. `processing` is the UI bucket that
+  // covers both card-in-flight (`processing`) and ACH-in-flight
+  // (`ach_processing`). See statusMatches() below — the chip maps to
+  // BOTH raw statuses so admins don't have to know the two names.
   const STATUSES = [
-    { k: 'paid',      l: 'Paid',      default: true  },
-    { k: 'pending',   l: 'Pending',   default: false },
-    { k: 'failed',    l: 'Failed',    default: false },
-    { k: 'refunded',  l: 'Refunded',  default: false }
+    { k: 'paid',       l: 'Paid',       default: true  },
+    { k: 'processing', l: 'Processing', default: false },
+    { k: 'pending',    l: 'Pending',    default: false },
+    { k: 'failed',     l: 'Failed',     default: false },
+    { k: 'refunded',   l: 'Refunded',   default: false }
   ];
+
+  // Map a raw payments.status value to the UI status bucket used by
+  // the filter chips. `succeeded` is a Stripe-era alias for `paid`.
+  // `ach_processing` and `processing` both roll up to `processing`.
+  function statusBucket(raw) {
+    const s = String(raw || '').toLowerCase();
+    if (s === 'succeeded')       return 'paid';
+    if (s === 'ach_processing')  return 'processing';
+    return s;
+  }
+
+  // Small colored pill for the Method column. ACH = green, Card =
+  // blue, Manual/Check = grey, anything unrecognized renders the
+  // raw value. If the row is in-flight we suffix a tiny "pending"
+  // dot so admins can tell a settled ACH from one that might still
+  // return NSF.
+  function renderMethodPill(method, status) {
+    const m = String(method || '').toLowerCase();
+    const inFlight = statusBucket(status) === 'processing';
+    const base = {
+      ach:    { bg: '#eaf6f0', fg: '#1f7a4d', brd: '#9ed2b8', lbl: 'ACH'    },
+      card:   { bg: '#eef1fb', fg: '#3651b5', brd: '#c4cdeb', lbl: 'Card'   },
+      manual: { bg: '#f4eef8', fg: '#6b3fa0', brd: '#ddd0ea', lbl: 'Manual' },
+      check:  { bg: '#fdf3e8', fg: '#b86818', brd: '#eecfa0', lbl: 'Check'  }
+    }[m] || { bg: '#f5f7fb', fg: '#4d5670', brd: '#e4e8f2', lbl: (method || '—').toString().toUpperCase() };
+    const dot = inFlight
+      ? ' <span title="In flight — not yet settled" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#f39c12;margin-left:4px;vertical-align:middle"></span>'
+      : '';
+    return `<span class="wpa-pr-method" style="display:inline-flex;align-items:center;padding:3px 9px;border-radius:10px;background:${base.bg};color:${base.fg};border:1px solid ${base.brd};font-size:11px;font-weight:600">${esc(base.lbl)}${dot}</span>`;
+  }
 
   // ─── Utils ─────────────────────────────────────────────────
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
@@ -301,8 +336,11 @@
     const rows = state.raw || [];
     return rows.filter(p => {
       const inv = p.invoices || {};
-      // Status — match ignoring the succeeded alias
-      const rowStatus = ((p.status === 'succeeded') ? 'paid' : (p.status || '')).toLowerCase();
+      // Status — normalize to the UI bucket (paid/processing/pending/
+      // failed/refunded). statusBucket() folds `succeeded` → `paid`
+      // and `ach_processing` → `processing` so the filter chip matches
+      // both raw forms.
+      const rowStatus = statusBucket(p.status);
       if (state.statuses.length && state.statuses.indexOf(rowStatus) === -1) return false;
       // Method
       if (state.methods.length && state.methods.indexOf((p.method||'').toLowerCase()) === -1) return false;
@@ -587,7 +625,7 @@
           <td>
             <span class="wpa-pr-pill" style="background:${catColor}">${esc(CAT_LABEL[cat.primary] || cat.primary)}${cat.mixed?' +'+(cat.count-1):''}</span>
           </td>
-          <td>${esc((p.method||'—').toUpperCase())}</td>
+          <td>${renderMethodPill(p.method, p.status)}</td>
           <td class="num">${esc(money(amt))}</td>
           <td class="num hide-sm">${esc(money(fee))}</td>
           <td class="num hide-sm">${esc(money(net))}</td>

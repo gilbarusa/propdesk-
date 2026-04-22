@@ -552,12 +552,23 @@
     // matches the portal's post-2026-04-20 behavior so the admin
     // view reconciles with what Stripe captured ($2.07, not $2.00).
     const _isPaid = p => p.status === 'paid' || p.status === 'succeeded';
+    const _isProcessing = p => p.status === 'processing' || p.status === 'ach_processing';
     const rows = payments.map(p => {
       const methodIcon = p.method === 'ach' ? '🏦' : '💳';
       const methodLbl = p.method === 'ach' ? 'ACH' : 'Credit Card';
       const stripeRef = (_viewMode === 'admin' && p.stripe_payment_intent_id)
         ? ' · <code style="font-size:10px;color:#4d5670">' + _esc(p.stripe_payment_intent_id) + '</code>' : '';
-      const statusBadge = !_isPaid(p) ? ` <span style="color:#b86818;font-size:10px;text-transform:uppercase;">(${_esc(p.status)})</span>` : '';
+      // Processing rows (card or ACH) get a proper orange pill rather
+      // than the uppercase "(ACH_PROCESSING)" text the admin saw before.
+      // Any other non-paid status still shows the raw value so
+      // refunds/failures stay visible.
+      let statusBadge = '';
+      if (_isProcessing(p)) {
+        const lbl = p.method === 'ach' ? 'ACH Processing' : 'Processing';
+        statusBadge = ` <span style="display:inline-block;padding:2px 8px;border-radius:10px;background:#fdf3e8;color:#b86818;border:1px solid #eecfa0;font-size:10px;font-weight:600;vertical-align:middle">${_esc(lbl)}</span>`;
+      } else if (!_isPaid(p)) {
+        statusBadge = ` <span style="color:#b86818;font-size:10px;text-transform:uppercase;">(${_esc(p.status)})</span>`;
+      }
       const base  = Number(p.amount || 0) || 0;
       const fee   = Number(p.surcharge_amount || 0) || 0;
       const total = base + fee;
@@ -1074,6 +1085,23 @@
     if (pop) pop.remove();
   };
 
+  // Tiny ACH/Card badge appended next to the status pill on the
+  // invoice list. Renders only when there's at least one payment on
+  // the invoice (r.payment_method populated) — otherwise the status
+  // pill stands alone as it did pre-10.3.5. ACH is green-on-green,
+  // Card is blue-on-blue; the colors match the Payments Report pill
+  // so the two views feel consistent.
+  function _renderListMethodBadge(r) {
+    const m = String(r.payment_method || '').toLowerCase();
+    if (!m || m === '—') return '';
+    const base = {
+      ach:  { bg: '#eaf6f0', fg: '#1f7a4d', brd: '#9ed2b8', lbl: 'ACH'  },
+      card: { bg: '#eef1fb', fg: '#3651b5', brd: '#c4cdeb', lbl: 'Card' }
+    }[m];
+    if (!base) return '';
+    return ` <span title="Last payment method" style="display:inline-block;margin-left:4px;padding:1px 7px;border-radius:10px;background:${base.bg};color:${base.fg};border:1px solid ${base.brd};font-size:10px;font-weight:600;vertical-align:middle">${_esc(base.lbl)}</span>`;
+  }
+
   function _filtered() {
     if (_listFilter === 'all') return _listRows;
     if (_listFilter === 'overdue') return _listRows.filter(r => r.status === 'late' || r.status === 'partial');
@@ -1147,7 +1175,7 @@
                   <td class="num">${_fmt$(r.total)}</td>
                   <td class="num">${_fmt$(r.paid)}</td>
                   <td class="num ${r.remaining > 0 && r.status !== 'upcoming' ? 'red' : ''}">${_fmt$(r.remaining)}</td>
-                  <td><span class="wpa-il-pill ${r.status}">${r.status}</span></td>
+                  <td><span class="wpa-il-pill ${r.status}">${r.status}</span>${_renderListMethodBadge(r)}</td>
                 </tr>`).join('')}
             </tbody>
           </table>`}
