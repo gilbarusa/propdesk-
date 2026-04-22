@@ -2496,11 +2496,33 @@ function WPA_editCredential(credId) {
   document.getElementById('credCardsBox').innerHTML = html;
 }
 
+/* ── Canonical credential-field aliases ──
+ * Tenant portal code reads specific JSONB key names (e.g. the Stripe
+ * webhook handler reads `webhook_secret`). If an admin adds the field
+ * with an intuitive but non-canonical name like `webhook`, the value
+ * sits unused and every webhook event silently fails signature
+ * verification. Normalize on save + on field-add so the canonical name
+ * is the only one that ever lands in storage.
+ *
+ * Phase 10.3.4e hotfix — ERA Holding LLC was added with key `webhook`
+ * instead of `webhook_secret`, causing all ACH events to 500. */
+var WPA_CRED_KEY_ALIASES = {
+  'webhook':                'webhook_secret',
+  'stripe_webhook_secret':  'webhook_secret',
+  'signing_secret':         'webhook_secret',
+  'whsec':                  'webhook_secret'
+};
+function WPA_canonCredKey(k) {
+  var lower = String(k || '').trim().toLowerCase();
+  return WPA_CRED_KEY_ALIASES[lower] || lower;
+}
+
 /* ── Add new field to current credential ── */
 function WPA_addCredField() {
   var nameEl = document.getElementById('credNewFieldName');
   if (!nameEl) return;
   var name = nameEl.value.trim().replace(/\s+/g, '_').toLowerCase();
+  name = WPA_canonCredKey(name); // rename aliases to canonical names on input
   if (!name) { toast('Enter a field name', ''); return; }
   // Insert new field before the "Add New Field" section
   var container = nameEl.closest('.form-group').parentElement;
@@ -2518,10 +2540,15 @@ function WPA_saveCredential(credId) {
   var r = WPA_credCache[credId];
   if (!r) return;
   var label = (document.getElementById('credEditLabel') || {}).value || r.label;
-  // Collect all credF_ inputs
+  // Collect all credF_ inputs. Apply the alias map so legacy rows
+  // with misnamed keys (e.g. `webhook` instead of `webhook_secret`)
+  // get migrated to the canonical name on the next save. If both
+  // names exist simultaneously the canonical one wins (later writes
+  // clobber earlier ones under the same key).
   var creds = {};
   document.querySelectorAll('[id^="credF_"]').forEach(function(inp) {
-    var key = inp.id.replace('credF_', '');
+    var rawKey = inp.id.replace('credF_', '');
+    var key    = WPA_canonCredKey(rawKey);
     creds[key] = inp.value;
   });
   pkSB('app_credentials', 'id=eq.' + credId, 'PATCH', { label: label, credentials: creds, updated_at: new Date().toISOString() }).then(function() {
