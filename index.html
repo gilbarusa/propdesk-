@@ -3889,7 +3889,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navA.4"></script>
+<script src="js/app.js?v=20260423-navB.1"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4259,27 +4259,40 @@ if('serviceWorker' in navigator){
     padding: 1px 6px; border-radius: 9px; min-width: 16px; text-align: center;
   }
 
-  /* Global search button — light blue, compact. Half-width per Gil
-     2026-04-23 iter 4: dropped placeholder, kept icon + ⌘K kbd only.
-     Hovering expands slightly so the hint "Search…" appears. */
+  /* Global search button — matches .top-services tint for visual parity
+     with the services cluster on the left. Iter 5 (2026-04-23):
+     neutral translucent dark bg (same as .top-services), no border,
+     30% wider than iter 4. */
   .global-search-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 10px; font: inherit; font-size: 12px;
-    background: var(--blue-bg, #edf3fb); color: var(--blue, #1e5799);
-    border: 1px solid var(--blue-border, #a8c8ed); border-radius: 18px;
-    cursor: pointer; margin-left: 10px; min-width: 80px;
+    padding: 8px 12px; font: inherit; font-size: 12px;
+    background: rgba(0,0,0,0.03);               /* matches .top-services */
+    color: var(--text2, #5a5040);               /* muted neutral, not blue */
+    border: 1px solid transparent;              /* no visible border */
+    border-radius: 18px;
+    cursor: pointer; margin-left: 10px; min-width: 104px;   /* +30% of 80 */
     line-height: 1; transition: min-width 0.15s ease, background 0.15s ease;
   }
-  .global-search-btn:hover { min-width: 160px; }
+  .global-search-btn:hover {
+    min-width: 208px;                           /* +30% of 160 */
+    background: rgba(0,0,0,0.06);
+  }
+  .global-search-btn .gsb-ic { font-size: 13px; }
   .global-search-btn .gsb-placeholder {
-    /* Hidden at narrow width; reappears on hover because the button
-       widens enough to reveal it. */
+    /* Hidden at narrow width; reappears on hover. */
     display: none;
-    font-size: 11px; color: #6a7e95;
+    font-size: 11px; color: #7e7567;            /* muted gray, readable on neutral bg */
   }
   .global-search-btn:hover .gsb-placeholder {
     display: inline; flex: 1; text-align: left;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .global-search-btn .gsb-kbd {
+    /* Subtle kbd hint, neutral to match. */
+    font-size: 10px; color: #7e7567;
+    border: 1px solid rgba(0,0,0,0.12); background: rgba(255,255,255,0.7);
+    padding: 0 5px; border-radius: 3px;
+    font-family: ui-monospace, Menlo, monospace;
   }
   .global-search-btn:hover {
     background: #dbe8f8;
@@ -4300,63 +4313,358 @@ if('serviceWorker' in navigator){
   }
 
   /* Responsive: collapse services to icon-only when top bar gets tight.
-     Search button is already compact (80px / icon+kbd), no further shrink. */
+     Search button keeps its compact baseline (104px) on narrow screens,
+     no hover expansion so the top bar doesn't reflow mid-scan. */
   @media (max-width: 1280px) {
     .top-services .top-svc-tab { padding: 6px 9px; }
     .top-services .top-svc-tab .mod-icon + :not(.mod-badge) { display: none; }
-    .global-search-btn:hover { min-width: 80px; }  /* skip the hover expansion on narrow screens */
+    .global-search-btn:hover { min-width: 104px; }
   }
 
-  /* Phase A search stub modal. */
-  .gsb-stub-ov {
+  /* Phase B global-search modal. */
+  .gs-ov {
     position: fixed; inset: 0; background: rgba(42,36,29,0.35);
     display: none; align-items: flex-start; justify-content: center;
-    z-index: 9999; padding-top: 90px;
+    z-index: 9999; padding-top: 80px;
   }
-  .gsb-stub-ov.open { display: flex; }
-  .gsb-stub-modal {
+  .gs-ov.open { display: flex; }
+  .gs-modal {
     background: #fff; border: 1px solid #d9d3c5; border-radius: 10px;
-    padding: 22px 26px; max-width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,0.18);
-    text-align: center;
+    width: 680px; max-width: calc(100vw - 40px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.18); overflow: hidden;
   }
-  .gsb-stub-modal h3 {
-    font-family: 'Playfair Display', Georgia, serif;
-    font-size: 18px; margin-bottom: 10px; color: #2a241d;
+  .gs-header {
+    display: flex; align-items: center; padding: 14px 18px; gap: 12px;
+    border-bottom: 1px solid #efeae0;
   }
-  .gsb-stub-modal p { font-size: 13px; color: #5a5040; margin-bottom: 16px; }
-  .gsb-stub-modal button {
-    padding: 7px 18px; font: inherit; font-size: 12px;
-    background: #2a3f28; color: #efe9d9; border: none; border-radius: 4px;
+  .gs-header .gsi { font-size: 18px; color: #7e7567; }
+  .gs-header input {
+    flex: 1; font: inherit; font-size: 17px; border: none; outline: none;
+    color: #2a241d; padding: 4px 0; background: transparent;
+  }
+  .gs-header .gs-esc {
+    font-size: 10px; color: #9e9485; border: 1px solid #d9d3c5; background: #fafaf7;
+    padding: 2px 6px; border-radius: 3px; font-family: ui-monospace, Menlo, monospace;
+  }
+  .gs-results { max-height: 420px; overflow-y: auto; padding: 6px 0; }
+  .gs-group {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: #9e9485; padding: 10px 18px 4px; font-weight: 600;
+  }
+  .gs-result {
+    padding: 9px 18px; display: flex; align-items: center; gap: 12px;
     cursor: pointer;
   }
+  .gs-result:hover, .gs-result.selected { background: #faf6ee; }
+  .gs-result .rsi {
+    font-size: 14px; width: 22px; text-align: center; color: #8a6d3c;
+  }
+  .gs-result .rm { flex: 1; min-width: 0; }
+  .gs-result .rt { font-size: 13px; color: #2a241d; font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gs-result .rmeta { font-size: 11px; color: #7e7567; margin-top: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gs-result .rgo { font-size: 10px; color: #8a6d3c; opacity: 0; transition: opacity 0.1s; }
+  .gs-result:hover .rgo, .gs-result.selected .rgo { opacity: 1; }
+  .gs-empty, .gs-hint, .gs-loading {
+    padding: 40px 18px; text-align: center; color: #9e9485; font-size: 13px;
+  }
+  .gs-footer {
+    background: #faf6ee; padding: 8px 18px; font-size: 11px; color: #7e7567;
+    border-top: 1px solid #efeae0; display: flex; gap: 16px; flex-wrap: wrap;
+  }
+  .gs-footer .kbd {
+    font-size: 10px; border: 1px solid #d9d3c5; background: #fff;
+    padding: 1px 5px; border-radius: 3px; font-family: ui-monospace, Menlo, monospace;
+    margin: 0 3px;
+  }
+  mark.gs-hl { background: #fff3cd; color: inherit; padding: 0 1px; border-radius: 2px; }
 </style>
 
-<!-- Global search STUB overlay (Phase A). Real implementation in Phase B. -->
-<div class="gsb-stub-ov" id="gsbStubOverlay" onclick="if(event.target===this) window.WPA_closeGlobalSearch()">
-  <div class="gsb-stub-modal">
-    <h3>🔍 Global search</h3>
-    <p>Coming in <strong>Phase B</strong> — cross-table search over units, invoices, contacts, communities, and more. Button is live; backend wiring is the next step.</p>
-    <button onclick="window.WPA_closeGlobalSearch()">Got it</button>
+<!-- Phase B · Global search modal -->
+<div class="gs-ov" id="gsOverlay"
+     onclick="if(event.target===this) window.WPA_closeGlobalSearch()">
+  <div class="gs-modal" role="dialog" aria-label="Global search">
+    <div class="gs-header">
+      <span class="gsi">🔍</span>
+      <input id="gsInput" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Search units, invoices, contacts, communities…">
+      <span class="gs-esc">ESC</span>
+    </div>
+    <div class="gs-results" id="gsResults">
+      <div class="gs-hint">Start typing — min 2 characters.</div>
+    </div>
+    <div class="gs-footer">
+      <span><span class="kbd">↑</span><span class="kbd">↓</span> navigate</span>
+      <span><span class="kbd">↵</span> open</span>
+      <span><span class="kbd">ESC</span> close</span>
+      <span style="flex:1"></span>
+      <span style="color:#9e9485;">Phase B · local SPA search</span>
+    </div>
   </div>
 </div>
 
 <script>
-// Phase A stubs for global search. Replaced with real implementation in Phase B.
-window.WPA_openGlobalSearch = function() {
-  document.getElementById('gsbStubOverlay')?.classList.add('open');
-};
-window.WPA_closeGlobalSearch = function() {
-  document.getElementById('gsbStubOverlay')?.classList.remove('open');
-};
-// ⌘K / Ctrl+K keyboard shortcut
-document.addEventListener('keydown', function(e){
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-    e.preventDefault();
-    window.WPA_openGlobalSearch();
-  } else if (e.key === 'Escape') {
-    window.WPA_closeGlobalSearch();
+/* ═══════════════════════════════════════════════════════════════════════════
+ *  Phase B · Global search (real implementation)
+ *  Queries Supabase directly via window.sb across:
+ *    hoa_units · hoa_contacts · hoa_communities · invoices
+ *  Debounced 250ms. Keyboard-first. On Enter, navigates via switchModule()
+ *  + showSubPage() to the appropriate module page.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  const DEBOUNCE_MS = 250;
+  const PER_TABLE   = 5;
+  let _timer = null;
+  let _selIdx = 0;       // currently highlighted row (flat index into _rows)
+  let _rows = [];        // flattened [{type, id, title, meta, nav}]
+  let _lastQ = '';
+
+  const esc = s => String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+  function hl(text, q) {
+    if (!text || !q) return esc(text || '');
+    const out = esc(text);
+    // build regex from each whitespace-split term
+    const terms = q.trim().split(/\s+/).filter(Boolean).slice(0, 4)
+                   .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    if (!terms.length) return out;
+    const re = new RegExp('(' + terms.join('|') + ')', 'ig');
+    return out.replace(re, '<mark class="gs-hl">$1</mark>');
   }
-});
+
+  function $(id) { return document.getElementById(id); }
+
+  function open() {
+    $('gsOverlay').classList.add('open');
+    setTimeout(() => { const i = $('gsInput'); if (i) i.focus(); }, 20);
+  }
+  function close() {
+    $('gsOverlay').classList.remove('open');
+  }
+
+  async function runSearch(q) {
+    const s = window.sb || window.supa || window.supabaseClient;
+    if (!s) return { err: 'Supabase client not loaded yet.' };
+    if (!q || q.trim().length < 2) return { groups: [] };
+    const like = '%' + q.trim() + '%';
+
+    // Four parallel queries. Each is tolerant of its own failure so one
+    // broken table doesn't collapse the whole search.
+    const queries = [
+      s.from('hoa_units')
+        .select('id,unit_label,community_id,is_active,notes')
+        .or(`unit_label.ilike.${like},notes.ilike.${like}`)
+        .limit(PER_TABLE),
+      s.from('hoa_contacts')
+        .select('id,full_name,first_name,last_name,email,phone,phone_e164,is_active')
+        .or(`full_name.ilike.${like},email.ilike.${like},phone_e164.ilike.${like}`)
+        .limit(PER_TABLE),
+      s.from('hoa_communities')
+        .select('id,name,display_name,city,state')
+        .or(`name.ilike.${like},display_name.ilike.${like}`)
+        .limit(PER_TABLE),
+      s.from('invoices')
+        .select('id,period_month,due_date,status,total,unit,notes,invoice_type,hoa_community_id')
+        .or(`unit.ilike.${like},notes.ilike.${like}`)
+        .order('due_date', { ascending: false })
+        .limit(PER_TABLE),
+    ];
+    const [uRes, cRes, commRes, invRes] = await Promise.all(
+      queries.map(p => p.then(r => r).catch(e => ({ data: [], error: e })))
+    );
+
+    const groups = [];
+    if (uRes.data && uRes.data.length) {
+      groups.push({
+        label: 'Units',
+        rows: uRes.data.map(u => ({
+          type: 'unit', id: u.id,
+          title: 'Unit ' + (u.unit_label || '—'),
+          meta:  (u.is_active ? 'active' : 'inactive') +
+                 (u.notes ? ' · ' + u.notes.slice(0, 80) : ''),
+          icon:  '🏘',
+          nav:   () => navigateToModule('hoa', 'hoa-units', 'unit:' + u.id),
+        }))
+      });
+    }
+    if (commRes.data && commRes.data.length) {
+      groups.push({
+        label: 'Communities',
+        rows: commRes.data.map(co => ({
+          type: 'community', id: co.id,
+          title: co.display_name || co.name,
+          meta:  [co.city, co.state].filter(Boolean).join(', ') || '—',
+          icon:  '🏘',
+          nav:   () => navigateToModule('hoa', 'hoa-communities', 'community:' + co.id),
+        }))
+      });
+    }
+    if (cRes.data && cRes.data.length) {
+      groups.push({
+        label: 'Contacts',
+        rows: cRes.data.map(c => {
+          const nm = c.full_name
+                  || [c.first_name, c.last_name].filter(Boolean).join(' ')
+                  || c.email || c.phone_e164 || '(unnamed)';
+          return {
+            type: 'contact', id: c.id,
+            title: nm,
+            meta:  [c.phone_e164 || c.phone, c.email].filter(Boolean).join(' · ')
+                 + (c.is_active ? '' : ' · inactive'),
+            icon:  '👤',
+            nav:   () => navigateToModule('hoa', 'hoa-contacts', 'contact:' + c.id),
+          };
+        })
+      });
+    }
+    if (invRes.data && invRes.data.length) {
+      groups.push({
+        label: 'Invoices',
+        rows: invRes.data.map(inv => ({
+          type: 'invoice', id: inv.id,
+          title: '$' + Number(inv.total || 0).toFixed(2) +
+                 ' · Unit ' + (inv.unit || '—') +
+                 (inv.invoice_type ? ' · ' + inv.invoice_type : ''),
+          meta:  (inv.status || '?') +
+                 ' · Due ' + (inv.due_date || '—') +
+                 ' · Period ' + (inv.period_month || '—'),
+          icon:  '💰',
+          nav:   () => {
+            const mod = inv.invoice_type === 'hoa' ? 'hoa' : 'mtm-lt';
+            const sub = inv.invoice_type === 'hoa' ? 'hoa-invoices' : 'mtm-lt-rent';
+            navigateToModule(mod, sub, 'invoice:' + inv.id);
+          },
+        }))
+      });
+    }
+    return { groups };
+  }
+
+  function navigateToModule(moduleId, targetPage, deepLink) {
+    // Stash the deep-link intent for the target module to consume (optional).
+    try { sessionStorage.setItem('gs_deeplink', deepLink); } catch (_) {}
+    close();
+    if (typeof window.switchModule === 'function') {
+      window.switchModule(moduleId);
+      // Give the module a tick to render sub-nav, then click the target sub-tab.
+      setTimeout(() => {
+        const subTab = Array.from(document.querySelectorAll('#subNav .sub-tab'))
+          .find(t => (t.getAttribute('onclick') || '').indexOf("'" + targetPage + "'") !== -1);
+        if (subTab) subTab.click();
+      }, 60);
+    }
+  }
+
+  function render(q, result) {
+    const box = $('gsResults');
+    if (!box) return;
+    if (result.err) {
+      box.innerHTML = '<div class="gs-empty" style="color:#a22;">'
+                    + esc(result.err) + '</div>';
+      _rows = [];
+      return;
+    }
+    if (!q || q.trim().length < 2) {
+      box.innerHTML = '<div class="gs-hint">Start typing — min 2 characters.</div>';
+      _rows = [];
+      return;
+    }
+    if (!result.groups || !result.groups.length) {
+      box.innerHTML = '<div class="gs-empty">No matches for <strong>'
+                    + esc(q) + '</strong>.</div>';
+      _rows = [];
+      return;
+    }
+
+    _rows = [];
+    let html = '';
+    result.groups.forEach(g => {
+      html += '<div class="gs-group">' + esc(g.label) + '</div>';
+      g.rows.forEach(r => {
+        const flatIdx = _rows.length;
+        _rows.push(r);
+        const sel = flatIdx === _selIdx ? ' selected' : '';
+        html += '<div class="gs-result' + sel + '" data-idx="' + flatIdx + '" '
+              + 'onclick="WPA_gsSelect(' + flatIdx + ')">'
+              + '<span class="rsi">' + esc(r.icon || '•') + '</span>'
+              + '<div class="rm">'
+              +   '<div class="rt">' + hl(r.title, q) + '</div>'
+              +   '<div class="rmeta">' + hl(r.meta, q) + '</div>'
+              + '</div>'
+              + '<span class="rgo">Open ↗</span>'
+              + '</div>';
+      });
+    });
+    box.innerHTML = html;
+  }
+
+  function setSelected(idx) {
+    if (!_rows.length) return;
+    _selIdx = ((idx % _rows.length) + _rows.length) % _rows.length;
+    document.querySelectorAll('#gsResults .gs-result').forEach(el => {
+      el.classList.toggle('selected',
+        Number(el.getAttribute('data-idx')) === _selIdx);
+    });
+    const sel = document.querySelector('#gsResults .gs-result.selected');
+    if (sel) sel.scrollIntoView({ block: 'nearest' });
+  }
+
+  async function onInput() {
+    const q = $('gsInput').value;
+    clearTimeout(_timer);
+    if (q === _lastQ) return;
+    _lastQ = q;
+    _selIdx = 0;
+    if (!q || q.trim().length < 2) {
+      render(q, { groups: [] });
+      return;
+    }
+    $('gsResults').innerHTML = '<div class="gs-loading">Searching…</div>';
+    _timer = setTimeout(async () => {
+      const r = await runSearch(q);
+      render(q, r);
+    }, DEBOUNCE_MS);
+  }
+
+  function onKeydown(e) {
+    const ovOpen = $('gsOverlay') && $('gsOverlay').classList.contains('open');
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      open();
+      return;
+    }
+    if (!ovOpen) return;
+    if (e.key === 'Escape')     { e.preventDefault(); close();     return; }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); setSelected(_selIdx + 1); return; }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); setSelected(_selIdx - 1); return; }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (_rows[_selIdx]) _rows[_selIdx].nav();
+    }
+  }
+
+  window.WPA_openGlobalSearch  = open;
+  window.WPA_closeGlobalSearch = close;
+  window.WPA_gsSelect = function(idx) {
+    setSelected(idx);
+    if (_rows[_selIdx]) _rows[_selIdx].nav();
+  };
+
+  document.addEventListener('keydown', onKeydown);
+  // Input handler attached once the DOM is ready.
+  const wire = () => {
+    const inp = $('gsInput');
+    if (inp && !inp._wired) { inp.addEventListener('input', onInput); inp._wired = true; }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wire);
+  } else { wire(); }
+})();
 </script>
 
 </body>
