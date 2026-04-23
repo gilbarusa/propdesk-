@@ -3889,7 +3889,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navA.3"></script>
+<script src="js/app.js?v=20260423-navA.4"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4259,16 +4259,27 @@ if('serviceWorker' in navigator){
     padding: 1px 6px; border-radius: 9px; min-width: 16px; text-align: center;
   }
 
-  /* Global search button — light blue, sized to match the nav frame.
-     Height tuned to approximate the module-tab row height so it sits
-     flush with the rest of the top-bar chrome (iter 3, 2026-04-23). */
+  /* Global search button — light blue, compact. Half-width per Gil
+     2026-04-23 iter 4: dropped placeholder, kept icon + ⌘K kbd only.
+     Hovering expands slightly so the hint "Search…" appears. */
   .global-search-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 12px 8px 10px; font: inherit; font-size: 12px;
+    padding: 8px 10px; font: inherit; font-size: 12px;
     background: var(--blue-bg, #edf3fb); color: var(--blue, #1e5799);
     border: 1px solid var(--blue-border, #a8c8ed); border-radius: 18px;
-    cursor: pointer; margin-left: 10px; min-width: 160px;
-    line-height: 1;
+    cursor: pointer; margin-left: 10px; min-width: 80px;
+    line-height: 1; transition: min-width 0.15s ease, background 0.15s ease;
+  }
+  .global-search-btn:hover { min-width: 160px; }
+  .global-search-btn .gsb-placeholder {
+    /* Hidden at narrow width; reappears on hover because the button
+       widens enough to reveal it. */
+    display: none;
+    font-size: 11px; color: #6a7e95;
+  }
+  .global-search-btn:hover .gsb-placeholder {
+    display: inline; flex: 1; text-align: left;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .global-search-btn:hover {
     background: #dbe8f8;
@@ -4288,12 +4299,12 @@ if('serviceWorker' in navigator){
     font-family: ui-monospace, Menlo, monospace;
   }
 
-  /* Responsive: collapse services to icon-only when top bar gets tight. */
+  /* Responsive: collapse services to icon-only when top bar gets tight.
+     Search button is already compact (80px / icon+kbd), no further shrink. */
   @media (max-width: 1280px) {
     .top-services .top-svc-tab { padding: 6px 9px; }
     .top-services .top-svc-tab .mod-icon + :not(.mod-badge) { display: none; }
-    .global-search-btn { min-width: 120px; }
-    .global-search-btn .gsb-placeholder { display: none; }
+    .global-search-btn:hover { min-width: 80px; }  /* skip the hover expansion on narrow screens */
   }
 
   /* Phase A search stub modal. */
