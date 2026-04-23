@@ -258,7 +258,11 @@
   }
 
   function openCommunityForm(id) {
-    const row = id ? findCommunity(id) : {};
+    // NOTE: local var renamed to `rec` to avoid shadowing the row() helper —
+    // the Phase 1b original used `const row = ...` which masked the layout
+    // function and made every Edit click a silent TypeError. Same pattern
+    // applied to openUnitForm + openContactForm below.
+    const rec = id ? findCommunity(id) : {};
     const creds = [{ value:'', label:'— not wired —' }].concat(
       cache.stripeCreds.map(c => ({ value: c.id, label: (c.label || c.id) }))
     );
@@ -268,23 +272,23 @@
     ];
     const html =
       '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit Community' : 'New Community') + '</h3>' +
-      row('Name',               inp('hoaCommName', row.name)) +
-      row('Display name',       inp('hoaCommDisplay', row.display_name), 'Optional. Shown to tenants.') +
-      row('Logo URL',           inp('hoaCommLogo', row.logo_url), 'Full https URL. Displayed on invoices + receipts.') +
-      row('Address line 1',     inp('hoaCommAddr1', row.address1)) +
-      row('Address line 2',     inp('hoaCommAddr2', row.address2)) +
-      row('City',               inp('hoaCommCity', row.city)) +
-      row('State',              inp('hoaCommState', row.state, 'maxlength="2"')) +
-      row('Zip',                inp('hoaCommZip', row.zip)) +
-      row('Contact email',      inp('hoaCommEmail', row.contact_email, 'type="email"')) +
-      row('Contact phone',      inp('hoaCommPhone', row.contact_phone, 'type="tel"')) +
-      row('Grace days',         inp('hoaCommGrace', row.grace_days != null ? row.grace_days : 10, 'type="number" min="0"'), 'Days after due date before late fees begin.') +
-      row('Per-day late fee',   inp('hoaCommFee', row.per_day_late_fee != null ? row.per_day_late_fee : 0, 'type="number" step="0.01" min="0"')) +
-      row('Stripe account',     sel('hoaCommStripe', creds, row.stripe_cred_id || ''), 'Leave unwired for manual payments in Phase 1.') +
-      row('Issue mode',         sel('hoaCommIssueMode', issueModes, row.issue_mode || 'manual')) +
-      row('Auto-issue day',     inp('hoaCommAutoDay', row.auto_issue_day != null ? row.auto_issue_day : '', 'type="number" min="1" max="28"'), 'Day of month (1–28) when Auto mode fires next month\'s batch. Leave empty for Manual.') +
-      row('Active',             chk('hoaCommActive', row.is_active !== false, 'Community is active')) +
-      row('Notes',              txa('hoaCommNotes', row.notes)) +
+      row('Name',               inp('hoaCommName', rec.name)) +
+      row('Display name',       inp('hoaCommDisplay', rec.display_name), 'Optional. Shown to tenants.') +
+      row('Logo URL',           inp('hoaCommLogo', rec.logo_url), 'Full https URL. Displayed on invoices + receipts.') +
+      row('Address line 1',     inp('hoaCommAddr1', rec.address1)) +
+      row('Address line 2',     inp('hoaCommAddr2', rec.address2)) +
+      row('City',               inp('hoaCommCity', rec.city)) +
+      row('State',              inp('hoaCommState', rec.state, 'maxlength="2"')) +
+      row('Zip',                inp('hoaCommZip', rec.zip)) +
+      row('Contact email',      inp('hoaCommEmail', rec.contact_email, 'type="email"')) +
+      row('Contact phone',      inp('hoaCommPhone', rec.contact_phone, 'type="tel"')) +
+      row('Grace days',         inp('hoaCommGrace', rec.grace_days != null ? rec.grace_days : 10, 'type="number" min="0"'), 'Days after due date before late fees begin.') +
+      row('Per-day late fee',   inp('hoaCommFee', rec.per_day_late_fee != null ? rec.per_day_late_fee : 0, 'type="number" step="0.01" min="0"')) +
+      row('Stripe account',     sel('hoaCommStripe', creds, rec.stripe_cred_id || ''), 'Leave unwired for manual payments in Phase 1.') +
+      row('Issue mode',         sel('hoaCommIssueMode', issueModes, rec.issue_mode || 'manual')) +
+      row('Auto-issue day',     inp('hoaCommAutoDay', rec.auto_issue_day != null ? rec.auto_issue_day : '', 'type="number" min="1" max="28"'), 'Day of month (1–28) when Auto mode fires next month\'s batch. Leave empty for Manual.') +
+      row('Active',             chk('hoaCommActive', rec.is_active !== false, 'Community is active')) +
+      row('Notes',              txa('hoaCommNotes', rec.notes)) +
       '<input type="hidden" id="hoaCommId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveCommunity()','primary') ]);
     openModal(html);
@@ -491,8 +495,12 @@
            td(esc(u.floor_label || '—')) +
            td(u.is_active ? '<span style="color:#2c7a3f;">● Active</span>' : '<span style="color:#9e9485;">○ Inactive</span>') +
            td(esc(u.notes || '—')) +
-           td(btn('Edit', "WPA_hoaOpenUnitForm('" + u.id + "')") + ' ' +
-              btn(u.is_active ? 'Deactivate' : 'Activate', "WPA_hoaToggleUnit('" + u.id + "'," + (!u.is_active) + ")")) +
+           // Phase 3B (2026-04-23): units are permanent — the Deactivate/
+           // Activate toggle is gone. "Details" opens the unit-detail modal
+           // where the owner/resident roster, charges, invoices and notes
+           // all live. The old Edit modal still works for basic unit fields.
+           td(btn('🔍 Details', "WPA_hoaOpenUnitDetail('" + u.id + "')") + ' ' +
+              btn('Edit',       "WPA_hoaOpenUnitForm('" + u.id + "')")) +
            '</tr>';
     });
     h += '</tbody></table>';
@@ -501,17 +509,17 @@
   function setUnitsFilter(v) { _unitsFilterCommunity = v || ''; renderUnits(); }
 
   function openUnitForm(id) {
-    const row = id ? findUnit(id) : {};
+    const rec = id ? findUnit(id) : {};
     if (!cache.communities.length) { hoaToast('Create a community first.', 'error'); return; }
     const commOpts = cache.communities.map(c => ({ value:c.id, label:c.name }));
     const html =
       '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit Unit' : 'New Unit') + '</h3>' +
-      row('Community',    sel('hoaUnitComm', commOpts, row.community_id || _unitsFilterCommunity || commOpts[0].value)) +
-      row('Unit label',   inp('hoaUnitLabel', row.unit_label), 'e.g. "3B" or "204"') +
-      row('Building',     inp('hoaUnitBldg', row.building_label)) +
-      row('Floor',        inp('hoaUnitFloor', row.floor_label)) +
-      row('Active',       chk('hoaUnitActive', row.is_active !== false, 'Unit is active')) +
-      row('Notes',        txa('hoaUnitNotes', row.notes)) +
+      row('Community',    sel('hoaUnitComm', commOpts, rec.community_id || _unitsFilterCommunity || commOpts[0].value)) +
+      row('Unit label',   inp('hoaUnitLabel', rec.unit_label), 'e.g. "3B" or "204"') +
+      row('Building',     inp('hoaUnitBldg', rec.building_label)) +
+      row('Floor',        inp('hoaUnitFloor', rec.floor_label)) +
+      row('Active',       chk('hoaUnitActive', rec.is_active !== false, 'Unit is active')) +
+      row('Notes',        txa('hoaUnitNotes', rec.notes)) +
       '<input type="hidden" id="hoaUnitId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveUnit()','primary') ]);
     openModal(html);
@@ -537,6 +545,473 @@
     closeModal();
     await renderUnits();
   }
+  // ═════════════════════════════════════════════════════════════════════
+  //  UNIT DETAIL (Phase 3B · 2026-04-23)
+  //  Single modal that folds in everything unit-scoped:
+  //    • Owner / Resident roster (archive + add new)
+  //    • Charges (hoa_unit_charges rows — list, add, toggle, delete)
+  //    • Invoices (read-only history)
+  //    • Notes (unit.notes)
+  //  Rationale: a unit is permanent; owners and tenants rotate, but the
+  //  unit itself and its invoice history do not. Everything about the
+  //  unit is reachable from here so the Contacts + Assignments sub-tabs
+  //  aren't the only way to re-link contacts.
+  // ═════════════════════════════════════════════════════════════════════
+
+  async function openUnitDetail(unitId) {
+    await refreshCache(['communities','contacts']);
+    const unit = findUnit(unitId);
+    if (!unit) { hoaToast('Unit not found', 'error'); return; }
+    const comm = findCommunity(unit.community_id);
+
+    const html =
+      '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">' +
+        '<div>' +
+          '<h3 style="margin:0 0 4px 0;font-family:\'Playfair Display\',serif;">' +
+            'Unit ' + esc(unit.unit_label) +
+          '</h3>' +
+          '<div style="font-size:11px;color:#7e7567;">' +
+            esc(comm ? (comm.display_name || comm.name) : '(community)') +
+            (unit.building_label ? ' · Building ' + esc(unit.building_label) : '') +
+            (unit.floor_label ? ' · Floor ' + esc(unit.floor_label) : '') +
+          '</div>' +
+        '</div>' +
+        '<button onclick="WPA_hoaCloseModal()" style="font:inherit;font-size:14px;border:none;background:transparent;cursor:pointer;color:#7e7567;">✕</button>' +
+      '</div>' +
+      '<div id="hoaUDRoster"  style="margin-top:16px;"><em style="color:#9e9485;">Loading owners…</em></div>' +
+      '<div id="hoaUDCharges" style="margin-top:16px;"><em style="color:#9e9485;">Loading charges…</em></div>' +
+      '<div id="hoaUDInvoices" style="margin-top:16px;"><em style="color:#9e9485;">Loading invoices…</em></div>' +
+      '<div id="hoaUDNotes" style="margin-top:16px;"></div>' +
+      '<input type="hidden" id="hoaUDUnitId" value="' + esc(unitId) + '">';
+
+    openModal(html);
+
+    // Populate each section in parallel.
+    renderUDRoster(unitId);
+    renderUDCharges(unitId);
+    renderUDInvoices(unitId);
+    renderUDNotes(unitId, unit);
+  }
+
+  // ─── Roster (Owners + Residents + Others) ───────────────────────────
+  async function renderUDRoster(unitId) {
+    const s = await hoaSupa();
+    const { data, error } = await s.from('hoa_unit_contacts')
+      .select('id,contact_id,relationship_type,is_primary,is_active,start_date,end_date,created_at')
+      .eq('unit_id', unitId)
+      .order('is_active', { ascending: false })
+      .order('created_at', { ascending: true });
+    const box = document.getElementById('hoaUDRoster');
+    if (!box) return;
+    if (error) { box.innerHTML = '<div style="color:#a22;">Error: ' + esc(error.message) + '</div>'; return; }
+
+    const byContact = id => cache.contacts.find(c => c.id === id);
+    const REL_LABEL = {
+      owner:          'Owner',
+      owner_resident: 'Owner-Occupant',
+      resident:       'Resident',
+      other:          'Other',
+    };
+
+    let h =
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">' +
+        '<h4 style="font-size:13px;margin:0;color:#3a3428;">👥 Owners &amp; Residents</h4>' +
+        btn('＋ Add',   "WPA_hoaUDShowAdd('" + unitId + "')",  'primary') +
+      '</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+      '<thead><tr style="background:#faf6ee;text-align:left;">' +
+      '<th style="padding:6px 8px;">Name</th>' +
+      '<th style="padding:6px 8px;">Role</th>' +
+      '<th style="padding:6px 8px;">Contact</th>' +
+      '<th style="padding:6px 8px;">Since</th>' +
+      '<th style="padding:6px 8px;">Status</th>' +
+      '<th style="padding:6px 8px;"></th>' +
+      '</tr></thead><tbody>';
+
+    if (!data || !data.length) {
+      h += '<tr><td colspan="6" style="padding:12px;color:#9e9485;text-align:center;">No contacts linked to this unit yet.</td></tr>';
+    } else {
+      data.forEach(uc => {
+        const c = byContact(uc.contact_id) || {};
+        const nm = c.full_name
+                || [c.first_name, c.last_name].filter(Boolean).join(' ')
+                || c.email || c.phone_e164 || '(unnamed)';
+        const contactInfo = [c.phone_e164 || c.phone, c.email].filter(Boolean).join(' · ');
+        const statusBadge = uc.is_active
+          ? '<span style="color:#2c7a3f;">● Active</span>'
+          : '<span style="color:#9e9485;">○ Archived' + (uc.end_date ? ' (' + esc(uc.end_date) + ')' : '') + '</span>';
+        const actions = uc.is_active
+          ? btn('Archive', "WPA_hoaUDArchive('" + uc.id + "','" + unitId + "')")
+          : btn('Reactivate', "WPA_hoaUDReactivate('" + uc.id + "','" + unitId + "')");
+        h += '<tr style="border-bottom:1px solid #f0ebe2;' + (uc.is_active ? '' : 'opacity:0.55;') + '">' +
+             '<td style="padding:6px 8px;"><strong>' + esc(nm) + '</strong>' +
+               (uc.is_primary ? ' <span style="font-size:10px;color:#8a6d3c;">★ primary</span>' : '') +
+             '</td>' +
+             '<td style="padding:6px 8px;">' + esc(REL_LABEL[uc.relationship_type] || uc.relationship_type) + '</td>' +
+             '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' + esc(contactInfo || '—') + '</td>' +
+             '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' + esc(uc.start_date || uc.created_at?.slice(0,10) || '—') + '</td>' +
+             '<td style="padding:6px 8px;">' + statusBadge + '</td>' +
+             '<td style="padding:6px 8px;">' + actions + '</td>' +
+             '</tr>';
+      });
+    }
+    h += '</tbody></table>';
+    h += '<div id="hoaUDAddForm" style="display:none;"></div>';
+    box.innerHTML = h;
+  }
+
+  // Archive a unit_contact (set is_active=false + end_date=today).
+  async function udArchiveRoster(ucId, unitId) {
+    if (!confirm('Archive this contact from the unit? They stay in the contact book and can be re-linked later.')) return;
+    const s = await hoaSupa();
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await s.from('hoa_unit_contacts')
+      .update({ is_active: false, end_date: today })
+      .eq('id', ucId);
+    if (error) return hoaToast('Archive error: ' + error.message, 'error');
+    hoaToast('Contact archived', 'success');
+    await renderUDRoster(unitId);
+  }
+  async function udReactivateRoster(ucId, unitId) {
+    const s = await hoaSupa();
+    const { error } = await s.from('hoa_unit_contacts')
+      .update({ is_active: true, end_date: null })
+      .eq('id', ucId);
+    if (error) return hoaToast('Reactivate error: ' + error.message, 'error');
+    hoaToast('Reactivated', 'success');
+    await renderUDRoster(unitId);
+  }
+
+  // ─── Inline "Add owner/resident" form ────────────────────────────────
+  function udShowAddForm(unitId) {
+    const existing = cache.contacts.filter(c => c.is_active !== false)
+      .sort((a, b) => (a.full_name || a.last_name || '').localeCompare(b.full_name || b.last_name || ''));
+    const contactOpts = [{ value:'__NEW__', label:'＋ Create new contact…' }].concat(
+      existing.map(c => ({
+        value: c.id,
+        label: (c.full_name
+              || [c.first_name, c.last_name].filter(Boolean).join(' ')
+              || c.email || c.phone_e164 || c.id)
+      }))
+    );
+    const relOpts = [
+      { value:'owner',          label:'Owner (absentee)' },
+      { value:'owner_resident', label:'Owner-Occupant' },
+      { value:'resident',       label:'Resident (tenant)' },
+      { value:'other',          label:'Other' },
+    ];
+    const box = document.getElementById('hoaUDAddForm');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div style="background:#faf6ee;padding:12px 14px;border-radius:6px;margin-top:10px;">' +
+      '<h5 style="margin:0 0 8px;font-size:12px;color:#3a3428;">Link contact to this unit</h5>' +
+      row('Existing contact', sel('hoaUDContactPick', contactOpts, '')) +
+      '<div id="hoaUDNewBox" style="display:none;margin:6px 0 8px;padding:8px 10px;background:#fff;border:1px solid #e5dfd4;border-radius:4px;">' +
+        row('First name', inp('hoaUDNewFirst', '')) +
+        row('Last name',  inp('hoaUDNewLast', '')) +
+        row('Full name',  inp('hoaUDNewFull', ''), 'Companies or couples — use this and leave first/last blank.') +
+        row('Email',      inp('hoaUDNewEmail', '', 'type="email"')) +
+        row('Phone',      inp('hoaUDNewPhone', '', 'type="tel"'), 'Normalized to E.164 on save.') +
+      '</div>' +
+      row('Role',       sel('hoaUDRole', relOpts, 'owner')) +
+      row('Primary',    chk('hoaUDPrimary', true, 'Mark as primary for this role')) +
+      row('Start date', inp('hoaUDStart', new Date().toISOString().slice(0,10), 'type="date"')) +
+      '<input type="hidden" id="hoaUDAddUnitId" value="' + esc(unitId) + '">' +
+      actionsBar([
+        btn('Cancel', 'WPA_hoaUDHideAdd()'),
+        btn('Save',   'WPA_hoaUDSaveAdd()', 'primary'),
+      ]) +
+      '<script>document.getElementById("hoaUDContactPick")?.addEventListener("change",function(){document.getElementById("hoaUDNewBox").style.display=(this.value==="__NEW__"?"block":"none");});<\/script>' +
+      '</div>';
+  }
+  function udHideAddForm() {
+    const box = document.getElementById('hoaUDAddForm');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  }
+  async function udSaveAdd() {
+    const s = await hoaSupa();
+    const unitId     = readField('hoaUDAddUnitId');
+    const pickVal    = readField('hoaUDContactPick');
+    const relType    = readField('hoaUDRole');
+    const isPrimary  = !!readField('hoaUDPrimary');
+    const startDate  = readField('hoaUDStart') || null;
+    if (!pickVal) { hoaToast('Pick a contact (or choose Create new)', 'error'); return; }
+
+    let contactId = pickVal;
+    if (pickVal === '__NEW__') {
+      const first = readField('hoaUDNewFirst') || '';
+      const last  = readField('hoaUDNewLast')  || '';
+      const full  = readField('hoaUDNewFull')  || [first, last].filter(Boolean).join(' ');
+      const email = readField('hoaUDNewEmail') || '';
+      const phone = readField('hoaUDNewPhone') || '';
+      const e164  = hoaPhoneE164(phone);
+      if (!full) { hoaToast('Full name or first + last required for a new contact', 'error'); return; }
+      const { data, error } = await s.from('hoa_contacts').insert({
+        first_name:    first || null,
+        last_name:     last  || null,
+        full_name:     full,
+        email:         email || null,
+        phone:         phone || null,
+        phone_e164:    e164  || null,
+        portal_access: true,
+        is_active:     true,
+        notes:         'Added via unit detail ' + new Date().toISOString().slice(0,10),
+      }).select().single();
+      if (error) return hoaToast('Create contact error: ' + error.message, 'error');
+      contactId = data.id;
+      // Refresh contacts cache so the new contact is known.
+      cache._ts.contacts = 0;
+      await refreshCache(['contacts']);
+    }
+
+    // If making this one primary, first demote any existing primary of
+    // the same (unit, role) combo to respect the partial unique index.
+    if (isPrimary) {
+      await s.from('hoa_unit_contacts')
+        .update({ is_primary: false })
+        .eq('unit_id', unitId)
+        .eq('relationship_type', relType)
+        .eq('is_active', true);
+    }
+    const { error: linkErr } = await s.from('hoa_unit_contacts').insert({
+      unit_id:           unitId,
+      contact_id:        contactId,
+      relationship_type: relType,
+      is_primary:        isPrimary,
+      is_active:         true,
+      start_date:        startDate,
+    });
+    if (linkErr) return hoaToast('Link error: ' + linkErr.message, 'error');
+    hoaToast('Linked ✓', 'success');
+    udHideAddForm();
+    await renderUDRoster(unitId);
+  }
+
+  // ─── Charges ─────────────────────────────────────────────────────────
+  async function renderUDCharges(unitId) {
+    const s = await hoaSupa();
+    const [chRes, ctRes] = await Promise.all([
+      s.from('hoa_unit_charges')
+        .select('id,charge_type_id,amount,cadence,description,is_active,effective_from,effective_to,last_issued_period')
+        .eq('unit_id', unitId)
+        .order('is_active', { ascending: false })
+        .order('amount',    { ascending: false }),
+      s.from('hoa_charge_types').select('id,code,name,sort_order').order('sort_order'),
+    ]);
+    const box = document.getElementById('hoaUDCharges');
+    if (!box) return;
+    if (chRes.error) { box.innerHTML = '<div style="color:#a22;">Error: ' + esc(chRes.error.message) + '</div>'; return; }
+
+    const types = ctRes.data || [];
+    const typeById = {};
+    types.forEach(t => typeById[t.id] = t);
+
+    let h =
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">' +
+        '<h4 style="font-size:13px;margin:0;color:#3a3428;">💰 Charges</h4>' +
+        btn('＋ Add charge', "WPA_hoaUDShowAddCharge('" + unitId + "')", 'primary') +
+      '</div>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+      '<thead><tr style="background:#faf6ee;text-align:left;">' +
+      '<th style="padding:6px 8px;">Type</th>' +
+      '<th style="padding:6px 8px;">Description</th>' +
+      '<th style="padding:6px 8px;text-align:right;">Amount</th>' +
+      '<th style="padding:6px 8px;">Cadence</th>' +
+      '<th style="padding:6px 8px;">Status</th>' +
+      '<th style="padding:6px 8px;"></th>' +
+      '</tr></thead><tbody>';
+
+    const rows = chRes.data || [];
+    if (!rows.length) {
+      h += '<tr><td colspan="6" style="padding:12px;color:#9e9485;text-align:center;">No charges yet. Click <strong>Add charge</strong> to create the first.</td></tr>';
+    } else {
+      rows.forEach(c => {
+        const t = typeById[c.charge_type_id];
+        const statusBadge = c.is_active
+          ? '<span style="color:#2c7a3f;">● Active</span>'
+          : '<span style="color:#9e9485;">○ Inactive</span>';
+        const actions =
+          btn((c.is_active ? 'Pause' : 'Resume'),
+              "WPA_hoaUDToggleCharge('" + c.id + "'," + (!c.is_active) + ",'" + unitId + "')") + ' ' +
+          btn('Delete', "WPA_hoaUDDeleteCharge('" + c.id + "','" + unitId + "')");
+        h += '<tr style="border-bottom:1px solid #f0ebe2;' + (c.is_active ? '' : 'opacity:0.55;') + '">' +
+             '<td style="padding:6px 8px;"><strong>' + esc(t ? t.name : '(unknown)') + '</strong></td>' +
+             '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' + esc(c.description || '—') + '</td>' +
+             '<td style="padding:6px 8px;text-align:right;">' + fmtMoney(c.amount) + '</td>' +
+             '<td style="padding:6px 8px;">' + esc(c.cadence) + '</td>' +
+             '<td style="padding:6px 8px;">' + statusBadge + '</td>' +
+             '<td style="padding:6px 8px;">' + actions + '</td>' +
+             '</tr>';
+      });
+    }
+    h += '</tbody></table>';
+    h += '<div id="hoaUDChargeForm" style="display:none;"></div>';
+    box.innerHTML = h;
+  }
+
+  function udShowAddCharge(unitId) {
+    const typeOpts = (cache._chargeTypes || []).map(t => ({ value: t.id, label: t.name }));
+    const cadenceOpts = [
+      { value:'monthly',  label:'Monthly (every billing cycle)' },
+      { value:'yearly',   label:'Yearly (anniversary month)' },
+      { value:'onetime',  label:'One-time (fires once)' },
+    ];
+    const box = document.getElementById('hoaUDChargeForm');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div style="background:#faf6ee;padding:12px 14px;border-radius:6px;margin-top:10px;">' +
+      '<h5 style="margin:0 0 8px;font-size:12px;color:#3a3428;">Add charge to this unit</h5>' +
+      row('Charge type', sel('hoaUDChType', typeOpts, '')) +
+      row('Amount',      inp('hoaUDChAmt', '', 'type="number" step="0.01" min="0"')) +
+      row('Cadence',     sel('hoaUDChCadence', cadenceOpts, 'monthly')) +
+      row('Description', inp('hoaUDChDesc', ''), 'Optional, e.g. "Locker A-12".') +
+      row('Effective from', inp('hoaUDChFrom', new Date().toISOString().slice(0,10), 'type="date"')) +
+      '<input type="hidden" id="hoaUDChUnitId" value="' + esc(unitId) + '">' +
+      actionsBar([
+        btn('Cancel', 'WPA_hoaUDHideAddCharge()'),
+        btn('Save',   'WPA_hoaUDSaveCharge()', 'primary'),
+      ]) +
+      '</div>';
+  }
+  function udHideAddCharge() {
+    const box = document.getElementById('hoaUDChargeForm');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  }
+  async function udSaveCharge() {
+    const s = await hoaSupa();
+    const unitId   = readField('hoaUDChUnitId');
+    const typeId   = readField('hoaUDChType');
+    const amt      = Number(readField('hoaUDChAmt'));
+    const cadence  = readField('hoaUDChCadence');
+    const desc     = readField('hoaUDChDesc') || null;
+    const effFrom  = readField('hoaUDChFrom') || null;
+    if (!typeId)              { hoaToast('Charge type required', 'error'); return; }
+    if (!(amt > 0))           { hoaToast('Amount must be greater than 0', 'error'); return; }
+    if (!['monthly','yearly','onetime'].includes(cadence)) { hoaToast('Cadence required', 'error'); return; }
+    const { error } = await s.from('hoa_unit_charges').insert({
+      unit_id:         unitId,
+      charge_type_id:  typeId,
+      amount:          amt,
+      cadence:         cadence,
+      description:     desc,
+      is_active:       true,
+      effective_from:  effFrom,
+      notes:           'Added via unit detail ' + new Date().toISOString().slice(0,10),
+    });
+    if (error) return hoaToast('Save error: ' + error.message, 'error');
+    hoaToast('Charge added ✓', 'success');
+    udHideAddCharge();
+    await renderUDCharges(unitId);
+  }
+  async function udToggleCharge(chargeId, makeActive, unitId) {
+    const s = await hoaSupa();
+    const { error } = await s.from('hoa_unit_charges')
+      .update({ is_active: !!makeActive })
+      .eq('id', chargeId);
+    if (error) return hoaToast('Toggle error: ' + error.message, 'error');
+    hoaToast(makeActive ? 'Resumed' : 'Paused', 'success');
+    await renderUDCharges(unitId);
+  }
+  async function udDeleteCharge(chargeId, unitId) {
+    if (!confirm('Delete this charge? This cannot be undone. To temporarily stop billing without losing history, use Pause instead.')) return;
+    const s = await hoaSupa();
+    const { error } = await s.from('hoa_unit_charges').delete().eq('id', chargeId);
+    if (error) return hoaToast('Delete error: ' + error.message, 'error');
+    hoaToast('Deleted', 'success');
+    await renderUDCharges(unitId);
+  }
+
+  // ─── Invoices (read-only history) ────────────────────────────────────
+  async function renderUDInvoices(unitId) {
+    const s = await hoaSupa();
+    const { data, error } = await s.from('invoices')
+      .select('id,period_month,due_date,status,total,paid,notes,invoice_type,hoa_community_id')
+      .eq('unit_id', unitId)
+      .order('period_month', { ascending: false })
+      .limit(120);
+    const box = document.getElementById('hoaUDInvoices');
+    if (!box) return;
+    if (error) { box.innerHTML = '<div style="color:#a22;">Error: ' + esc(error.message) + '</div>'; return; }
+
+    let h = '<h4 style="font-size:13px;margin:0 0 6px;color:#3a3428;">📄 Invoice history</h4>';
+    const rows = data || [];
+    if (!rows.length) {
+      h += '<div style="padding:12px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;">No invoices yet for this unit.</div>';
+      box.innerHTML = h;
+      return;
+    }
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+      '<thead><tr style="background:#faf6ee;text-align:left;">' +
+      '<th style="padding:6px 8px;">Period</th>' +
+      '<th style="padding:6px 8px;">Due</th>' +
+      '<th style="padding:6px 8px;">Type</th>' +
+      '<th style="padding:6px 8px;text-align:right;">Total</th>' +
+      '<th style="padding:6px 8px;text-align:right;">Paid</th>' +
+      '<th style="padding:6px 8px;">Status</th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(inv => {
+      const statusColor = inv.status === 'paid'    ? '#2c7a3f'
+                        : inv.status === 'partial' ? '#a26a00'
+                        : inv.status === 'void'    ? '#9e9485'
+                        : '#a22';
+      h += '<tr style="border-bottom:1px solid #f0ebe2;">' +
+           '<td style="padding:6px 8px;"><strong>' + esc(inv.period_month || '—') + '</strong></td>' +
+           '<td style="padding:6px 8px;">' + esc(inv.due_date || '—') + '</td>' +
+           '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' + esc(inv.invoice_type || '—') + '</td>' +
+           '<td style="padding:6px 8px;text-align:right;">' + fmtMoney(inv.total) + '</td>' +
+           '<td style="padding:6px 8px;text-align:right;">' + fmtMoney(inv.paid) + '</td>' +
+           '<td style="padding:6px 8px;color:' + statusColor + ';">' + esc(inv.status || '—') + '</td>' +
+           '</tr>';
+    });
+    h += '</tbody></table>';
+    // Cumulative totals
+    const tot   = rows.reduce((s, r) => s + Number(r.total || 0), 0);
+    const paid  = rows.reduce((s, r) => s + Number(r.paid  || 0), 0);
+    h += '<div style="margin-top:8px;font-size:11px;color:#5a5040;text-align:right;">' +
+         rows.length + ' invoice(s) · billed $' + tot.toFixed(2) +
+         ' · paid $' + paid.toFixed(2) +
+         ' · outstanding $' + (tot - paid).toFixed(2) + '</div>';
+    box.innerHTML = h;
+  }
+
+  // ─── Notes ───────────────────────────────────────────────────────────
+  function renderUDNotes(unitId, unit) {
+    const box = document.getElementById('hoaUDNotes');
+    if (!box) return;
+    box.innerHTML =
+      '<h4 style="font-size:13px;margin:0 0 6px;color:#3a3428;">📝 Unit notes</h4>' +
+      '<textarea id="hoaUDNotesInput" style="width:100%;min-height:70px;padding:8px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:12px;resize:vertical;">' +
+      esc(unit.notes || '') +
+      '</textarea>' +
+      '<div style="text-align:right;margin-top:6px;">' +
+      btn('Save notes', "WPA_hoaUDSaveNotes('" + unitId + "')", 'primary') +
+      '</div>';
+  }
+  async function udSaveNotes(unitId) {
+    const notes = readField('hoaUDNotesInput') || '';
+    const s = await hoaSupa();
+    const { error } = await s.from('hoa_units')
+      .update({ notes: notes || null })
+      .eq('id', unitId);
+    if (error) return hoaToast('Save error: ' + error.message, 'error');
+    hoaToast('Notes saved ✓', 'success');
+    // Refresh cache so the units list shows the updated note on close.
+    cache._ts.units = 0;
+    await refreshCache(['units']);
+  }
+
+  // Make charge types available to the "Add charge" form.
+  async function ensureChargeTypesLoaded() {
+    if (cache._chargeTypes) return;
+    const s = await hoaSupa();
+    const { data } = await s.from('hoa_charge_types').select('id,code,name,sort_order').order('sort_order');
+    cache._chargeTypes = data || [];
+  }
+  // Call once on module load.
+  ensureChargeTypesLoaded();
+
   async function toggleUnit(id, makeActive) {
     const s = await hoaSupa();
     const { error } = await s.from('hoa_units').update({ is_active: !!makeActive }).eq('id', id);
@@ -589,17 +1064,17 @@
   function setContactsSearch(v) { _contactsSearch = v || ''; renderContacts(); }
 
   function openContactForm(id) {
-    const row = id ? findContact(id) : {};
+    const rec = id ? findContact(id) : {};
     const html =
       '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit Contact' : 'New Contact') + '</h3>' +
-      row('First name',        inp('hoaContactFirst', row.first_name)) +
-      row('Last name',          inp('hoaContactLast', row.last_name)) +
-      row('Full name',          inp('hoaContactFull', row.full_name), 'Used for display. Auto-filled from first + last if blank.') +
-      row('Email',              inp('hoaContactEmail', row.email, 'type="email"')) +
-      row('Phone',              inp('hoaContactPhone', row.phone, 'type="tel"'), 'Normalized to E.164 on save.') +
-      row('Portal access',      chk('hoaContactPortal', row.portal_access !== false, 'Allowed to log into the tenant portal')) +
-      row('Active',             chk('hoaContactActive', row.is_active !== false, 'Contact is active')) +
-      row('Notes',              txa('hoaContactNotes', row.notes)) +
+      row('First name',        inp('hoaContactFirst', rec.first_name)) +
+      row('Last name',          inp('hoaContactLast', rec.last_name)) +
+      row('Full name',          inp('hoaContactFull', rec.full_name), 'Used for display. Auto-filled from first + last if blank.') +
+      row('Email',              inp('hoaContactEmail', rec.email, 'type="email"')) +
+      row('Phone',              inp('hoaContactPhone', rec.phone, 'type="tel"'), 'Normalized to E.164 on save.') +
+      row('Portal access',      chk('hoaContactPortal', rec.portal_access !== false, 'Allowed to log into the tenant portal')) +
+      row('Active',             chk('hoaContactActive', rec.is_active !== false, 'Contact is active')) +
+      row('Notes',              txa('hoaContactNotes', rec.notes)) +
       '<input type="hidden" id="hoaContactId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveContact()','primary') ]);
     openModal(html);
@@ -702,11 +1177,11 @@
 
   async function openAssignmentForm(id) {
     const s = await hoaSupa();
-    let row = {};
+    let rec = {};
     if (id) {
       const r = await s.from('hoa_unit_contacts').select('*').eq('id', id).maybeSingle();
       if (r.error) return hoaToast('Load error: ' + r.error.message, 'error');
-      row = r.data || {};
+      rec = r.data || {};
     }
     if (!cache.units.length) { hoaToast('Create a unit first.', 'error'); return; }
     if (!cache.contacts.length) { hoaToast('Create a contact first.', 'error'); return; }
@@ -723,11 +1198,11 @@
     ];
     const html =
       '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit Assignment' : 'New Assignment') + '</h3>' +
-      row('Unit',         sel('hoaAsgU', unitOpts, row.unit_id || _assignFilterUnit || unitOpts[0].value)) +
-      row('Contact',      sel('hoaAsgC', contactOpts, row.contact_id || contactOpts[0].value)) +
-      row('Relationship', sel('hoaAsgR', relOpts, row.relationship_type || 'owner'), 'Owners and residents are managed separately: create one assignment per role.') +
-      row('Primary',      chk('hoaAsgP', !!row.is_primary, 'This is the primary contact for the unit in this role')) +
-      row('Active',       chk('hoaAsgA', row.is_active !== false, 'Assignment is active')) +
+      row('Unit',         sel('hoaAsgU', unitOpts, rec.unit_id || _assignFilterUnit || unitOpts[0].value)) +
+      row('Contact',      sel('hoaAsgC', contactOpts, rec.contact_id || contactOpts[0].value)) +
+      row('Relationship', sel('hoaAsgR', relOpts, rec.relationship_type || 'owner'), 'Owners and residents are managed separately: create one assignment per role.') +
+      row('Primary',      chk('hoaAsgP', !!rec.is_primary, 'This is the primary contact for the unit in this role')) +
+      row('Active',       chk('hoaAsgA', rec.is_active !== false, 'Assignment is active')) +
       '<input type="hidden" id="hoaAsgId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveAssignment()','primary') ]);
     openModal(html);
@@ -809,15 +1284,15 @@
   async function openDocumentForm(id) {
     await refreshCache(['communities','categories']);
     const s = await hoaSupa();
-    let row = {};
+    let rec = {};
     if (id) {
       const r = await s.from('hoa_documents').select('*').eq('id', id).maybeSingle();
       if (r.error) return hoaToast('Load error: ' + r.error.message, 'error');
-      row = r.data || {};
+      rec = r.data || {};
     }
     if (!cache.communities.length) { hoaToast('Create a community first.', 'error'); return; }
     const commOpts = cache.communities.map(c => ({ value:c.id, label:c.name }));
-    const initialComm = row.community_id || _docsFilterComm || commOpts[0].value;
+    const initialComm = rec.community_id || _docsFilterComm || commOpts[0].value;
     const catOpts = [{value:'',label:'— no category —'}].concat(
       cache.categories.filter(c => !c.community_id || c.community_id === initialComm)
         .map(c => ({ value:c.id, label:c.name }))
@@ -829,11 +1304,11 @@
     const html =
       '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit Document' : 'New Document') + '</h3>' +
       row('Community',  sel('hoaDocC',   commOpts, initialComm)) +
-      row('Category',   sel('hoaDocCat', catOpts,  row.category_id || '')) +
-      row('Title',      inp('hoaDocTitle', row.title)) +
-      row('File URL',   inp('hoaDocUrl', row.file_url), 'Paste the Supabase Storage / CDN URL. Full upload wizard lands in Phase 3.') +
-      row('Visibility', sel('hoaDocVis', visOpts, row.visibility_scope || 'owners_only')) +
-      row('Active',     chk('hoaDocActive', row.is_active !== false, 'Document is visible in the portal')) +
+      row('Category',   sel('hoaDocCat', catOpts,  rec.category_id || '')) +
+      row('Title',      inp('hoaDocTitle', rec.title)) +
+      row('File URL',   inp('hoaDocUrl', rec.file_url), 'Paste the Supabase Storage / CDN URL. Full upload wizard lands in Phase 3.') +
+      row('Visibility', sel('hoaDocVis', visOpts, rec.visibility_scope || 'owners_only')) +
+      row('Active',     chk('hoaDocActive', rec.is_active !== false, 'Document is visible in the portal')) +
       '<input type="hidden" id="hoaDocId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveDocument()','primary') ]);
     openModal(html);
@@ -921,16 +1396,16 @@
   async function openHoaInvoiceForm(id) {
     await refreshCache(['communities','units','contacts']);
     const s = await hoaSupa();
-    let row = {};
+    let rec = {};
     if (id) {
       const r = await s.from('invoices').select('*').eq('id', id).maybeSingle();
       if (r.error) return hoaToast('Load error: ' + r.error.message, 'error');
-      row = r.data || {};
+      rec = r.data || {};
     }
     if (!cache.communities.length) { hoaToast('Create a community first.', 'error'); return; }
     if (!cache.units.length) { hoaToast('Create a unit first.', 'error'); return; }
     const commOpts = cache.communities.map(c => ({ value:c.id, label:c.name }));
-    const initialComm = row.hoa_community_id || _invFilterComm || commOpts[0].value;
+    const initialComm = rec.hoa_community_id || _invFilterComm || commOpts[0].value;
     const unitsForComm = cache.units.filter(u => u.community_id === initialComm);
     const unitOpts = unitsForComm.length
       ? unitsForComm.map(u => ({ value:u.id, label:u.unit_label + (u.building_label ? ' (' + u.building_label + ')' : '') }))
@@ -965,15 +1440,15 @@
       '<h3 style="margin:0 0 6px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit HOA Invoice' : 'New HOA Invoice') + '</h3>' +
       '<div style="font-size:10px;color:#9e9485;margin-bottom:12px;">invoice_type=hoa · skipped by the rental late-fee engine · per-community fees apply in Phase 2.</div>' +
       row('Community',      sel('hoaInvC', commOpts, initialComm)) +
-      row('Unit',           sel('hoaInvU', unitOpts, row.unit_id || unitOpts[0].value)) +
-      row('Contact (opt.)', sel('hoaInvContact', contactOpts, row.tenant_id || ''), 'Anchors the invoice to a specific owner or resident. Optional — portal visibility is controlled by responsibility_scope.') +
-      row('Period',         inp('hoaInvPeriod', row.period_month || defPeriod), 'YYYY-MM, e.g. 2026-05') +
-      row('Due date',       inp('hoaInvDue', row.due_date || defDue, 'type="date"')) +
-      row('Total',          inp('hoaInvTotal', row.total != null ? row.total : 0, 'type="number" step="0.01" min="0"')) +
-      row('Paid',           inp('hoaInvPaid',  row.paid  != null ? row.paid  : 0, 'type="number" step="0.01" min="0"')) +
-      row('Responsibility', sel('hoaInvScope', scopeOpts, row.responsibility_scope || 'owner_only')) +
-      row('Status',         sel('hoaInvStatus', statusOpts, row.status || 'open')) +
-      row('Notes',          txa('hoaInvNotes', row.notes)) +
+      row('Unit',           sel('hoaInvU', unitOpts, rec.unit_id || unitOpts[0].value)) +
+      row('Contact (opt.)', sel('hoaInvContact', contactOpts, rec.tenant_id || ''), 'Anchors the invoice to a specific owner or resident. Optional — portal visibility is controlled by responsibility_scope.') +
+      row('Period',         inp('hoaInvPeriod', rec.period_month || defPeriod), 'YYYY-MM, e.g. 2026-05') +
+      row('Due date',       inp('hoaInvDue', rec.due_date || defDue, 'type="date"')) +
+      row('Total',          inp('hoaInvTotal', rec.total != null ? rec.total : 0, 'type="number" step="0.01" min="0"')) +
+      row('Paid',           inp('hoaInvPaid',  rec.paid  != null ? rec.paid  : 0, 'type="number" step="0.01" min="0"')) +
+      row('Responsibility', sel('hoaInvScope', scopeOpts, rec.responsibility_scope || 'owner_only')) +
+      row('Status',         sel('hoaInvStatus', statusOpts, rec.status || 'open')) +
+      row('Notes',          txa('hoaInvNotes', rec.notes)) +
       '<input type="hidden" id="hoaInvId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveInvoice()','primary') ]);
     openModal(html);
@@ -1067,6 +1542,19 @@
   window.WPA_hoaOpenUnitForm        = openUnitForm;
   window.WPA_hoaSaveUnit            = saveUnit;
   window.WPA_hoaToggleUnit          = toggleUnit;
+  // Phase 3B — unit detail modal + its inline sub-actions
+  window.WPA_hoaOpenUnitDetail      = openUnitDetail;
+  window.WPA_hoaUDShowAdd           = udShowAddForm;
+  window.WPA_hoaUDHideAdd           = udHideAddForm;
+  window.WPA_hoaUDSaveAdd           = udSaveAdd;
+  window.WPA_hoaUDArchive           = udArchiveRoster;
+  window.WPA_hoaUDReactivate        = udReactivateRoster;
+  window.WPA_hoaUDShowAddCharge     = udShowAddCharge;
+  window.WPA_hoaUDHideAddCharge     = udHideAddCharge;
+  window.WPA_hoaUDSaveCharge        = udSaveCharge;
+  window.WPA_hoaUDToggleCharge      = udToggleCharge;
+  window.WPA_hoaUDDeleteCharge      = udDeleteCharge;
+  window.WPA_hoaUDSaveNotes         = udSaveNotes;
 
   window.WPA_hoaSetContactsSearch   = setContactsSearch;
   window.WPA_hoaOpenContactForm     = openContactForm;
