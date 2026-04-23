@@ -850,6 +850,7 @@ const SUPA_KEY = CONFIG.SUPABASE_KEY;
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
+window.sb = sb; // expose for lease-wizard.js and other modules
 
 function dbRow(r) {
   return {
@@ -1109,11 +1110,35 @@ function getEarliestBooking(activeRecord) {
   };
 }
 
+// Future filter: when true, future-dated bookings show as separate rows;
+// when false (default), the dedup logic hides them so each unit counts once.
+window.showFuture = window.showFuture || false;
+function toggleFutureFilter(el){
+  window.showFuture = !window.showFuture;
+  if (el) { el.classList.toggle('active', window.showFuture); }
+  renderTable();
+}
+
 function getFiltered(){
   // Deduplicate by apt — keep only the most relevant booking per apt
   // Priority: 1) currently active (checkin <= today <= due), 2) next upcoming (checkin > today), 3) available
   const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
   const allActive = data.filter(r=>!r.archived);
+
+  // FUTURE-FILTER MODE: skip dedup, return each row but tag future ones
+  if (window.showFuture) {
+    let rows = allActive.slice();
+    const q=document.getElementById('searchInput').value.toLowerCase();
+    if(q)rows=rows.filter(r=>(r.apt||'').toLowerCase().includes(q)||(r.name||'').toLowerCase().includes(q)||(r.owner||'').toLowerCase().includes(q));
+    if(currentTypeFilter!=='all'){
+      if(currentTypeFilter==='available'){ rows=rows.filter(r=>r.type==='available'||dueStatus(r)==='available'); }
+      else { rows=rows.filter(r=>r.type===currentTypeFilter); }
+    }
+    rows.sort((a,b)=>(a.apt||'').localeCompare(b.apt||'',undefined,{numeric:true}));
+    return rows;
+  }
+
   const aptMap = {};
   allActive.forEach(r => {
     const apt = r.apt;
@@ -2263,6 +2288,130 @@ function showSettingsSection(secId) {
   var target = document.getElementById('settings-sec-' + secId);
   if (target) target.style.display = '';
   if (secId === 'credentials') WPA_loadCredentials();
+  if (secId === 'backup') WPA_initBackupUI();
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUPABASE FULL BACKUP — data rows + schema snapshot → single JSON
+   ═══════════════════════════════════════════════════════════════ */
+
+// Tables to include in the backup. Add new ones here as the app grows.
+var WPA_BACKUP_TABLES = [
+  'app_credentials', 'properties', 'units',
+  'tenants_lt', 'leases', 'mtm_tenants',
+  'invoices', 'invoice_lines', 'payments', 'reminders_log',
+  'tenant_notes', 'work_orders', 'bookings',
+  'parking_plans', 'parking_bookings',
+  'deliveries'
+];
+
+function WPA_initBackupUI() {
+  try {
+    var last = localStorage.getItem('wpa_last_backup');
+    if (last) {
+      var d = new Date(last);
+      document.getElementById('bkLastRun').textContent = d.toLocaleString();
+    }
+  } catch (e) {}
+}
+
+function _bkLog(msg, kind) {
+  var box = document.getElementById('bkProgress');
+  if (!box) return;
+  box.style.display = 'block';
+  var color = kind === 'err' ? '#b83228' : kind === 'ok' ? '#1f7a4d' : '#4d5670';
+  box.innerHTML += '<div style="color:' + color + '">' + msg + '</div>';
+  box.scrollTop = box.scrollHeight;
+}
+
+async function WPA_runBackup() {
+  var btn = document.getElementById('bkRunBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Backing up…'; }
+  var box = document.getElementById('bkProgress');
+  if (box) { box.innerHTML = ''; }
+  _bkLog('Starting backup at ' + new Date().toLocaleString());
+
+  var headers = {
+    apikey: CONFIG.SUPABASE_KEY,
+    Authorization: 'Bearer ' + CONFIG.SUPABASE_KEY
+  };
+  var baseUrl = CONFIG.SUPABASE_URL + '/rest/v1/';
+  var bundle = {
+    meta: {
+      created_at: new Date().toISOString(),
+      project_url: CONFIG.SUPABASE_URL,
+      app_version: 'propdesk',
+      tables_requested: WPA_BACKUP_TABLES.length
+    },
+    data: {},
+    errors: {}
+  };
+
+  var dataTotal = 0;
+  for (var i = 0; i < WPA_BACKUP_TABLES.length; i++) {
+    var t = WPA_BACKUP_TABLES[i];
+    try {
+      var r = await fetch(baseUrl + t + '?select=*', { headers: headers });
+      if (r.ok) {
+        var rows = await r.json();
+        bundle.data[t] = rows;
+        dataTotal += rows.length;
+        _bkLog('  ✓ ' + t + ' — ' + rows.length + ' row' + (rows.length === 1 ? '' : 's'), 'ok');
+      } else {
+        var txt = await r.text();
+        bundle.errors[t] = { status: r.status, message: txt.slice(0, 200) };
+        _bkLog('  ✗ ' + t + ' — HTTP ' + r.status + ' (skipped)', 'err');
+      }
+    } catch (e) {
+      bundle.errors[t] = { message: e.message };
+      _bkLog('  ✗ ' + t + ' — ' + e.message, 'err');
+    }
+  }
+
+  // Schema snapshot via PostgREST — list of tables + columns (from information_schema exposure if enabled)
+  // Fallback: derive structure from sample rows.
+  _bkLog('Building schema snapshot from sampled rows…');
+  bundle.schema = {};
+  Object.keys(bundle.data).forEach(function(t) {
+    var sample = bundle.data[t][0];
+    if (!sample) { bundle.schema[t] = { columns: [], note: 'no rows sampled' }; return; }
+    bundle.schema[t] = {
+      columns: Object.keys(sample).map(function(k) {
+        var v = sample[k];
+        return {
+          name: k,
+          inferred_type: v === null ? 'null' :
+                         Array.isArray(v) ? 'array' :
+                         typeof v === 'object' ? 'jsonb' :
+                         typeof v
+        };
+      }),
+      row_count: bundle.data[t].length
+    };
+  });
+
+  bundle.meta.total_rows = dataTotal;
+  bundle.meta.tables_succeeded = Object.keys(bundle.data).length;
+  bundle.meta.tables_failed = Object.keys(bundle.errors).length;
+
+  var fname = 'willow-backup-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16) + '.json';
+  var blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = fname;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  _bkLog('Downloaded: ' + fname + ' (' + (blob.size / 1024).toFixed(1) + ' KB)', 'ok');
+  _bkLog('Totals: ' + dataTotal + ' rows across ' + bundle.meta.tables_succeeded + ' tables, ' + bundle.meta.tables_failed + ' failed.', 'ok');
+
+  try {
+    localStorage.setItem('wpa_last_backup', new Date().toISOString());
+    document.getElementById('bkLastRun').textContent = new Date().toLocaleString();
+  } catch (e) {}
+
+  if (btn) { btn.disabled = false; btn.textContent = '🗂️ Download Backup'; }
 }
 
 /* ── Load all credentials from Supabase ── */
@@ -2347,11 +2496,33 @@ function WPA_editCredential(credId) {
   document.getElementById('credCardsBox').innerHTML = html;
 }
 
+/* ── Canonical credential-field aliases ──
+ * Tenant portal code reads specific JSONB key names (e.g. the Stripe
+ * webhook handler reads `webhook_secret`). If an admin adds the field
+ * with an intuitive but non-canonical name like `webhook`, the value
+ * sits unused and every webhook event silently fails signature
+ * verification. Normalize on save + on field-add so the canonical name
+ * is the only one that ever lands in storage.
+ *
+ * Phase 10.3.4e hotfix — ERA Holding LLC was added with key `webhook`
+ * instead of `webhook_secret`, causing all ACH events to 500. */
+var WPA_CRED_KEY_ALIASES = {
+  'webhook':                'webhook_secret',
+  'stripe_webhook_secret':  'webhook_secret',
+  'signing_secret':         'webhook_secret',
+  'whsec':                  'webhook_secret'
+};
+function WPA_canonCredKey(k) {
+  var lower = String(k || '').trim().toLowerCase();
+  return WPA_CRED_KEY_ALIASES[lower] || lower;
+}
+
 /* ── Add new field to current credential ── */
 function WPA_addCredField() {
   var nameEl = document.getElementById('credNewFieldName');
   if (!nameEl) return;
   var name = nameEl.value.trim().replace(/\s+/g, '_').toLowerCase();
+  name = WPA_canonCredKey(name); // rename aliases to canonical names on input
   if (!name) { toast('Enter a field name', ''); return; }
   // Insert new field before the "Add New Field" section
   var container = nameEl.closest('.form-group').parentElement;
@@ -2369,10 +2540,15 @@ function WPA_saveCredential(credId) {
   var r = WPA_credCache[credId];
   if (!r) return;
   var label = (document.getElementById('credEditLabel') || {}).value || r.label;
-  // Collect all credF_ inputs
+  // Collect all credF_ inputs. Apply the alias map so legacy rows
+  // with misnamed keys (e.g. `webhook` instead of `webhook_secret`)
+  // get migrated to the canonical name on the next save. If both
+  // names exist simultaneously the canonical one wins (later writes
+  // clobber earlier ones under the same key).
   var creds = {};
   document.querySelectorAll('[id^="credF_"]').forEach(function(inp) {
-    var key = inp.id.replace('credF_', '');
+    var rawKey = inp.id.replace('credF_', '');
+    var key    = WPA_canonCredKey(rawKey);
     creds[key] = inp.value;
   });
   pkSB('app_credentials', 'id=eq.' + credId, 'PATCH', { label: label, credentials: creds, updated_at: new Date().toISOString() }).then(function() {
@@ -2437,8 +2613,10 @@ window.addEventListener('DOMContentLoaded', function(){
   const openTab = sessionStorage.getItem('openTab');
   if(openTab){
     sessionStorage.removeItem('openTab');
-    // Try module tab first, fall back to legacy nav-tab
-    const modTab = document.querySelector(`#moduleBar [data-module="${openTab}"]`);
+    // Try module tab first, fall back to legacy nav-tab.
+    // Phase A nav refactor (2026-04-23): dropped #moduleBar prefix so this
+    // also finds service tabs that now live in #topServices inside <header>.
+    const modTab = document.querySelector(`[data-module="${openTab}"]`);
     if(modTab) { setTimeout(()=>modTab.click(), 800); }
     else {
       const tab = document.querySelector(`.nav-tab[onclick*="'${openTab}'"]`);
@@ -2453,7 +2631,10 @@ window.addEventListener('DOMContentLoaded', function(){
 
 // Sub-tab configs per module
 const MODULE_SUB_TABS = {
-  'dashboard':   [{label:'Overview',    page:'dashboard'},  {label:'Units', page:'units'}, {label:'Properties', page:'properties'}, {label:'Reports', page:'reports'}],
+  // Phase A nav refactor (2026-04-23): Expenses moved here from the module
+  // bar. Clicking this sub-tab still triggers showSubPage('expenses',…),
+  // which routes to the existing #page-expenses renderer — no logic change.
+  'dashboard':   [{label:'Overview',    page:'dashboard'},  {label:'Units', page:'units'}, {label:'Properties', page:'properties'}, {label:'💰 Expenses', page:'expenses'}, {label:'Reports', page:'reports'}],
   'short-term':  [{label:'Dashboard',   page:'st-dashboard'},  {label:'Pipeline', page:'pipeline'}, {label:'Calendar', page:'calendar'}, {label:'Units', page:'units'}, {label:'Messages', page:'messages'}, {label:'Archive', page:'history'}],
   'mtm-lt':      [{label:'Dashboard',   page:'mtm-lt'},     {label:'Tenants', page:'mtm-lt-tenants'}, {label:'Leases', page:'mtm-lt-leases'}, {label:'Rent', page:'mtm-lt-rent'}, {label:'Applications', page:'mtm-lt-applications'}, {label:'Messages', page:'mtm-lt-messages'}],
   'expenses':    [{label:'All',         page:'expenses'},   {label:'By Property', page:'expenses', expView:'property'}, {label:'By Category', page:'expenses', expView:'category'}],
@@ -2463,7 +2644,13 @@ const MODULE_SUB_TABS = {
   'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'portal':      [{label:'Users',       page:'portal-users'}, {label:'Settings', page:'portal-settings'}],
-  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
+  // Phase 3B.2 (2026-04-23): Contacts + Assignments sub-tabs removed —
+  // all owner/resident management now lives inside the unit-detail modal
+  // (click 🔍 Details on any unit row). Contacts + Assignments pages
+  // still exist in the DOM for backward-compat URL access, they're just
+  // not in the nav anymore.
+  'hoa':         [{label:'Communities', page:'hoa-communities'}, {label:'Units', page:'hoa-units'}, {label:'Documents', page:'hoa-documents'}, {label:'Invoices', page:'hoa-invoices'}],
+  'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Backup', page:'settings', settingsSec:'backup'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
 
 let currentModule = 'dashboard';
@@ -2476,10 +2663,12 @@ function switchModule(moduleId, tabEl) {
   var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
   document.querySelectorAll('.page').forEach(function(p){ p.style.display = ''; });
   // Update module tabs
-  document.querySelectorAll('#moduleBar .module-tab').forEach(t => t.classList.remove('active'));
+  // Phase A nav refactor (2026-04-23): dropped #moduleBar prefix so .active
+  // state clears + applies across both #moduleBar and #topServices.
+  document.querySelectorAll('.module-tab').forEach(t => t.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
   else {
-    const tab = document.querySelector(`#moduleBar [data-module="${moduleId}"]`);
+    const tab = document.querySelector(`[data-module="${moduleId}"]`);
     if (tab) tab.classList.add('active');
   }
   // Build sub-nav
@@ -2595,15 +2784,41 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, 
   if(pageId === 'pipeline') renderPipeline();
   if(pageId === 'properties') renderProperties();
   if(pageId === 'units') renderTable();
-  if(pageId === 'mtm-lt') { renderMTMDashboard(); setTimeout(() => renderMTMDashboardInteractive(), 50); }
+  // MTM pages depend on the live rent roll — re-hydrate on nav so stats
+  // reflect payments made since page load. Fire-and-forget render ensures
+  // the UI paints immediately from whatever's in INNAGO_RENT, then the
+  // live fetch mutates the array and a second paint reflects the update.
+  if(pageId === 'mtm-lt') {
+    renderMTMDashboard();
+    setTimeout(() => renderMTMDashboardInteractive(), 50);
+    if (typeof window.WPA_hydrateRentRoll === 'function') {
+      window.WPA_hydrateRentRoll().then(function(ok){
+        if (ok) { renderMTMDashboard(); setTimeout(() => renderMTMDashboardInteractive(), 50); }
+      });
+    }
+  }
   if(pageId === 'mtm-lt-tenants') renderMTMTenants();
   if(pageId === 'mtm-lt-leases') renderMTMLeases();
-  if(pageId === 'mtm-lt-rent') renderMTMRent();
+  if(pageId === 'mtm-lt-rent') {
+    renderMTMRent();
+    if (typeof window.WPA_hydrateRentRoll === 'function') {
+      window.WPA_hydrateRentRoll().then(function(ok){ if (ok) renderMTMRent(); });
+    }
+  }
   if(pageId === 'mtm-lt-messages') renderMTMMessages();
   if(pageId === 'mtm-lt-applications') renderMTMApps();
   if(pageId === 'mtm-lt-expenses') renderExpensesPage();
   if(pageId === 'expenses') renderExpensesPage();
   if(pageId === 'mtm-lt-maintenance') loadMaintenanceFromSupabase();
+  // ── HOA sub-page routing ── (all CRUD handled by js/hoa-admin.js)
+  if (pageId && pageId.indexOf('hoa-') === 0) {
+    var hoaSection = pageId.replace(/^hoa-/, '');
+    if (typeof WPA_hoaRender === 'function') {
+      try { WPA_hoaRender(hoaSection); } catch(e) { console.error('HOA render error:', e); }
+    } else {
+      console.warn('hoa-admin.js not loaded yet — WPA_hoaRender missing');
+    }
+  }
 }
 
 // ── Property Selector ──
@@ -2661,7 +2876,8 @@ function populatePropertyDropdown() {
 // ── Initialize module nav on load ──
 function initModuleNav() {
   populatePropertyDropdown();
-  switchModule('dashboard', document.querySelector('#moduleBar [data-module="dashboard"]'));
+  // Phase A nav refactor (2026-04-23): dropped #moduleBar prefix.
+  switchModule('dashboard', document.querySelector('[data-module="dashboard"]'));
   // Update MTM stats from current data
   updateMTMStats();
   // Fetch portal badge count (non-blocking)
@@ -2836,6 +3052,22 @@ async function WPA_hydrateTenantsLT() {
         console.log('[tenants_lt] leases now total', INNAGO_LEASES.length);
       }
     } catch(e) { console.warn('[tenants_lt] lease synth error', e); }
+
+    // ── Hydrate live rent roll ──
+    // Replaces the legacy 33-row INNAGO_RENT mock with the current-month
+    // invoices/payments from Supabase. Runs AFTER tenants are hydrated
+    // because rent-roll.js walks INNAGO_TENANTS to attach tenant names.
+    // Fire-and-forget: the module logs + mutates window.INNAGO_RENT in
+    // place, so any render that later reads INNAGO_RENT will pick up the
+    // live rows. Renders that fire *immediately* after boot (before this
+    // resolves) will see [] — that's acceptable and correct; nav back to
+    // the MTM pages re-hydrates explicitly (see ROUTING above).
+    try {
+      if (typeof window.WPA_hydrateRentRoll === 'function') {
+        await window.WPA_hydrateRentRoll();
+      }
+    } catch(e) { console.warn('[tenants_lt] rent-roll hydrate error', e); }
+
     // Re-render the PD long-term view if it's currently open
     try {
       if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty &&
@@ -2847,6 +3079,8 @@ async function WPA_hydrateTenantsLT() {
     console.warn('[tenants_lt] hydrate error', e);
   }
 }
+// Expose hydrate so other modules (leases-view post-cascade) can re-trigger it
+window.WPA_hydrateTenantsLT = WPA_hydrateTenantsLT;
 // Kick off hydration ASAP (does not block initial render — fallback array shows first)
 WPA_hydrateTenantsLT();
 
@@ -2881,7 +3115,40 @@ let INNAGO_LEASES = [
   {status:"Active",property:"7845 Montgomery Avenue",unit:"Unit 1A",tenants:"Joshua Bluestine, Marissa Bluestine",start:"Feb 01, 2024",end:"M to M",type:"mtm"}
 ];
 
-const INNAGO_RENT = [
+// ═══════════════════════════════════════════════════════════════════
+// INNAGO_RENT — LIVE current-month rent roll
+// ═══════════════════════════════════════════════════════════════════
+// Was a 33-row hardcoded mock. Now populated by js/rent-roll.js
+// (WPA_hydrateRentRoll) from Supabase `invoices` + `payments` on
+// page boot and on nav to the MTM dashboard / Rent pages.
+//
+// Declared as `let` (not `const`) only to signal that the contents are
+// filled in asynchronously; the array reference itself never changes
+// — rent-roll.js mutates it in place via `.length=0; .push(...)` so
+// every one of the ~49 existing call sites keeps seeing the same
+// live array without any refactor.
+//
+// Shape per row (unchanged from the old mock for compatibility):
+//   { property, unit, tenants, amount, paid, processing, balance, status,
+//     invoice_id, due_date, period_month, tenant_id, notes }
+// The trailing five fields are new (not present in the old mock) —
+// safe additions, existing call sites ignore them.
+//
+// If rent-roll.js ever fails to load or query, this stays [] rather
+// than faking rows — per product rule "If a property/unit has no
+// current-month rent invoice, do NOT fake one. Only show real data."
+// ═══════════════════════════════════════════════════════════════════
+let INNAGO_RENT = [];
+// Expose on window so rent-roll.js can mutate it in place.
+window.INNAGO_RENT = INNAGO_RENT;
+
+/* ── Legacy hardcoded rent roll kept for reference only ──────────────
+   Preserved here so we can eyeball-compare the live data's first
+   render against the known-good mock after migration. REMOVE this
+   commented block once the live dashboard has been validated end-
+   to-end against production data (task #17 verification).
+
+const _INNAGO_RENT_MOCK_LEGACY = [
   {property:"426 Central",unit:"Office",tenants:"Clamira Smith",amount:1450,paid:0,processing:0,balance:1450,status:"pending"},
   {property:"426 Central",unit:"Unit 1",tenants:"Liana Mratkhuzina, Pavel Artyshevskii",amount:2070,paid:0,processing:2070,balance:0,status:"processing"},
   {property:"431 Valley Rd",unit:"Unit CH",tenants:"Otar Khaniashvili",amount:2750,paid:2750,processing:0,balance:0,status:"paid"},
@@ -2915,6 +3182,7 @@ const INNAGO_RENT = [
   {property:"1614 Valley Glen Rd",unit:"1",tenants:"Tarsha R. Scovens",amount:2255,paid:2255,processing:0,balance:0,status:"paid"},
   {property:"7845 Montgomery Avenue",unit:"Unit 9-CH",tenants:"Whitney Diane Rustin",amount:27000,paid:27000,processing:0,balance:0,status:"paid"}
 ];
+────────────────────────────────────────────────────────────────── */
 
 // ── Render MTM Dashboard ──
 function renderMTMDashboard() {
@@ -3090,10 +3358,46 @@ function filterTenantList() {
   }).join('');
 }
 
+/* ── Shared lease rent rule ───────────────────────────────────
+   When a lease has multiple tenants, each tenant should display
+   the FULL lease rent (not their per-person split). The ledger is
+   shared — one payment reduces the balance for all lease tenants.
+   ────────────────────────────────────────────────────────────── */
+function _getFullLeaseRent(tenant, lease) {
+  if (!tenant) return 0;
+  // Try to find the canonical rent from INNAGO_RENT (has `amount` at lease level)
+  if (lease) {
+    const rentRec = INNAGO_RENT.find(r =>
+      r.property === lease.property && r.unit === lease.unit
+    );
+    if (rentRec && rentRec.amount) return rentRec.amount;
+  }
+  // Fallback: sum all tenants sharing same property+unit
+  const roommates = INNAGO_TENANTS.filter(x =>
+    x.property === tenant.property && x.unitNum === tenant.unitNum
+  );
+  if (roommates.length > 1) {
+    return roommates.reduce((s, x) => s + (x.rent || 0), 0);
+  }
+  return tenant.rent || 0;
+}
+
 function openTenantDetail(idx) {
   const t = INNAGO_TENANTS[idx];
   if (!t) return;
   currentTenantIdx = idx;
+
+  // Local helper: format "2026-04-15" → "Apr 15, 2026"
+  function _formatDateUS(s){
+    if (!s) return '—';
+    try {
+      const d = new Date(s);
+      if (isNaN(d)) return s;
+      return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'2-digit' });
+    } catch(_){ return s; }
+  }
+  // Expose for use below
+  window._formatDateUS = _formatDateUS;
 
   // Highlight active in sidebar
   document.querySelectorAll('.tnt-list-item').forEach((el, i) => {
@@ -3116,30 +3420,70 @@ function openTenantDetail(idx) {
   emailEl.textContent = t.email || '(not set)';
   emailEl.href = t.email ? 'mailto:' + t.email : '#';
   document.getElementById('tntSince').textContent = t.since || 'N/A';
-  document.getElementById('tntAcctStatus').innerHTML = t.email ? '&#x2705;' : '&#x274C;';
 
   // Notes count
   const notes = TENANT_NOTES[t.name] || [];
   document.getElementById('tntNoteCount').textContent = notes.length;
 
   // Current Lease info
-  const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
+  // Shared-lease rule: if multiple tenants on same lease, EVERY tenant shows the FULL rent
+  // (the ledger is shared — a payment by one reduces the balance for both).
+  //
+  // PRIORITY ORDER for lease data:
+  //   1) If the tenant row itself carries property+unit+rent+lease_start (from a real
+  //      cascade-created tenants_lt row), use those directly. This is the authoritative
+  //      source for any lease produced by the e-sign flow.
+  //   2) Otherwise, match INNAGO_LEASES with a STRICT check on property AND unit AND
+  //      first-name (avoids "David" colliding with "David Brooker" hardcoded lease).
+  //   3) Last-resort fallback: tenant fields with em-dashes for unknown dates.
+  let lease = null;
+  const hasRowLease = t && t.property && t.unitNum && (t.rent || t.lease_start);
+  if (hasRowLease) {
+    // Synthesize a lease object from the tenant row itself
+    lease = {
+      property: t.property,
+      unit: t.unitNum,
+      start: t.lease_start ? _formatDateUS(t.lease_start) : '—',
+      end: (t.lease_type === 'mtm' || !t.lease_end) ? 'M to M' : _formatDateUS(t.lease_end),
+      tenants: t.name,
+      _fromTenantRow: true
+    };
+  } else if (typeof INNAGO_LEASES !== 'undefined') {
+    // Strict match: property + unit + first-name all have to line up
+    const firstName = t.name.split(' ')[0];
+    lease = INNAGO_LEASES.find(l =>
+      l.property === t.property &&
+      String(l.unit) === String(t.unitNum) &&
+      l.tenants.includes(firstName)
+    ) || null;
+  }
+  const fullRent = _getFullLeaseRent(t, lease);
   if (lease) {
     document.getElementById('tntLeaseProp').textContent = lease.property + ' | ' + lease.unit;
-    document.getElementById('tntLeaseRent').textContent = '$' + t.rent.toLocaleString() + '.00';
-    document.getElementById('tntLeaseRentOf').textContent = 'of $' + t.rent.toLocaleString() + '.00';
-    document.getElementById('tntLeaseStart').textContent = lease.start;
-    document.getElementById('tntLeaseEnd').textContent = lease.end === 'M to M' ? 'M to M' : lease.end;
+    document.getElementById('tntLeaseRent').textContent = '$' + fullRent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseRentOf').textContent = 'of $' + fullRent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseStart').textContent = lease.start || '—';
+    document.getElementById('tntLeaseEnd').textContent = lease.end === 'M to M' ? 'M to M' : (lease.end || '—');
   } else {
-    document.getElementById('tntLeaseProp').textContent = t.property + ' | ' + t.unitNum;
-    document.getElementById('tntLeaseRent').textContent = '$' + t.rent.toLocaleString() + '.00';
-    document.getElementById('tntLeaseRentOf').textContent = 'of $' + t.rent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseProp').textContent = (t.property || '—') + ' | ' + (t.unitNum || '—');
+    document.getElementById('tntLeaseRent').textContent = '$' + fullRent.toLocaleString() + '.00';
+    document.getElementById('tntLeaseRentOf').textContent = 'of $' + fullRent.toLocaleString() + '.00';
     document.getElementById('tntLeaseStart').textContent = '—';
     document.getElementById('tntLeaseEnd').textContent = '—';
   }
 
-  // Collection data
-  const rentRecords = INNAGO_RENT.filter(r => r.tenant && r.tenant.includes(t.name.split(' ')[0]));
+  // Collection data — match on full name + property + unit to avoid first-name collisions
+  const _firstName = t.name.split(' ')[0];
+  const rentRecords = INNAGO_RENT.filter(r => {
+    if (!r.tenant) return false;
+    // Prefer full-name match; fall back to first-name only if tenant row has a matching property+unit
+    const nameMatch = r.tenant === t.name || r.tenant.includes(t.name);
+    if (nameMatch) return true;
+    const firstOnly = r.tenant.includes(_firstName);
+    if (!firstOnly) return false;
+    // Require property+unit to match when falling back to first-name
+    return lease && r.property === lease.property && String(r.unit) === String(lease.unit);
+  });
   const totalCollected = rentRecords.reduce((s, r) => s + r.paid, 0);
   const pastDue = rentRecords.filter(r => r.status === 'Late' || r.status === 'Overdue');
   const currentInvoices = rentRecords.length;
@@ -3154,10 +3498,10 @@ function openTenantDetail(idx) {
   // Generate sample messages based on tenant data
   const msgs = [];
   if (lease) {
-    msgs.push({ to: t.name.split(' ')[0], from: 'Willow Partnership LLC', subject: t.property + ' Lease Notification', date: lease.start });
+    msgs.push({ to: _firstName, from: 'Willow Partnership LLC', subject: (lease.property || t.property || '') + ' Lease Notification', date: lease.start });
   }
   if (rentRecords.length > 0) {
-    msgs.push({ to: t.name.split(' ')[0], from: 'Innago', subject: 'Payment Confirmation', date: 'Mar 15, 2026' });
+    msgs.push({ to: _firstName, from: 'Innago', subject: 'Payment Confirmation', date: 'Mar 15, 2026' });
   }
   if (msgs.length === 0) {
     msgBody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text3);font-style:italic;padding:16px;">No messages</td></tr>';
@@ -3324,7 +3668,7 @@ function tenantAction(action) {
   if (!t) return;
   document.getElementById('tntActionsMenu')?.classList.remove('open');
   switch(action) {
-    case 'edit': alert(`Edit Tenant\n\nName: ${t.name}\nUnit: ${t.unitNum}\nRent: $${t.rent}\n\nThis would open the tenant editor form.`); break;
+    case 'edit': openTenantEditMode(t, currentTenantIdx); break;
     case 'addNote': {
       const note = prompt('Add a note for ' + t.name + ':');
       if (note && note.trim()) {
@@ -3335,8 +3679,58 @@ function tenantAction(action) {
       break;
     }
     case 'resendVerification': alert(`Verification link would be resent to ${t.email || '(no email on file)'}`); break;
+    case 'terminate': terminateTenant(t, currentTenantIdx); break;
+    case 'cancel': cancelDeleteTenant(t, currentTenantIdx); break;
     case 'requestInsurance': alert(`Renter's insurance request would be sent to ${t.name}`); break;
-    case 'viewInvoices': case 'viewAllInvoices': alert(`This would open the invoice list filtered for ${t.name}`); break;
+    case 'viewInvoices': {
+      // Try to open the most recent REAL invoice for this tenant's property+unit.
+      // Falls back to the preview modal if nothing is in Supabase yet.
+      const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
+      const fullRent = _getFullLeaseRent(t, lease);
+      (async () => {
+        try {
+          const q = '/rest/v1/invoices?select=id,period_month,due_date,status'
+                  + '&property=eq.' + encodeURIComponent(t.property)
+                  + '&unit=eq.' + encodeURIComponent(t.unitNum)
+                  + '&order=period_month.desc&limit=1';
+          const r = await fetch(SUPA_URL + q, { headers:{apikey:SUPA_KEY, Authorization:'Bearer '+SUPA_KEY}});
+          if (r.ok) {
+            const arr = await r.json();
+            if (arr && arr.length && typeof WPA_openInvoice === 'function') {
+              WPA_openInvoice(arr[0].id);
+              return;
+            }
+          }
+        } catch (e) { console.warn('[viewInvoices] supabase lookup failed:', e); }
+        if (typeof WPA_openInvoicePreview === 'function') {
+          WPA_openInvoicePreview('rent', { tenantName: t.name, property: t.property, unit: t.unitNum, rent: fullRent });
+        } else {
+          alert('Invoice module not loaded.');
+        }
+      })();
+      break;
+    }
+    case 'viewAllInvoices': {
+      // Open the invoices list page (Innago-style) with hover summary popover.
+      // Uses FULL lease rent (shared-lease rule).
+      const lease = INNAGO_LEASES.find(l => l.tenants.includes(t.name.split(' ')[0]));
+      const leaseType = (lease && lease.end === 'M to M') ? 'mtm' : 'lt';
+      const fullRent = _getFullLeaseRent(t, lease);
+      if (typeof WPA_openInvoiceList === 'function') {
+        WPA_openInvoiceList({
+          tenantName: t.name,
+          property: t.property,
+          unit: t.unitNum,
+          rent: fullRent,
+          leaseType: leaseType,
+          leaseStart: lease ? lease.start : null,
+          leaseEnd: lease && lease.end !== 'M to M' ? lease.end : null
+        });
+      } else {
+        alert(`Invoice list module not loaded.`);
+      }
+      break;
+    }
   }
 }
 
@@ -3350,8 +3744,301 @@ function viewTenantLease() {
   }
 }
 
+// ── Add Tenant Manually ───────────────────────────────────
+async function addTenantManual() {
+  const name = prompt('Tenant full name:');
+  if (!name || !name.trim()) return;
+  const email = (prompt('Email (optional):') || '').trim().toLowerCase();
+  const phone = (prompt('Phone (optional):') || '').trim();
+  const property = (prompt('Property address (e.g. "46 Township Line Rd"):') || '').trim();
+  const unit = (prompt('Unit number:') || '').trim();
+  const rent = parseFloat(prompt('Monthly rent:', '0') || '0') || 0;
+  const leaseType = (prompt('Lease type? (lt / mtm):', 'lt') || 'lt').trim().toLowerCase();
+  const status = (prompt('Status? (Active / Future):', 'Active') || 'Active').trim();
+
+  // Normalize phone to E.164 if 10 or 11 digits
+  let phoneE164 = null;
+  if (phone) {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) phoneE164 = '+1' + digits;
+    else if (digits.length === 11 && digits[0] === '1') phoneE164 = '+' + digits;
+  }
+
+  const row = {
+    name: name.trim(),
+    email: email || null,
+    phone: phone || null,
+    phone_e164: phoneE164,
+    property: property || null,
+    unit: unit || null,
+    rent: rent,
+    lease_type: leaseType === 'mtm' ? 'mtm' : 'lt',
+    status: status,
+    lease_start: null,
+    lease_end: null
+  };
+
+  try {
+    const { data, error } = await sb.from('tenants_lt').insert(row).select().single();
+    if (error) throw new Error(error.message);
+
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    filterTenantList();
+
+    // Find the new tenant in the list and open their detail
+    const newIdx = INNAGO_TENANTS.findIndex(t => t.id === data.id);
+    if (newIdx >= 0) openTenantDetail(newIdx);
+
+    toast('Tenant added: ' + name.trim() + ' ✓', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Terminate Lease (archive tenant, void lease) ──────────
+async function terminateTenant(t, idx) {
+  if (!t || !t.id) return;
+  const endDate = prompt(
+    `Terminate lease for ${t.name}?\n\nEnter termination date (YYYY-MM-DD) or leave blank for today:`,
+    new Date().toISOString().slice(0, 10)
+  );
+  if (endDate === null) return; // cancelled
+
+  const termDate = endDate.trim() || new Date().toISOString().slice(0, 10);
+  if (!confirm(`This will:\n• Set lease end to ${termDate}\n• Change status to "Past"\n• Archive the tenant record\n• Void the lease (if linked)\n\nContinue?`)) return;
+
+  try {
+    // Update tenants_lt: set status=Past, lease_end=termDate
+    const { error: tErr } = await sb.from('tenants_lt').update({
+      status: 'Past',
+      lease_end: termDate
+    }).eq('id', t.id);
+    if (tErr) throw new Error(tErr.message);
+
+    // If lease_id exists, update lease status to terminated
+    if (t.lease_id) {
+      await sb.from('leases').update({
+        status: 'terminated',
+        lease_end: termDate
+      }).eq('id', t.lease_id);
+
+      // Log lease event
+      await sb.from('lease_events').insert({
+        lease_id: t.lease_id,
+        event_type: 'terminated',
+        meta: { actor: 'admin', termination_date: termDate, tenant: t.name }
+      });
+    }
+
+    // Update in-memory
+    t.status = 'Past';
+    t.lease_end = termDate;
+
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    closeTenantDetail();
+    filterTenantList();
+    toast(`Lease terminated for ${t.name} (effective ${termDate}) ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Cancel & Delete Tenant ────────────────────────────────
+async function cancelDeleteTenant(t, idx) {
+  if (!t || !t.id) return;
+  if (!confirm(`DELETE ${t.name} from the system?\n\nThis will:\n• Delete the tenant record\n• Void the linked lease (if any)\n• Remove associated documents\n\nThis cannot be undone!`)) return;
+  if (!confirm(`Are you sure? Type the tenant name below to confirm.\n\n(Click OK to proceed)`)) return;
+
+  try {
+    // If lease_id, void the lease first
+    if (t.lease_id) {
+      await sb.from('leases').update({ status: 'voided' }).eq('id', t.lease_id);
+      await sb.from('lease_events').insert({
+        lease_id: t.lease_id,
+        event_type: 'voided',
+        meta: { actor: 'admin', reason: 'Tenant cancelled/deleted', tenant: t.name }
+      });
+    }
+
+    // Delete tenant_documents for this tenant
+    if (t.email) {
+      await sb.from('tenant_documents').delete().eq('tenant_email', t.email.toLowerCase().trim());
+    }
+
+    // Delete tenants_lt row
+    const { error } = await sb.from('tenants_lt').delete().eq('id', t.id);
+    if (error) throw new Error(error.message);
+
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    closeTenantDetail();
+    filterTenantList();
+    toast(`${t.name} deleted ✓`, 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ── Tenant Edit Mode ──────────────────────────────────────
+function openTenantEditMode(t, idx) {
+  // Replace the profile card and lease section with editable fields
+  const profileEl = document.querySelector('.tnt-profile-card');
+  if (!profileEl) return;
+
+  // Save original HTML for cancel
+  if (!window._tntOrigProfile) window._tntOrigProfile = profileEl.innerHTML;
+  if (!window._tntOrigLease)  window._tntOrigLease = document.querySelector('.tnt-info-row')?.innerHTML;
+
+  const leaseType = t.lease_type || (t.lease_end ? 'lt' : 'mtm');
+
+  profileEl.innerHTML = `
+    <div style="padding:16px">
+      <h4 style="margin:0 0 16px;font-size:15px;font-weight:600;color:var(--text1)">Edit Tenant</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Name</label>
+          <input id="tntEditName" value="${(t.name||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Email</label>
+          <input id="tntEditEmail" value="${(t.email||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Phone</label>
+          <input id="tntEditPhone" value="${(t.phone||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Unit</label>
+          <input id="tntEditUnit" value="${(t.unitNum||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Property</label>
+          <input id="tntEditProperty" value="${(t.property||'').replace(/"/g,'&quot;')}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Rent</label>
+          <input id="tntEditRent" type="number" value="${t.rent||0}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Lease Type</label>
+          <select id="tntEditLeaseType" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;background:#fff">
+            <option value="lt" ${leaseType==='lt'?'selected':''}>Fixed Term</option>
+            <option value="mtm" ${leaseType==='mtm'?'selected':''}>Month-to-Month</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Phone (E.164)</label>
+          <input id="tntEditPhoneE164" value="${(t.phone_e164||'').replace(/"/g,'&quot;')}" placeholder="+12155551234" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Lease Start</label>
+          <input id="tntEditLeaseStart" type="date" value="${t.lease_start||''}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Lease End</label>
+          <input id="tntEditLeaseEnd" type="date" value="${t.lease_end||''}" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box" />
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px">Status</label>
+          <select id="tntEditStatus" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;box-sizing:border-box;background:#fff">
+            <option value="Active" ${t.status==='Active'?'selected':''}>Active</option>
+            <option value="Future" ${t.status==='Future'?'selected':''}>Future</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end">
+        <button onclick="cancelTenantEdit()" style="padding:8px 20px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:13px;font-family:inherit">Cancel</button>
+        <button onclick="saveTenantEdit()" style="padding:8px 20px;border:none;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font-weight:600;font-size:13px;font-family:inherit">Save Changes</button>
+      </div>
+    </div>`;
+
+  // Hide lease section while editing
+  const leaseRow = document.querySelector('.tnt-info-row');
+  if (leaseRow) leaseRow.style.display = 'none';
+}
+
+function cancelTenantEdit() {
+  const profileEl = document.querySelector('.tnt-profile-card');
+  if (profileEl && window._tntOrigProfile) {
+    profileEl.innerHTML = window._tntOrigProfile;
+    window._tntOrigProfile = null;
+  }
+  const leaseRow = document.querySelector('.tnt-info-row');
+  if (leaseRow) {
+    if (window._tntOrigLease) leaseRow.innerHTML = window._tntOrigLease;
+    leaseRow.style.display = '';
+    window._tntOrigLease = null;
+  }
+  // Re-render to restore bindings
+  if (currentTenantIdx !== null) openTenantDetail(currentTenantIdx);
+}
+
+async function saveTenantEdit() {
+  const t = INNAGO_TENANTS[currentTenantIdx];
+  if (!t || !t.id) { toast('No tenant selected', 'error'); return; }
+
+  const patch = {
+    name:        (document.getElementById('tntEditName')?.value || '').trim(),
+    email:       (document.getElementById('tntEditEmail')?.value || '').trim().toLowerCase(),
+    phone:       (document.getElementById('tntEditPhone')?.value || '').trim(),
+    phone_e164:  (document.getElementById('tntEditPhoneE164')?.value || '').trim() || null,
+    unit:        (document.getElementById('tntEditUnit')?.value || '').trim(),
+    property:    (document.getElementById('tntEditProperty')?.value || '').trim(),
+    rent:        parseFloat(document.getElementById('tntEditRent')?.value) || 0,
+    lease_type:  document.getElementById('tntEditLeaseType')?.value || 'lt',
+    lease_start: document.getElementById('tntEditLeaseStart')?.value || null,
+    lease_end:   document.getElementById('tntEditLeaseEnd')?.value || null,
+    status:      document.getElementById('tntEditStatus')?.value || 'Active'
+  };
+
+  if (!patch.name) { toast('Name is required', 'error'); return; }
+
+  try {
+    const { error } = await sb.from('tenants_lt').update(patch).eq('id', t.id);
+    if (error) throw new Error(error.message);
+
+    // Update in-memory data
+    Object.assign(t, patch);
+    t.unitNum = patch.unit;
+
+    // Restore original HTML structure before re-rendering
+    const profileEl = document.querySelector('.tnt-profile-card');
+    if (profileEl && window._tntOrigProfile) {
+      profileEl.innerHTML = window._tntOrigProfile;
+    }
+    const leaseRow = document.querySelector('.tnt-info-row');
+    if (leaseRow) {
+      if (window._tntOrigLease) leaseRow.innerHTML = window._tntOrigLease;
+      leaseRow.style.display = '';
+    }
+    window._tntOrigProfile = null;
+    window._tntOrigLease = null;
+
+    // Re-render
+    if (typeof window.WPA_hydrateTenantsLT === 'function') {
+      await window.WPA_hydrateTenantsLT();
+    }
+    openTenantDetail(currentTenantIdx);
+    filterTenantList();
+    toast('Tenant updated ✓', 'success');
+  } catch(e) {
+    toast('Save failed: ' + e.message, 'error');
+  }
+}
+
 // ── Render Leases Table ──
 function renderMTMLeases() {
+  // New: real Supabase-backed LeasesView (replaces mock INNAGO_LEASES UI)
+  if (typeof window.LeasesView === 'object') {
+    try { window.LeasesView.init(); window.LeasesView.load(); return; }
+    catch(e) { console.error('[LeasesView] failed, falling back to mock:', e); }
+  }
+  // Legacy mock fallback (only runs if leases-view.js failed to load)
   const tbody = document.getElementById('mtmLeasesBody');
   if (!tbody) return;
   // Populate property filter
@@ -3542,6 +4229,17 @@ function closeLeaseDetail() {
 }
 
 function leaseAction(action, docIdx) {
+  // 'newLease' and 'export' don't need a selected lease — handle them first
+  if (action === 'newLease') {
+    if (typeof openNewLeaseWizard === 'function') openNewLeaseWizard();
+    else alert('Lease wizard not loaded. Make sure js/lease-wizard.js is included.');
+    return;
+  }
+  if (action === 'export') {
+    if (typeof exportLeasesCSV === 'function') exportLeasesCSV();
+    else alert('Export not available yet.');
+    return;
+  }
   if (!currentLeaseDetail) return;
   const l = currentLeaseDetail.lease;
   const key = getLeaseKey(l);
@@ -6496,6 +7194,8 @@ async function loadProperties() {
     return { ...p, unit_type: linkedUnit ? linkedUnit.type : null };
   });
   populatePropOwnerFilter();
+  // Expose to other modules (lease wizard, etc.)
+  try { window.propertiesData = propertiesData; window.unitsData = data; } catch(e){}
 }
 
 function populatePropOwnerFilter() {
@@ -6619,6 +7319,7 @@ function openAddPropertyModal() {
   document.getElementById('propFormOwner').value = '';
   document.getElementById('propFormStatus').value = 'Active';
   loadParkingBuildingOptions('');
+  loadStripeCredOptions('');
   openModal('addPropertyModal');
 }
 
@@ -6638,7 +7339,35 @@ function openEditPropertyModal(apt) {
   document.getElementById('propFormHostfullyUid').value = p.hostfully_uid || '';
   document.getElementById('propFormApt').value = p.apt || '';
   loadParkingBuildingOptions(p.parking_building_id || '');
+  loadStripeCredOptions(p.stripe_cred_id || '');
   openModal('addPropertyModal');
+}
+
+// Populates the Stripe Account dropdown in the property edit modal.
+// Mirrors WPA_pkLoadStripeOptions (parking_buildings) — reads every
+// active service='stripe' credential row and renders one <option> per
+// landlord. The selected row's id becomes properties.stripe_cred_id,
+// which pay.php (Phase 10.2b) will resolve to the landlord's secret_key
+// when charging a rent invoice tied to this property.
+async function loadStripeCredOptions(selectedId) {
+  var sel = document.getElementById('propFormStripeCredId');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— None (no online payments) —</option>';
+  try {
+    var res = await pkSB('app_credentials', 'select=id,label,credentials&service=eq.stripe&active=eq.true&order=label.asc');
+    if (Array.isArray(res)) {
+      res.forEach(function(r) {
+        var opt = document.createElement('option');
+        opt.value = r.id;
+        // Prefer landlord_name if set (the canonical match to properties.owner),
+        // fall back to the row label otherwise.
+        var landlord = (r.credentials && r.credentials.landlord_name) ? r.credentials.landlord_name.trim() : '';
+        opt.textContent = landlord ? (landlord + '  —  ' + r.label) : r.label;
+        if (r.id === selectedId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) { console.warn('loadStripeCredOptions failed:', e.message || e); }
 }
 
 async function loadParkingBuildingOptions(selectedId) {
@@ -6675,6 +7404,7 @@ async function saveProperty() {
     status:       document.getElementById('propFormStatus').value,
     hostfully_uid:document.getElementById('propFormHostfullyUid').value.trim() || null,
     parking_building_id: document.getElementById('propFormParkingBuilding').value || null,
+    stripe_cred_id: document.getElementById('propFormStripeCredId').value || null,
     tags: [],
     updated_at: new Date().toISOString()
   };
@@ -7085,15 +7815,22 @@ function openAppReviewModal(appId) {
     banner.style.display = 'none';
   }
 
-  // Show/hide approve/reject buttons based on status
+  // Show/hide approve/reject/create-lease buttons based on status
   var approveBtn = document.getElementById('arApproveBtn');
   var rejectBtn = document.getElementById('arRejectBtn');
-  if (app.status === 'approved' || app.status === 'denied') {
+  var createLeaseBtn = document.getElementById('arCreateLeaseBtn');
+  if (app.status === 'approved') {
     approveBtn.style.display = 'none';
     rejectBtn.style.display = 'none';
+    if (createLeaseBtn) createLeaseBtn.style.display = '';
+  } else if (app.status === 'denied') {
+    approveBtn.style.display = 'none';
+    rejectBtn.style.display = 'none';
+    if (createLeaseBtn) createLeaseBtn.style.display = 'none';
   } else {
     approveBtn.style.display = '';
     rejectBtn.style.display = '';
+    if (createLeaseBtn) createLeaseBtn.style.display = 'none';
   }
 
   // Screening reports placeholders
@@ -7109,6 +7846,21 @@ function openAppReviewModal(appId) {
 function closeAppReview() {
   document.getElementById('appReviewOverlay').style.display = 'none';
   _reviewAppId = null;
+}
+
+function createLeaseFromApp() {
+  var app = _liveApplications.find(a => a.id === _reviewAppId);
+  if (!app) { showToast('Applicant not found'); return; }
+  if (typeof openNewLeaseWizard !== 'function') { alert('Lease wizard not loaded.'); return; }
+  closeAppReview();
+  openNewLeaseWizard({
+    application_id: app.id,
+    tenant: app.name,
+    email: app.email,
+    phone: app.phone,
+    property_name: app.property,
+    unit: app.unit
+  });
 }
 
 // ── Confirm Dialog Flow ──
@@ -7433,9 +8185,8 @@ function openPDUnitDetail(idx) {
     document.getElementById('udLeaseBarElapsed').style.width = '100%';
     document.getElementById('udLeaseBarRemaining').style.width = '0%';
   }
-  document.getElementById('udLeaseStart').textContent = u.leaseStart;
-  document.getElementById('udLeaseEnd').textContent = u.leaseEnd;
-  document.getElementById('udMTMToggle').checked = u.leaseType === 'mtm';
+  // ── Lease edit UI (editable inputs + Save button, wired to Supabase) ──
+  WPA_renderLeaseEditor(u);
 
   // ── Collection Card ──
   const r = u.rentRecord;
@@ -7627,9 +8378,205 @@ function newServiceOrder() { toast('Create service order from unit — coming so
 function addUnitDocument() { toast('Document upload coming soon', 'info'); }
 function newUnitLease() { toast('New lease creation coming soon', 'info'); }
 function switchUnitLease() { /* future: switch between historical leases */ }
-function toggleMTM() { toast('MTM toggle saved (demo)', 'info'); }
+function toggleMTM() { WPA_onLeaseTypeChange(); }
 function refreshUnitDetail() { if (_udCurrentUnit) { const idx = _pdUnitsData.indexOf(_udCurrentUnit); if (idx >= 0) openPDUnitDetail(idx); } }
 function editUnitDetail() { toast('Edit unit coming soon', 'info'); }
+
+// ─────────────────────────────────────────────────────────────────────
+// Lease editor: turns the read-only lease spans into date inputs
+// wired to Supabase. Start/End become <input type="date">. The MTM
+// toggle + Save button together persist changes to public.tenants_lt
+// (lease_start, lease_end, lease_type) and update in-memory state.
+// ─────────────────────────────────────────────────────────────────────
+function WPA_toIsoDate(v) {
+  if (!v) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return '';
+  return d.toISOString().slice(0, 10);
+}
+function WPA_fromIsoDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+}
+function WPA_renderLeaseEditor(u) {
+  const startEl = document.getElementById('udLeaseStart');
+  const endEl   = document.getElementById('udLeaseEnd');
+  const mtmEl   = document.getElementById('udMTMToggle');
+  if (!startEl || !endEl || !mtmEl) return;
+
+  const isoStart = WPA_toIsoDate(u.leaseStart);
+  const isoEnd   = (u.leaseEnd === 'M to M' || !u.leaseEnd) ? '' : WPA_toIsoDate(u.leaseEnd);
+  const isMtm    = u.leaseType === 'mtm';
+
+  startEl.innerHTML = `<input type="date" id="udLeaseStartInput" value="${isoStart}" style="padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg2);color:var(--text);font:inherit;">`;
+  endEl.innerHTML   = `<input type="date" id="udLeaseEndInput" value="${isoEnd}" ${isMtm ? 'disabled' : ''} style="padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--bg2);color:var(--text);font:inherit;">`;
+  mtmEl.checked = isMtm;
+
+  // Inject Save + Cancel buttons next to the MTM toggle's parent row
+  if (!document.getElementById('udLeaseSaveBtn')) {
+    const host = mtmEl.closest('.ud-card, .ud-lease-card, div') || mtmEl.parentElement;
+    if (host) {
+      const bar = document.createElement('div');
+      bar.id = 'udLeaseSaveBar';
+      bar.style.cssText = 'margin-top:10px;display:flex;gap:8px;align-items:center;';
+      bar.innerHTML = `
+        <button id="udLeaseSaveBtn" onclick="WPA_saveLease()" style="padding:6px 14px;background:#8a5f32;color:#fff;border:0;border-radius:4px;cursor:pointer;font:inherit;">Save Lease</button>
+        <button id="udLeaseResetBtn" onclick="WPA_renderLeaseEditor(_udCurrentUnit)" style="padding:6px 14px;background:transparent;color:var(--text);border:1px solid var(--line);border-radius:4px;cursor:pointer;font:inherit;">Cancel</button>
+        <button id="udLeaseRefreshInvBtn" onclick="WPA_manualRefreshInvoices()" title="Generate any missing monthly invoices based on current lease" style="padding:6px 14px;background:transparent;color:#3651b5;border:1px solid #3651b5;border-radius:4px;cursor:pointer;font:inherit;">🔄 Refresh Invoices</button>
+        <span id="udLeaseSaveMsg" style="font-size:12px;color:var(--text3);"></span>
+      `;
+      host.appendChild(bar);
+    }
+  }
+
+  // Wire MTM toggle to enable/disable end-date field live
+  mtmEl.onchange = WPA_onLeaseTypeChange;
+}
+function WPA_onLeaseTypeChange() {
+  const mtm = document.getElementById('udMTMToggle');
+  const endIn = document.getElementById('udLeaseEndInput');
+  if (mtm && endIn) {
+    endIn.disabled = mtm.checked;
+    if (mtm.checked) endIn.value = '';
+  }
+}
+// Build ctx for WPA_refreshInvoicesForUnit from the unit detail record.
+// Pulls the FULL lease rent (not per-person split) per the shared-lease rule.
+function _buildInvoiceGenCtx(u, overrides) {
+  if (!u || !u.lease) return null;
+  overrides = overrides || {};
+  const startIso = overrides.startIso || (u.leaseStart ? WPA_toIsoDate(u.leaseStart) : null);
+  const endIso   = overrides.endIso   || (u.leaseEnd && u.leaseEnd !== 'M to M' ? WPA_toIsoDate(u.leaseEnd) : null);
+  const leaseType = overrides.leaseType || ((u.leaseEnd === 'M to M') ? 'mtm' : 'lt');
+  // Full lease rent — rentRecord.amount is the full amount; u.totalRent is a fallback
+  const fullRent = (u.rentRecord && u.rentRecord.amount) || u.totalRent || 0;
+  const tenantIds = overrides.tenantIds || (u.tenantObjs || []).map(t => t.id).filter(Boolean);
+  if (!startIso || !fullRent) return null;
+  return {
+    property: u.lease.property,
+    unit: u.lease.unit,
+    rent: fullRent,
+    lease_start: startIso,
+    lease_end: endIso,
+    lease_type: leaseType === 'fixed' ? 'lt' : leaseType,
+    due_day: (u.lease && u.lease.due_day) || 1,
+    primary_tenant_id: tenantIds[0] || null
+  };
+}
+
+async function WPA_manualRefreshInvoices() {
+  const u = _udCurrentUnit;
+  const btn = document.getElementById('udLeaseRefreshInvBtn');
+  if (!u) return;
+  const ctx = _buildInvoiceGenCtx(u);
+  if (!ctx) { toast('Cannot refresh — missing lease start or rent', 'error'); return; }
+  if (typeof WPA_refreshInvoicesForUnit !== 'function') { toast('Generator not loaded', 'error'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Refreshing…'; }
+  try {
+    const gen = await WPA_refreshInvoicesForUnit(ctx);
+    const parts = [];
+    parts.push('Expected ' + gen.expected);
+    parts.push('Existing ' + gen.existing);
+    parts.push('Created ' + gen.created);
+    if (gen.errors && gen.errors.length) parts.push(gen.errors.length + ' error(s)');
+    toast(parts.join(' · '), gen.errors && gen.errors.length ? 'error' : 'success');
+    if (gen.errors && gen.errors.length) console.warn('[manualRefresh]', gen.errors);
+    refreshUnitDetail();
+  } catch (e) {
+    console.error('[manualRefresh]', e);
+    toast('Refresh failed: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔄 Refresh Invoices'; }
+  }
+}
+
+async function WPA_saveLease() {
+  const u = _udCurrentUnit;
+  if (!u) return;
+  const mtm      = document.getElementById('udMTMToggle').checked;
+  const startIso = document.getElementById('udLeaseStartInput').value || '';
+  const endIso   = mtm ? '' : (document.getElementById('udLeaseEndInput').value || '');
+  const msg      = document.getElementById('udLeaseSaveMsg');
+  const btn      = document.getElementById('udLeaseSaveBtn');
+
+  if (!startIso) { if (msg) { msg.textContent='Start date required'; msg.style.color='#c00'; } return; }
+  if (!mtm && !endIso) { if (msg) { msg.textContent='End date required for Fixed leases'; msg.style.color='#c00'; } return; }
+  if (!mtm && endIso < startIso) { if (msg) { msg.textContent='End must be after Start'; msg.style.color='#c00'; } return; }
+
+  const newType = mtm ? 'mtm' : 'fixed';
+  if (msg) { msg.textContent='Saving…'; msg.style.color='var(--text3)'; }
+  if (btn) btn.disabled = true;
+
+  // Collect tenant IDs on this unit (roommates share one lease)
+  const tenantIds = u.tenantObjs.map(t => t.id).filter(Boolean);
+  if (!tenantIds.length) { if (msg) { msg.textContent='No tenant ids found'; msg.style.color='#c00'; } if (btn) btn.disabled=false; return; }
+
+  try {
+    // PATCH every tenant row on this unit via "id=in.(...)" filter
+    const idsFilter = 'in.(' + tenantIds.map(id => '"' + id + '"').join(',') + ')';
+    const r = await fetch(SUPA_URL + '/rest/v1/tenants_lt?id=' + encodeURIComponent(idsFilter), {
+      method: 'PATCH',
+      headers: {
+        apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY,
+        'Content-Type': 'application/json', Prefer: 'return=representation'
+      },
+      body: JSON.stringify({ lease_start: startIso || null, lease_end: endIso || null, lease_type: newType })
+    });
+    if (!r.ok) {
+      const t = await r.text();
+      throw new Error('HTTP ' + r.status + ' ' + t);
+    }
+
+    // Update in-memory INNAGO_TENANTS for the affected ids
+    tenantIds.forEach(id => {
+      const t = INNAGO_TENANTS.find(x => x.id === id);
+      if (t) { t.lease_start = startIso; t.lease_end = endIso; t.lease_type = newType; }
+    });
+
+    // Update the matching synthesized lease entry (match by property+unit)
+    const lease = INNAGO_LEASES.find(l => l.property === u.lease.property && l.unit === u.lease.unit);
+    if (lease) {
+      lease.start = startIso ? WPA_fromIsoDate(startIso) : '';
+      lease.end   = mtm ? 'M to M' : (endIso ? WPA_fromIsoDate(endIso) : '');
+      lease.type  = newType;
+    }
+
+    if (msg) { msg.textContent='Saved ✓'; msg.style.color='#1a7f37'; }
+    if (btn) btn.disabled = false;
+    // Refresh the unit detail view so header bar + days-left recompute
+    if (typeof _pdCurrentProperty !== 'undefined' && _pdCurrentProperty) {
+      renderPDLongTerm(_pdCurrentProperty);
+    }
+
+    // Auto-generate any missing invoices for this lease (idempotent)
+    try {
+      if (typeof WPA_refreshInvoicesForUnit === 'function') {
+        const genCtx = _buildInvoiceGenCtx(u, { startIso, endIso, leaseType: newType, tenantIds });
+        if (genCtx) {
+          if (msg) { msg.textContent='Generating invoices…'; msg.style.color='var(--text3)'; }
+          const gen = await WPA_refreshInvoicesForUnit(genCtx);
+          if (gen && gen.created > 0) {
+            toast('Created ' + gen.created + ' invoice(s) for lease', 'success');
+          }
+          if (gen && gen.errors && gen.errors.length) {
+            console.warn('[saveLease invoice-gen]', gen.errors);
+          }
+        }
+      }
+    } catch (gErr) {
+      console.error('[saveLease invoice-gen]', gErr);
+    }
+
+    setTimeout(() => { if (msg) msg.textContent = ''; refreshUnitDetail(); }, 900);
+  } catch (e) {
+    console.error('[saveLease]', e);
+    if (msg) { msg.textContent='Save failed: ' + e.message; msg.style.color='#c00'; }
+    if (btn) btn.disabled = false;
+  }
+}
 function toggleUnitNotes() { document.getElementById('udNoteInput')?.focus(); }
 function saveUnitNote() {
   const input = document.getElementById('udNoteInput');
@@ -10695,6 +11642,47 @@ async function saveCalBooking() {
         updated_at: new Date().toISOString()
       };
       await sb.from('bookings').insert(bookingRow);
+
+      // ── ST Welcome Message (email + SMS) ──────────────────────
+      // Send welcome to guest with link to portal for pre-arrival form
+      try {
+        const _gName = (name || 'Guest').split(' ')[0];
+        const _propLine = _calApt || 'your rental';
+        const _ciDate = checkin ? new Date(checkin).toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric', year:'numeric'}) : '';
+        const _portalLink = 'https://app.willowpa.com';
+
+        if (gEmail) {
+          const _subj = 'Welcome! Your stay at ' + _propLine + ' — Action Required';
+          const _body = '<p>Hi ' + (typeof escapeHtml === 'function' ? escapeHtml(_gName) : _gName) + ',</p>' +
+            '<p>Thank you for your booking at <b>' + (typeof escapeHtml === 'function' ? escapeHtml(_propLine) : _propLine) + '</b>!' +
+            (_ciDate ? ' Your check-in date is <b>' + _ciDate + '</b>.' : '') + '</p>' +
+            '<p>Before your stay, please visit your <b>Guest Portal</b> to complete your pre-arrival form and sign the house rules agreement:</p>' +
+            '<p style="margin:24px 0">' +
+              '<a href="' + _portalLink + '" style="background:#1a2874;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;display:inline-block">' +
+                'Complete Pre-Arrival Form' +
+              '</a>' +
+            '</p>' +
+            '<p style="font-size:13px;color:#555">Your portal access (parking, messages, payments, and more) will be activated once your agreement is approved.</p>' +
+            '<p style="font-size:12px;color:#666">If you have questions, reply to this email or call (267) 865-0001.</p>' +
+            '<p>— Willow Partnership</p>';
+          if (typeof sendEmail === 'function') {
+            sendEmail(gEmail, _subj, _body, { isHtml: true, headerTitle: 'Willow Partnership — Guest Welcome' });
+          }
+        }
+
+        if (gPhone) {
+          const _smsText = 'Willow Partnership: Welcome! Your stay at ' + _propLine +
+            (_ciDate ? ' (check-in: ' + _ciDate + ')' : '') +
+            ' — please complete your pre-arrival form at ' + _portalLink +
+            ' to activate your guest portal.';
+          if (typeof sendSMS === 'function') {
+            sendSMS(gPhone, _smsText);
+          }
+        }
+      } catch(_welcErr) {
+        console.warn('[booking] Welcome message failed (non-critical):', _welcErr);
+      }
+
     } catch(syncErr) {
       console.warn('Pipeline sync failed (non-critical):', syncErr);
     }
@@ -10815,6 +11803,30 @@ async function deleteCalBooking() {
   try {
     const { error } = await sb.from('units').delete().eq('id', _calBookingPanelId);
     if (error) throw new Error(error.message);
+
+    // ── Cascade: cancel matching booking in Pipeline (bookings table) ──
+    if (rec) {
+      try {
+        const _apt = (rec.apt || '').trim();
+        const _name = (rec.name || '').trim();
+        const _ci = rec.checkin || '';
+        const _co = rec.checkout || '';
+        // Match by unit + guest name + dates; set status to cancelled
+        if (_apt && _name && _ci) {
+          let q = sb.from('bookings')
+            .update({ booking_status: 'cancelled', updated_at: new Date().toISOString() })
+            .eq('unit_apt', _apt)
+            .eq('guest_name', _name)
+            .eq('check_in', _ci);
+          if (_co) q = q.eq('check_out', _co);
+          const { error: bErr } = await q;
+          if (bErr) console.warn('[deleteCalBooking] bookings cancel failed:', bErr);
+        }
+      } catch(_bCascErr) {
+        console.warn('[deleteCalBooking] bookings cascade error:', _bCascErr);
+      }
+    }
+
     closeCalBookingPanel();
     await loadAll();
     renderCalendar();
@@ -14041,3 +15053,166 @@ function WPA_hsCreateSettingsTable() {
   alert('Please create the hs_settings table in Supabase SQL Editor:\\n\\nCREATE TABLE hs_settings (\\n  key TEXT PRIMARY KEY,\\n  value TEXT,\\n  updated_at TIMESTAMPTZ DEFAULT now()\\n);\\n\\nINSERT INTO hs_settings (key, value) VALUES\\n(\\\'weekend_evening_surcharge_pct\\\', \\\'20\\\'),\\n(\\\'default_stripe_account\\\', \\\'\\\');');
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+//  TENANT DOCUMENTS MODULE (v20260415-1900)
+//  Populates the "Documents" tnt-section on the tenant card.
+//  Reads/writes tenant_documents table, uploads to 'wpforms' bucket.
+// ═══════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  // Called by openTenantDetail — hook by wrapping the existing function
+  var _origOpenTenant = window.openTenantDetail;
+  if (typeof _origOpenTenant === 'function') {
+    window.openTenantDetail = function(idx){
+      _origOpenTenant(idx);
+      try { WPA_loadTenantDocs(idx); } catch(e){ console.warn('[tnt-docs]', e); }
+    };
+  }
+
+  async function WPA_loadTenantDocs(idx){
+    var t = (typeof INNAGO_TENANTS !== 'undefined') ? INNAGO_TENANTS[idx] : null;
+    if (!t) return;
+    window._wpaDocsTenant = t;
+    var tbody = document.getElementById('tntDocsBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#8a93a8;text-align:center">Loading…</td></tr>';
+
+    var email = (t.email || '').toLowerCase().trim();
+    if (!email) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#8a93a8;text-align:center">Tenant has no email — documents require an email address.</td></tr>';
+      return;
+    }
+    try {
+      var { data, error } = await sb.from('tenant_documents')
+        .select('id,title,doc_type,created_at,shared_with_tenant,file_url')
+        .eq('tenant_email', email)
+        .order('created_at', { ascending:false });
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#8a93a8;text-align:center">No documents yet. Upload one to get started.</td></tr>';
+        return;
+      }
+      var rows = data.map(function(d){
+        var dt = d.created_at ? new Date(d.created_at).toLocaleDateString() : '';
+        var checked = d.shared_with_tenant ? 'checked' : '';
+        var typeLabel = (d.doc_type || 'other').charAt(0).toUpperCase() + (d.doc_type || 'other').slice(1);
+        return '<tr>'+
+          '<td>'+escapeHtml(d.title || 'Untitled')+'</td>'+
+          '<td><span class="lv-pill">'+typeLabel+'</span></td>'+
+          '<td>'+dt+'</td>'+
+          '<td><label style="cursor:pointer"><input type="checkbox" '+checked+' onchange="WPA_toggleDocShare('+d.id+', this.checked)"> Share</label></td>'+
+          '<td><a href="#" onclick="WPA_viewDoc('+d.id+');return false;">View</a></td>'+
+        '</tr>';
+      }).join('');
+      tbody.innerHTML = rows;
+    } catch(e) {
+      console.warn('[tnt-docs] load failed', e);
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:14px;color:#b83228;text-align:center">Error loading documents.</td></tr>';
+    }
+  }
+
+  async function WPA_toggleDocShare(docId, isShared){
+    try {
+      var payload = {
+        shared_with_tenant: isShared,
+        shared_at: isShared ? new Date().toISOString() : null
+      };
+      var { error } = await sb.from('tenant_documents').update(payload).eq('id', docId);
+      if (error) { alert('Could not update: '+error.message); return; }
+    } catch(e) { alert('Error: '+e.message); }
+  }
+
+  async function WPA_shareAllDocs(){
+    var t = window._wpaDocsTenant;
+    if (!t || !t.email) return;
+    if (!confirm('Share ALL documents with '+t.name+'?')) return;
+    var { error } = await sb.from('tenant_documents')
+      .update({ shared_with_tenant: true, shared_at: new Date().toISOString() })
+      .eq('tenant_email', t.email.toLowerCase().trim());
+    if (error) { alert('Error: '+error.message); return; }
+    WPA_loadTenantDocs(currentTenantIdx);
+  }
+
+  function WPA_uploadDocClick(){
+    var el = document.getElementById('tntDocFileInput');
+    if (el) el.click();
+  }
+
+  async function WPA_uploadDocFile(evt){
+    var file = evt.target.files[0];
+    if (!file) return;
+    evt.target.value = ''; // reset
+
+    var t = window._wpaDocsTenant;
+    if (!t || !t.email) { alert('Tenant has no email'); return; }
+
+    var title = prompt('Document title:', file.name.replace(/\.[^.]+$/, '')) || file.name;
+    var typeIn = prompt('Document type? (lease / invoice / letter / email / other)', 'other') || 'other';
+    typeIn = typeIn.toLowerCase().trim();
+    if (['lease','invoice','letter','email','other','form'].indexOf(typeIn) === -1) typeIn = 'other';
+
+    var safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    var key = 'tenants/'+(t.unitNum || 'unknown')+'/'+Date.now()+'_'+safeName;
+
+    try {
+      var { error: upErr } = await sb.storage.from('wpforms').upload(key, file, {
+        cacheControl: '3600', upsert: false
+      });
+      if (upErr) { alert('Upload failed: '+upErr.message); return; }
+
+      var { error: insErr } = await sb.from('tenant_documents').insert({
+        tenant_email: t.email.toLowerCase().trim(),
+        tenant_name: t.name,
+        unit: t.unitNum || '',
+        property: t.property || '',
+        doc_type: typeIn,
+        title: title,
+        file_url: 'wpforms/'+key,
+        file_name: file.name,
+        file_size_bytes: file.size,
+        created_by: 'admin',
+        shared_with_tenant: (typeIn === 'lease')  // leases auto-shared
+      });
+      if (insErr) { alert('Saved to storage but record insert failed: '+insErr.message); return; }
+      WPA_loadTenantDocs(currentTenantIdx);
+    } catch(e) { alert('Error: '+e.message); }
+  }
+
+  async function WPA_viewDoc(docId){
+    try {
+      var { data, error } = await sb.from('tenant_documents')
+        .select('*').eq('id', docId).single();
+      if (error || !data) { alert('Not found'); return; }
+      if (data.file_url) {
+        var parts = data.file_url.split('/');
+        var bucket = parts.shift();
+        var key = parts.join('/');
+        var { data: urlData, error: uErr } = await sb.storage.from(bucket)
+          .createSignedUrl(key, 300);
+        if (uErr) { alert('Could not get URL: '+uErr.message); return; }
+        window.open(urlData.signedUrl, '_blank');
+      } else if (data.body_html) {
+        var w = window.open('', '_blank');
+        w.document.write('<title>'+(data.title||'Doc')+'</title>'+data.body_html);
+      } else {
+        alert('No content for this document');
+      }
+    } catch(e) { alert('Error: '+e.message); }
+  }
+
+  function escapeHtml(s){
+    return String(s||'').replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+
+  // Expose
+  window.WPA_loadTenantDocs = WPA_loadTenantDocs;
+  window.WPA_toggleDocShare = WPA_toggleDocShare;
+  window.tntShareAllDocs    = WPA_shareAllDocs;
+  window.tntUploadDocClick  = WPA_uploadDocClick;
+  window.tntUploadDocFile   = WPA_uploadDocFile;
+  window.WPA_viewDoc        = WPA_viewDoc;
+})();
