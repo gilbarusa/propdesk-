@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOA Phase 2 — API Smoke</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 960px; margin: 24px auto; padding: 0 16px; color: #222;
+    background: #fafafa;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #666; font-size: 12px; margin-bottom: 20px; }
+  .fixtures {
+    background: #eef6ff; border: 1px solid #c9dcee; border-radius: 6px;
+    padding: 12px 16px; margin-bottom: 16px;
+  }
+  .fixtures label {
+    display: inline-block; min-width: 120px; color: #555; font-size: 12px;
+  }
+  .fixtures input {
+    font: inherit; padding: 4px 8px; border: 1px solid #bbb; border-radius: 3px;
+    width: 360px; font-family: ui-monospace, Menlo, monospace; font-size: 12px;
+  }
+  .fixtures .row { margin: 4px 0; }
+  .test {
+    background: #fff; border: 1px solid #ddd; border-radius: 6px;
+    padding: 12px 16px; margin-bottom: 10px;
+  }
+  .test h3 {
+    font-size: 14px; margin: 0 0 6px; display: flex; justify-content: space-between;
+  }
+  .test h3 .status {
+    font-size: 11px; font-weight: normal; padding: 2px 8px; border-radius: 10px;
+    background: #eee; color: #777;
+  }
+  .test h3 .status.ok   { background: #c6f5d1; color: #0a5a1d; }
+  .test h3 .status.fail { background: #f8cfcf; color: #8a1010; }
+  .test h3 .status.run  { background: #fde8b0; color: #7a5a00; }
+  .test .desc  { font-size: 12px; color: #666; margin-bottom: 6px; }
+  .test button {
+    font: inherit; padding: 6px 14px; border: 1px solid #4a6fa5;
+    background: #4a6fa5; color: #fff; border-radius: 4px; cursor: pointer;
+  }
+  .test button:hover  { background: #3b5d8f; }
+  .test button:disabled { background: #aaa; border-color: #aaa; cursor: default; }
+  .test .inline {
+    display: inline-block; padding: 4px 8px; border: 1px solid #bbb;
+    border-radius: 3px; font-family: ui-monospace, Menlo, monospace;
+    font-size: 12px; width: 160px;
+  }
+  pre.result {
+    background: #1e1e1e; color: #eee; padding: 10px 12px; border-radius: 4px;
+    margin: 6px 0 0; overflow-x: auto; font-size: 12px; max-height: 260px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .note { font-size: 12px; color: #888; margin-top: 4px; }
+  .warn { background: #fff3cd; border: 1px solid #ffe28a; padding: 8px 12px;
+          border-radius: 4px; font-size: 12px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+
+<h1>HOA Phase 2 — API smoke</h1>
+<div class="sub">Run each test in order. Click a button → see the response. Token + IDs carry forward automatically.</div>
+
+<div class="warn">
+  <strong>Prerequisites:</strong>
+  <code>HOA_PHASE2_ENABLED = true</code> on live config.php,
+  <code>HOA_PHASE2_ALLOWLIST = ['+12159178700']</code>,
+  <code>SUPABASE_SERVICE_KEY</code> = your <code>sb_secret_…</code>,
+  and <code>hoa_contacts</code> seeded with a row for +12159178700.
+</div>
+
+<div class="fixtures">
+  <div class="row"><label>Phone (allowed):</label><input id="f_phone" value="2159178700"></div>
+  <div class="row"><label>Collision phone:</label><input id="f_collide" value="2155098997"></div>
+  <div class="row"><label>Token:</label><input id="f_token" readonly placeholder="(set by T2)"></div>
+  <div class="row"><label>Selected stay_id:</label><input id="f_stay" readonly placeholder="(set by T2)"></div>
+  <div class="row"><label>Selected unit_id:</label><input id="f_unit" readonly placeholder="(set by T2)"></div>
+  <div class="row"><label>New contact_id:</label><input id="f_newc" readonly placeholder="(set by T5a)"></div>
+</div>
+
+<!-- ── T1 ── -->
+<div class="test" id="test-t1">
+  <h3>T1 · otp_send<span class="status">idle</span></h3>
+  <div class="desc">Send a 6-digit code to the phone above. SMS should arrive on Gil's handset.</div>
+  <button onclick="runT1()">Run T1</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T2 ── -->
+<div class="test" id="test-t2">
+  <h3>T2 · otp_verify<span class="status">idle</span></h3>
+  <div class="desc">Paste the code from SMS → expect <code>pending_selection</code> + HOA owner stays.</div>
+  <input class="inline" id="t2_code" placeholder="6-digit code">
+  <button onclick="runT2()">Run T2</button>
+  <pre class="result"></pre>
+  <div class="note">If one of the returned <code>available_stays</code> is for unit 122 it will be picked automatically. Otherwise the first HOA stay is picked.</div>
+</div>
+
+<!-- ── T3 ── -->
+<div class="test" id="test-t3">
+  <h3>T3 · switch_stay<span class="status">idle</span></h3>
+  <div class="desc">Activate the selected HOA stay. Required before any of T4–T8 will work.</div>
+  <button onclick="runT3()">Run T3</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T4 ── -->
+<div class="test" id="test-t4">
+  <h3>T4 · hoa_invoices_list<span class="status">idle</span></h3>
+  <div class="desc">Should return <code>{"invoices":[]}</code> — no HOA invoices exist yet (prod-safety rule).</div>
+  <button onclick="runT4()">Run T4</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T5 ── -->
+<div class="test" id="test-t5">
+  <h3>T5 · hoa_residents_list (baseline)<span class="status">idle</span></h3>
+  <div class="desc">List current residents on owned units. Note the count for T5a / T7 checks.</div>
+  <button onclick="runT5()">Run T5</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T5a ── -->
+<div class="test" id="test-t5a">
+  <h3>T5a · hoa_resident_create (fresh phone)<span class="status">idle</span></h3>
+  <div class="desc">Create a test resident on the selected unit with a never-used phone (555-01 range).</div>
+  <button onclick="runT5a()">Run T5a</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T5d ── -->
+<div class="test" id="test-t5d">
+  <h3>T5d · hoa_resident_create (tenant collision)<span class="status">idle</span></h3>
+  <div class="desc">Try to create a resident with phone that already exists in <code>tenants_lt</code>. Must fail with HTTP 409 + "phone number already exists".</div>
+  <button onclick="runT5d()">Run T5d</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T5d' ── -->
+<div class="test" id="test-t5dp">
+  <h3>T5d′ · hoa_resident_create (self collision)<span class="status">idle</span></h3>
+  <div class="desc">Try to create a resident with the owner's own phone. Must also fail with 409.</div>
+  <button onclick="runT5dp()">Run T5d′</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T6 ── -->
+<div class="test" id="test-t6">
+  <h3>T6 · hoa_resident_update<span class="status">idle</span></h3>
+  <div class="desc">Rename the T5a resident → <code>SmokeRenamed</code>.</div>
+  <button onclick="runT6()">Run T6</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T7 ── -->
+<div class="test" id="test-t7">
+  <h3>T7 · hoa_resident_deactivate<span class="status">idle</span></h3>
+  <div class="desc">Deactivate the T5a resident. Re-run T5 after to confirm they disappear from the list.</div>
+  <button onclick="runT7()">Run T7</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T8 ── -->
+<div class="test" id="test-t8">
+  <h3>T8 · hoa_documents_list<span class="status">idle</span></h3>
+  <div class="desc">Expect <code>{"documents":[]}</code> — nothing uploaded yet.</div>
+  <button onclick="runT8()">Run T8</button>
+  <pre class="result"></pre>
+</div>
+
+<!-- ── T9 ── -->
+<div class="test" id="test-t9">
+  <h3>T9 · pay.php with bogus HOA id<span class="status">idle</span></h3>
+  <div class="desc">Negative path. Must return a clean 404, not a 500 / blank page.</div>
+  <button onclick="runT9()">Run T9</button>
+  <pre class="result"></pre>
+</div>
+
+<script>
+// ═════════════════════════════════════════════════════════════════════════════
+//  API base — the page is served same-origin from app.willowpa.com so a
+//  relative path works. If someone opens this file from a different host
+//  it will still work because fetch() will target that host's /api/.
+// ═════════════════════════════════════════════════════════════════════════════
+const BASE_API = '/api/';
+const BASE_PAY = '/pay.php';
+
+function $(id) { return document.getElementById(id); }
+function resultEl(tId) { return $('test-' + tId).querySelector('pre.result'); }
+function statusEl(tId) { return $('test-' + tId).querySelector('.status'); }
+function setStatus(tId, state, label) {
+  const e = statusEl(tId);
+  e.className = 'status ' + state;
+  e.textContent = label || state;
+}
+function showResult(tId, obj) {
+  resultEl(tId).textContent =
+    typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+}
+
+async function api(action, body, extras) {
+  const token = $('f_token').value;
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  let resp, parsed, err;
+  try {
+    resp = await fetch(BASE_API + '?action=' + encodeURIComponent(action), {
+      method:  'POST',
+      headers,
+      body:    JSON.stringify(body || {}),
+    });
+    const text = await resp.text();
+    try { parsed = JSON.parse(text); } catch (_) { parsed = text; }
+  } catch (e) { err = e.message; }
+  return {
+    http:    resp ? resp.status : 0,
+    ok:      resp ? resp.ok     : false,
+    data:    parsed,
+    error:   err || null,
+    action:  action,
+    request: body || {},
+    ...(extras || {}),
+  };
+}
+
+// ─── T1 ───────────────────────────────────────────────────────────────────
+async function runT1() {
+  setStatus('t1', 'run', 'running…');
+  const phone = $('f_phone').value.trim();
+  const r = await api('otp_send', { phone });
+  showResult('t1', r);
+  setStatus('t1', r.http === 200 && r.data && r.data.ok ? 'ok' : 'fail',
+            r.http === 200 && r.data && r.data.ok ? 'ok — check SMS' : 'fail');
+}
+
+// ─── T2 ───────────────────────────────────────────────────────────────────
+async function runT2() {
+  setStatus('t2', 'run', 'running…');
+  const phone = $('f_phone').value.trim();
+  const code  = $('t2_code').value.trim();
+  if (!code) {
+    showResult('t2', 'Enter the 6-digit code from SMS first.');
+    setStatus('t2', 'fail'); return;
+  }
+  const r = await api('otp_verify', { phone, code });
+  showResult('t2', r);
+  if (!(r.http === 200 && r.data && r.data.token)) {
+    setStatus('t2', 'fail'); return;
+  }
+  $('f_token').value = r.data.token;
+
+  // Pick an HOA stay. Prefer unit 122 if present, else first HOA stay.
+  const stays = r.data.available_stays || r.data.stays || [];
+  const hoaStays = stays.filter(s =>
+    (s.kind || s.stay_kind || '').toString().toLowerCase().includes('hoa'));
+  const pick = hoaStays.find(s => (s.unit_apt || '').toString() === '122')
+            || hoaStays[0];
+  if (pick) {
+    $('f_stay').value = pick.stay_id || pick.id || '';
+    $('f_unit').value = pick.unit_id || '';
+    setStatus('t2', 'ok', 'ok — ' + hoaStays.length + ' HOA stay(s)');
+  } else {
+    setStatus('t2', 'fail', 'no HOA stays returned');
+  }
+}
+
+// ─── T3 ───────────────────────────────────────────────────────────────────
+async function runT3() {
+  setStatus('t3', 'run', 'running…');
+  const stay_id = $('f_stay').value.trim();
+  if (!stay_id) {
+    showResult('t3', 'No stay_id selected — run T2 first.');
+    setStatus('t3', 'fail'); return;
+  }
+  const r = await api('switch_stay', { stay_id });
+  showResult('t3', r);
+  setStatus('t3', r.http === 200 && r.data && r.data.ok ? 'ok' : 'fail');
+}
+
+// ─── T4 ───────────────────────────────────────────────────────────────────
+async function runT4() {
+  setStatus('t4', 'run', 'running…');
+  const r = await api('hoa_invoices_list', {});
+  showResult('t4', r);
+  // We accept empty array OR missing key with no error.
+  const empty = r.http === 200 && r.data
+             && Array.isArray(r.data.invoices) && r.data.invoices.length === 0;
+  setStatus('t4', empty ? 'ok' : (r.http === 200 ? 'ok' : 'fail'),
+            empty ? 'ok — empty' : (r.http === 200 ? 'ok — ' + (r.data.invoices||[]).length : 'fail'));
+}
+
+// ─── T5 ───────────────────────────────────────────────────────────────────
+async function runT5() {
+  setStatus('t5', 'run', 'running…');
+  const r = await api('hoa_residents_list', {});
+  showResult('t5', r);
+  setStatus('t5', r.http === 200 ? 'ok' : 'fail',
+            r.http === 200 ? 'ok — ' + ((r.data.residents || []).length) + ' resident(s)' : 'fail');
+}
+
+// ─── T5a ──────────────────────────────────────────────────────────────────
+async function runT5a() {
+  setStatus('t5a', 'run', 'running…');
+  const unit_id = $('f_unit').value.trim();
+  if (!unit_id) {
+    showResult('t5a', 'No unit_id — run T2 first.');
+    setStatus('t5a', 'fail'); return;
+  }
+  const r = await api('hoa_resident_create', {
+    unit_id,
+    first_name: 'Smoke',
+    last_name:  'Test',
+    email:      'smoke+t5a@willowpa.com',
+    phone:      '2155550199',   // 555-01xx reserved — never a real person
+  });
+  showResult('t5a', r);
+  if (r.http === 200 && r.data && r.data.ok && r.data.contact_id) {
+    $('f_newc').value = r.data.contact_id;
+    setStatus('t5a', 'ok');
+  } else {
+    setStatus('t5a', 'fail');
+  }
+}
+
+// ─── T5d ──────────────────────────────────────────────────────────────────
+async function runT5d() {
+  setStatus('t5d', 'run', 'running…');
+  const unit_id  = $('f_unit').value.trim();
+  const collide  = $('f_collide').value.trim();
+  const r = await api('hoa_resident_create', {
+    unit_id,
+    first_name: 'Collision',
+    last_name:  'Attempt',
+    email:      'collide@willowpa.com',
+    phone:      collide,
+  });
+  showResult('t5d', r);
+  const blocked = r.http === 409
+               && r.data
+               && /already exists/i.test(r.data.error || '');
+  setStatus('t5d', blocked ? 'ok' : 'fail',
+            blocked ? 'ok — blocked 409' : 'fail');
+}
+
+// ─── T5d′ ─────────────────────────────────────────────────────────────────
+async function runT5dp() {
+  setStatus('t5dp', 'run', 'running…');
+  const unit_id  = $('f_unit').value.trim();
+  const phone    = $('f_phone').value.trim();
+  const r = await api('hoa_resident_create', {
+    unit_id,
+    first_name: 'Self',
+    last_name:  'Collide',
+    phone,
+  });
+  showResult('t5dp', r);
+  const blocked = r.http === 409
+               && r.data
+               && /already exists/i.test(r.data.error || '');
+  setStatus('t5dp', blocked ? 'ok' : 'fail',
+            blocked ? 'ok — blocked 409' : 'fail');
+}
+
+// ─── T6 ───────────────────────────────────────────────────────────────────
+async function runT6() {
+  setStatus('t6', 'run', 'running…');
+  const contact_id = $('f_newc').value.trim();
+  const unit_id    = $('f_unit').value.trim();
+  if (!contact_id) {
+    showResult('t6', 'No contact_id — run T5a first.');
+    setStatus('t6', 'fail'); return;
+  }
+  const r = await api('hoa_resident_update', {
+    contact_id, unit_id, first_name: 'SmokeRenamed',
+  });
+  showResult('t6', r);
+  setStatus('t6', r.http === 200 && r.data && r.data.ok ? 'ok' : 'fail');
+}
+
+// ─── T7 ───────────────────────────────────────────────────────────────────
+async function runT7() {
+  setStatus('t7', 'run', 'running…');
+  const contact_id = $('f_newc').value.trim();
+  const unit_id    = $('f_unit').value.trim();
+  if (!contact_id) {
+    showResult('t7', 'No contact_id — run T5a first.');
+    setStatus('t7', 'fail'); return;
+  }
+  const r = await api('hoa_resident_deactivate', { contact_id, unit_id });
+  showResult('t7', r);
+  setStatus('t7', r.http === 200 && r.data && r.data.ok ? 'ok' : 'fail');
+}
+
+// ─── T8 ───────────────────────────────────────────────────────────────────
+async function runT8() {
+  setStatus('t8', 'run', 'running…');
+  const r = await api('hoa_documents_list', {});
+  showResult('t8', r);
+  setStatus('t8', r.http === 200 ? 'ok' : 'fail',
+            r.http === 200 ? 'ok — ' + ((r.data.documents || []).length) + ' doc(s)' : 'fail');
+}
+
+// ─── T9 ───────────────────────────────────────────────────────────────────
+async function runT9() {
+  setStatus('t9', 'run', 'running…');
+  const token = $('f_token').value;
+  const headers = {};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  let resp, text;
+  try {
+    resp = await fetch(BASE_PAY + '?action=pay&pr=hoa_bogus_invoice_id_does_not_exist', {
+      method: 'GET', headers,
+    });
+    text = await resp.text();
+  } catch (e) { text = e.message; }
+  showResult('t9', {
+    http:  resp ? resp.status : 0,
+    body:  text.slice(0, 500),
+  });
+  setStatus('t9',
+    resp && resp.status === 404 ? 'ok' : 'fail',
+    resp ? 'HTTP ' + resp.status : 'network error');
+}
+</script>
+</body>
+</html>
