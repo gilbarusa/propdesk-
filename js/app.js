@@ -2631,7 +2631,10 @@ window.addEventListener('DOMContentLoaded', function(){
 
 // Sub-tab configs per module
 const MODULE_SUB_TABS = {
-  'dashboard':   [{label:'Overview',    page:'dashboard'},  {label:'Units', page:'units'}, {label:'Properties', page:'properties'}, {label:'Reports', page:'reports'}],
+  // Phase A nav refactor (2026-04-23): Expenses moved here from the module
+  // bar. Clicking this sub-tab still triggers showSubPage('expenses',…),
+  // which routes to the existing #page-expenses renderer — no logic change.
+  'dashboard':   [{label:'Overview',    page:'dashboard'},  {label:'Units', page:'units'}, {label:'Properties', page:'properties'}, {label:'💰 Expenses', page:'expenses'}, {label:'Reports', page:'reports'}],
   'short-term':  [{label:'Dashboard',   page:'st-dashboard'},  {label:'Pipeline', page:'pipeline'}, {label:'Calendar', page:'calendar'}, {label:'Units', page:'units'}, {label:'Messages', page:'messages'}, {label:'Archive', page:'history'}],
   'mtm-lt':      [{label:'Dashboard',   page:'mtm-lt'},     {label:'Tenants', page:'mtm-lt-tenants'}, {label:'Leases', page:'mtm-lt-leases'}, {label:'Rent', page:'mtm-lt-rent'}, {label:'Applications', page:'mtm-lt-applications'}, {label:'Messages', page:'mtm-lt-messages'}],
   'expenses':    [{label:'All',         page:'expenses'},   {label:'By Property', page:'expenses', expView:'property'}, {label:'By Category', page:'expenses', expView:'category'}],
