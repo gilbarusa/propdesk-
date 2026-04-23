@@ -468,6 +468,11 @@
   let _unitsSearch = '';
   let _unitsSort   = 'unit-asc';   // 3B.3: sort state for the units grid
   let _unitsBalances = {};   // unit_id → outstanding balance (cached per render)
+  let _unitsSearchTimer = null;    // 3B.3 iter3: debounce so typing doesn't
+                                   // trigger re-render on every keystroke
+  let _unitsSearchRestoreFocus = false;  // set when the search field was
+                                         // the trigger so we can refocus
+                                         // after render replaces the input
   async function renderUnits() {
     await refreshCache(['communities','units','contacts']);
     const box = document.getElementById('hoa-units-list');
@@ -673,8 +678,28 @@
     });
     h += '</tbody></table>';
     box.innerHTML = h;
+
+    // Restore focus to the search input if the user was typing when
+    // render fired. Caret placed at end of the current value.
+    if (_unitsSearchRestoreFocus) {
+      _unitsSearchRestoreFocus = false;
+      const inp = document.getElementById('hoaUnitsSearch');
+      if (inp) {
+        inp.focus();
+        const n = inp.value.length;
+        try { inp.setSelectionRange(n, n); } catch (_) {}
+      }
+    }
   }
-  function setUnitsSearch(v) { _unitsSearch = v || ''; renderUnits(); }
+  // Debounced so every character doesn't re-render. After ~180ms of
+  // silence we run the render and re-focus the search box with the
+  // caret restored to the end. Snappy but doesn't interrupt typing.
+  function setUnitsSearch(v) {
+    _unitsSearch = v || '';
+    _unitsSearchRestoreFocus = true;
+    clearTimeout(_unitsSearchTimer);
+    _unitsSearchTimer = setTimeout(() => { renderUnits(); }, 180);
+  }
   function setUnitsSort(v)   { _unitsSort   = v || 'unit-asc'; renderUnits(); }
   // Header-click sort toggle (Phase 3B.3 iter 2).
   //   If the clicked header is already the active sort column, flip asc↔desc.
