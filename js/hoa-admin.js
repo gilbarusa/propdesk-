@@ -1,4 +1,5 @@
-// hoa-admin.js — PropDesk HOA admin CRUD (Phase 1b)
+// hoa-admin.js — PropDesk HOA admin CRUD (Phase 3B.4 · 2026-04-23)
+console.log('[hoa-admin] loaded v20260423-phase3b.9 — violations tab added');
 // ----------------------------------------------------------------------------
 // Self-contained module. Depends on:
 //   * window.sb           — Supabase client (exposed by app.js)
@@ -846,6 +847,8 @@
           'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">📄 Docs <span id="hoaUDDocsCount" style="font-size:10px;color:#9e9485;"></span></div>' +
         '<div class="hoa-ud-tab" data-tab="wo" onclick="WPA_hoaUDSwitchTab(\'wo\')" ' +
           'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">🔧 Work Orders <span id="hoaUDWOCount" style="font-size:10px;color:#9e9485;"></span></div>' +
+        '<div class="hoa-ud-tab" data-tab="viol" onclick="WPA_hoaUDSwitchTab(\'viol\')" ' +
+          'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">⚠ Violations <span id="hoaUDViolCount" style="font-size:10px;color:#9e9485;"></span></div>' +
       '</div>' +
 
       // ── Main tab pane (preserved — roster + charges + ledger + notes) ─
@@ -866,6 +869,11 @@
         '<div id="hoaUDWO"><em style="color:#9e9485;">Loading work orders…</em></div>' +
       '</div>' +
 
+      // ── Violations tab pane (3B.4 iter 2) ─────────────────────────
+      '<div class="hoa-ud-pane" data-pane="viol" style="display:none;">' +
+        '<div id="hoaUDViolations"><em style="color:#9e9485;">Loading violations…</em></div>' +
+      '</div>' +
+
       '<input type="hidden" id="hoaUDUnitId" value="' + esc(unitId) + '">';
 
     openModal(html);
@@ -878,6 +886,7 @@
     renderUDNotes(unitId, unit);
     renderUDDocs(unitId);
     renderUDWorkOrders(unitId, unit);
+    renderUDViolations(unitId);
   }
 
   // ─── Tab switcher for the unit detail ──────────────────────────────
@@ -1740,6 +1749,120 @@
     box.innerHTML = h;
   }
 
+  // ═════════════════════════════════════════════════════════════════════
+  //  VIOLATIONS TAB (Phase 3B.4 iter 2 · 2026-04-23)
+  //  Internal record-only log. Not tied to invoices. Admin-facing.
+  // ═════════════════════════════════════════════════════════════════════
+  async function renderUDViolations(unitId) {
+    const s = await hoaSupa();
+    const { data, error } = await s.from('hoa_unit_violations')
+      .select('id,occurred_on,subject,description,recorded_by,is_active,created_at')
+      .eq('unit_id', unitId)
+      .eq('is_active', true)
+      .order('occurred_on', { ascending: false });
+    const box = document.getElementById('hoaUDViolations');
+    const badge = document.getElementById('hoaUDViolCount');
+    if (!box) return;
+    if (error) { box.innerHTML = '<div style="color:#a22;">Error: ' + esc(error.message) + '</div>'; return; }
+
+    const rows = data || [];
+    if (badge) {
+      badge.textContent = rows.length ? (' (' + rows.length + ')') : '';
+    }
+
+    let h =
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">' +
+        '<h4 style="font-size:13px;margin:0;color:#3a3428;">⚠ Violations · internal log</h4>' +
+        btn('＋ Add violation', "WPA_hoaUDShowAddViolation('" + unitId + "')", 'primary') +
+      '</div>' +
+      '<div style="font-size:11px;color:#9e9485;margin-bottom:10px;">' +
+      'Records-only log for internal review. Not visible to owners in the portal. Doesn\'t create invoices.' +
+      '</div>';
+
+    if (!rows.length) {
+      h += '<div style="padding:18px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;">' +
+           'No violations recorded for this unit.' +
+           '</div>';
+    } else {
+      h += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+        '<thead><tr style="background:#faf6ee;text-align:left;">' +
+        '<th style="padding:6px 8px;width:100px;">Date</th>' +
+        '<th style="padding:6px 8px;">Subject</th>' +
+        '<th style="padding:6px 8px;">Details</th>' +
+        '<th style="padding:6px 8px;">Recorded by</th>' +
+        '<th style="padding:6px 8px;width:90px;"></th>' +
+        '</tr></thead><tbody>';
+      rows.forEach(v => {
+        const desc = (v.description || '').trim();
+        const preview = desc.length > 160 ? desc.slice(0, 160) + '…' : desc;
+        h += '<tr style="border-bottom:1px solid #f0ebe2;">' +
+             '<td style="padding:6px 8px;font-size:11px;">' + esc(v.occurred_on || '—') + '</td>' +
+             '<td style="padding:6px 8px;"><strong>' + esc(v.subject) + '</strong></td>' +
+             '<td style="padding:6px 8px;font-size:11px;color:#5a5040;white-space:pre-wrap;">' + esc(preview || '—') + '</td>' +
+             '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' + esc(v.recorded_by || '—') + '</td>' +
+             '<td style="padding:6px 8px;">' +
+                btn('Delete', "WPA_hoaUDDeleteViolation('" + v.id + "','" + unitId + "')") +
+             '</td>' +
+             '</tr>';
+      });
+      h += '</tbody></table>';
+    }
+    h += '<div id="hoaUDViolForm" style="display:none;margin-top:12px;"></div>';
+    box.innerHTML = h;
+  }
+
+  function udShowAddViolation(unitId) {
+    const box = document.getElementById('hoaUDViolForm');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div style="background:#fff3cd;padding:12px 14px;border-radius:6px;border-left:3px solid #d4a32b;">' +
+      '<h5 style="margin:0 0 8px;font-size:12px;color:#6a5020;">⚠ Record violation</h5>' +
+      row('Date',    inp('hoaUDViolDate', new Date().toISOString().slice(0,10), 'type="date"')) +
+      row('Subject', inp('hoaUDViolSubject', ''), 'Short title — e.g. "Parking in guest spot", "Unapproved satellite dish".') +
+      row('Details', txa('hoaUDViolDesc', '')) +
+      '<input type="hidden" id="hoaUDViolUnitId" value="' + esc(unitId) + '">' +
+      actionsBar([
+        btn('Cancel', 'WPA_hoaUDHideAddViolation()'),
+        btn('Save',   'WPA_hoaUDSaveViolation()', 'primary'),
+      ]) +
+      '</div>';
+  }
+  function udHideAddViolation() {
+    const box = document.getElementById('hoaUDViolForm');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  }
+  async function udSaveViolation() {
+    const s       = await hoaSupa();
+    const unitId  = readField('hoaUDViolUnitId');
+    const date    = readField('hoaUDViolDate') || new Date().toISOString().slice(0,10);
+    const subject = readField('hoaUDViolSubject');
+    const desc    = readField('hoaUDViolDesc') || null;
+    if (!subject) { hoaToast('Subject required', 'error'); return; }
+    const u = findUnit(unitId);
+    const { error } = await s.from('hoa_unit_violations').insert({
+      unit_id:      unitId,
+      community_id: u ? u.community_id : null,
+      occurred_on:  date,
+      subject:      subject,
+      description:  desc,
+      recorded_by:  'admin-ui',
+      is_active:    true,
+    });
+    if (error) return hoaToast('Save error: ' + error.message, 'error');
+    hoaToast('Violation recorded ✓', 'success');
+    udHideAddViolation();
+    await renderUDViolations(unitId);
+  }
+  async function udDeleteViolation(violationId, unitId) {
+    if (!confirm('Delete this violation record? This cannot be undone.')) return;
+    const s = await hoaSupa();
+    const { error } = await s.from('hoa_unit_violations').delete().eq('id', violationId);
+    if (error) return hoaToast('Delete error: ' + error.message, 'error');
+    hoaToast('Deleted', 'success');
+    await renderUDViolations(unitId);
+  }
+
   // Make charge types available to the "Add charge" form.
   async function ensureChargeTypesLoaded() {
     if (cache._chargeTypes) return;
@@ -2307,6 +2430,11 @@
   window.WPA_hoaUDSaveDoc           = udSaveDoc;
   window.WPA_hoaUDMarkDocReviewed   = udMarkDocReviewed;
   window.WPA_hoaUDDeleteDoc         = udDeleteDoc;
+  // Phase 3B.4 iter 2 — violations log
+  window.WPA_hoaUDShowAddViolation  = udShowAddViolation;
+  window.WPA_hoaUDHideAddViolation  = udHideAddViolation;
+  window.WPA_hoaUDSaveViolation     = udSaveViolation;
+  window.WPA_hoaUDDeleteViolation   = udDeleteViolation;
 
   window.WPA_hoaSetContactsSearch   = setContactsSearch;
   window.WPA_hoaOpenContactForm     = openContactForm;
