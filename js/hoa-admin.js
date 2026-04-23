@@ -465,33 +465,49 @@
 
   // ── UNITS ─────────────────────────────────────────────────────────────────
   let _unitsFilterCommunity = '';
+  let _unitsSearch = '';
+  let _unitsSort   = 'unit-asc';   // 3B.3: sort state for the units grid
+  let _unitsBalances = {};   // unit_id → outstanding balance (cached per render)
   async function renderUnits() {
-    await refreshCache(['communities','units']);
+    await refreshCache(['communities','units','contacts']);
     const box = document.getElementById('hoa-units-list');
     if (!box) return;
-    // Filter bar
-    const commOpts = [{ value:'', label:'— all communities —' }].concat(cache.communities.map(c => ({ value:c.id, label:c.name })));
-    let h = '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;">' +
-            '<label style="font-size:11px;color:#635c4e;">Filter by community</label>' +
-            sel('hoaUnitsFilter', commOpts, _unitsFilterCommunity) +
-            '</div>' +
-            '<script>document.getElementById("hoaUnitsFilter")?.addEventListener("change",function(){WPA_hoaSetUnitsFilter(this.value);});<\/script>';
+
+    // Top toolbar: community filter + search + sort + "New Unit" button.
+    const commOpts = [{ value:'', label:'— all communities —' }].concat(
+      cache.communities.map(c => ({ value:c.id, label:c.name })));
+    const sortOpts = [
+      { value:'unit-asc',     label:'Unit # (A→Z)' },
+      { value:'unit-desc',    label:'Unit # (Z→A)' },
+      { value:'owner-asc',    label:'Owner (A→Z)' },
+      { value:'owner-desc',   label:'Owner (Z→A)' },
+      { value:'balance-desc', label:'Balance (highest first)' },
+      { value:'balance-asc',  label:'Balance (lowest first)' },
+      { value:'community',    label:'Community' },
+    ];
+    let h =
+      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">' +
+        '<label style="font-size:11px;color:#635c4e;">Community</label>' +
+        sel('hoaUnitsFilter', commOpts, _unitsFilterCommunity) +
+        '<input id="hoaUnitsSearch" type="text" placeholder="Search unit #, owner, phone, email…" ' +
+          'value="' + esc(_unitsSearch) + '" ' +
+          'style="flex:1;min-width:220px;padding:6px 10px;border:1px solid #d9d3c5;' +
+                 'border-radius:4px;font:inherit;font-size:12px;">' +
+        '<label style="font-size:11px;color:#635c4e;">Sort</label>' +
+        sel('hoaUnitsSort', sortOpts, _unitsSort) +
+        btn('＋ New Unit', 'WPA_hoaOpenUnitForm()', 'primary') +
+      '</div>' +
+      '<script>' +
+        'document.getElementById("hoaUnitsFilter")?.addEventListener("change",function(){WPA_hoaSetUnitsFilter(this.value);});' +
+        'document.getElementById("hoaUnitsSearch")?.addEventListener("input",function(){WPA_hoaSetUnitsSearch(this.value);});' +
+        'document.getElementById("hoaUnitsSort")?.addEventListener("change",function(){WPA_hoaSetUnitsSort(this.value);});' +
+      '<\/script>';
+
+    // Build initial row list.
     let rows = cache.units;
     if (_unitsFilterCommunity) rows = rows.filter(u => u.community_id === _unitsFilterCommunity);
-    if (!rows.length) {
-      h += emptyBox('🏢', 'No units for this filter.', '＋ New Unit', 'WPA_hoaOpenUnitForm()');
-      box.innerHTML = h;
-      return;
-    }
 
-    // Phase 3B.2 (2026-04-23): the Active column is gone — units are
-    // permanent. Instead we surface the PRIMARY OWNER's name / phone /
-    // email so the unit list doubles as a directory. Row is clickable
-    // to open the detail modal.
-    //
-    // We need to know each unit's primary owner. Fetch in one batch
-    // call from hoa_unit_contacts, filtered to is_active + is_primary
-    // + owner-like relationship types.
+    // Primary-owner lookup for every unit on screen.
     const s = await hoaSupa();
     const unitIds = rows.map(u => u.id);
     const primaryByUnit = {};
@@ -504,11 +520,102 @@
         .in('relationship_type', ['owner', 'owner_resident']);
       (ucRows || []).forEach(r => { primaryByUnit[r.unit_id] = r.contact_id; });
     }
-    await refreshCache(['contacts']);
 
+    // Outstanding balance per unit — one query, client-side aggregate.
+    // Phase 3B.3: surface it as a grid column so admins see at-a-glance
+    // who's behind.
+    _unitsBalances = {};
+    if (unitIds.length) {
+      const { data: invRows } = await s.from('invoices')
+        .select('unit_id,total,paid,status')
+        .in('unit_id', unitIds);
+      (invRows || []).forEach(i => {
+        const v = Number(i.total || 0) - Number(i.paid || 0);
+        if ((i.status || '').toLowerCase() === 'void') return;
+        _unitsBalances[i.unit_id] = (_unitsBalances[i.unit_id] || 0) + v;
+      });
+    }
+
+    // Client-side search filter across unit_label + owner fields +
+    // building/floor + parking/storage. Applied AFTER community filter.
+    if (_unitsSearch && _unitsSearch.trim().length) {
+      const q = _unitsSearch.trim().toLowerCase();
+      rows = rows.filter(u => {
+        const own = findContact(primaryByUnit[u.id]);
+        const bag = [
+          u.unit_label, u.building_label, u.floor_label,
+          u.parking_tag, u.storage_unit, u.notes,
+          own ? own.full_name : '', own ? own.first_name : '',
+          own ? own.last_name : '', own ? own.email : '',
+          own ? own.phone : '',     own ? own.phone_e164 : '',
+        ].filter(Boolean).join(' ').toLowerCase();
+        return bag.indexOf(q) !== -1;
+      });
+    }
+
+    // Sort (3B.3). Helpers pull owner name from the primary lookup +
+    // contacts cache so sorting by owner works even though it's not a
+    // column on hoa_units itself.
+    const ownerNameOf = u => {
+      const own = findContact(primaryByUnit[u.id]);
+      if (!own) return '';
+      return (own.full_name
+           || [own.first_name, own.last_name].filter(Boolean).join(' ')
+           || own.email || own.phone_e164 || '').toLowerCase();
+    };
+    const commNameOf = u => {
+      const c = findCommunity(u.community_id);
+      return (c ? (c.name || c.display_name || '') : '').toLowerCase();
+    };
+    const unitKey = u => (u.unit_label || '').toString();
+    // "Natural" compare so "2" < "10" < "211" instead of string order.
+    const natCmp = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    switch (_unitsSort) {
+      case 'unit-desc':
+        rows = rows.slice().sort((a, b) => natCmp(unitKey(b), unitKey(a)));
+        break;
+      case 'owner-asc':
+        rows = rows.slice().sort((a, b) => ownerNameOf(a).localeCompare(ownerNameOf(b)) || natCmp(unitKey(a), unitKey(b)));
+        break;
+      case 'owner-desc':
+        rows = rows.slice().sort((a, b) => ownerNameOf(b).localeCompare(ownerNameOf(a)) || natCmp(unitKey(a), unitKey(b)));
+        break;
+      case 'balance-desc':
+        rows = rows.slice().sort((a, b) =>
+          Number(_unitsBalances[b.id] || 0) - Number(_unitsBalances[a.id] || 0) ||
+          natCmp(unitKey(a), unitKey(b)));
+        break;
+      case 'balance-asc':
+        rows = rows.slice().sort((a, b) =>
+          Number(_unitsBalances[a.id] || 0) - Number(_unitsBalances[b.id] || 0) ||
+          natCmp(unitKey(a), unitKey(b)));
+        break;
+      case 'community':
+        rows = rows.slice().sort((a, b) =>
+          commNameOf(a).localeCompare(commNameOf(b)) ||
+          natCmp(unitKey(a), unitKey(b)));
+        break;
+      case 'unit-asc':
+      default:
+        rows = rows.slice().sort((a, b) => natCmp(unitKey(a), unitKey(b)));
+    }
+
+    if (!rows.length) {
+      h += emptyBox('🏢',
+        _unitsSearch ? 'No units match "' + _unitsSearch + '".' : 'No units for this filter.',
+        '＋ New Unit', 'WPA_hoaOpenUnitForm()');
+      box.innerHTML = h;
+      return;
+    }
+
+    // Grid — row is clickable (no separate Details/Edit buttons; Edit
+    // lives inside the detail modal header per Gil 2026-04-23).
+    h += '<div style="font-size:11px;color:#9e9485;margin-bottom:4px;">' +
+           rows.length + ' unit' + (rows.length === 1 ? '' : 's') + ' shown' +
+         '</div>';
     h += '<table class="hoa-tbl" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f7f4ef;text-align:left;">' +
          th('Community') + th('Unit') + th('Owner') + th('Phone') + th('Email') +
-         th('Parking') + th('Storage') + th('') +
+         th('Parking') + th('Storage') + th('Balance') +
          '</tr></thead><tbody>';
     rows.forEach(u => {
       const c  = findCommunity(u.community_id);
@@ -521,10 +628,16 @@
         : '—';
       const ownerPhone = owner ? (owner.phone_e164 || owner.phone || '—') : '—';
       const ownerEmail = owner ? (owner.email || '—') : '—';
-      // Whole row is clickable; onclick uses the Details modal. Inner
-      // action buttons stopPropagation so they don't double-fire.
+      const bal        = Number(_unitsBalances[u.id] || 0);
+      const balCell = bal > 0
+        ? '<strong style="color:#a22;">' + fmtMoney(bal) + '</strong>'
+        : bal < 0
+          ? '<strong style="color:#2c7a3f;">credit ' + fmtMoney(-bal) + '</strong>'
+          : '<span style="color:#2c7a3f;">$0.00</span>';
       h += '<tr class="hoa-unit-row" style="border-bottom:1px solid #f0ebe2;cursor:pointer;" ' +
-             'onclick="WPA_hoaOpenUnitDetail(\'' + u.id + '\')">' +
+             'onclick="WPA_hoaOpenUnitDetail(\'' + u.id + '\')" ' +
+             'onmouseover="this.style.background=\'#faf6ee\';" ' +
+             'onmouseout="this.style.background=\'\';">' +
            td(esc(c ? c.name : '—')) +
            td('<strong>' + esc(u.unit_label) + '</strong>' +
               (u.building_label ? '<br><span style="color:#9e9485;font-size:10px;">' +
@@ -535,15 +648,14 @@
            td('<span style="font-size:11px;">' + esc(ownerEmail) + '</span>') +
            td('<span style="font-size:11px;">' + esc(u.parking_tag  || '—') + '</span>') +
            td('<span style="font-size:11px;">' + esc(u.storage_unit || '—') + '</span>') +
-           td('<span onclick="event.stopPropagation();">' +
-                btn('🔍 Details', "WPA_hoaOpenUnitDetail('" + u.id + "')") + ' ' +
-                btn('Edit',       "WPA_hoaOpenUnitForm('" + u.id + "')") +
-              '</span>') +
+           td(balCell) +
            '</tr>';
     });
     h += '</tbody></table>';
     box.innerHTML = h;
   }
+  function setUnitsSearch(v) { _unitsSearch = v || ''; renderUnits(); }
+  function setUnitsSort(v)   { _unitsSort   = v || 'unit-asc'; renderUnits(); }
   function setUnitsFilter(v) { _unitsFilterCommunity = v || ''; renderUnits(); }
 
   function openUnitForm(id) {
@@ -650,7 +762,19 @@
             esc(comm ? (comm.display_name || comm.name) : '(community)') +
           '</div>' +
         '</div>' +
-        '<button onclick="WPA_hoaCloseModal()" style="font:inherit;font-size:14px;border:none;background:transparent;cursor:pointer;color:#7e7567;">✕</button>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          // Edit-unit button — opens the basic fields form. Unit-scoped
+          // data (owners/charges/notes/parking/storage) is edited inline
+          // within this modal; the "edit" shortcut covers fields that
+          // live directly on hoa_units.
+          '<button onclick="WPA_hoaOpenUnitForm(\'' + esc(unitId) + '\')" ' +
+            'style="font:inherit;font-size:11px;padding:4px 10px;border:1px solid #d9d3c5;' +
+                   'background:#faf6ee;color:#3a3428;border-radius:4px;cursor:pointer;">' +
+            '✎ Edit unit</button>' +
+          '<button onclick="WPA_hoaCloseModal()" ' +
+            'style="font:inherit;font-size:14px;border:none;background:transparent;' +
+                   'cursor:pointer;color:#7e7567;">✕</button>' +
+        '</div>' +
       '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">' + tileHtml + '</div>' +
       '<div id="hoaUDRoster"  style="margin-top:16px;"><em style="color:#9e9485;">Loading owners…</em></div>' +
@@ -1106,9 +1230,26 @@
       '<th style="padding:6px 8px;text-align:right;">Charge</th>' +
       '<th style="padding:6px 8px;text-align:right;">Payment</th>' +
       '<th style="padding:6px 8px;text-align:right;">Balance</th>' +
+      '<th style="padding:6px 8px;"></th>' +
       '</tr></thead><tbody>';
+    // Pre-compute outstanding per-invoice so the "Record payment"
+    // default amount is right.
+    const outstandingByInv = {};
+    (invs || []).forEach(inv => {
+      const outstanding = Number(inv.total || 0) - Number(inv.paid || 0);
+      outstandingByInv[inv.id] = { outstanding, total: Number(inv.total || 0), paid: Number(inv.paid || 0) };
+    });
     events.forEach(e => {
       const isCharge = e.kind === 'charge';
+      // Only show Record-payment action on charge rows that still have
+      // a balance to pay. Payments rows get no action.
+      const invInfo = isCharge && e.invId ? outstandingByInv[e.invId] : null;
+      const showRecord = invInfo && invInfo.outstanding > 0.005;
+      const actionCell = showRecord
+        ? btn('Record payment', "WPA_hoaUDShowRecordPayment('" +
+            e.invId + "','" + unitId + "'," +
+            invInfo.outstanding.toFixed(2) + ")")
+        : '';
       h += '<tr style="border-bottom:1px solid #f0ebe2;' +
            (isCharge ? '' : 'background:#f9fdf9;') + '">' +
            '<td style="padding:6px 8px;font-size:11px;">' + esc(e.date || '—') + '</td>' +
@@ -1123,9 +1264,11 @@
              (e.balance > 0 ? '600' : '400') + ';color:' +
              (e.balance > 0 ? '#a22' : '#2c7a3f') + ';">' +
              fmtMoney(e.balance) + '</td>' +
+           '<td style="padding:6px 8px;">' + actionCell + '</td>' +
            '</tr>';
     });
     h += '</tbody></table>';
+    h += '<div id="hoaUDPayForm" style="display:none;margin-top:10px;"></div>';
 
     const totDebit  = events.reduce((s, e) => s + (e.debit  || 0), 0);
     const totCredit = events.reduce((s, e) => s + (e.credit || 0), 0);
@@ -1137,6 +1280,90 @@
          'Balance: ' + fmtMoney(outstanding) + '</span>' +
          '</div>';
     box.innerHTML = h;
+  }
+
+  // ─── Record payment (manual — checks, cash, ACH) ─────────────────────
+  // Writes a row to the `payments` table if it exists, and updates the
+  // invoice's paid + status columns regardless. For checks/cash that
+  // don't flow through Stripe, this keeps the ledger accurate.
+  function udShowRecordPayment(invoiceId, unitId, defaultAmount) {
+    const methodOpts = [
+      { value:'check', label:'Check' },
+      { value:'cash',  label:'Cash' },
+      { value:'ach',   label:'ACH / bank transfer' },
+      { value:'other', label:'Other' },
+    ];
+    const box = document.getElementById('hoaUDPayForm');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div style="background:#eaf4ea;padding:12px 14px;border-radius:6px;">' +
+      '<h5 style="margin:0 0 8px;font-size:12px;color:#1a5a25;">💰 Record manual payment</h5>' +
+      row('Amount',    inp('hoaUDPayAmt', Number(defaultAmount).toFixed(2), 'type="number" step="0.01" min="0.01"'), 'Defaults to the invoice\'s outstanding balance.') +
+      row('Paid on',   inp('hoaUDPayDate', new Date().toISOString().slice(0,10), 'type="date"')) +
+      row('Method',    sel('hoaUDPayMethod', methodOpts, 'check')) +
+      row('Reference', inp('hoaUDPayRef',   ''), 'Check # or transaction ref. Optional.') +
+      row('Notes',     txa('hoaUDPayNotes', '')) +
+      '<input type="hidden" id="hoaUDPayInv"  value="' + esc(invoiceId) + '">' +
+      '<input type="hidden" id="hoaUDPayUnit" value="' + esc(unitId)    + '">' +
+      actionsBar([
+        btn('Cancel', 'WPA_hoaUDHidePayment()'),
+        btn('Save payment', 'WPA_hoaUDSavePayment()', 'primary'),
+      ]) +
+      '</div>';
+    box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function udHidePayment() {
+    const box = document.getElementById('hoaUDPayForm');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  }
+  async function udSavePayment() {
+    const s        = await hoaSupa();
+    const invId    = readField('hoaUDPayInv');
+    const unitId   = readField('hoaUDPayUnit');
+    const amt      = Number(readField('hoaUDPayAmt'));
+    const paidOn   = readField('hoaUDPayDate') || new Date().toISOString().slice(0,10);
+    const method   = readField('hoaUDPayMethod') || 'check';
+    const ref      = readField('hoaUDPayRef')    || null;
+    const notes    = readField('hoaUDPayNotes')  || null;
+    if (!(amt > 0)) { hoaToast('Amount must be greater than 0', 'error'); return; }
+
+    // Fetch the current invoice so we can update paid + status
+    // atomically (well, as atomic as two HTTP calls can be).
+    const { data: inv, error: invErr } = await s.from('invoices')
+      .select('total,paid,status').eq('id', invId).maybeSingle();
+    if (invErr || !inv) return hoaToast('Invoice load failed', 'error');
+
+    // 1. Try to record a payment row. The `payments` table may or may
+    //    not be present / writable from anon. If it fails we still
+    //    update the invoice so the ledger reconciles.
+    try {
+      await s.from('payments').insert({
+        invoice_id: invId,
+        amount:     amt,
+        paid_at:    paidOn + 'T12:00:00Z',
+        method:     method,
+        status:     'succeeded',
+        reference:  ref,
+        notes:      notes || ('Recorded manually ' + new Date().toISOString().slice(0,10)),
+      });
+    } catch (e) {
+      console.warn('[hoa ud pay] payments.insert failed (continuing with invoice-only update):', e);
+    }
+
+    // 2. Update invoice.paid and status.
+    const newPaid   = Number(inv.paid  || 0) + amt;
+    const newStatus = (newPaid + 0.005) >= Number(inv.total || 0) ? 'paid'
+                    : newPaid > 0                                 ? 'partial'
+                    : inv.status;
+    const { error: updErr } = await s.from('invoices')
+      .update({ paid: newPaid, status: newStatus })
+      .eq('id', invId);
+    if (updErr) return hoaToast('Invoice update error: ' + updErr.message, 'error');
+
+    hoaToast('Payment recorded · ' + fmtMoney(amt), 'success');
+    udHidePayment();
+    await renderUDInvoices(unitId);  // ledger re-render
   }
 
   // ─── Notes ───────────────────────────────────────────────────────────
@@ -1702,6 +1929,8 @@
   window.WPA_hoaOpenRunsModal       = openRunsModal;
 
   window.WPA_hoaSetUnitsFilter      = setUnitsFilter;
+  window.WPA_hoaSetUnitsSearch      = setUnitsSearch;     // 3B.3 text search
+  window.WPA_hoaSetUnitsSort        = setUnitsSort;       // 3B.3 sort
   window.WPA_hoaOpenUnitForm        = openUnitForm;
   window.WPA_hoaSaveUnit            = saveUnit;
   window.WPA_hoaToggleUnit          = toggleUnit;
@@ -1718,6 +1947,10 @@
   window.WPA_hoaUDToggleCharge      = udToggleCharge;
   window.WPA_hoaUDDeleteCharge      = udDeleteCharge;
   window.WPA_hoaUDSaveNotes         = udSaveNotes;
+  // Phase 3B.3 — manual payment recording
+  window.WPA_hoaUDShowRecordPayment = udShowRecordPayment;
+  window.WPA_hoaUDHidePayment       = udHidePayment;
+  window.WPA_hoaUDSavePayment       = udSavePayment;
 
   window.WPA_hoaSetContactsSearch   = setContactsSearch;
   window.WPA_hoaOpenContactForm     = openContactForm;
