@@ -3890,7 +3890,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navB.4"></script>
+<script src="js/app.js?v=20260423-navB.6"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4624,16 +4624,40 @@ if('serviceWorker' in navigator){
   function navigateToModule(moduleId, targetPage, deepLink) {
     // Stash the deep-link intent for the target module to consume (optional).
     try { sessionStorage.setItem('gs_deeplink', deepLink); } catch (_) {}
+    console.log('[gs nav] start · module=', moduleId, 'targetPage=', targetPage,
+                'deepLink=', deepLink);
     close();
-    if (typeof window.switchModule === 'function') {
-      window.switchModule(moduleId);
-      // Give the module a tick to render sub-nav, then click the target sub-tab.
-      setTimeout(() => {
-        const subTab = Array.from(document.querySelectorAll('#subNav .sub-tab'))
-          .find(t => (t.getAttribute('onclick') || '').indexOf("'" + targetPage + "'") !== -1);
-        if (subTab) subTab.click();
-      }, 60);
+    if (typeof window.switchModule !== 'function') {
+      console.warn('[gs nav] window.switchModule missing — nav aborted');
+      return;
     }
+    try {
+      window.switchModule(moduleId);
+      console.log('[gs nav] switchModule(' + moduleId + ') ok');
+    } catch (e) {
+      console.error('[gs nav] switchModule threw:', e);
+      return;
+    }
+    // Give the module a tick to render sub-nav, then click the target sub-tab.
+    // Bumped from 60ms → 150ms so async sub-nav wiring (e.g. HOA admin
+    // renderSection()) has time to finish before we try to click.
+    setTimeout(() => {
+      const subTabs = document.querySelectorAll('#subNav .sub-tab');
+      console.log('[gs nav] scanning', subTabs.length, 'sub-tabs for', targetPage);
+      const subTab = Array.from(subTabs).find(t => {
+        const h = t.getAttribute('onclick') || '';
+        return h.indexOf("'" + targetPage + "'") !== -1
+            || h.indexOf('"' + targetPage + '"') !== -1;
+      });
+      if (subTab) {
+        console.log('[gs nav] clicking subtab:', subTab.textContent.trim());
+        subTab.click();
+      } else {
+        console.warn('[gs nav] no subtab matched', targetPage,
+          '— available:',
+          Array.from(subTabs).map(t => t.getAttribute('onclick')));
+      }
+    }, 150);
   }
 
   function render(q, result) {
@@ -4736,8 +4760,18 @@ if('serviceWorker' in navigator){
   window.WPA_openGlobalSearch  = open;
   window.WPA_closeGlobalSearch = close;
   window.WPA_gsSelect = function(idx) {
+    console.log('[gs select] click idx=', idx, 'typeof=', typeof idx,
+                'rows=', _rows.length);
     setSelected(idx);
-    if (_rows[_selIdx]) _rows[_selIdx].nav();
+    console.log('[gs select] after setSelected · _selIdx=', _selIdx,
+                'hit=', !!_rows[_selIdx],
+                'nav typeof=', typeof (_rows[_selIdx] && _rows[_selIdx].nav));
+    if (_rows[_selIdx] && typeof _rows[_selIdx].nav === 'function') {
+      try { _rows[_selIdx].nav(); }
+      catch (e) { console.error('[gs select] nav threw:', e); }
+    } else {
+      console.warn('[gs select] nav NOT called — row or nav missing');
+    }
   };
 
   document.addEventListener('keydown', onKeydown);
