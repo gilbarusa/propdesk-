@@ -2613,8 +2613,10 @@ window.addEventListener('DOMContentLoaded', function(){
   const openTab = sessionStorage.getItem('openTab');
   if(openTab){
     sessionStorage.removeItem('openTab');
-    // Try module tab first, fall back to legacy nav-tab
-    const modTab = document.querySelector(`#moduleBar [data-module="${openTab}"]`);
+    // Try module tab first, fall back to legacy nav-tab.
+    // Phase A nav refactor (2026-04-23): dropped #moduleBar prefix so this
+    // also finds service tabs that now live in #topServices inside <header>.
+    const modTab = document.querySelector(`[data-module="${openTab}"]`);
     if(modTab) { setTimeout(()=>modTab.click(), 800); }
     else {
       const tab = document.querySelector(`.nav-tab[onclick*="'${openTab}'"]`);
@@ -2653,10 +2655,12 @@ function switchModule(moduleId, tabEl) {
   var udp = document.getElementById('udPage'); if(udp) udp.style.display = 'none';
   document.querySelectorAll('.page').forEach(function(p){ p.style.display = ''; });
   // Update module tabs
-  document.querySelectorAll('#moduleBar .module-tab').forEach(t => t.classList.remove('active'));
+  // Phase A nav refactor (2026-04-23): dropped #moduleBar prefix so .active
+  // state clears + applies across both #moduleBar and #topServices.
+  document.querySelectorAll('.module-tab').forEach(t => t.classList.remove('active'));
   if (tabEl) tabEl.classList.add('active');
   else {
-    const tab = document.querySelector(`#moduleBar [data-module="${moduleId}"]`);
+    const tab = document.querySelector(`[data-module="${moduleId}"]`);
     if (tab) tab.classList.add('active');
   }
   // Build sub-nav
@@ -2864,7 +2868,8 @@ function populatePropertyDropdown() {
 // ── Initialize module nav on load ──
 function initModuleNav() {
   populatePropertyDropdown();
-  switchModule('dashboard', document.querySelector('#moduleBar [data-module="dashboard"]'));
+  // Phase A nav refactor (2026-04-23): dropped #moduleBar prefix.
+  switchModule('dashboard', document.querySelector('[data-module="dashboard"]'));
   // Update MTM stats from current data
   updateMTMStats();
   // Fetch portal badge count (non-blocking)
