@@ -466,53 +466,67 @@
   // ── UNITS ─────────────────────────────────────────────────────────────────
   let _unitsFilterCommunity = '';
   let _unitsSearch = '';
-  let _unitsSort   = 'unit-asc';   // 3B.3: sort state for the units grid
-  let _unitsBalances = {};   // unit_id → outstanding balance (cached per render)
-  let _unitsSearchTimer = null;    // 3B.3 iter3: debounce so typing doesn't
-                                   // trigger re-render on every keystroke
-  let _unitsSearchRestoreFocus = false;  // set when the search field was
-                                         // the trigger so we can refocus
-                                         // after render replaces the input
+  let _unitsSort   = 'unit-asc';
+  let _unitsBalances = {};        // unit_id → outstanding balance
+  let _unitsPrimaryOwner = {};    // unit_id → primary-owner contact_id
+  // Iter 4 refactor: split render into two surfaces.
+  //   renderUnits()     — heavy path. Fetches owners + balances, rebuilds
+  //                       the toolbar AND the rows. Runs on mount and
+  //                       when the community filter changes (the only
+  //                       time the dataset we care about changes shape).
+  //   renderUnitsRows() — light path. Re-filters + re-sorts the cached
+  //                       data and re-renders ONLY the table body inside
+  //                       #hoa-units-rows-wrap. The toolbar (including
+  //                       the search input) is left completely alone,
+  //                       so keystrokes never lose focus and no network
+  //                       trip happens per character.
   async function renderUnits() {
     await refreshCache(['communities','units','contacts']);
     const box = document.getElementById('hoa-units-list');
     if (!box) return;
 
-    // Top toolbar — compact widths so controls don't stretch across the
-    // screen. Event handlers are inline (innerHTML-injected <script>
-    // tags don't execute — classic bug in the previous iteration).
-    const commOpts = [{ value:'', label:'— all communities —' }].concat(
-      cache.communities.map(c => ({ value:c.id, label:c.name })));
-    let h =
-      '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">' +
-        '<label style="font-size:11px;color:#635c4e;">Community</label>' +
-        '<select id="hoaUnitsFilter" onchange="WPA_hoaSetUnitsFilter(this.value)" ' +
-          'style="width:180px;padding:5px 8px;border:1px solid #d9d3c5;border-radius:4px;' +
-                 'font:inherit;font-size:12px;">' +
-          commOpts.map(o =>
-            '<option value="' + esc(o.value) + '"' +
-              (o.value === _unitsFilterCommunity ? ' selected' : '') +
-              '>' + esc(o.label) + '</option>'
-          ).join('') +
-        '</select>' +
-        '<input id="hoaUnitsSearch" type="text" ' +
-          'placeholder="Search…" ' +
-          'value="' + esc(_unitsSearch) + '" ' +
-          'oninput="WPA_hoaSetUnitsSearch(this.value)" ' +
-          'style="width:220px;padding:5px 10px;border:1px solid #d9d3c5;' +
-                 'border-radius:4px;font:inherit;font-size:12px;">' +
-        '<span style="flex:1"></span>' +
-        btn('＋ New Unit', 'WPA_hoaOpenUnitForm()', 'primary') +
-      '</div>';
+    // ── Toolbar build (runs ONLY on mount / community-change) ─────────
+    // If the toolbar isn't in the DOM yet, build the whole shell. The
+    // toolbar stays alive through subsequent renders so typing in the
+    // search box never loses focus and the page doesn't reflow.
+    if (!document.getElementById('hoaUnitsToolbar')) {
+      const commOpts = [{ value:'', label:'— all communities —' }].concat(
+        cache.communities.map(c => ({ value:c.id, label:c.name })));
+      const toolbarHtml =
+        '<div id="hoaUnitsToolbar" style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">' +
+          '<label style="font-size:11px;color:#635c4e;">Community</label>' +
+          '<select id="hoaUnitsFilter" onchange="WPA_hoaSetUnitsFilter(this.value)" ' +
+            'style="width:180px;padding:5px 8px;border:1px solid #d9d3c5;border-radius:4px;' +
+                   'font:inherit;font-size:12px;">' +
+            commOpts.map(o =>
+              '<option value="' + esc(o.value) + '"' +
+                (o.value === _unitsFilterCommunity ? ' selected' : '') +
+                '>' + esc(o.label) + '</option>'
+            ).join('') +
+          '</select>' +
+          '<input id="hoaUnitsSearch" type="text" ' +
+            'placeholder="Search…" ' +
+            'value="' + esc(_unitsSearch) + '" ' +
+            'oninput="WPA_hoaSetUnitsSearch(this.value)" ' +
+            'style="width:220px;padding:5px 10px;border:1px solid #d9d3c5;' +
+                   'border-radius:4px;font:inherit;font-size:12px;">' +
+          '<span style="flex:1"></span>' +
+          btn('＋ New Unit', 'WPA_hoaOpenUnitForm()', 'primary') +
+        '</div>' +
+        '<div id="hoaUnitsRowsWrap"></div>';
+      box.innerHTML = toolbarHtml;
+    }
 
-    // Build initial row list.
-    let rows = cache.units;
-    if (_unitsFilterCommunity) rows = rows.filter(u => u.community_id === _unitsFilterCommunity);
-
-    // Primary-owner lookup for every unit on screen.
+    // ── Heavy path: fetch owner + balance lookups for the current
+    //    community-filter scope. Cache at module level so subsequent
+    //    light renders (search / sort) don't hit the network.
+    let scopeUnits = cache.units;
+    if (_unitsFilterCommunity) {
+      scopeUnits = scopeUnits.filter(u => u.community_id === _unitsFilterCommunity);
+    }
     const s = await hoaSupa();
-    const unitIds = rows.map(u => u.id);
-    const primaryByUnit = {};
+    const unitIds = scopeUnits.map(u => u.id);
+    _unitsPrimaryOwner = {};
     if (unitIds.length) {
       const { data: ucRows } = await s.from('hoa_unit_contacts')
         .select('unit_id,contact_id,relationship_type,is_primary,is_active')
@@ -520,30 +534,42 @@
         .eq('is_active', true)
         .eq('is_primary', true)
         .in('relationship_type', ['owner', 'owner_resident']);
-      (ucRows || []).forEach(r => { primaryByUnit[r.unit_id] = r.contact_id; });
+      (ucRows || []).forEach(r => { _unitsPrimaryOwner[r.unit_id] = r.contact_id; });
     }
-
-    // Outstanding balance per unit — one query, client-side aggregate.
-    // Phase 3B.3: surface it as a grid column so admins see at-a-glance
-    // who's behind.
     _unitsBalances = {};
     if (unitIds.length) {
       const { data: invRows } = await s.from('invoices')
         .select('unit_id,total,paid,status')
         .in('unit_id', unitIds);
       (invRows || []).forEach(i => {
-        const v = Number(i.total || 0) - Number(i.paid || 0);
         if ((i.status || '').toLowerCase() === 'void') return;
+        const v = Number(i.total || 0) - Number(i.paid || 0);
         _unitsBalances[i.unit_id] = (_unitsBalances[i.unit_id] || 0) + v;
       });
     }
 
-    // Client-side search filter across unit_label + owner fields +
-    // building/floor + parking/storage. Applied AFTER community filter.
+    // Render rows using the fresh data.
+    renderUnitsRows();
+  }
+
+  // Light-path re-render: reads the module-level caches (primary owner,
+  // balances, community filter, search, sort) and re-renders ONLY the
+  // table body. Toolbar stays alive. No network. No focus loss.
+  function renderUnitsRows() {
+    const wrap = document.getElementById('hoaUnitsRowsWrap');
+    if (!wrap) return;
+
+    // Scope by community first.
+    let rows = cache.units;
+    if (_unitsFilterCommunity) {
+      rows = rows.filter(u => u.community_id === _unitsFilterCommunity);
+    }
+
+    // Text search across unit fields + primary-owner fields.
     if (_unitsSearch && _unitsSearch.trim().length) {
       const q = _unitsSearch.trim().toLowerCase();
       rows = rows.filter(u => {
-        const own = findContact(primaryByUnit[u.id]);
+        const own = findContact(_unitsPrimaryOwner[u.id]);
         const bag = [
           u.unit_label, u.building_label, u.floor_label,
           u.parking_tag, u.storage_unit, u.notes,
@@ -555,11 +581,9 @@
       });
     }
 
-    // Sort (3B.3). Helpers pull owner name from the primary lookup +
-    // contacts cache so sorting by owner works even though it's not a
-    // column on hoa_units itself.
+    // Sort helpers.
     const ownerNameOf = u => {
-      const own = findContact(primaryByUnit[u.id]);
+      const own = findContact(_unitsPrimaryOwner[u.id]);
       if (!own) return '';
       return (own.full_name
            || [own.first_name, own.last_name].filter(Boolean).join(' ')
@@ -570,54 +594,38 @@
       return (c ? (c.name || c.display_name || '') : '').toLowerCase();
     };
     const unitKey = u => (u.unit_label || '').toString();
-    // "Natural" compare so "2" < "10" < "211" instead of string order.
     const natCmp = (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
     switch (_unitsSort) {
       case 'unit-desc':
-        rows = rows.slice().sort((a, b) => natCmp(unitKey(b), unitKey(a)));
-        break;
+        rows = rows.slice().sort((a, b) => natCmp(unitKey(b), unitKey(a))); break;
       case 'owner-asc':
-        rows = rows.slice().sort((a, b) => ownerNameOf(a).localeCompare(ownerNameOf(b)) || natCmp(unitKey(a), unitKey(b)));
-        break;
+        rows = rows.slice().sort((a, b) => ownerNameOf(a).localeCompare(ownerNameOf(b)) || natCmp(unitKey(a), unitKey(b))); break;
       case 'owner-desc':
-        rows = rows.slice().sort((a, b) => ownerNameOf(b).localeCompare(ownerNameOf(a)) || natCmp(unitKey(a), unitKey(b)));
-        break;
+        rows = rows.slice().sort((a, b) => ownerNameOf(b).localeCompare(ownerNameOf(a)) || natCmp(unitKey(a), unitKey(b))); break;
       case 'balance-desc':
         rows = rows.slice().sort((a, b) =>
           Number(_unitsBalances[b.id] || 0) - Number(_unitsBalances[a.id] || 0) ||
-          natCmp(unitKey(a), unitKey(b)));
-        break;
+          natCmp(unitKey(a), unitKey(b))); break;
       case 'balance-asc':
         rows = rows.slice().sort((a, b) =>
           Number(_unitsBalances[a.id] || 0) - Number(_unitsBalances[b.id] || 0) ||
-          natCmp(unitKey(a), unitKey(b)));
-        break;
+          natCmp(unitKey(a), unitKey(b))); break;
       case 'community':
         rows = rows.slice().sort((a, b) =>
           commNameOf(a).localeCompare(commNameOf(b)) ||
-          natCmp(unitKey(a), unitKey(b)));
-        break;
+          natCmp(unitKey(a), unitKey(b))); break;
       case 'unit-asc':
       default:
         rows = rows.slice().sort((a, b) => natCmp(unitKey(a), unitKey(b)));
     }
 
     if (!rows.length) {
-      h += emptyBox('🏢',
+      wrap.innerHTML = emptyBox('🏢',
         _unitsSearch ? 'No units match "' + _unitsSearch + '".' : 'No units for this filter.',
         '＋ New Unit', 'WPA_hoaOpenUnitForm()');
-      box.innerHTML = h;
       return;
     }
 
-    // Grid — row is clickable (no separate Details/Edit buttons; Edit
-    // lives inside the detail modal header per Gil 2026-04-23).
-    h += '<div style="font-size:11px;color:#9e9485;margin-bottom:4px;">' +
-           rows.length + ' unit' + (rows.length === 1 ? '' : 's') + ' shown' +
-         '</div>';
-    // Clickable sort headers. Arrow indicates current sort; clicking a
-    // different column switches to it with a sensible default direction
-    // (ascending for names, descending for balance).
     const sortHdr = (label, key, defaultDir) => {
       const activeAsc  = _unitsSort === key + '-asc';
       const activeDesc = _unitsSort === key + '-desc'
@@ -632,19 +640,24 @@
     };
     const plainHdr = label =>
       '<th style="padding:8px;text-align:left;">' + esc(label) + '</th>';
-    h += '<table class="hoa-tbl" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f7f4ef;">' +
-         sortHdr('Community', 'community', 'asc') +
-         sortHdr('Unit',      'unit',      'asc') +
-         sortHdr('Owner',     'owner',     'asc') +
-         plainHdr('Phone') +
-         plainHdr('Email') +
-         plainHdr('Parking') +
-         plainHdr('Storage') +
-         sortHdr('Balance',   'balance',   'desc') +
-         '</tr></thead><tbody>';
+
+    let h =
+      '<div style="font-size:11px;color:#9e9485;margin-bottom:4px;">' +
+        rows.length + ' unit' + (rows.length === 1 ? '' : 's') + ' shown' +
+      '</div>' +
+      '<table class="hoa-tbl" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f7f4ef;">' +
+        sortHdr('Community', 'community', 'asc') +
+        sortHdr('Unit',      'unit',      'asc') +
+        sortHdr('Owner',     'owner',     'asc') +
+        plainHdr('Phone') +
+        plainHdr('Email') +
+        plainHdr('Parking') +
+        plainHdr('Storage') +
+        sortHdr('Balance',   'balance',   'desc') +
+      '</tr></thead><tbody>';
     rows.forEach(u => {
       const c  = findCommunity(u.community_id);
-      const contactId = primaryByUnit[u.id];
+      const contactId = _unitsPrimaryOwner[u.id];
       const owner = contactId ? findContact(contactId) : null;
       const ownerName = owner
         ? (owner.full_name
@@ -677,33 +690,15 @@
            '</tr>';
     });
     h += '</tbody></table>';
-    box.innerHTML = h;
+    wrap.innerHTML = h;
+  }
 
-    // Restore focus to the search input if the user was typing when
-    // render fired. Caret placed at end of the current value.
-    if (_unitsSearchRestoreFocus) {
-      _unitsSearchRestoreFocus = false;
-      const inp = document.getElementById('hoaUnitsSearch');
-      if (inp) {
-        inp.focus();
-        const n = inp.value.length;
-        try { inp.setSelectionRange(n, n); } catch (_) {}
-      }
-    }
-  }
-  // Debounced so every character doesn't re-render. After ~180ms of
-  // silence we run the render and re-focus the search box with the
-  // caret restored to the end. Snappy but doesn't interrupt typing.
-  function setUnitsSearch(v) {
-    _unitsSearch = v || '';
-    _unitsSearchRestoreFocus = true;
-    clearTimeout(_unitsSearchTimer);
-    _unitsSearchTimer = setTimeout(() => { renderUnits(); }, 180);
-  }
-  function setUnitsSort(v)   { _unitsSort   = v || 'unit-asc'; renderUnits(); }
-  // Header-click sort toggle (Phase 3B.3 iter 2).
-  //   If the clicked header is already the active sort column, flip asc↔desc.
-  //   Otherwise jump to that column with the `defaultDir` for that column.
+  // Search and sort are pure UI operations — they never need to refetch
+  // data, so they call the light path directly. Community filter DOES
+  // need a refetch (the scope of owners/balances changes), so it calls
+  // the full path.
+  function setUnitsSearch(v) { _unitsSearch = v || ''; renderUnitsRows(); }
+  function setUnitsSort(v)   { _unitsSort   = v || 'unit-asc'; renderUnitsRows(); }
   function unitHeaderClick(key, defaultDir) {
     const activeAsc  = _unitsSort === key + '-asc';
     const activeDesc = _unitsSort === key + '-desc'
@@ -711,9 +706,17 @@
     if (activeAsc)            _unitsSort = key + '-desc';
     else if (activeDesc)      _unitsSort = key + '-asc';
     else                      _unitsSort = key + '-' + (defaultDir || 'asc');
+    renderUnitsRows();
+  }
+  function setUnitsFilter(v) {
+    _unitsFilterCommunity = v || '';
+    // Community change alters the data scope — force toolbar refresh too
+    // so the dropdown "selected" state matches. Clearing the toolbar
+    // element ID triggers the full rebuild path.
+    const tb = document.getElementById('hoaUnitsToolbar');
+    if (tb) tb.id = '';
     renderUnits();
   }
-  function setUnitsFilter(v) { _unitsFilterCommunity = v || ''; renderUnits(); }
 
   function openUnitForm(id) {
     const rec = id ? findUnit(id) : {};
