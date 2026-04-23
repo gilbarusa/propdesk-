@@ -837,19 +837,61 @@
         '</div>' +
       '</div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">' + tileHtml + '</div>' +
-      '<div id="hoaUDRoster"  style="margin-top:16px;"><em style="color:#9e9485;">Loading owners…</em></div>' +
-      '<div id="hoaUDCharges" style="margin-top:16px;"><em style="color:#9e9485;">Loading charges…</em></div>' +
-      '<div id="hoaUDInvoices" style="margin-top:16px;"><em style="color:#9e9485;">Loading ledger…</em></div>' +
-      '<div id="hoaUDNotes" style="margin-top:16px;"></div>' +
+
+      // ── Tab strip (Phase 3B.4): Main · Docs · WO ─────────────────
+      '<div id="hoaUDTabs" style="display:flex;gap:4px;border-bottom:2px solid #efeae0;margin-bottom:14px;">' +
+        '<div class="hoa-ud-tab active" data-tab="main" onclick="WPA_hoaUDSwitchTab(\'main\')" ' +
+          'style="padding:8px 16px;cursor:pointer;font-size:13px;font-weight:500;color:#8a6d3c;border-bottom:2px solid #c99f66;margin-bottom:-2px;">Main</div>' +
+        '<div class="hoa-ud-tab" data-tab="docs" onclick="WPA_hoaUDSwitchTab(\'docs\')" ' +
+          'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">📄 Docs <span id="hoaUDDocsCount" style="font-size:10px;color:#9e9485;"></span></div>' +
+        '<div class="hoa-ud-tab" data-tab="wo" onclick="WPA_hoaUDSwitchTab(\'wo\')" ' +
+          'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">🔧 Work Orders <span id="hoaUDWOCount" style="font-size:10px;color:#9e9485;"></span></div>' +
+      '</div>' +
+
+      // ── Main tab pane (preserved — roster + charges + ledger + notes) ─
+      '<div class="hoa-ud-pane" data-pane="main">' +
+        '<div id="hoaUDRoster"  style="margin-top:4px;"><em style="color:#9e9485;">Loading owners…</em></div>' +
+        '<div id="hoaUDCharges" style="margin-top:16px;"><em style="color:#9e9485;">Loading charges…</em></div>' +
+        '<div id="hoaUDInvoices" style="margin-top:16px;"><em style="color:#9e9485;">Loading ledger…</em></div>' +
+        '<div id="hoaUDNotes" style="margin-top:16px;"></div>' +
+      '</div>' +
+
+      // ── Docs tab pane ─────────────────────────────────────────────
+      '<div class="hoa-ud-pane" data-pane="docs" style="display:none;">' +
+        '<div id="hoaUDDocs"><em style="color:#9e9485;">Loading documents…</em></div>' +
+      '</div>' +
+
+      // ── WO tab pane ───────────────────────────────────────────────
+      '<div class="hoa-ud-pane" data-pane="wo" style="display:none;">' +
+        '<div id="hoaUDWO"><em style="color:#9e9485;">Loading work orders…</em></div>' +
+      '</div>' +
+
       '<input type="hidden" id="hoaUDUnitId" value="' + esc(unitId) + '">';
 
     openModal(html);
 
-    // Populate each section in parallel.
+    // Populate each section in parallel. Docs/WO tabs render in background
+    // so the badge counts update even before the user switches to those tabs.
     renderUDRoster(unitId);
     renderUDCharges(unitId);
     renderUDInvoices(unitId);
     renderUDNotes(unitId, unit);
+    renderUDDocs(unitId);
+    renderUDWorkOrders(unitId, unit);
+  }
+
+  // ─── Tab switcher for the unit detail ──────────────────────────────
+  function udSwitchTab(tab) {
+    document.querySelectorAll('.hoa-ud-tab').forEach(t => {
+      const active = t.getAttribute('data-tab') === tab;
+      t.classList.toggle('active', active);
+      t.style.color            = active ? '#8a6d3c' : '#6a6253';
+      t.style.borderBottomColor= active ? '#c99f66' : 'transparent';
+      t.style.fontWeight       = active ? '500' : 'normal';
+    });
+    document.querySelectorAll('.hoa-ud-pane').forEach(p => {
+      p.style.display = p.getAttribute('data-pane') === tab ? 'block' : 'none';
+    });
   }
 
   // ─── Roster (Owners + Residents + Others) ───────────────────────────
@@ -1452,6 +1494,252 @@
     await refreshCache(['units']);
   }
 
+  // ═════════════════════════════════════════════════════════════════════
+  //  DOCUMENTS TAB (Phase 3B.4 · 2026-04-23)
+  // ═════════════════════════════════════════════════════════════════════
+  async function renderUDDocs(unitId) {
+    const s = await hoaSupa();
+    const { data, error } = await s.from('hoa_unit_documents')
+      .select('id,title,file_url,category,uploaded_by,uploaded_by_role,is_reviewed,is_active,notes,created_at')
+      .eq('unit_id', unitId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false });
+    const box = document.getElementById('hoaUDDocs');
+    const badge = document.getElementById('hoaUDDocsCount');
+    if (!box) return;
+    if (error) { box.innerHTML = '<div style="color:#a22;">Error: ' + esc(error.message) + '</div>'; return; }
+
+    const rows = data || [];
+    // Surface pending-review count so admins notice portal uploads.
+    const unreviewed = rows.filter(r => !r.is_reviewed && r.uploaded_by_role !== 'admin').length;
+    if (badge) {
+      badge.textContent = rows.length ? (' (' + rows.length + (unreviewed ? ' · ' + unreviewed + ' new' : '') + ')') : '';
+      badge.style.color = unreviewed ? '#c9404b' : '#9e9485';
+    }
+
+    const CAT_LABEL = {
+      parking:    'Parking',
+      permit:     'Permit',
+      pet:        'Pet',
+      insurance:  'Insurance',
+      lease:      'Lease',
+      inspection: 'Inspection',
+      form:       'Form',
+      letter:     'Letter',
+      other:      'Other',
+    };
+
+    let h =
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">' +
+        '<h4 style="font-size:13px;margin:0;color:#3a3428;">📄 Unit documents</h4>' +
+        btn('＋ Add document', "WPA_hoaUDShowAddDoc('" + unitId + "')", 'primary') +
+      '</div>';
+
+    if (!rows.length) {
+      h += '<div style="padding:18px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;">' +
+           'No documents yet. Click <strong>Add document</strong> to attach a permit, pet registration, insurance cert, inspection report, or anything else tied to this unit.' +
+           '</div>';
+    } else {
+      h += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+        '<thead><tr style="background:#faf6ee;text-align:left;">' +
+        '<th style="padding:6px 8px;">Title</th>' +
+        '<th style="padding:6px 8px;">Category</th>' +
+        '<th style="padding:6px 8px;">Uploaded by</th>' +
+        '<th style="padding:6px 8px;">Date</th>' +
+        '<th style="padding:6px 8px;"></th>' +
+        '</tr></thead><tbody>';
+      rows.forEach(d => {
+        const isPortal = d.uploaded_by_role !== 'admin';
+        const newBadge = isPortal && !d.is_reviewed
+          ? ' <span style="background:#c9404b;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:9px;margin-left:4px;">NEW</span>'
+          : '';
+        const openLink = d.file_url
+          ? '<a href="' + esc(d.file_url) + '" target="_blank" rel="noopener" style="color:#1a3a6b;">Open ↗</a>'
+          : '<span style="color:#9e9485;">no file</span>';
+        const reviewBtn = isPortal && !d.is_reviewed
+          ? ' ' + btn('Mark reviewed', "WPA_hoaUDMarkDocReviewed('" + d.id + "','" + unitId + "')")
+          : '';
+        h += '<tr style="border-bottom:1px solid #f0ebe2;">' +
+             '<td style="padding:6px 8px;"><strong>' + esc(d.title) + '</strong>' + newBadge +
+               (d.notes ? '<br><span style="color:#9e9485;font-size:10px;">' + esc(d.notes.slice(0,80)) + '</span>' : '') +
+             '</td>' +
+             '<td style="padding:6px 8px;font-size:11px;">' + esc(CAT_LABEL[d.category] || d.category) + '</td>' +
+             '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' +
+               esc(d.uploaded_by || '—') +
+               '<br><span style="font-size:10px;color:#9e9485;">' + esc(d.uploaded_by_role || 'admin') + '</span>' +
+             '</td>' +
+             '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' + esc((d.created_at || '').slice(0,10)) + '</td>' +
+             '<td style="padding:6px 8px;">' + openLink + reviewBtn + ' ' +
+                btn('Delete', "WPA_hoaUDDeleteDoc('" + d.id + "','" + unitId + "')") +
+             '</td>' +
+             '</tr>';
+      });
+      h += '</tbody></table>';
+    }
+    h += '<div id="hoaUDDocForm" style="display:none;margin-top:12px;"></div>';
+    box.innerHTML = h;
+  }
+
+  function udShowAddDoc(unitId) {
+    const catOpts = [
+      { value:'parking',    label:'Parking tag / permit' },
+      { value:'permit',     label:'Construction / work permit' },
+      { value:'pet',        label:'Pet registration' },
+      { value:'insurance',  label:'Insurance certificate' },
+      { value:'lease',      label:'Lease / rental agreement' },
+      { value:'inspection', label:'Inspection report' },
+      { value:'form',       label:'Fillable form' },
+      { value:'letter',     label:'Letter' },
+      { value:'other',      label:'Other' },
+    ];
+    const box = document.getElementById('hoaUDDocForm');
+    if (!box) return;
+    box.style.display = 'block';
+    box.innerHTML =
+      '<div style="background:#faf6ee;padding:12px 14px;border-radius:6px;">' +
+      '<h5 style="margin:0 0 8px;font-size:12px;color:#3a3428;">Add document to this unit</h5>' +
+      row('Title',    inp('hoaUDDocTitle', '')) +
+      row('Category', sel('hoaUDDocCat', catOpts, 'other')) +
+      row('File URL', inp('hoaUDDocUrl', ''), 'Paste a Google Drive / Dropbox / S3 link. Phase 4 adds direct upload.') +
+      row('Notes',    txa('hoaUDDocNotes', '')) +
+      '<input type="hidden" id="hoaUDDocUnitId" value="' + esc(unitId) + '">' +
+      actionsBar([
+        btn('Cancel', 'WPA_hoaUDHideAddDoc()'),
+        btn('Save',   'WPA_hoaUDSaveDoc()', 'primary'),
+      ]) +
+      '</div>';
+  }
+  function udHideAddDoc() {
+    const box = document.getElementById('hoaUDDocForm');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+  }
+  async function udSaveDoc() {
+    const s        = await hoaSupa();
+    const unitId   = readField('hoaUDDocUnitId');
+    const title    = readField('hoaUDDocTitle');
+    const category = readField('hoaUDDocCat') || 'other';
+    const url      = readField('hoaUDDocUrl') || null;
+    const notes    = readField('hoaUDDocNotes') || null;
+    if (!title) { hoaToast('Title required', 'error'); return; }
+    const u = findUnit(unitId);
+    const { error } = await s.from('hoa_unit_documents').insert({
+      unit_id:          unitId,
+      community_id:     u ? u.community_id : null,
+      title:            title,
+      file_url:         url,
+      category:         category,
+      uploaded_by:      'admin-ui',
+      uploaded_by_role: 'admin',
+      is_active:        true,
+      is_reviewed:      true,
+      notes:            notes,
+    });
+    if (error) return hoaToast('Save error: ' + error.message, 'error');
+    hoaToast('Document added ✓', 'success');
+    udHideAddDoc();
+    await renderUDDocs(unitId);
+  }
+  async function udMarkDocReviewed(docId, unitId) {
+    const s = await hoaSupa();
+    const { error } = await s.from('hoa_unit_documents')
+      .update({ is_reviewed: true })
+      .eq('id', docId);
+    if (error) return hoaToast('Mark reviewed error: ' + error.message, 'error');
+    hoaToast('Marked reviewed', 'success');
+    await renderUDDocs(unitId);
+  }
+  async function udDeleteDoc(docId, unitId) {
+    if (!confirm('Delete this document? The file itself is hosted externally — this only removes the link from the unit record.')) return;
+    const s = await hoaSupa();
+    const { error } = await s.from('hoa_unit_documents').delete().eq('id', docId);
+    if (error) return hoaToast('Delete error: ' + error.message, 'error');
+    hoaToast('Deleted', 'success');
+    await renderUDDocs(unitId);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  WORK ORDERS TAB (Phase 3B.4 · 2026-04-23)
+  //  Reads from the rental/service-side `maintenance_requests` table,
+  //  filtered by the unit_label (best-effort match since HOA and rental
+  //  sides don't share a hard FK). Read-only; the canonical place to
+  //  manage work orders is still TechTrack.
+  // ═════════════════════════════════════════════════════════════════════
+  async function renderUDWorkOrders(unitId, unit) {
+    const s = await hoaSupa();
+    const box = document.getElementById('hoaUDWO');
+    const badge = document.getElementById('hoaUDWOCount');
+    if (!box) return;
+
+    const label = unit && unit.unit_label ? unit.unit_label : null;
+    let rows = [];
+    if (label) {
+      const r = await s.from('maintenance_requests')
+        .select('*')
+        .eq('unit', label)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      rows = r.data || [];
+    }
+
+    if (badge) {
+      badge.textContent = rows.length ? (' (' + rows.length + ')') : '';
+      badge.style.color = '#9e9485';
+    }
+
+    let h =
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;">' +
+        '<h4 style="font-size:13px;margin:0;color:#3a3428;">🔧 Work orders &amp; maintenance</h4>' +
+        (label
+          ? btn('Open in TechTrack ↗', "window.switchModule && window.switchModule('techtrack'); WPA_hoaCloseModal();")
+          : '') +
+      '</div>';
+
+    if (!rows.length) {
+      h += '<div style="padding:18px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;">' +
+           'No work orders found for unit ' + esc(label || '?') + '. ' +
+           'Orders are created in the TechTrack module and matched to this unit by label.' +
+           '</div>';
+      box.innerHTML = h;
+      return;
+    }
+
+    h += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+      '<thead><tr style="background:#faf6ee;text-align:left;">' +
+      '<th style="padding:6px 8px;">#</th>' +
+      '<th style="padding:6px 8px;">Description</th>' +
+      '<th style="padding:6px 8px;">Status</th>' +
+      '<th style="padding:6px 8px;">Technician</th>' +
+      '<th style="padding:6px 8px;">Created</th>' +
+      '</tr></thead><tbody>';
+    rows.forEach(w => {
+      const statusColor = /complete|done|closed/i.test(w.status || '') ? '#2c7a3f'
+                        : /progress|active|working/i.test(w.status || '') ? '#a26a00'
+                        : /cancel/i.test(w.status || '') ? '#9e9485'
+                        : '#a22';
+      h += '<tr style="border-bottom:1px solid #f0ebe2;">' +
+           '<td style="padding:6px 8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;">' +
+             esc((w.work_order_number || w.wo_number || w.id || '').toString().slice(0, 12)) +
+           '</td>' +
+           '<td style="padding:6px 8px;">' +
+             esc((w.description || w.notes || w.title || '—').slice(0, 120)) +
+           '</td>' +
+           '<td style="padding:6px 8px;color:' + statusColor + ';">' + esc(w.status || '—') + '</td>' +
+           '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' +
+             esc(w.technician_name || w.technician || w.assigned_to || '—') +
+           '</td>' +
+           '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' +
+             esc((w.created_at || '').slice(0, 10)) +
+           '</td>' +
+           '</tr>';
+    });
+    h += '</tbody></table>';
+    h += '<div style="margin-top:8px;font-size:11px;color:#9e9485;">' +
+         'Matched by unit label "' + esc(label) + '". ' +
+         'For the full work-order view + editing, open the TechTrack module.' +
+         '</div>';
+    box.innerHTML = h;
+  }
+
   // Make charge types available to the "Add charge" form.
   async function ensureChargeTypesLoaded() {
     if (cache._chargeTypes) return;
@@ -2012,6 +2300,13 @@
   window.WPA_hoaUDShowRecordPayment = udShowRecordPayment;
   window.WPA_hoaUDHidePayment       = udHidePayment;
   window.WPA_hoaUDSavePayment       = udSavePayment;
+  // Phase 3B.4 — tab switching + docs + work orders
+  window.WPA_hoaUDSwitchTab         = udSwitchTab;
+  window.WPA_hoaUDShowAddDoc        = udShowAddDoc;
+  window.WPA_hoaUDHideAddDoc        = udHideAddDoc;
+  window.WPA_hoaUDSaveDoc           = udSaveDoc;
+  window.WPA_hoaUDMarkDocReviewed   = udMarkDocReviewed;
+  window.WPA_hoaUDDeleteDoc         = udDeleteDoc;
 
   window.WPA_hoaSetContactsSearch   = setContactsSearch;
   window.WPA_hoaOpenContactForm     = openContactForm;
