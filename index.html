@@ -3890,7 +3890,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navB.7"></script>
+<script src="js/app.js?v=20260423-navB.8"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4597,7 +4597,9 @@ if('serviceWorker' in navigator){
                     : null),
                   b.guest_phone].filter(Boolean).join(' · '),
           icon:  '✈️',
-          nav:   nav('short-term', 'st-dashboard',
+          // Route to Pipeline — that's where individual bookings live as
+          // rows. ST Dashboard is an overview without per-booking navigation.
+          nav:   nav('short-term', 'pipeline',
                     b.guest_name || b.unit_apt || ''),
         }))
       });
@@ -4636,21 +4638,29 @@ if('serviceWorker' in navigator){
   // Tolerates pages with no search input (no-op).
   function fillDestinationSearch(term) {
     if (!term) return false;
-    const page = document.querySelector('.page.active');
-    if (!page) return false;
-    // Preference order: tenants module input, unit search box, generic
-    // text input, then search-shaped inputs.
+    // The destination may be a module page (has .page.active wrapper) or
+    // a dynamically-rendered section (hoa-admin renders into the active
+    // page's child divs, pipeline renders into its own container). Scan
+    // the whole document for first-matching input that looks searchable.
+    //
+    // Preference order: specific known IDs first, then generic patterns.
     const candidates = [
-      '#mtmTenantsSearch',
-      '#searchInput',
-      '.search-wrap input',
-      'input[type="search"]',
+      '#mtmTenantsSearch',         // MTM tenants list
+      '#hoaContactsSearch',        // HOA contacts list
+      '#pipeline-search',          // ST pipeline table
+      '#searchInput',              // rental Units page
+      '.page.active .search-wrap input',
+      '.page.active input[type="search"]',
+      '.page.active input[placeholder*="search" i]',
+      '.page.active input[type="text"]',
       'input[placeholder*="search" i]',
-      'input[type="text"]',
     ];
     for (const sel of candidates) {
-      const el = page.querySelector(sel);
+      const el = document.querySelector(sel);
       if (!el) continue;
+      // Only fill if the input is actually visible. Hidden inputs (from
+      // other pages) should be skipped.
+      if (el.offsetParent === null) continue;
       try {
         el.value = term;
         el.dispatchEvent(new Event('input',  { bubbles: true }));
