@@ -149,10 +149,9 @@
   <div class="module-tab active" data-module="dashboard" onclick="switchModule('dashboard',this)"><span class="mod-icon">📊</span> Dashboard</div>
   <div class="module-tab" data-module="short-term" onclick="switchModule('short-term',this)"><span class="mod-icon">✈️</span> Short-Term <span class="mod-badge" id="stBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="mtm-lt" onclick="switchModule('mtm-lt',this)"><span class="mod-icon">🏠</span> MTM / Long-Term</div>
-  <div class="module-tab" data-module="expenses" onclick="switchModule('expenses',this)"><span class="mod-icon">💰</span> Expenses</div>
+  <div class="module-tab" data-module="hoa" onclick="switchModule('hoa',this)"><span class="mod-icon">🏘</span> HOA</div>
   <div class="module-tab" data-module="messages" onclick="switchModule('messages',this)"><span class="mod-icon">💬</span> Messages <span class="mod-badge" id="msgCenterBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="portal" onclick="switchModule('portal',this)"><span class="mod-icon">👤</span> Portal <span class="mod-badge" id="portalBadge" style="display:none">0</span></div>
-  <div class="module-tab" data-module="hoa" onclick="switchModule('hoa',this)"><span class="mod-icon">🏘</span> HOA</div>
   <div style="flex:1"></div>
   <div class="module-tab" data-module="settings" onclick="switchModule('settings',this)"><span class="mod-icon">⚙</span></div>
 </nav>
@@ -3890,7 +3889,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navA"></script>
+<script src="js/app.js?v=20260423-navA.2"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4229,9 +4228,16 @@ if('serviceWorker' in navigator){
 
 <!-- ═══ Phase A nav refactor (v=20260423-navA) · inline CSS + search stub ═══ -->
 <style>
-  /* Top-bar services cluster. Visual wrapper only — element styling inherited
-     from the existing .module-tab class so hover/active states match the
-     original module bar exactly. */
+  /* ── Phase A font bump ──────────────────────────────────────────────
+     Main module-tab was 11px; bumping 1 step up to 13px across both
+     #moduleBar and #topServices for readability. Mod-icon keeps its
+     14px baseline (already larger than text). */
+  .module-bar .module-tab { font-size: 13px; }
+  .module-bar .module-tab .mod-icon { font-size: 15px; }
+
+  /* Top-bar services cluster. Visual wrapper only — element styling
+     inherited from the existing .module-tab class so hover/active states
+     match the original module bar exactly. */
   .top-services {
     display: inline-flex; align-items: center; gap: 2px;
     margin-left: 12px; padding: 3px 5px;
@@ -4239,30 +4245,44 @@ if('serviceWorker' in navigator){
     border-radius: 22px;
   }
   .top-services .top-svc-tab {
-    padding: 5px 11px; font-size: 12px; border-radius: 18px;
+    padding: 5px 11px; font-size: 13px; border-radius: 18px;  /* +1 size bump */
     cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
   }
+  .top-services .top-svc-tab .mod-icon { font-size: 15px; }
   .top-services .top-svc-tab:hover { background: rgba(0,0,0,0.05); }
   .top-services .top-svc-tab.active {
-    background: var(--accent2, #8a6d3c); color: #fff;
+    background: var(--blue-bg, #edf3fb); color: var(--blue, #1e5799);
   }
   .top-services .mod-badge {
     background: #c9404b; color: #fff; font-size: 10px; font-weight: 700;
     padding: 1px 6px; border-radius: 9px; min-width: 16px; text-align: center;
   }
-  /* Global search button stub. */
+
+  /* Global search button — toned down per Gil 2026-04-23.
+     Was dark-green brown; now uses the --blue-bg light-blue palette so
+     it blends with the header instead of dominating it. Also narrower. */
   .global-search-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 6px 14px 6px 12px; font: inherit; font-size: 12px;
-    background: var(--brown, #2a3f28); color: #efe9d9;
-    border: 1px solid var(--brown, #2a3f28); border-radius: 20px;
-    cursor: pointer; margin-left: 12px; min-width: 260px;
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px 4px 8px; font: inherit; font-size: 12px;
+    background: var(--blue-bg, #edf3fb); color: var(--blue, #1e5799);
+    border: 1px solid var(--blue-border, #a8c8ed); border-radius: 16px;
+    cursor: pointer; margin-left: 10px; min-width: 200px;
   }
-  .global-search-btn:hover { filter: brightness(1.1); }
-  .global-search-btn .gsb-placeholder { flex: 1; text-align: left; color: #c9c0a8; }
+  .global-search-btn:hover {
+    background: #dbe8f8;
+    border-color: #7fb0e6;
+  }
+  .global-search-btn .gsb-ic { font-size: 13px; }
+  .global-search-btn .gsb-placeholder {
+    flex: 1; text-align: left;
+    color: #6a7e95;   /* muted blue-gray — legible on the light blue bg */
+    font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .global-search-btn .gsb-kbd {
-    font-size: 10px; color: #b8b39e; border: 1px solid rgba(255,255,255,0.25);
-    padding: 1px 5px; border-radius: 3px;
+    font-size: 10px; color: #5b7a9e;
+    border: 1px solid #a8c8ed; background: #fff;
+    padding: 0 5px; border-radius: 3px;
     font-family: ui-monospace, Menlo, monospace;
   }
 
@@ -4270,7 +4290,7 @@ if('serviceWorker' in navigator){
   @media (max-width: 1280px) {
     .top-services .top-svc-tab { padding: 5px 8px; }
     .top-services .top-svc-tab .mod-icon + :not(.mod-badge) { display: none; }
-    .global-search-btn { min-width: 180px; }
+    .global-search-btn { min-width: 140px; }
     .global-search-btn .gsb-placeholder { display: none; }
   }
 
