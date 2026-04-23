@@ -28,6 +28,39 @@
   // ── Chelbourne's seeded UUID (matches migration 2026-04-22-hoa-module-phase1.sql)
   const CHELBOURNE_ID = '11111111-1111-1111-1111-111111111111';
 
+  // ── Portal API base (Phase 2.5 / 3A) ──────────────────────────────────────
+  //   The monthly-issue action + audit receipt endpoints live in portal PHP,
+  //   not Supabase, because the issuer enforces cadence rules + writes
+  //   invoice_lines. The admin SPA is served cross-origin from github.io,
+  //   so we use absolute URLs. CORS is allowed on portal/api/index.php.
+  const PORTAL_API_BASE = 'https://app.willowpa.com/api/';
+
+  async function callPortalApi(action, body) {
+    const resp = await fetch(PORTAL_API_BASE + '?action=' + encodeURIComponent(action), {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body || {}),
+    });
+    const text = await resp.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch (_) { data = text; }
+    return { http: resp.status, ok: resp.ok, data };
+  }
+
+  // Month helpers for the Issue flow.
+  function nextMonthFirst() {
+    const d = new Date();
+    const y = d.getFullYear(), m = d.getMonth() + 1;  // 0-indexed month → +1, then +1 again for "next"
+    const nm = m === 12 ? 1 : m + 1;
+    const ny = m === 12 ? y + 1 : y;
+    return ny + '-' + String(nm).padStart(2, '0') + '-01';
+  }
+  function addDaysIso(iso, days) {
+    const d = new Date(iso + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  }
+
   // ── helpers ───────────────────────────────────────────────────────────────
   async function hoaSupa() {
     // Reuse whatever app.js exposes. Falls back to common alternates.
@@ -215,6 +248,8 @@
            td(esc(stripeLbl)) +
            td(r.is_active ? '<span style="color:#2c7a3f;">● Active</span>' : '<span style="color:#9e9485;">○ Inactive</span>') +
            td(btn('Edit', "WPA_hoaOpenCommunityForm('" + r.id + "')") + ' ' +
+              btn('🔔 Issue',  "WPA_hoaOpenIssueModal('" + r.id + "')") + ' ' +
+              btn('📄 Runs',   "WPA_hoaOpenRunsModal('" + r.id + "')") + ' ' +
               btn(r.is_active ? 'Deactivate' : 'Activate', "WPA_hoaToggleCommunity('" + r.id + "'," + (!r.is_active) + ")")) +
            '</tr>';
     });
@@ -227,10 +262,15 @@
     const creds = [{ value:'', label:'— not wired —' }].concat(
       cache.stripeCreds.map(c => ({ value: c.id, label: (c.label || c.id) }))
     );
+    const issueModes = [
+      { value: 'manual', label: 'Manual — admin clicks Issue each month' },
+      { value: 'auto',   label: 'Auto — fires on scheduled day of month'  },
+    ];
     const html =
       '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit Community' : 'New Community') + '</h3>' +
       row('Name',               inp('hoaCommName', row.name)) +
       row('Display name',       inp('hoaCommDisplay', row.display_name), 'Optional. Shown to tenants.') +
+      row('Logo URL',           inp('hoaCommLogo', row.logo_url), 'Full https URL. Displayed on invoices + receipts.') +
       row('Address line 1',     inp('hoaCommAddr1', row.address1)) +
       row('Address line 2',     inp('hoaCommAddr2', row.address2)) +
       row('City',               inp('hoaCommCity', row.city)) +
@@ -241,6 +281,8 @@
       row('Grace days',         inp('hoaCommGrace', row.grace_days != null ? row.grace_days : 10, 'type="number" min="0"'), 'Days after due date before late fees begin.') +
       row('Per-day late fee',   inp('hoaCommFee', row.per_day_late_fee != null ? row.per_day_late_fee : 0, 'type="number" step="0.01" min="0"')) +
       row('Stripe account',     sel('hoaCommStripe', creds, row.stripe_cred_id || ''), 'Leave unwired for manual payments in Phase 1.') +
+      row('Issue mode',         sel('hoaCommIssueMode', issueModes, row.issue_mode || 'manual')) +
+      row('Auto-issue day',     inp('hoaCommAutoDay', row.auto_issue_day != null ? row.auto_issue_day : '', 'type="number" min="1" max="28"'), 'Day of month (1–28) when Auto mode fires next month\'s batch. Leave empty for Manual.') +
       row('Active',             chk('hoaCommActive', row.is_active !== false, 'Community is active')) +
       row('Notes',              txa('hoaCommNotes', row.notes)) +
       '<input type="hidden" id="hoaCommId" value="' + esc(id || '') + '">' +
@@ -251,9 +293,19 @@
   async function saveCommunity() {
     const s = await hoaSupa();
     const id = readField('hoaCommId');
+    const issueMode = readField('hoaCommIssueMode') || 'manual';
+    const autoDayRaw = readField('hoaCommAutoDay');
+    const autoDay = autoDayRaw === '' || autoDayRaw == null ? null : Number(autoDayRaw);
+    if (issueMode === 'auto') {
+      if (!autoDay || autoDay < 1 || autoDay > 28) {
+        hoaToast('Auto mode requires an Auto-issue day between 1 and 28', 'error');
+        return;
+      }
+    }
     const payload = {
       name:              readField('hoaCommName'),
       display_name:      readField('hoaCommDisplay'),
+      logo_url:          readField('hoaCommLogo') || null,
       address1:          readField('hoaCommAddr1'),
       address2:          readField('hoaCommAddr2'),
       city:              readField('hoaCommCity'),
@@ -264,6 +316,8 @@
       grace_days:        Number(readField('hoaCommGrace') || 0),
       per_day_late_fee:  Number(readField('hoaCommFee') || 0),
       stripe_cred_id:    readField('hoaCommStripe') || null,
+      issue_mode:        issueMode,
+      auto_issue_day:    issueMode === 'auto' ? autoDay : null,
       is_active:         !!readField('hoaCommActive'),
       notes:             readField('hoaCommNotes'),
     };
@@ -283,6 +337,126 @@
     if (error) return hoaToast('Error: ' + error.message, 'error');
     hoaToast(makeActive ? 'Activated ✓' : 'Deactivated', 'success');
     await renderCommunities();
+  }
+
+  // ── Issue Invoices modal (Phase 2.5 / 3A) ────────────────────────────
+  // Calls portal PHP endpoint hoa_issue_month_invoices, opens the
+  // resulting receipt in a new tab, refreshes the community list.
+  async function openIssueModal(communityId) {
+    const c = findCommunity(communityId);
+    if (!c) return hoaToast('Community not found', 'error');
+    const defaultPeriod = nextMonthFirst();
+    const defaultGrace  = c.grace_days != null ? c.grace_days : 10;
+    const html =
+      '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">🔔 Issue HOA Invoices</h3>' +
+      '<p style="font-size:12px;color:#7e7567;margin:-6px 0 14px;">' +
+      esc(c.display_name || c.name) + ' · one invoice per fee-bearing unit for the selected month.' +
+      ' Units with no active charges are skipped.' +
+      '</p>' +
+      row('Billing period',     inp('hoaIssPeriod', defaultPeriod, 'type="date"'), 'Billing month — use the 1st of the month.') +
+      row('Grace days',         inp('hoaIssGrace', defaultGrace, 'type="number" min="0"'), 'Due date = billing period + grace days.') +
+      '<input type="hidden" id="hoaIssCommId" value="' + esc(communityId) + '">' +
+      '<div id="hoaIssResult" style="margin-top:14px;"></div>' +
+      actionsBar([
+        btn('Cancel', 'WPA_hoaCloseModal()'),
+        btn('Issue invoices', 'WPA_hoaFireIssue()', 'primary'),
+      ]);
+    openModal(html);
+  }
+
+  async function fireIssue() {
+    const commId = readField('hoaIssCommId');
+    const period = (readField('hoaIssPeriod') || '').slice(0, 10);
+    const grace  = Number(readField('hoaIssGrace') || 10);
+    const resultBox = document.getElementById('hoaIssResult');
+    if (!/^\d{4}-\d{2}-01$/.test(period)) {
+      if (resultBox) resultBox.innerHTML =
+        '<div style="color:#a22;font-size:12px;">Billing period must be the 1st of a month (YYYY-MM-01).</div>';
+      return;
+    }
+    if (resultBox) resultBox.innerHTML =
+      '<div style="color:#7e7567;font-size:12px;">Issuing…</div>';
+    const r = await callPortalApi('hoa_issue_month_invoices', {
+      community_id: commId,
+      period_month: period,
+      grace_days:   grace,
+      issued_by:    'admin-ui',
+      issue_mode:   'manual',
+    });
+    if (!r.ok || !r.data) {
+      if (resultBox) resultBox.innerHTML =
+        '<div style="color:#a22;font-size:12px;">Issue failed: HTTP ' + r.http + '</div>';
+      return;
+    }
+    const d = r.data;
+    const recap =
+      '<div style="background:#f0f7ff;border:1px solid #c9dcee;border-radius:6px;padding:10px 14px;font-size:12px;">' +
+      '<strong>Done.</strong><br>' +
+      'Created: <strong>' + (d.created || 0) + '</strong> · ' +
+      'Skipped: <strong>' + (d.skipped || 0) + '</strong> · ' +
+      'Total: <strong>$' + (d.total_amount != null ? Number(d.total_amount).toFixed(2) : '0.00') + '</strong>' +
+      (d.receipt_url
+        ? '<br><a href="' + esc(d.receipt_url) + '" target="_blank" rel="noopener" style="color:#1a3a6b;">'
+          + 'Open printable receipt ↗</a>'
+        : '') +
+      '</div>';
+    if (resultBox) resultBox.innerHTML = recap;
+    if (d.receipt_url) window.open(d.receipt_url, '_blank', 'noopener');
+    hoaToast((d.created || 0) + ' invoice' + ((d.created || 0) === 1 ? '' : 's') + ' issued', 'success');
+  }
+
+  // ── Past runs modal ──────────────────────────────────────────────────
+  async function openRunsModal(communityId) {
+    const c = findCommunity(communityId);
+    if (!c) return hoaToast('Community not found', 'error');
+    const s = await hoaSupa();
+    const { data, error } = await s.from('hoa_issue_runs')
+      .select('id,period_month,due_date,issued_at,issued_by,issue_mode,' +
+              'units_total,created_count,skipped_count,total_amount')
+      .eq('community_id', communityId)
+      .order('issued_at', { ascending: false })
+      .limit(50);
+    if (error) return hoaToast('Error: ' + error.message, 'error');
+    let body = '';
+    if (!data || !data.length) {
+      body = '<p style="color:#7e7567;font-size:13px;margin:8px 0;">No issue runs yet. '
+           + 'Click <strong>🔔 Issue</strong> to fire the first monthly batch.</p>';
+    } else {
+      body = '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+             '<thead><tr style="background:#f7f4ef;text-align:left;">' +
+             '<th style="padding:6px 8px;">Period</th>' +
+             '<th style="padding:6px 8px;">Issued</th>' +
+             '<th style="padding:6px 8px;">Mode</th>' +
+             '<th style="padding:6px 8px;text-align:right;">Created</th>' +
+             '<th style="padding:6px 8px;text-align:right;">Skipped</th>' +
+             '<th style="padding:6px 8px;text-align:right;">Total</th>' +
+             '<th style="padding:6px 8px;"></th>' +
+             '</tr></thead><tbody>';
+      data.forEach(r => {
+        const url = PORTAL_API_BASE + '?action=hoa_issue_receipt&id=' + encodeURIComponent(r.id);
+        body +=
+          '<tr style="border-bottom:1px solid #f0ebe2;">' +
+          '<td style="padding:6px 8px;">' + esc(r.period_month) + '</td>' +
+          '<td style="padding:6px 8px;">' + esc((r.issued_at || '').slice(0, 16).replace('T', ' ')) +
+            (r.issued_by ? '<br><span style="color:#9e9485;font-size:10px;">by ' + esc(r.issued_by) + '</span>' : '') + '</td>' +
+          '<td style="padding:6px 8px;">' + esc(r.issue_mode || '') + '</td>' +
+          '<td style="padding:6px 8px;text-align:right;">' + (r.created_count || 0) + '</td>' +
+          '<td style="padding:6px 8px;text-align:right;">' + (r.skipped_count || 0) + '</td>' +
+          '<td style="padding:6px 8px;text-align:right;">$' + Number(r.total_amount || 0).toFixed(2) + '</td>' +
+          '<td style="padding:6px 8px;"><a href="' + esc(url) + '" target="_blank" rel="noopener" style="color:#1a3a6b;">Receipt ↗</a></td>' +
+          '</tr>';
+      });
+      body += '</tbody></table>';
+    }
+    const html =
+      '<h3 style="margin:0 0 6px 0;font-family:\'Playfair Display\',serif;">📄 Issue run history</h3>' +
+      '<p style="font-size:12px;color:#7e7567;margin:0 0 14px;">' +
+      esc(c.display_name || c.name) + ' · ' + (data ? data.length : 0) + ' run' +
+      ((data && data.length === 1) ? '' : 's') + ' on record.' +
+      '</p>' +
+      body +
+      actionsBar([ btn('Close', 'WPA_hoaCloseModal()') ]);
+    openModal(html);
   }
 
   // ── UNITS ─────────────────────────────────────────────────────────────────
@@ -885,6 +1059,9 @@
   window.WPA_hoaOpenCommunityForm   = openCommunityForm;
   window.WPA_hoaSaveCommunity       = saveCommunity;
   window.WPA_hoaToggleCommunity     = toggleCommunity;
+  window.WPA_hoaOpenIssueModal      = openIssueModal;
+  window.WPA_hoaFireIssue           = fireIssue;
+  window.WPA_hoaOpenRunsModal       = openRunsModal;
 
   window.WPA_hoaSetUnitsFilter      = setUnitsFilter;
   window.WPA_hoaOpenUnitForm        = openUnitForm;
