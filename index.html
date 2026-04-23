@@ -3890,7 +3890,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navB.6"></script>
+<script src="js/app.js?v=20260423-navB.7"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4517,6 +4517,13 @@ if('serviceWorker' in navigator){
     );
 
     const groups = [];
+    // ── Navigation helper ───────────────────────────────────────────
+    // Each result's .nav() lambda now passes a searchTerm so the target
+    // page's in-page search input can be auto-filled, narrowing the
+    // list to just the matching row.
+    const nav = (moduleId, page, term) => () =>
+      navigateToModule(moduleId, page, { term });
+
     if (uRes.data && uRes.data.length) {
       groups.push({
         label: 'Units',
@@ -4526,7 +4533,7 @@ if('serviceWorker' in navigator){
           meta:  (u.is_active ? 'active' : 'inactive') +
                  (u.notes ? ' · ' + u.notes.slice(0, 80) : ''),
           icon:  '🏘',
-          nav:   () => navigateToModule('hoa', 'hoa-units', 'unit:' + u.id),
+          nav:   nav('hoa', 'hoa-units', u.unit_label || ''),
         }))
       });
     }
@@ -4538,7 +4545,7 @@ if('serviceWorker' in navigator){
           title: co.display_name || co.name,
           meta:  [co.city, co.state].filter(Boolean).join(', ') || '—',
           icon:  '🏘',
-          nav:   () => navigateToModule('hoa', 'hoa-communities', 'community:' + co.id),
+          nav:   nav('hoa', 'hoa-communities', co.display_name || co.name || ''),
         }))
       });
     }
@@ -4555,7 +4562,7 @@ if('serviceWorker' in navigator){
             meta:  [c.phone_e164 || c.phone, c.email].filter(Boolean).join(' · ')
                  + (c.is_active ? '' : ' · inactive'),
             icon:  '👤',
-            nav:   () => navigateToModule('hoa', 'hoa-contacts', 'contact:' + c.id),
+            nav:   nav('hoa', 'hoa-contacts', nm),
           };
         })
       });
@@ -4572,7 +4579,8 @@ if('serviceWorker' in navigator){
                   t.email,
                   (t.status && t.status !== 'active' ? t.status : null)].filter(Boolean).join(' · '),
           icon:  '🏠',
-          nav:   () => navigateToModule('mtm-lt', 'mtm-lt-tenants', 'tenant:' + t.id),
+          nav:   nav('mtm-lt', 'mtm-lt-tenants',
+                    t.name || t.email || t.phone_e164 || ''),
         }))
       });
     }
@@ -4589,7 +4597,8 @@ if('serviceWorker' in navigator){
                     : null),
                   b.guest_phone].filter(Boolean).join(' · '),
           icon:  '✈️',
-          nav:   () => navigateToModule('short-term', 'st-dashboard', 'booking:' + b.id),
+          nav:   nav('short-term', 'st-dashboard',
+                    b.guest_name || b.unit_apt || ''),
         }))
       });
     }
@@ -4605,11 +4614,12 @@ if('serviceWorker' in navigator){
                  ' · Due ' + (inv.due_date || '—') +
                  ' · Period ' + (inv.period_month || '—'),
           icon:  '💰',
-          nav:   () => {
-            const mod = inv.invoice_type === 'hoa' ? 'hoa' : 'mtm-lt';
-            const sub = inv.invoice_type === 'hoa' ? 'hoa-invoices' : 'mtm-lt-rent';
-            navigateToModule(mod, sub, 'invoice:' + inv.id);
-          },
+          nav:   (() => {
+            const mod  = inv.invoice_type === 'hoa' ? 'hoa' : 'mtm-lt';
+            const sub  = inv.invoice_type === 'hoa' ? 'hoa-invoices' : 'mtm-lt-rent';
+            const term = inv.unit || '';
+            return () => navigateToModule(mod, sub, { term });
+          })(),
         }))
       });
     }
@@ -4621,11 +4631,52 @@ if('serviceWorker' in navigator){
     return { groups, errors: errorTables };
   }
 
-  function navigateToModule(moduleId, targetPage, deepLink) {
-    // Stash the deep-link intent for the target module to consume (optional).
-    try { sessionStorage.setItem('gs_deeplink', deepLink); } catch (_) {}
+  // Fill the first visible search-like input on the currently active page
+  // with `term` and dispatch an input event so any oninput handler re-renders.
+  // Tolerates pages with no search input (no-op).
+  function fillDestinationSearch(term) {
+    if (!term) return false;
+    const page = document.querySelector('.page.active');
+    if (!page) return false;
+    // Preference order: tenants module input, unit search box, generic
+    // text input, then search-shaped inputs.
+    const candidates = [
+      '#mtmTenantsSearch',
+      '#searchInput',
+      '.search-wrap input',
+      'input[type="search"]',
+      'input[placeholder*="search" i]',
+      'input[type="text"]',
+    ];
+    for (const sel of candidates) {
+      const el = page.querySelector(sel);
+      if (!el) continue;
+      try {
+        el.value = term;
+        el.dispatchEvent(new Event('input',  { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.focus();
+        console.log('[gs nav] filled', sel, 'with', JSON.stringify(term));
+        return true;
+      } catch (e) {
+        console.warn('[gs nav] fill failed on', sel, e);
+      }
+    }
+    console.log('[gs nav] no search input found to auto-fill on active page');
+    return false;
+  }
+
+  function navigateToModule(moduleId, targetPage, arg) {
+    // `arg` may be a plain string (legacy deep-link) or an object
+    //   { id?, term?, deepLink? } — the object form lets us carry an
+    // auto-fill query term for the destination page's list search.
+    const term = typeof arg === 'string' ? '' : (arg && arg.term) || '';
+    const deepLink = typeof arg === 'string'
+                   ? arg
+                   : (arg && arg.deepLink) || '';
+    try { sessionStorage.setItem('gs_deeplink', deepLink || ''); } catch (_) {}
     console.log('[gs nav] start · module=', moduleId, 'targetPage=', targetPage,
-                'deepLink=', deepLink);
+                'term=', JSON.stringify(term), 'deepLink=', deepLink);
     close();
     if (typeof window.switchModule !== 'function') {
       console.warn('[gs nav] window.switchModule missing — nav aborted');
@@ -4638,9 +4689,7 @@ if('serviceWorker' in navigator){
       console.error('[gs nav] switchModule threw:', e);
       return;
     }
-    // Give the module a tick to render sub-nav, then click the target sub-tab.
-    // Bumped from 60ms → 150ms so async sub-nav wiring (e.g. HOA admin
-    // renderSection()) has time to finish before we try to click.
+    // Step 1: click the target sub-tab (150ms gives async sub-nav time).
     setTimeout(() => {
       const subTabs = document.querySelectorAll('#subNav .sub-tab');
       console.log('[gs nav] scanning', subTabs.length, 'sub-tabs for', targetPage);
@@ -4658,6 +4707,11 @@ if('serviceWorker' in navigator){
           Array.from(subTabs).map(t => t.getAttribute('onclick')));
       }
     }, 150);
+    // Step 2: after the destination page mounts, stuff its search input
+    // with the search term so the list filters down to the clicked row.
+    if (term) {
+      setTimeout(() => fillDestinationSearch(term), 400);
+    }
   }
 
   function render(q, result) {
