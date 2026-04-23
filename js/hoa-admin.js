@@ -1,5 +1,5 @@
 // hoa-admin.js — PropDesk HOA admin CRUD (Phase 3B.4 · 2026-04-23)
-console.log('[hoa-admin] loaded v20260423-phase3b.9 — violations tab added');
+console.log('[hoa-admin] loaded v20260423-phase3b.10 — payment reminders (3B.5)');
 // ----------------------------------------------------------------------------
 // Self-contained module. Depends on:
 //   * window.sb           — Supabase client (exposed by app.js)
@@ -288,6 +288,24 @@ console.log('[hoa-admin] loaded v20260423-phase3b.9 — violations tab added');
       row('Stripe account',     sel('hoaCommStripe', creds, rec.stripe_cred_id || ''), 'Leave unwired for manual payments in Phase 1.') +
       row('Issue mode',         sel('hoaCommIssueMode', issueModes, rec.issue_mode || 'manual')) +
       row('Auto-issue day',     inp('hoaCommAutoDay', rec.auto_issue_day != null ? rec.auto_issue_day : '', 'type="number" min="1" max="28"'), 'Day of month (1–28) when Auto mode fires next month\'s batch. Leave empty for Manual.') +
+      // Phase 3B.5 — payment reminder config
+      '<div style="border-top:1px dashed #d9d3c5;margin:14px 0 8px;padding-top:10px;"><strong style="font-size:12px;color:#3a3428;">Payment reminders</strong></div>' +
+      row('Reminders enabled', chk('hoaCommRemEnabled', rec.reminders_enabled !== false, 'Send automatic payment reminders for unpaid invoices')) +
+      row('Days before due',   inp('hoaCommRemDays',
+         Array.isArray(rec.reminders_days_before) ? rec.reminders_days_before.join(',') : '5,3,2,1'),
+         'Comma-separated. Defaults to 5,3,2,1 (SMS+email on each day before due date).') +
+      row('Daily past-due',    chk('hoaCommRemPast',    rec.reminders_daily_past_due !== false, 'Send a reminder every day after the due date until paid')) +
+      row('SMS · before-due template', txa('hoaCommRemSmsBefore',
+        rec.reminder_sms_template_before || ''),
+        'Placeholders: {{owner_name}} {{unit}} {{community}} {{due_date}} {{amount}} {{days_until}}') +
+      row('SMS · past-due template',   txa('hoaCommRemSmsPast',
+        rec.reminder_sms_template_past || ''),
+        'Placeholders: {{owner_name}} {{unit}} {{community}} {{due_date}} {{amount}} {{days_past}}') +
+      row('Email · before-due subject', inp('hoaCommRemEmailSubBefore',
+        rec.reminder_email_subject_before || '')) +
+      row('Email · past-due subject',   inp('hoaCommRemEmailSubPast',
+        rec.reminder_email_subject_past || '')) +
+      '<div style="border-top:1px dashed #d9d3c5;margin:14px 0 8px;padding-top:10px;"></div>' +
       row('Active',             chk('hoaCommActive', rec.is_active !== false, 'Community is active')) +
       row('Notes',              txa('hoaCommNotes', rec.notes)) +
       '<input type="hidden" id="hoaCommId" value="' + esc(id || '') + '">' +
@@ -307,6 +325,12 @@ console.log('[hoa-admin] loaded v20260423-phase3b.9 — violations tab added');
         return;
       }
     }
+    // Phase 3B.5 — parse reminders_days_before as int[] from CSV.
+    const remDaysRaw = readField('hoaCommRemDays') || '5,3,2,1';
+    const remDays = remDaysRaw.split(',')
+      .map(s => Number(s.trim()))
+      .filter(n => Number.isFinite(n) && n > 0 && n < 60);
+
     const payload = {
       name:              readField('hoaCommName'),
       display_name:      readField('hoaCommDisplay'),
@@ -323,6 +347,14 @@ console.log('[hoa-admin] loaded v20260423-phase3b.9 — violations tab added');
       stripe_cred_id:    readField('hoaCommStripe') || null,
       issue_mode:        issueMode,
       auto_issue_day:    issueMode === 'auto' ? autoDay : null,
+      // Phase 3B.5 reminders
+      reminders_enabled:        !!readField('hoaCommRemEnabled'),
+      reminders_days_before:    remDays.length ? remDays : [5, 3, 2, 1],
+      reminders_daily_past_due: !!readField('hoaCommRemPast'),
+      reminder_sms_template_before:   readField('hoaCommRemSmsBefore')      || null,
+      reminder_sms_template_past:     readField('hoaCommRemSmsPast')        || null,
+      reminder_email_subject_before:  readField('hoaCommRemEmailSubBefore') || null,
+      reminder_email_subject_past:    readField('hoaCommRemEmailSubPast')   || null,
       is_active:         !!readField('hoaCommActive'),
       notes:             readField('hoaCommNotes'),
     };
@@ -733,6 +765,10 @@ console.log('[hoa-admin] loaded v20260423-phase3b.9 — violations tab added');
       row('Floor',         inp('hoaUnitFloor', rec.floor_label)) +
       row('Parking tag',   inp('hoaUnitParking', rec.parking_tag), 'Sticker / transponder / space number. Optional.') +
       row('Storage unit',  inp('hoaUnitStorage', rec.storage_unit), 'Storage locker or cage identifier. Optional.') +
+      // Phase 3B.5 — per-unit opt-out from payment reminders.
+      row('Payment reminders', chk('hoaUnitReminders', rec.reminders_enabled !== false,
+         'Receive automatic payment reminders (SMS/email) when HOA fee is due or past-due'),
+         'Uncheck to silence reminders for this unit — ledger + invoices still track normally.') +
       row('Notes',         txa('hoaUnitNotes', rec.notes)) +
       '<input type="hidden" id="hoaUnitId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveUnit()','primary') ]);
@@ -742,14 +778,15 @@ console.log('[hoa-admin] loaded v20260423-phase3b.9 — violations tab added');
     const s = await hoaSupa();
     const id = readField('hoaUnitId');
     const payload = {
-      community_id:   readField('hoaUnitComm'),
-      unit_label:     readField('hoaUnitLabel'),
-      building_label: readField('hoaUnitBldg'),
-      floor_label:    readField('hoaUnitFloor'),
-      parking_tag:    readField('hoaUnitParking') || null,
-      storage_unit:   readField('hoaUnitStorage') || null,
-      is_active:      true,            // units are permanent — never false
-      notes:          readField('hoaUnitNotes'),
+      community_id:       readField('hoaUnitComm'),
+      unit_label:         readField('hoaUnitLabel'),
+      building_label:     readField('hoaUnitBldg'),
+      floor_label:        readField('hoaUnitFloor'),
+      parking_tag:        readField('hoaUnitParking') || null,
+      storage_unit:       readField('hoaUnitStorage') || null,
+      reminders_enabled:  !!readField('hoaUnitReminders'),   // 3B.5 opt-out
+      is_active:          true,            // units are permanent — never false
+      notes:              readField('hoaUnitNotes'),
     };
     if (!payload.community_id || !payload.unit_label) { hoaToast('Community and unit label required', 'error'); return; }
     const q = id
