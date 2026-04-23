@@ -1,5 +1,5 @@
 // hoa-admin.js — PropDesk HOA admin CRUD (Phase 3B.4 · 2026-04-23)
-console.log('[hoa-admin] loaded v20260423-phase3b.10 — payment reminders (3B.5)');
+console.log('[hoa-admin] loaded v20260423-phase3b.11 — alerts tab + prefs');
 // ----------------------------------------------------------------------------
 // Self-contained module. Depends on:
 //   * window.sb           — Supabase client (exposed by app.js)
@@ -886,6 +886,8 @@ console.log('[hoa-admin] loaded v20260423-phase3b.10 — payment reminders (3B.5
           'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">🔧 Work Orders <span id="hoaUDWOCount" style="font-size:10px;color:#9e9485;"></span></div>' +
         '<div class="hoa-ud-tab" data-tab="viol" onclick="WPA_hoaUDSwitchTab(\'viol\')" ' +
           'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">⚠ Violations <span id="hoaUDViolCount" style="font-size:10px;color:#9e9485;"></span></div>' +
+        '<div class="hoa-ud-tab" data-tab="alerts" onclick="WPA_hoaUDSwitchTab(\'alerts\')" ' +
+          'style="padding:8px 16px;cursor:pointer;font-size:13px;color:#6a6253;border-bottom:2px solid transparent;margin-bottom:-2px;">🔔 Alerts</div>' +
       '</div>' +
 
       // ── Main tab pane (preserved — roster + charges + ledger + notes) ─
@@ -911,6 +913,11 @@ console.log('[hoa-admin] loaded v20260423-phase3b.10 — payment reminders (3B.5
         '<div id="hoaUDViolations"><em style="color:#9e9485;">Loading violations…</em></div>' +
       '</div>' +
 
+      // ── Alerts tab pane (3B.5 iter 2) ─────────────────────────────
+      '<div class="hoa-ud-pane" data-pane="alerts" style="display:none;">' +
+        '<div id="hoaUDAlerts"><em style="color:#9e9485;">Loading subscription preferences…</em></div>' +
+      '</div>' +
+
       '<input type="hidden" id="hoaUDUnitId" value="' + esc(unitId) + '">';
 
     openModal(html);
@@ -924,6 +931,7 @@ console.log('[hoa-admin] loaded v20260423-phase3b.10 — payment reminders (3B.5
     renderUDDocs(unitId);
     renderUDWorkOrders(unitId, unit);
     renderUDViolations(unitId);
+    renderUDAlerts(unitId);
   }
 
   // ─── Tab switcher for the unit detail ──────────────────────────────
@@ -1900,6 +1908,185 @@ console.log('[hoa-admin] loaded v20260423-phase3b.10 — payment reminders (3B.5
     await renderUDViolations(unitId);
   }
 
+  // ═════════════════════════════════════════════════════════════════════
+  //  ALERTS TAB · per-owner subscription preferences (Phase 3B.5 iter 2)
+  //  Shows each active owner/resident of this unit and their subscription
+  //  prefs across the category catalog. Absence of a row for a
+  //  (contact, category) pair = category defaults (SMS + Email on, App
+  //  off). Save upserts one row per category per owner.
+  //
+  //  Same table is read by the portal first-login wizard (task #20).
+  // ═════════════════════════════════════════════════════════════════════
+  async function renderUDAlerts(unitId) {
+    const s = await hoaSupa();
+    const box = document.getElementById('hoaUDAlerts');
+    if (!box) return;
+
+    // Owners + residents of this unit.
+    const { data: ucRows } = await s.from('hoa_unit_contacts')
+      .select('id,contact_id,relationship_type,is_primary,is_active')
+      .eq('unit_id', unitId)
+      .eq('is_active', true)
+      .order('is_primary', { ascending: false });
+    const links = ucRows || [];
+    if (!links.length) {
+      box.innerHTML =
+        '<h4 style="font-size:13px;margin:0 0 6px;color:#3a3428;">🔔 Subscription preferences</h4>' +
+        '<div style="padding:18px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;">' +
+        'No owners or residents linked to this unit. Add one in the <strong>Main</strong> tab first.' +
+        '</div>';
+      return;
+    }
+
+    // Global category catalog (cached on cache._notifCats so we only hit
+    // Supabase once per session).
+    if (!cache._notifCats) {
+      const { data: catData } = await s.from('hoa_notification_categories')
+        .select('id,code,name,description,has_cadence,sort_order,is_active')
+        .eq('is_active', true)
+        .order('sort_order');
+      cache._notifCats = catData || [];
+    }
+    const cats = cache._notifCats;
+
+    // Contacts used here.
+    const contactIds = Array.from(new Set(links.map(l => l.contact_id)));
+    await refreshCache(['contacts']);
+    const contactById = c => cache.contacts.find(x => x.id === c);
+
+    // Load existing preferences for these contacts (one query).
+    const { data: prefRows } = await s.from('hoa_contact_preferences')
+      .select('contact_id,category_code,channel_app,channel_sms,channel_email,past_due_cadence')
+      .in('contact_id', contactIds);
+    const prefMap = {};  // prefMap[contact_id][category_code] = row
+    (prefRows || []).forEach(r => {
+      prefMap[r.contact_id] = prefMap[r.contact_id] || {};
+      prefMap[r.contact_id][r.category_code] = r;
+    });
+
+    const REL_LABEL = {
+      owner:          'Owner',
+      owner_resident: 'Owner-Occupant',
+      resident:       'Resident',
+      other:          'Other',
+    };
+    const CADENCE_OPTS = [
+      { value:'daily',        label:'Every day' },
+      { value:'every_2_days', label:'Every 2 days' },
+      { value:'none',         label:'Never' },
+    ];
+
+    let h =
+      '<h4 style="font-size:13px;margin:0 0 6px;color:#3a3428;">🔔 Subscription preferences · per owner</h4>' +
+      '<div style="font-size:11px;color:#9e9485;margin-bottom:14px;">' +
+        'When an owner/resident hasn\'t recorded their preferences yet, the default is <strong>SMS + Email</strong> ' +
+        '(the same defaults the portal wizard will offer at first login). Save any change here and it overrides the default.' +
+      '</div>';
+
+    links.forEach(uc => {
+      const c = contactById(uc.contact_id);
+      if (!c) return;
+      const name = c.full_name
+                || [c.first_name, c.last_name].filter(Boolean).join(' ')
+                || c.email || c.phone_e164 || '(unnamed)';
+      const roleLbl = REL_LABEL[uc.relationship_type] || uc.relationship_type;
+      const subMap  = prefMap[c.id] || {};
+
+      h += '<div style="border:1px solid #e5dfd4;border-radius:6px;padding:14px 16px;margin-bottom:14px;background:#fff;">' +
+           '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;">' +
+             '<div>' +
+               '<strong style="font-size:13px;">' + esc(name) + '</strong> ' +
+               '<span style="color:#9e9485;font-size:11px;">· ' + esc(roleLbl) +
+               (uc.is_primary ? ' · ★ primary' : '') +
+               '</span>' +
+             '</div>' +
+             '<div style="font-size:11px;color:#7e7567;">' +
+               esc([c.phone_e164 || c.phone, c.email].filter(Boolean).join(' · ') || '—') +
+             '</div>' +
+           '</div>' +
+           '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
+           '<thead><tr style="background:#faf6ee;text-align:left;">' +
+           '<th style="padding:6px 8px;">Category</th>' +
+           '<th style="padding:6px 8px;text-align:center;">App</th>' +
+           '<th style="padding:6px 8px;text-align:center;">SMS</th>' +
+           '<th style="padding:6px 8px;text-align:center;">Email</th>' +
+           '<th style="padding:6px 8px;">Cadence</th>' +
+           '</tr></thead><tbody>';
+
+      cats.forEach(cat => {
+        // Effective prefs: stored row overrides defaults (sms+email on,
+        // app off). Cadence defaults to 'daily' (matches community cron
+        // default). has_cadence categories show the dropdown; others show —.
+        const stored = subMap[cat.code];
+        const app   = stored ? !!stored.channel_app   : false;
+        const sms   = stored ? !!stored.channel_sms   : true;
+        const email = stored ? !!stored.channel_email : true;
+        const cad   = stored ? (stored.past_due_cadence || 'daily') : 'daily';
+
+        const idPrefix = 'hoaUDAlert_' + c.id + '_' + cat.code + '_';
+        const chk = (suffix, checked) =>
+          '<input type="checkbox" id="' + idPrefix + suffix + '"' + (checked ? ' checked' : '') + '>';
+        const cadSelect = cat.has_cadence
+          ? '<select id="' + idPrefix + 'cadence" style="font:inherit;font-size:11px;padding:3px 6px;border:1px solid #d9d3c5;border-radius:3px;">' +
+              CADENCE_OPTS.map(o =>
+                '<option value="' + esc(o.value) + '"' + (o.value === cad ? ' selected' : '') + '>' + esc(o.label) + '</option>'
+              ).join('') +
+            '</select>'
+          : '<span style="color:#c9c0a8;">—</span>';
+
+        h += '<tr style="border-bottom:1px solid #f0ebe2;">' +
+             '<td style="padding:6px 8px;">' +
+               '<strong>' + esc(cat.name) + '</strong>' +
+               (cat.description
+                 ? '<br><span style="color:#9e9485;font-size:10px;">' + esc(cat.description) + '</span>'
+                 : '') +
+             '</td>' +
+             '<td style="padding:6px 8px;text-align:center;">' + chk('app',   app)   + '</td>' +
+             '<td style="padding:6px 8px;text-align:center;">' + chk('sms',   sms)   + '</td>' +
+             '<td style="padding:6px 8px;text-align:center;">' + chk('email', email) + '</td>' +
+             '<td style="padding:6px 8px;">' + cadSelect + '</td>' +
+             '</tr>';
+      });
+      h += '</tbody></table>' +
+           '<div style="text-align:right;margin-top:10px;">' +
+             btn('Save preferences', "WPA_hoaUDSaveAlerts('" + c.id + "','" + unitId + "')", 'primary') +
+           '</div>' +
+           '</div>';
+    });
+
+    box.innerHTML = h;
+  }
+
+  async function udSaveAlerts(contactId, unitId) {
+    const cats = cache._notifCats || [];
+    if (!cats.length) { hoaToast('Categories not loaded', 'error'); return; }
+    const s = await hoaSupa();
+    const idPrefix = 'hoaUDAlert_' + contactId + '_';
+    const upserts = cats.map(cat => {
+      const p = idPrefix + cat.code + '_';
+      return {
+        contact_id:       contactId,
+        category_code:    cat.code,
+        channel_app:      !!document.getElementById(p + 'app')?.checked,
+        channel_sms:      !!document.getElementById(p + 'sms')?.checked,
+        channel_email:    !!document.getElementById(p + 'email')?.checked,
+        past_due_cadence: cat.has_cadence
+          ? (document.getElementById(p + 'cadence')?.value || 'daily')
+          : 'daily',
+      };
+    });
+    // PostgREST bulk upsert with on-conflict-update on the unique
+    // (contact_id, category_code).
+    const { error } = await s.from('hoa_contact_preferences')
+      .upsert(upserts, { onConflict: 'contact_id,category_code' });
+    if (error) return hoaToast('Save error: ' + error.message, 'error');
+    hoaToast('Preferences saved ✓', 'success');
+    // Re-render so the "stored vs default" visuals update (e.g., stored
+    // rows aren't visually distinguished today but this keeps the DOM
+    // in sync with whatever changed).
+    await renderUDAlerts(unitId);
+  }
+
   // Make charge types available to the "Add charge" form.
   async function ensureChargeTypesLoaded() {
     if (cache._chargeTypes) return;
@@ -2472,6 +2659,8 @@ console.log('[hoa-admin] loaded v20260423-phase3b.10 — payment reminders (3B.5
   window.WPA_hoaUDHideAddViolation  = udHideAddViolation;
   window.WPA_hoaUDSaveViolation     = udSaveViolation;
   window.WPA_hoaUDDeleteViolation   = udDeleteViolation;
+  // Phase 3B.5 iter 2 — alerts / subscription preferences
+  window.WPA_hoaUDSaveAlerts        = udSaveAlerts;
 
   window.WPA_hoaSetContactsSearch   = setContactsSearch;
   window.WPA_hoaOpenContactForm     = openContactForm;
