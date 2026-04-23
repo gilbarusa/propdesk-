@@ -3889,7 +3889,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navA.2"></script>
+<script src="js/app.js?v=20260423-navA.3"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4229,11 +4229,12 @@ if('serviceWorker' in navigator){
 <!-- ═══ Phase A nav refactor (v=20260423-navA) · inline CSS + search stub ═══ -->
 <style>
   /* ── Phase A font bump ──────────────────────────────────────────────
-     Main module-tab was 11px; bumping 1 step up to 13px across both
-     #moduleBar and #topServices for readability. Mod-icon keeps its
-     14px baseline (already larger than text). */
+     Main module-tab was 11px; bumping to 13px across both #moduleBar
+     and #topServices. Sub-tabs were 11px; bumping to 13px to match.
+     Top-services bumped again to 14px per Gil 2026-04-23 iteration 3. */
   .module-bar .module-tab { font-size: 13px; }
   .module-bar .module-tab .mod-icon { font-size: 15px; }
+  #subNav.sub-nav .sub-tab { font-size: 13px; padding: 11px 18px; }
 
   /* Top-bar services cluster. Visual wrapper only — element styling
      inherited from the existing .module-tab class so hover/active states
@@ -4245,10 +4246,10 @@ if('serviceWorker' in navigator){
     border-radius: 22px;
   }
   .top-services .top-svc-tab {
-    padding: 5px 11px; font-size: 13px; border-radius: 18px;  /* +1 size bump */
+    padding: 6px 12px; font-size: 14px; border-radius: 18px;  /* +1 size bump (iter 3) */
     cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
   }
-  .top-services .top-svc-tab .mod-icon { font-size: 15px; }
+  .top-services .top-svc-tab .mod-icon { font-size: 16px; }
   .top-services .top-svc-tab:hover { background: rgba(0,0,0,0.05); }
   .top-services .top-svc-tab.active {
     background: var(--blue-bg, #edf3fb); color: var(--blue, #1e5799);
@@ -4258,15 +4259,16 @@ if('serviceWorker' in navigator){
     padding: 1px 6px; border-radius: 9px; min-width: 16px; text-align: center;
   }
 
-  /* Global search button — toned down per Gil 2026-04-23.
-     Was dark-green brown; now uses the --blue-bg light-blue palette so
-     it blends with the header instead of dominating it. Also narrower. */
+  /* Global search button — light blue, sized to match the nav frame.
+     Height tuned to approximate the module-tab row height so it sits
+     flush with the rest of the top-bar chrome (iter 3, 2026-04-23). */
   .global-search-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 10px 4px 8px; font: inherit; font-size: 12px;
+    padding: 8px 12px 8px 10px; font: inherit; font-size: 12px;
     background: var(--blue-bg, #edf3fb); color: var(--blue, #1e5799);
-    border: 1px solid var(--blue-border, #a8c8ed); border-radius: 16px;
-    cursor: pointer; margin-left: 10px; min-width: 200px;
+    border: 1px solid var(--blue-border, #a8c8ed); border-radius: 18px;
+    cursor: pointer; margin-left: 10px; min-width: 160px;
+    line-height: 1;
   }
   .global-search-btn:hover {
     background: #dbe8f8;
@@ -4288,9 +4290,9 @@ if('serviceWorker' in navigator){
 
   /* Responsive: collapse services to icon-only when top bar gets tight. */
   @media (max-width: 1280px) {
-    .top-services .top-svc-tab { padding: 5px 8px; }
+    .top-services .top-svc-tab { padding: 6px 9px; }
     .top-services .top-svc-tab .mod-icon + :not(.mod-badge) { display: none; }
-    .global-search-btn { min-width: 140px; }
+    .global-search-btn { min-width: 120px; }
     .global-search-btn .gsb-placeholder { display: none; }
   }
 
