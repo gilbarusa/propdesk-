@@ -98,12 +98,7 @@
     <div class="module-tab top-svc-tab" data-module="parking" onclick="switchModule('parking',this)"><span class="mod-icon">🚗</span> Parking</div>
   </div>
 
-  <!-- Global search button (Phase A stub). Wired to a placeholder in Phase B. -->
-  <button id="globalSearchBtn" class="global-search-btn" onclick="window.WPA_openGlobalSearch && window.WPA_openGlobalSearch()" title="Search everything (⌘K)">
-    <span class="gsb-ic">🔍</span>
-    <span class="gsb-placeholder">Search everything — owners, units, invoices…</span>
-    <span class="gsb-kbd">⌘K</span>
-  </button>
+  <!-- (Search button moved to #moduleBar below, per Gil 2026-04-23 iter B.2) -->
 
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
@@ -153,6 +148,12 @@
   <div class="module-tab" data-module="messages" onclick="switchModule('messages',this)"><span class="mod-icon">💬</span> Messages <span class="mod-badge" id="msgCenterBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="portal" onclick="switchModule('portal',this)"><span class="mod-icon">👤</span> Portal <span class="mod-badge" id="portalBadge" style="display:none">0</span></div>
   <div style="flex:1"></div>
+  <!-- Global search button — relocated from top bar to module bar per Gil 2026-04-23 iter B.2. -->
+  <button id="globalSearchBtn" class="global-search-btn" onclick="window.WPA_openGlobalSearch && window.WPA_openGlobalSearch()" title="Search everything (⌘K)">
+    <span class="gsb-ic">🔍</span>
+    <span class="gsb-placeholder">Search everything…</span>
+    <span class="gsb-kbd">⌘K</span>
+  </button>
   <div class="module-tab" data-module="settings" onclick="switchModule('settings',this)"><span class="mod-icon">⚙</span></div>
 </nav>
 
@@ -3889,7 +3890,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navB.1"></script>
+<script src="js/app.js?v=20260423-navB.2"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4259,32 +4260,24 @@ if('serviceWorker' in navigator){
     padding: 1px 6px; border-radius: 9px; min-width: 16px; text-align: center;
   }
 
-  /* Global search button — matches .top-services tint for visual parity
-     with the services cluster on the left. Iter 5 (2026-04-23):
-     neutral translucent dark bg (same as .top-services), no border,
-     30% wider than iter 4. */
+  /* Global search button — lives in #moduleBar (iter B.2). Wider baseline
+     + placeholder visible by default since the module bar has more room.
+     Still matches the .top-services neutral tint for visual parity. */
   .global-search-btn {
     display: inline-flex; align-items: center; gap: 6px;
-    padding: 8px 12px; font: inherit; font-size: 12px;
-    background: rgba(0,0,0,0.03);               /* matches .top-services */
-    color: var(--text2, #5a5040);               /* muted neutral, not blue */
-    border: 1px solid transparent;              /* no visible border */
-    border-radius: 18px;
-    cursor: pointer; margin-left: 10px; min-width: 104px;   /* +30% of 80 */
-    line-height: 1; transition: min-width 0.15s ease, background 0.15s ease;
+    padding: 6px 12px; font: inherit; font-size: 12px;
+    background: rgba(0,0,0,0.03);
+    color: var(--text2, #5a5040);
+    border: 1px solid transparent; border-radius: 18px;
+    cursor: pointer; margin: 0 6px 0 10px; min-width: 200px;
+    line-height: 1; transition: background 0.15s ease;
   }
-  .global-search-btn:hover {
-    min-width: 208px;                           /* +30% of 160 */
-    background: rgba(0,0,0,0.06);
-  }
+  .global-search-btn:hover { background: rgba(0,0,0,0.06); }
   .global-search-btn .gsb-ic { font-size: 13px; }
   .global-search-btn .gsb-placeholder {
-    /* Hidden at narrow width; reappears on hover. */
-    display: none;
-    font-size: 11px; color: #7e7567;            /* muted gray, readable on neutral bg */
-  }
-  .global-search-btn:hover .gsb-placeholder {
-    display: inline; flex: 1; text-align: left;
+    /* Always visible in module-bar context (plenty of width). */
+    flex: 1; text-align: left;
+    font-size: 11px; color: #7e7567;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .global-search-btn .gsb-kbd {
@@ -4313,12 +4306,12 @@ if('serviceWorker' in navigator){
   }
 
   /* Responsive: collapse services to icon-only when top bar gets tight.
-     Search button keeps its compact baseline (104px) on narrow screens,
-     no hover expansion so the top bar doesn't reflow mid-scan. */
+     Search button shrinks to 120px on narrow screens (hiding placeholder). */
   @media (max-width: 1280px) {
     .top-services .top-svc-tab { padding: 6px 9px; }
     .top-services .top-svc-tab .mod-icon + :not(.mod-badge) { display: none; }
-    .global-search-btn:hover { min-width: 104px; }
+    .global-search-btn { min-width: 120px; }
+    .global-search-btn .gsb-placeholder { display: none; }
   }
 
   /* Phase B global-search modal. */
@@ -4453,9 +4446,11 @@ if('serviceWorker' in navigator){
     if (!q || q.trim().length < 2) return { groups: [] };
     const like = '%' + q.trim() + '%';
 
-    // Four parallel queries. Each is tolerant of its own failure so one
-    // broken table doesn't collapse the whole search.
+    // Six parallel queries spanning HOA + rental + short-term worlds.
+    // Each is tolerant of its own failure so one broken table doesn't
+    // collapse the whole search.
     const queries = [
+      // HOA side
       s.from('hoa_units')
         .select('id,unit_label,community_id,is_active,notes')
         .or(`unit_label.ilike.${like},notes.ilike.${like}`)
@@ -4473,9 +4468,33 @@ if('serviceWorker' in navigator){
         .or(`unit.ilike.${like},notes.ilike.${like}`)
         .order('due_date', { ascending: false })
         .limit(PER_TABLE),
+      // Rental-side: long-term tenants (tenants_lt)
+      s.from('tenants_lt')
+        .select('id,name,email,phone,phone_e164,apt,property,archived')
+        .or(`name.ilike.${like},email.ilike.${like},phone_e164.ilike.${like},apt.ilike.${like}`)
+        .limit(PER_TABLE),
+      // Short-term: bookings (guests)
+      s.from('bookings')
+        .select('id,guest_name,guest_phone,unit_apt,booking_status,check_in,check_out')
+        .or(`guest_name.ilike.${like},guest_phone.ilike.${like},unit_apt.ilike.${like}`)
+        .order('check_in', { ascending: false })
+        .limit(PER_TABLE),
     ];
-    const [uRes, cRes, commRes, invRes] = await Promise.all(
+    const [uRes, cRes, commRes, invRes, tltRes, bkRes] = await Promise.all(
       queries.map(p => p.then(r => r).catch(e => ({ data: [], error: e })))
+    );
+
+    // ── Dedup step (iter B.2) ─────────────────────────────────────────
+    // If Units match, collapse any invoice row whose `unit` equals one
+    // of those unit_labels — rationale: a hit on "122" should surface
+    // the Unit, not also 6 invoices tied to that unit (you can drill
+    // into them from the unit view). Same rule mirrors tenants_lt.apt
+    // and bookings.unit_apt so searching "2B" shows the tenant/guest
+    // rows without also dumping every invoice for 2B.
+    const canonicalUnitLabels = new Set();
+    (uRes.data || []).forEach(u => u.unit_label && canonicalUnitLabels.add(String(u.unit_label).trim()));
+    const filteredInvoices = (invRes.data || []).filter(inv =>
+      !inv.unit || !canonicalUnitLabels.has(String(inv.unit).trim())
     );
 
     const groups = [];
@@ -4506,7 +4525,7 @@ if('serviceWorker' in navigator){
     }
     if (cRes.data && cRes.data.length) {
       groups.push({
-        label: 'Contacts',
+        label: 'HOA contacts',
         rows: cRes.data.map(c => {
           const nm = c.full_name
                   || [c.first_name, c.last_name].filter(Boolean).join(' ')
@@ -4522,10 +4541,43 @@ if('serviceWorker' in navigator){
         })
       });
     }
-    if (invRes.data && invRes.data.length) {
+    if (tltRes.data && tltRes.data.length) {
+      groups.push({
+        label: 'Tenants (long-term)',
+        rows: tltRes.data.map(t => ({
+          type: 'tenant_lt', id: t.id,
+          title: t.name || t.email || t.phone_e164 || '(unnamed)',
+          meta:  [(t.apt ? 'Apt ' + t.apt : null),
+                  t.property,
+                  t.phone_e164 || t.phone,
+                  t.email,
+                  (t.archived ? 'archived' : null)].filter(Boolean).join(' · '),
+          icon:  '🏠',
+          nav:   () => navigateToModule('mtm-lt', 'mtm-lt-tenants', 'tenant:' + t.id),
+        }))
+      });
+    }
+    if (bkRes.data && bkRes.data.length) {
+      groups.push({
+        label: 'Short-term bookings',
+        rows: bkRes.data.map(b => ({
+          type: 'booking', id: b.id,
+          title: (b.guest_name || '(guest)') +
+                 (b.unit_apt ? ' · Unit ' + b.unit_apt : ''),
+          meta:  [b.booking_status,
+                  (b.check_in && b.check_out
+                    ? b.check_in + ' → ' + b.check_out
+                    : null),
+                  b.guest_phone].filter(Boolean).join(' · '),
+          icon:  '✈️',
+          nav:   () => navigateToModule('short-term', 'st-dashboard', 'booking:' + b.id),
+        }))
+      });
+    }
+    if (filteredInvoices.length) {
       groups.push({
         label: 'Invoices',
-        rows: invRes.data.map(inv => ({
+        rows: filteredInvoices.map(inv => ({
           type: 'invoice', id: inv.id,
           title: '$' + Number(inv.total || 0).toFixed(2) +
                  ' · Unit ' + (inv.unit || '—') +
