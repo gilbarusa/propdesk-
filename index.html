@@ -68,18 +68,61 @@
   <h2>Willow</h2>
   <p>Connecting to database…</p>
 </div>
+<!--
+  ═══ TOP BAR — Phase A nav refactor (v=20260423-navA) ═══
+  Restructured under the "shell refactor" approach:
+    * Services (TechTrack / Home Services / Mailroom / Parking) MOVED here
+      from #moduleBar. They keep class="module-tab", the same data-module
+      attributes, same switchModule() onclick handlers, and the same badge
+      element IDs so all existing JS continues to find them unchanged.
+    * Global search BUTTON installed as a stub; opens "Coming in Phase B"
+      modal via onclick.
+    * Settings gear relocation unchanged — still in #moduleBar right side.
+    * All legacy top-bar widgets kept ALIVE but hidden via
+      style="display:none" so JS that reads/writes their IDs still works:
+        - #headerBackupTimestamp, #headerBackupBtn, header export button
+        - #propertySelector, #propDropdown, #propSelectorName
+        - #buildStamp
+      Phase B will delete them once we confirm nothing depends on them.
+    * Phase A rollback: restore
+      index.html.2026-04-23T02-40Z.pre-nav-refactor.bak
+-->
 <header class="header">
   <div class="brand"><h1>Willow</h1><span class="brand-sub">Property Platform</span></div>
+
+  <!-- Services cluster (moved from #moduleBar). Same IDs + handlers. -->
+  <div id="topServices" class="top-services" role="navigation" aria-label="Services">
+    <div class="module-tab top-svc-tab" data-module="techtrack" onclick="switchModule('techtrack',this)"><span class="mod-icon">🔧</span> TechTrack <span class="mod-badge" id="techtrackBadge" style="display:none">0</span></div>
+    <div class="module-tab top-svc-tab" data-module="home-services" onclick="switchModule('home-services',this)"><span class="mod-icon">🧹</span> Home Services</div>
+    <div class="module-tab top-svc-tab" data-module="mailroom" onclick="switchModule('mailroom',this)"><span class="mod-icon">📦</span> Mailroom <span class="mod-badge" id="mailroomBadge" style="display:none">0</span></div>
+    <div class="module-tab top-svc-tab" data-module="parking" onclick="switchModule('parking',this)"><span class="mod-icon">🚗</span> Parking</div>
+  </div>
+
+  <!-- Global search button (Phase A stub). Wired to a placeholder in Phase B. -->
+  <button id="globalSearchBtn" class="global-search-btn" onclick="window.WPA_openGlobalSearch && window.WPA_openGlobalSearch()" title="Search everything (⌘K)">
+    <span class="gsb-ic">🔍</span>
+    <span class="gsb-placeholder">Search everything — owners, units, invoices…</span>
+    <span class="gsb-kbd">⌘K</span>
+  </button>
+
   <div class="header-right">
     <span id="syncStatus" style="font-size:11px;color:var(--text3)">● live<span class="sync-dot"></span></span>
     <span id="headerClock" style="font-size:13px;color:var(--accent2);font-family:'DM Mono',monospace;font-weight:700;min-width:220px;display:inline-block;"></span>
-    <span style="color:var(--border2);font-size:11px;">|</span>
-    <span id="headerBackupTimestamp" style="font-size:10px;color:#9e9485;font-family:'DM Mono',monospace;"></span>
-    <button onclick="openBackupHistory()" class="btn btn-secondary btn-sm" title="View backup history">🕐</button>
-    <button id="headerBackupBtn" onclick="runBackup()" class="btn btn-sm" style="background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
-    <button class="btn btn-secondary btn-sm" onclick="exportCSV()">⬇ Export</button>
-    <span style="color:var(--border2);font-size:11px;">|</span>
-    <div class="property-selector" id="propertySelector" onclick="togglePropertyDropdown(event)">
+
+    <!--
+      ▼ Phase-A-hidden legacy controls ▼
+      These stay in the DOM so their IDs / handlers continue to work for any
+      JS that reads them (runBackup(), openBackupHistory, property scoping,
+      buildStamp). They are moved visually to the Command Center header.
+      Phase B will remove them after dependency sweep confirms it's safe.
+    -->
+    <span data-phaseA="hidden-legacy" style="display:none;color:var(--border2);font-size:11px;">|</span>
+    <span id="headerBackupTimestamp" data-phaseA="hidden-legacy" style="display:none;font-size:10px;color:#9e9485;font-family:'DM Mono',monospace;"></span>
+    <button data-phaseA="hidden-legacy" onclick="openBackupHistory()" class="btn btn-secondary btn-sm" style="display:none;" title="View backup history">🕐</button>
+    <button id="headerBackupBtn" data-phaseA="hidden-legacy" onclick="runBackup()" class="btn btn-sm" style="display:none;background:var(--green);color:#fff;border:none;font-weight:500;min-width:130px;justify-content:center;">💾 Backup Now</button>
+    <button data-phaseA="hidden-legacy" class="btn btn-secondary btn-sm" style="display:none;" onclick="exportCSV()">⬇ Export</button>
+    <span data-phaseA="hidden-legacy" style="display:none;color:var(--border2);font-size:11px;">|</span>
+    <div class="property-selector" id="propertySelector" data-phaseA="hidden-legacy" style="display:none;" onclick="togglePropertyDropdown(event)">
       <span style="font-size:14px;">🏘</span>
       <span class="prop-name" id="propSelectorName">All Properties</span>
       <span class="prop-arrow">▾</span>
@@ -90,20 +133,23 @@
         </div>
       </div>
     </div>
-    <span id="buildStamp" style="font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;"></span>
+    <span id="buildStamp" data-phaseA="hidden-legacy" style="display:none;font-size:9px;color:var(--text3);white-space:nowrap;letter-spacing:.3px;"></span>
   </div>
 </header>
 
-<!-- ═══ MODULE BAR (Primary Navigation) ═══ -->
+<!--
+  ═══ MODULE BAR (Primary Navigation) · Phase A nav refactor (v=20260423-navA) ═══
+  The four services (techtrack / parking / home-services / mailroom) that
+  previously lived here are now in #topServices inside <header> above.
+  They kept their data-module attributes, onclick handlers, class
+  .module-tab, and badge IDs, so app.js selectors adapted to
+  [data-module="X"] (dropping #moduleBar prefix) still find them.
+-->
 <nav class="module-bar" id="moduleBar">
   <div class="module-tab active" data-module="dashboard" onclick="switchModule('dashboard',this)"><span class="mod-icon">📊</span> Dashboard</div>
   <div class="module-tab" data-module="short-term" onclick="switchModule('short-term',this)"><span class="mod-icon">✈️</span> Short-Term <span class="mod-badge" id="stBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="mtm-lt" onclick="switchModule('mtm-lt',this)"><span class="mod-icon">🏠</span> MTM / Long-Term</div>
-  <div class="module-tab" data-module="techtrack" onclick="switchModule('techtrack',this)"><span class="mod-icon">🔧</span> TechTrack <span class="mod-badge" id="techtrackBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="expenses" onclick="switchModule('expenses',this)"><span class="mod-icon">💰</span> Expenses</div>
-  <div class="module-tab" data-module="parking" onclick="switchModule('parking',this)"><span class="mod-icon">🚗</span> Parking</div>
-  <div class="module-tab" data-module="home-services" onclick="switchModule('home-services',this)"><span class="mod-icon">🧹</span> Home Services</div>
-  <div class="module-tab" data-module="mailroom" onclick="switchModule('mailroom',this)"><span class="mod-icon">📦</span> Mailroom <span class="mod-badge" id="mailroomBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="messages" onclick="switchModule('messages',this)"><span class="mod-icon">💬</span> Messages <span class="mod-badge" id="msgCenterBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="portal" onclick="switchModule('portal',this)"><span class="mod-icon">👤</span> Portal <span class="mod-badge" id="portalBadge" style="display:none">0</span></div>
   <div class="module-tab" data-module="hoa" onclick="switchModule('hoa',this)"><span class="mod-icon">🏘</span> HOA</div>
@@ -513,6 +559,8 @@
       <div class="dash-header-actions">
         <div id="backupStatus" style="font-size:11px;color:var(--text3);">No backup yet</div>
         <button onclick="openBackupHistory()" class="btn-subtle">🕐 History</button>
+        <!-- Phase A nav refactor: Export moved here from the top bar. -->
+        <button id="dashExportBtn" onclick="exportCSV()" class="btn-subtle" title="Export CSV">⬇ Export</button>
         <button id="backupBtn" onclick="runBackup()" class="btn-backup">💾 Backup Now</button>
       </div>
     </div>
@@ -3842,7 +3890,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260421-phase10-3-5"></script>
+<script src="js/app.js?v=20260423-navA"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4178,6 +4226,105 @@ if('serviceWorker' in navigator){
     </div>
   </div>
 </div>
+
+<!-- ═══ Phase A nav refactor (v=20260423-navA) · inline CSS + search stub ═══ -->
+<style>
+  /* Top-bar services cluster. Visual wrapper only — element styling inherited
+     from the existing .module-tab class so hover/active states match the
+     original module bar exactly. */
+  .top-services {
+    display: inline-flex; align-items: center; gap: 2px;
+    margin-left: 12px; padding: 3px 5px;
+    background: rgba(0,0,0,0.03);
+    border-radius: 22px;
+  }
+  .top-services .top-svc-tab {
+    padding: 5px 11px; font-size: 12px; border-radius: 18px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+  }
+  .top-services .top-svc-tab:hover { background: rgba(0,0,0,0.05); }
+  .top-services .top-svc-tab.active {
+    background: var(--accent2, #8a6d3c); color: #fff;
+  }
+  .top-services .mod-badge {
+    background: #c9404b; color: #fff; font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 9px; min-width: 16px; text-align: center;
+  }
+  /* Global search button stub. */
+  .global-search-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px 6px 12px; font: inherit; font-size: 12px;
+    background: var(--brown, #2a3f28); color: #efe9d9;
+    border: 1px solid var(--brown, #2a3f28); border-radius: 20px;
+    cursor: pointer; margin-left: 12px; min-width: 260px;
+  }
+  .global-search-btn:hover { filter: brightness(1.1); }
+  .global-search-btn .gsb-placeholder { flex: 1; text-align: left; color: #c9c0a8; }
+  .global-search-btn .gsb-kbd {
+    font-size: 10px; color: #b8b39e; border: 1px solid rgba(255,255,255,0.25);
+    padding: 1px 5px; border-radius: 3px;
+    font-family: ui-monospace, Menlo, monospace;
+  }
+
+  /* Responsive: collapse services to icon-only when top bar gets tight. */
+  @media (max-width: 1280px) {
+    .top-services .top-svc-tab { padding: 5px 8px; }
+    .top-services .top-svc-tab .mod-icon + :not(.mod-badge) { display: none; }
+    .global-search-btn { min-width: 180px; }
+    .global-search-btn .gsb-placeholder { display: none; }
+  }
+
+  /* Phase A search stub modal. */
+  .gsb-stub-ov {
+    position: fixed; inset: 0; background: rgba(42,36,29,0.35);
+    display: none; align-items: flex-start; justify-content: center;
+    z-index: 9999; padding-top: 90px;
+  }
+  .gsb-stub-ov.open { display: flex; }
+  .gsb-stub-modal {
+    background: #fff; border: 1px solid #d9d3c5; border-radius: 10px;
+    padding: 22px 26px; max-width: 420px; box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    text-align: center;
+  }
+  .gsb-stub-modal h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+    font-size: 18px; margin-bottom: 10px; color: #2a241d;
+  }
+  .gsb-stub-modal p { font-size: 13px; color: #5a5040; margin-bottom: 16px; }
+  .gsb-stub-modal button {
+    padding: 7px 18px; font: inherit; font-size: 12px;
+    background: #2a3f28; color: #efe9d9; border: none; border-radius: 4px;
+    cursor: pointer;
+  }
+</style>
+
+<!-- Global search STUB overlay (Phase A). Real implementation in Phase B. -->
+<div class="gsb-stub-ov" id="gsbStubOverlay" onclick="if(event.target===this) window.WPA_closeGlobalSearch()">
+  <div class="gsb-stub-modal">
+    <h3>🔍 Global search</h3>
+    <p>Coming in <strong>Phase B</strong> — cross-table search over units, invoices, contacts, communities, and more. Button is live; backend wiring is the next step.</p>
+    <button onclick="window.WPA_closeGlobalSearch()">Got it</button>
+  </div>
+</div>
+
+<script>
+// Phase A stubs for global search. Replaced with real implementation in Phase B.
+window.WPA_openGlobalSearch = function() {
+  document.getElementById('gsbStubOverlay')?.classList.add('open');
+};
+window.WPA_closeGlobalSearch = function() {
+  document.getElementById('gsbStubOverlay')?.classList.remove('open');
+};
+// ⌘K / Ctrl+K keyboard shortcut
+document.addEventListener('keydown', function(e){
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    window.WPA_openGlobalSearch();
+  } else if (e.key === 'Escape') {
+    window.WPA_closeGlobalSearch();
+  }
+});
+</script>
 
 </body>
 </html>
