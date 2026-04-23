@@ -3890,7 +3890,7 @@
 <!-- rent-roll.js must load BEFORE app.js so WPA_hydrateRentRoll is
      defined by the time WPA_hydrateTenantsLT (called at app.js boot) runs. -->
 <script src="js/rent-roll.js?v=20260418-rentroll1"></script>
-<script src="js/app.js?v=20260423-navB.2"></script>
+<script src="js/app.js?v=20260423-navB.4"></script>
 <script src="js/automation.js"></script>
 <script src="js/bookings-seed.js"></script>
 <script src="js/reply-kb.js"></script>
@@ -4468,14 +4468,18 @@ if('serviceWorker' in navigator){
         .or(`unit.ilike.${like},notes.ilike.${like}`)
         .order('due_date', { ascending: false })
         .limit(PER_TABLE),
-      // Rental-side: long-term tenants (tenants_lt)
+      // Rental-side: long-term tenants (tenants_lt).
+      // Real columns: id,name,email,phone,phone_e164,property,unit,rent,status,
+      //               lease_start,lease_end,lease_type,lease_id. NOT apt/archived.
       s.from('tenants_lt')
-        .select('id,name,email,phone,phone_e164,apt,property,archived')
-        .or(`name.ilike.${like},email.ilike.${like},phone_e164.ilike.${like},apt.ilike.${like}`)
+        .select('id,name,email,phone,phone_e164,property,unit,status,lease_end')
+        .or(`name.ilike.${like},email.ilike.${like},phone_e164.ilike.${like},unit.ilike.${like},property.ilike.${like}`)
         .limit(PER_TABLE),
-      // Short-term: bookings (guests)
+      // Short-term: bookings (guests).
+      // Use select=* to sidestep any column-name mismatch on this table
+      // until we confirm the exact schema.
       s.from('bookings')
-        .select('id,guest_name,guest_phone,unit_apt,booking_status,check_in,check_out')
+        .select('*')
         .or(`guest_name.ilike.${like},guest_phone.ilike.${like},unit_apt.ilike.${like}`)
         .order('check_in', { ascending: false })
         .limit(PER_TABLE),
@@ -4484,15 +4488,30 @@ if('serviceWorker' in navigator){
       queries.map(p => p.then(r => r).catch(e => ({ data: [], error: e })))
     );
 
-    // ── Dedup step (iter B.2) ─────────────────────────────────────────
-    // If Units match, collapse any invoice row whose `unit` equals one
-    // of those unit_labels — rationale: a hit on "122" should surface
-    // the Unit, not also 6 invoices tied to that unit (you can drill
-    // into them from the unit view). Same rule mirrors tenants_lt.apt
-    // and bookings.unit_apt so searching "2B" shows the tenant/guest
-    // rows without also dumping every invoice for 2B.
+    // Diagnostic (iter B.3): log each table's result count + any error.
+    // Opens in the browser console. If a table errors (RLS, 400, etc.)
+    // the search silently drops it — this log makes that visible.
+    const _qnames = ['hoa_units','hoa_contacts','hoa_communities','invoices','tenants_lt','bookings'];
+    [uRes, cRes, commRes, invRes, tltRes, bkRes].forEach((r, i) => {
+      const n = _qnames[i];
+      const rows = Array.isArray(r.data) ? r.data.length : 0;
+      if (r.error) {
+        console.warn('[search]', n, 'error:', r.error.message || r.error);
+      } else {
+        console.log('[search]', n, 'rows:', rows);
+      }
+    });
+
+    // ── Dedup step ─────────────────────────────────────────────────────
+    // Collapse invoice rows whose `unit` matches any unit-like entity
+    // we already surfaced elsewhere (HOA unit, tenant's unit, or
+    // booking's unit_apt). Rationale: typing "122" should show Unit 122
+    // once — the unit card — not Unit 122 + 18 invoices for 122. The
+    // invoices are one click away from the unit.
     const canonicalUnitLabels = new Set();
-    (uRes.data || []).forEach(u => u.unit_label && canonicalUnitLabels.add(String(u.unit_label).trim()));
+    (uRes.data  || []).forEach(u => u.unit_label && canonicalUnitLabels.add(String(u.unit_label).trim()));
+    (tltRes.data|| []).forEach(t => t.unit       && canonicalUnitLabels.add(String(t.unit).trim()));
+    (bkRes.data || []).forEach(b => b.unit_apt   && canonicalUnitLabels.add(String(b.unit_apt).trim()));
     const filteredInvoices = (invRes.data || []).filter(inv =>
       !inv.unit || !canonicalUnitLabels.has(String(inv.unit).trim())
     );
@@ -4547,11 +4566,11 @@ if('serviceWorker' in navigator){
         rows: tltRes.data.map(t => ({
           type: 'tenant_lt', id: t.id,
           title: t.name || t.email || t.phone_e164 || '(unnamed)',
-          meta:  [(t.apt ? 'Apt ' + t.apt : null),
+          meta:  [(t.unit ? 'Unit ' + t.unit : null),
                   t.property,
                   t.phone_e164 || t.phone,
                   t.email,
-                  (t.archived ? 'archived' : null)].filter(Boolean).join(' · '),
+                  (t.status && t.status !== 'active' ? t.status : null)].filter(Boolean).join(' · '),
           icon:  '🏠',
           nav:   () => navigateToModule('mtm-lt', 'mtm-lt-tenants', 'tenant:' + t.id),
         }))
@@ -4594,7 +4613,12 @@ if('serviceWorker' in navigator){
         }))
       });
     }
-    return { groups };
+    // Collect any per-table errors so the modal can surface them visibly.
+    const errorTables = [];
+    [uRes, cRes, commRes, invRes, tltRes, bkRes].forEach((r, i) => {
+      if (r.error) errorTables.push(_qnames[i] + ': ' + (r.error.message || String(r.error)));
+    });
+    return { groups, errors: errorTables };
   }
 
   function navigateToModule(moduleId, targetPage, deepLink) {
@@ -4652,6 +4676,15 @@ if('serviceWorker' in navigator){
               + '</div>';
       });
     });
+    // Surface any silent per-table errors so "no matches" vs
+    // "that table is blocked by RLS" is distinguishable.
+    if (result.errors && result.errors.length) {
+      html += '<div class="gs-group" style="color:#a22;">Some tables returned errors</div>';
+      result.errors.forEach(err => {
+        html += '<div style="padding:6px 18px;font-size:11px;color:#a22;">'
+              + esc(err) + '</div>';
+      });
+    }
     box.innerHTML = html;
   }
 
