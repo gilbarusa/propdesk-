@@ -473,35 +473,32 @@
     const box = document.getElementById('hoa-units-list');
     if (!box) return;
 
-    // Top toolbar: community filter + search + sort + "New Unit" button.
+    // Top toolbar — compact widths so controls don't stretch across the
+    // screen. Event handlers are inline (innerHTML-injected <script>
+    // tags don't execute — classic bug in the previous iteration).
     const commOpts = [{ value:'', label:'— all communities —' }].concat(
       cache.communities.map(c => ({ value:c.id, label:c.name })));
-    const sortOpts = [
-      { value:'unit-asc',     label:'Unit # (A→Z)' },
-      { value:'unit-desc',    label:'Unit # (Z→A)' },
-      { value:'owner-asc',    label:'Owner (A→Z)' },
-      { value:'owner-desc',   label:'Owner (Z→A)' },
-      { value:'balance-desc', label:'Balance (highest first)' },
-      { value:'balance-asc',  label:'Balance (lowest first)' },
-      { value:'community',    label:'Community' },
-    ];
     let h =
       '<div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">' +
         '<label style="font-size:11px;color:#635c4e;">Community</label>' +
-        sel('hoaUnitsFilter', commOpts, _unitsFilterCommunity) +
-        '<input id="hoaUnitsSearch" type="text" placeholder="Search unit #, owner, phone, email…" ' +
+        '<select id="hoaUnitsFilter" onchange="WPA_hoaSetUnitsFilter(this.value)" ' +
+          'style="width:180px;padding:5px 8px;border:1px solid #d9d3c5;border-radius:4px;' +
+                 'font:inherit;font-size:12px;">' +
+          commOpts.map(o =>
+            '<option value="' + esc(o.value) + '"' +
+              (o.value === _unitsFilterCommunity ? ' selected' : '') +
+              '>' + esc(o.label) + '</option>'
+          ).join('') +
+        '</select>' +
+        '<input id="hoaUnitsSearch" type="text" ' +
+          'placeholder="Search…" ' +
           'value="' + esc(_unitsSearch) + '" ' +
-          'style="flex:1;min-width:220px;padding:6px 10px;border:1px solid #d9d3c5;' +
+          'oninput="WPA_hoaSetUnitsSearch(this.value)" ' +
+          'style="width:220px;padding:5px 10px;border:1px solid #d9d3c5;' +
                  'border-radius:4px;font:inherit;font-size:12px;">' +
-        '<label style="font-size:11px;color:#635c4e;">Sort</label>' +
-        sel('hoaUnitsSort', sortOpts, _unitsSort) +
+        '<span style="flex:1"></span>' +
         btn('＋ New Unit', 'WPA_hoaOpenUnitForm()', 'primary') +
-      '</div>' +
-      '<script>' +
-        'document.getElementById("hoaUnitsFilter")?.addEventListener("change",function(){WPA_hoaSetUnitsFilter(this.value);});' +
-        'document.getElementById("hoaUnitsSearch")?.addEventListener("input",function(){WPA_hoaSetUnitsSearch(this.value);});' +
-        'document.getElementById("hoaUnitsSort")?.addEventListener("change",function(){WPA_hoaSetUnitsSort(this.value);});' +
-      '<\/script>';
+      '</div>';
 
     // Build initial row list.
     let rows = cache.units;
@@ -613,9 +610,32 @@
     h += '<div style="font-size:11px;color:#9e9485;margin-bottom:4px;">' +
            rows.length + ' unit' + (rows.length === 1 ? '' : 's') + ' shown' +
          '</div>';
-    h += '<table class="hoa-tbl" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f7f4ef;text-align:left;">' +
-         th('Community') + th('Unit') + th('Owner') + th('Phone') + th('Email') +
-         th('Parking') + th('Storage') + th('Balance') +
+    // Clickable sort headers. Arrow indicates current sort; clicking a
+    // different column switches to it with a sensible default direction
+    // (ascending for names, descending for balance).
+    const sortHdr = (label, key, defaultDir) => {
+      const activeAsc  = _unitsSort === key + '-asc';
+      const activeDesc = _unitsSort === key + '-desc'
+                      || (key === 'community' && _unitsSort === 'community');
+      const arrow = activeAsc  ? ' ↑'
+                  : activeDesc ? ' ↓'
+                  : ' <span style="color:#c9c0a8;">↕</span>';
+      return '<th style="padding:8px;text-align:left;cursor:pointer;user-select:none;" ' +
+        'onclick="WPA_hoaUnitHeaderClick(\'' + key + '\',\'' + defaultDir + '\')">' +
+        esc(label) + arrow +
+        '</th>';
+    };
+    const plainHdr = label =>
+      '<th style="padding:8px;text-align:left;">' + esc(label) + '</th>';
+    h += '<table class="hoa-tbl" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f7f4ef;">' +
+         sortHdr('Community', 'community', 'asc') +
+         sortHdr('Unit',      'unit',      'asc') +
+         sortHdr('Owner',     'owner',     'asc') +
+         plainHdr('Phone') +
+         plainHdr('Email') +
+         plainHdr('Parking') +
+         plainHdr('Storage') +
+         sortHdr('Balance',   'balance',   'desc') +
          '</tr></thead><tbody>';
     rows.forEach(u => {
       const c  = findCommunity(u.community_id);
@@ -656,6 +676,18 @@
   }
   function setUnitsSearch(v) { _unitsSearch = v || ''; renderUnits(); }
   function setUnitsSort(v)   { _unitsSort   = v || 'unit-asc'; renderUnits(); }
+  // Header-click sort toggle (Phase 3B.3 iter 2).
+  //   If the clicked header is already the active sort column, flip asc↔desc.
+  //   Otherwise jump to that column with the `defaultDir` for that column.
+  function unitHeaderClick(key, defaultDir) {
+    const activeAsc  = _unitsSort === key + '-asc';
+    const activeDesc = _unitsSort === key + '-desc'
+                    || (key === 'community' && _unitsSort === 'community');
+    if (activeAsc)            _unitsSort = key + '-desc';
+    else if (activeDesc)      _unitsSort = key + '-asc';
+    else                      _unitsSort = key + '-' + (defaultDir || 'asc');
+    renderUnits();
+  }
   function setUnitsFilter(v) { _unitsFilterCommunity = v || ''; renderUnits(); }
 
   function openUnitForm(id) {
@@ -1931,6 +1963,7 @@
   window.WPA_hoaSetUnitsFilter      = setUnitsFilter;
   window.WPA_hoaSetUnitsSearch      = setUnitsSearch;     // 3B.3 text search
   window.WPA_hoaSetUnitsSort        = setUnitsSort;       // 3B.3 sort
+  window.WPA_hoaUnitHeaderClick     = unitHeaderClick;    // 3B.3 iter2 click-to-sort headers
   window.WPA_hoaOpenUnitForm        = openUnitForm;
   window.WPA_hoaSaveUnit            = saveUnit;
   window.WPA_hoaToggleUnit          = toggleUnit;
