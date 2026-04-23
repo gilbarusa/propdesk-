@@ -2640,7 +2640,9 @@ const MODULE_SUB_TABS = {
   'expenses':    [{label:'All',         page:'expenses'},   {label:'By Property', page:'expenses', expView:'property'}, {label:'By Category', page:'expenses', expView:'category'}],
   'techtrack':   [{label:'Dashboard',   page:'techtrack', ftPage:'dashboard'},  {label:'Work Orders', page:'techtrack', ftPage:'jobs'}, {label:'Incoming', page:'techtrack', ftPage:'incoming'}, {label:'Completed', page:'techtrack', ftPage:'completed'}, {label:'Properties', page:'techtrack', ftPage:'properties'}, {label:'Owners', page:'techtrack', ftPage:'owners'}, {label:'Technicians', page:'techtrack', ftPage:'technicians'}, {label:'Availability', page:'techtrack', ftPage:'availability'}, {label:'Reports', page:'techtrack', ftPage:'reports'}],
   'parking':     [{label:'Bookings',   page:'parking', pkSec:'bookings'},    {label:'Buildings', page:'parking', pkSec:'buildings'}, {label:'Coupons', page:'parking', pkSec:'coupons'}, {label:'Receipts', page:'parking', pkSec:'receipts'}],
-  'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}],
+  // Phase 3B.6 (2026-04-23): added 📢 Blast sub-tab. Routes to the new
+  // #page-blast via showSubPage → renderBlastPage() in js/blast.js.
+  'messages':    [{label:'All',         page:'msg-center', msgFilter:'all'}, {label:'Short-Term', page:'msg-center', msgFilter:'short-term'}, {label:'Long-Term', page:'msg-center', msgFilter:'long-term'}, {label:'Client App', page:'msg-center', msgFilter:'client'}, {label:'📢 Blast', page:'blast'}],
   'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'portal':      [{label:'Users',       page:'portal-users'}, {label:'Settings', page:'portal-settings'}],
@@ -2809,6 +2811,11 @@ function showSubPage(pageId, tabEl, ftPage, settingsSec, expView, pkSec, dlSec, 
   if(pageId === 'mtm-lt-applications') renderMTMApps();
   if(pageId === 'mtm-lt-expenses') renderExpensesPage();
   if(pageId === 'expenses') renderExpensesPage();
+  // Phase 3B.6 — Blast composer page rendered by js/blast.js
+  if(pageId === 'blast' && typeof window.WPA_renderBlastPage === 'function') {
+    try { window.WPA_renderBlastPage(); }
+    catch(e) { console.error('Blast render error:', e); }
+  }
   if(pageId === 'mtm-lt-maintenance') loadMaintenanceFromSupabase();
   // ── HOA sub-page routing ── (all CRUD handled by js/hoa-admin.js)
   if (pageId && pageId.indexOf('hoa-') === 0) {
