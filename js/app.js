@@ -2644,7 +2644,12 @@ const MODULE_SUB_TABS = {
   'home-services':[{label:'Catalog',    page:'home-services', hsSec:'catalog'}, {label:'Subcategories', page:'home-services', hsSec:'subcats'}, {label:'Bookings', page:'home-services', hsSec:'bookings'}, {label:'Time Windows', page:'home-services', hsSec:'timeWindows'}, {label:'Settings', page:'home-services', hsSec:'settings'}],
   'mailroom':    [{label:'Packages',   page:'mailroom', dlSec:'packages'}, {label:'Tenants', page:'mailroom', dlSec:'tenants'}, {label:'Reports', page:'mailroom', dlSec:'reports'}, {label:'Kiosk', page:'mailroom', dlSec:'kiosk'}],
   'portal':      [{label:'Users',       page:'portal-users'}, {label:'Settings', page:'portal-settings'}],
-  'hoa':         [{label:'Communities', page:'hoa-communities'}, {label:'Units', page:'hoa-units'}, {label:'Contacts', page:'hoa-contacts'}, {label:'Assignments', page:'hoa-assignments'}, {label:'Documents', page:'hoa-documents'}, {label:'Invoices', page:'hoa-invoices'}],
+  // Phase 3B.2 (2026-04-23): Contacts + Assignments sub-tabs removed —
+  // all owner/resident management now lives inside the unit-detail modal
+  // (click 🔍 Details on any unit row). Contacts + Assignments pages
+  // still exist in the DOM for backward-compat URL access, they're just
+  // not in the nav anymore.
+  'hoa':         [{label:'Communities', page:'hoa-communities'}, {label:'Units', page:'hoa-units'}, {label:'Documents', page:'hoa-documents'}, {label:'Invoices', page:'hoa-invoices'}],
   'settings':    [{label:'General',     page:'settings', settingsSec:'accounts'},   {label:'Credentials', page:'settings', settingsSec:'credentials'}, {label:'Backup', page:'settings', settingsSec:'backup'}, {label:'Theme', page:'settings', settingsSec:'theme'}],
 };
 

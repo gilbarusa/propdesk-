@@ -483,24 +483,62 @@
       box.innerHTML = h;
       return;
     }
+
+    // Phase 3B.2 (2026-04-23): the Active column is gone — units are
+    // permanent. Instead we surface the PRIMARY OWNER's name / phone /
+    // email so the unit list doubles as a directory. Row is clickable
+    // to open the detail modal.
+    //
+    // We need to know each unit's primary owner. Fetch in one batch
+    // call from hoa_unit_contacts, filtered to is_active + is_primary
+    // + owner-like relationship types.
+    const s = await hoaSupa();
+    const unitIds = rows.map(u => u.id);
+    const primaryByUnit = {};
+    if (unitIds.length) {
+      const { data: ucRows } = await s.from('hoa_unit_contacts')
+        .select('unit_id,contact_id,relationship_type,is_primary,is_active')
+        .in('unit_id', unitIds)
+        .eq('is_active', true)
+        .eq('is_primary', true)
+        .in('relationship_type', ['owner', 'owner_resident']);
+      (ucRows || []).forEach(r => { primaryByUnit[r.unit_id] = r.contact_id; });
+    }
+    await refreshCache(['contacts']);
+
     h += '<table class="hoa-tbl" style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f7f4ef;text-align:left;">' +
-         th('Community') + th('Unit') + th('Building') + th('Floor') + th('Status') + th('Notes') + th('') +
+         th('Community') + th('Unit') + th('Owner') + th('Phone') + th('Email') +
+         th('Parking') + th('Storage') + th('') +
          '</tr></thead><tbody>';
     rows.forEach(u => {
-      const c = findCommunity(u.community_id);
-      h += '<tr style="border-bottom:1px solid #f0ebe2;">' +
+      const c  = findCommunity(u.community_id);
+      const contactId = primaryByUnit[u.id];
+      const owner = contactId ? findContact(contactId) : null;
+      const ownerName = owner
+        ? (owner.full_name
+            || [owner.first_name, owner.last_name].filter(Boolean).join(' ')
+            || owner.email || owner.phone_e164 || '(unnamed)')
+        : '—';
+      const ownerPhone = owner ? (owner.phone_e164 || owner.phone || '—') : '—';
+      const ownerEmail = owner ? (owner.email || '—') : '—';
+      // Whole row is clickable; onclick uses the Details modal. Inner
+      // action buttons stopPropagation so they don't double-fire.
+      h += '<tr class="hoa-unit-row" style="border-bottom:1px solid #f0ebe2;cursor:pointer;" ' +
+             'onclick="WPA_hoaOpenUnitDetail(\'' + u.id + '\')">' +
            td(esc(c ? c.name : '—')) +
-           td('<strong>' + esc(u.unit_label) + '</strong>') +
-           td(esc(u.building_label || '—')) +
-           td(esc(u.floor_label || '—')) +
-           td(u.is_active ? '<span style="color:#2c7a3f;">● Active</span>' : '<span style="color:#9e9485;">○ Inactive</span>') +
-           td(esc(u.notes || '—')) +
-           // Phase 3B (2026-04-23): units are permanent — the Deactivate/
-           // Activate toggle is gone. "Details" opens the unit-detail modal
-           // where the owner/resident roster, charges, invoices and notes
-           // all live. The old Edit modal still works for basic unit fields.
-           td(btn('🔍 Details', "WPA_hoaOpenUnitDetail('" + u.id + "')") + ' ' +
-              btn('Edit',       "WPA_hoaOpenUnitForm('" + u.id + "')")) +
+           td('<strong>' + esc(u.unit_label) + '</strong>' +
+              (u.building_label ? '<br><span style="color:#9e9485;font-size:10px;">' +
+                esc((u.building_label || '') + (u.floor_label ? ' · ' + u.floor_label : '')) +
+                '</span>' : '')) +
+           td(owner ? ('<strong>' + esc(ownerName) + '</strong>') : '<span style="color:#9e9485;">—</span>') +
+           td('<span style="font-size:11px;">' + esc(ownerPhone) + '</span>') +
+           td('<span style="font-size:11px;">' + esc(ownerEmail) + '</span>') +
+           td('<span style="font-size:11px;">' + esc(u.parking_tag  || '—') + '</span>') +
+           td('<span style="font-size:11px;">' + esc(u.storage_unit || '—') + '</span>') +
+           td('<span onclick="event.stopPropagation();">' +
+                btn('🔍 Details', "WPA_hoaOpenUnitDetail('" + u.id + "')") + ' ' +
+                btn('Edit',       "WPA_hoaOpenUnitForm('" + u.id + "')") +
+              '</span>') +
            '</tr>';
     });
     h += '</tbody></table>';
@@ -512,14 +550,17 @@
     const rec = id ? findUnit(id) : {};
     if (!cache.communities.length) { hoaToast('Create a community first.', 'error'); return; }
     const commOpts = cache.communities.map(c => ({ value:c.id, label:c.name }));
+    // Phase 3B.2 — Active toggle removed (units are permanent), plus
+    // parking_tag + storage_unit fields added.
     const html =
       '<h3 style="margin:0 0 12px 0;font-family:\'Playfair Display\',serif;">' + (id ? 'Edit Unit' : 'New Unit') + '</h3>' +
-      row('Community',    sel('hoaUnitComm', commOpts, rec.community_id || _unitsFilterCommunity || commOpts[0].value)) +
-      row('Unit label',   inp('hoaUnitLabel', rec.unit_label), 'e.g. "3B" or "204"') +
-      row('Building',     inp('hoaUnitBldg', rec.building_label)) +
-      row('Floor',        inp('hoaUnitFloor', rec.floor_label)) +
-      row('Active',       chk('hoaUnitActive', rec.is_active !== false, 'Unit is active')) +
-      row('Notes',        txa('hoaUnitNotes', rec.notes)) +
+      row('Community',     sel('hoaUnitComm', commOpts, rec.community_id || _unitsFilterCommunity || commOpts[0].value)) +
+      row('Unit label',    inp('hoaUnitLabel', rec.unit_label), 'e.g. "3B" or "204"') +
+      row('Building',      inp('hoaUnitBldg', rec.building_label)) +
+      row('Floor',         inp('hoaUnitFloor', rec.floor_label)) +
+      row('Parking tag',   inp('hoaUnitParking', rec.parking_tag), 'Sticker / transponder / space number. Optional.') +
+      row('Storage unit',  inp('hoaUnitStorage', rec.storage_unit), 'Storage locker or cage identifier. Optional.') +
+      row('Notes',         txa('hoaUnitNotes', rec.notes)) +
       '<input type="hidden" id="hoaUnitId" value="' + esc(id || '') + '">' +
       actionsBar([ btn('Cancel','WPA_hoaCloseModal()'), btn(id ? 'Save' : 'Create','WPA_hoaSaveUnit()','primary') ]);
     openModal(html);
@@ -532,7 +573,9 @@
       unit_label:     readField('hoaUnitLabel'),
       building_label: readField('hoaUnitBldg'),
       floor_label:    readField('hoaUnitFloor'),
-      is_active:      !!readField('hoaUnitActive'),
+      parking_tag:    readField('hoaUnitParking') || null,
+      storage_unit:   readField('hoaUnitStorage') || null,
+      is_active:      true,            // units are permanent — never false
       notes:          readField('hoaUnitNotes'),
     };
     if (!payload.community_id || !payload.unit_label) { hoaToast('Community and unit label required', 'error'); return; }
@@ -564,23 +607,55 @@
     if (!unit) { hoaToast('Unit not found', 'error'); return; }
     const comm = findCommunity(unit.community_id);
 
+    // Fetch the active monthly charge total up-front so we can show it
+    // in the header — Gil 2026-04-23: "a single unit has to have all
+    // the info we need including monthly amount".
+    const s = await hoaSupa();
+    const { data: activeCharges } = await s.from('hoa_unit_charges')
+      .select('amount,cadence')
+      .eq('unit_id', unitId)
+      .eq('is_active', true)
+      .eq('cadence', 'monthly');
+    const monthlyTotal = (activeCharges || []).reduce(
+      (sum, c) => sum + Number(c.amount || 0), 0);
+
+    // Quick-fact tiles across the top so the most-asked data is
+    // visible without scrolling.
+    const tiles = [
+      { label: 'Community',    val: comm ? (comm.display_name || comm.name) : '—' },
+      { label: 'Unit',         val: unit.unit_label || '—' },
+      { label: 'Building',     val: unit.building_label || '—' },
+      { label: 'Floor',        val: unit.floor_label || '—' },
+      { label: 'Parking tag',  val: unit.parking_tag || '—' },
+      { label: 'Storage',      val: unit.storage_unit || '—' },
+      { label: 'Monthly billed', val: '$' + monthlyTotal.toFixed(2),
+        highlight: monthlyTotal > 0 },
+    ];
+    const tileHtml = tiles.map(t =>
+      '<div style="flex:0 0 auto;min-width:110px;padding:6px 12px;' +
+        (t.highlight ? 'background:#eaf4ea;color:#1a5a25;' : 'background:#faf6ee;color:#3a3428;') +
+        'border-radius:4px;">' +
+        '<div style="font-size:10px;text-transform:uppercase;letter-spacing:0.4px;color:#9e9485;">' + esc(t.label) + '</div>' +
+        '<div style="font-size:14px;font-weight:500;margin-top:2px;">' + esc(t.val) + '</div>' +
+      '</div>'
+    ).join('');
+
     const html =
-      '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">' +
+      '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">' +
         '<div>' +
-          '<h3 style="margin:0 0 4px 0;font-family:\'Playfair Display\',serif;">' +
+          '<h3 style="margin:0 0 2px 0;font-family:\'Playfair Display\',serif;">' +
             'Unit ' + esc(unit.unit_label) +
           '</h3>' +
           '<div style="font-size:11px;color:#7e7567;">' +
             esc(comm ? (comm.display_name || comm.name) : '(community)') +
-            (unit.building_label ? ' · Building ' + esc(unit.building_label) : '') +
-            (unit.floor_label ? ' · Floor ' + esc(unit.floor_label) : '') +
           '</div>' +
         '</div>' +
         '<button onclick="WPA_hoaCloseModal()" style="font:inherit;font-size:14px;border:none;background:transparent;cursor:pointer;color:#7e7567;">✕</button>' +
       '</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">' + tileHtml + '</div>' +
       '<div id="hoaUDRoster"  style="margin-top:16px;"><em style="color:#9e9485;">Loading owners…</em></div>' +
       '<div id="hoaUDCharges" style="margin-top:16px;"><em style="color:#9e9485;">Loading charges…</em></div>' +
-      '<div id="hoaUDInvoices" style="margin-top:16px;"><em style="color:#9e9485;">Loading invoices…</em></div>' +
+      '<div id="hoaUDInvoices" style="margin-top:16px;"><em style="color:#9e9485;">Loading ledger…</em></div>' +
       '<div id="hoaUDNotes" style="margin-top:16px;"></div>' +
       '<input type="hidden" id="hoaUDUnitId" value="' + esc(unitId) + '">';
 
@@ -923,56 +998,144 @@
     await renderUDCharges(unitId);
   }
 
-  // ─── Invoices (read-only history) ────────────────────────────────────
+  // ─── Ledger (invoices + payments as a running balance) ─────────────
+  // Combines invoices (debits) and payments (credits) into a chrono
+  // stream with a running balance, the way an owner-facing statement
+  // would look. Payments are joined via payments.invoice_id. When no
+  // payments table row exists for an invoice but invoice.paid > 0, we
+  // synthesise a "Payment applied" line so the balance still reflects
+  // the paid amount even if individual payment rows aren't tracked.
   async function renderUDInvoices(unitId) {
     const s = await hoaSupa();
-    const { data, error } = await s.from('invoices')
-      .select('id,period_month,due_date,status,total,paid,notes,invoice_type,hoa_community_id')
-      .eq('unit_id', unitId)
-      .order('period_month', { ascending: false })
-      .limit(120);
     const box = document.getElementById('hoaUDInvoices');
     if (!box) return;
-    if (error) { box.innerHTML = '<div style="color:#a22;">Error: ' + esc(error.message) + '</div>'; return; }
 
-    let h = '<h4 style="font-size:13px;margin:0 0 6px;color:#3a3428;">📄 Invoice history</h4>';
-    const rows = data || [];
-    if (!rows.length) {
-      h += '<div style="padding:12px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;">No invoices yet for this unit.</div>';
+    // 1. Invoices for the unit (oldest first so balance accumulates forward).
+    const { data: invs, error: invErr } = await s.from('invoices')
+      .select('id,period_month,due_date,status,total,paid,notes,invoice_type')
+      .eq('unit_id', unitId)
+      .order('period_month', { ascending: true })
+      .limit(500);
+    if (invErr) {
+      box.innerHTML = '<h4 style="font-size:13px;margin:0 0 6px;color:#3a3428;">📊 Ledger</h4>' +
+                      '<div style="color:#a22;">Error: ' + esc(invErr.message) + '</div>';
+      return;
+    }
+
+    // 2. Payment rows tied to those invoices. Payments table may or may
+    //    not exist / be populated — handle gracefully.
+    let payments = [];
+    const invIds = (invs || []).map(i => i.id);
+    if (invIds.length) {
+      const pr = await s.from('payments')
+        .select('id,invoice_id,amount,paid_at,method,status')
+        .in('invoice_id', invIds)
+        .order('paid_at', { ascending: true })
+        .catch(e => ({ data: [], error: e }));
+      payments = (pr && pr.data) || [];
+    }
+
+    // 3. Build the ledger stream: each invoice = debit, each payment =
+    //    credit. If an invoice has paid>0 but no payment rows, synthesise
+    //    one credit line so the statement reconciles.
+    const events = [];
+    (invs || []).forEach(inv => {
+      events.push({
+        date:    inv.period_month || inv.due_date || '',
+        kind:    'charge',
+        desc:    (inv.notes && inv.notes.indexOf('HOA monthly fee') >= 0
+                   ? 'HOA monthly fee'
+                   : (inv.invoice_type || 'charge')) +
+                 ' · ' + (inv.period_month || inv.due_date || '—'),
+        debit:   Number(inv.total || 0),
+        credit:  0,
+        status:  inv.status,
+        invId:   inv.id,
+      });
+      // Payment rows for this invoice, if any.
+      const invPmts = payments.filter(p => p.invoice_id === inv.id);
+      if (invPmts.length) {
+        invPmts.forEach(p => {
+          events.push({
+            date:   (p.paid_at || '').slice(0, 10),
+            kind:   'payment',
+            desc:   'Payment · ' + (p.method || 'received') +
+                    (p.status && p.status !== 'succeeded' ? ' (' + p.status + ')' : ''),
+            debit:  0,
+            credit: Number(p.amount || 0),
+            invId:  inv.id,
+          });
+        });
+      } else if (Number(inv.paid || 0) > 0) {
+        // Synthetic credit so the balance reconciles when payments rows
+        // aren't available.
+        events.push({
+          date:    inv.due_date || inv.period_month || '',
+          kind:    'payment',
+          desc:    'Payment applied (recorded on invoice)',
+          debit:   0,
+          credit:  Number(inv.paid || 0),
+          invId:   inv.id,
+          synthetic: true,
+        });
+      }
+    });
+
+    // 4. Sort by date ascending, then charges before payments on ties.
+    events.sort((a, b) => {
+      const d = (a.date || '').localeCompare(b.date || '');
+      if (d !== 0) return d;
+      return (a.kind === 'charge' && b.kind !== 'charge') ? -1 : 1;
+    });
+
+    // 5. Compute running balance.
+    let balance = 0;
+    events.forEach(e => { balance += (e.debit || 0) - (e.credit || 0); e.balance = balance; });
+
+    let h =
+      '<h4 style="font-size:13px;margin:0 0 6px;color:#3a3428;">📊 Ledger · running balance</h4>';
+    if (!events.length) {
+      h += '<div style="padding:12px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;">No ledger entries yet for this unit.</div>';
       box.innerHTML = h;
       return;
     }
     h += '<table style="width:100%;border-collapse:collapse;font-size:12px;">' +
       '<thead><tr style="background:#faf6ee;text-align:left;">' +
-      '<th style="padding:6px 8px;">Period</th>' +
-      '<th style="padding:6px 8px;">Due</th>' +
-      '<th style="padding:6px 8px;">Type</th>' +
-      '<th style="padding:6px 8px;text-align:right;">Total</th>' +
-      '<th style="padding:6px 8px;text-align:right;">Paid</th>' +
-      '<th style="padding:6px 8px;">Status</th>' +
+      '<th style="padding:6px 8px;">Date</th>' +
+      '<th style="padding:6px 8px;">Description</th>' +
+      '<th style="padding:6px 8px;text-align:right;">Charge</th>' +
+      '<th style="padding:6px 8px;text-align:right;">Payment</th>' +
+      '<th style="padding:6px 8px;text-align:right;">Balance</th>' +
       '</tr></thead><tbody>';
-    rows.forEach(inv => {
-      const statusColor = inv.status === 'paid'    ? '#2c7a3f'
-                        : inv.status === 'partial' ? '#a26a00'
-                        : inv.status === 'void'    ? '#9e9485'
-                        : '#a22';
-      h += '<tr style="border-bottom:1px solid #f0ebe2;">' +
-           '<td style="padding:6px 8px;"><strong>' + esc(inv.period_month || '—') + '</strong></td>' +
-           '<td style="padding:6px 8px;">' + esc(inv.due_date || '—') + '</td>' +
-           '<td style="padding:6px 8px;font-size:11px;color:#7e7567;">' + esc(inv.invoice_type || '—') + '</td>' +
-           '<td style="padding:6px 8px;text-align:right;">' + fmtMoney(inv.total) + '</td>' +
-           '<td style="padding:6px 8px;text-align:right;">' + fmtMoney(inv.paid) + '</td>' +
-           '<td style="padding:6px 8px;color:' + statusColor + ';">' + esc(inv.status || '—') + '</td>' +
+    events.forEach(e => {
+      const isCharge = e.kind === 'charge';
+      h += '<tr style="border-bottom:1px solid #f0ebe2;' +
+           (isCharge ? '' : 'background:#f9fdf9;') + '">' +
+           '<td style="padding:6px 8px;font-size:11px;">' + esc(e.date || '—') + '</td>' +
+           '<td style="padding:6px 8px;">' + (isCharge ? '' : '&nbsp;&nbsp;↳ ') + esc(e.desc) +
+             (e.synthetic ? ' <span style="font-size:10px;color:#9e9485;">(synthesised)</span>' : '') +
+             '</td>' +
+           '<td style="padding:6px 8px;text-align:right;color:' + (isCharge ? '#a22' : '#9e9485') + ';">' +
+             (e.debit  ? fmtMoney(e.debit)  : '') + '</td>' +
+           '<td style="padding:6px 8px;text-align:right;color:' + (isCharge ? '#9e9485' : '#2c7a3f') + ';">' +
+             (e.credit ? fmtMoney(e.credit) : '') + '</td>' +
+           '<td style="padding:6px 8px;text-align:right;font-weight:' +
+             (e.balance > 0 ? '600' : '400') + ';color:' +
+             (e.balance > 0 ? '#a22' : '#2c7a3f') + ';">' +
+             fmtMoney(e.balance) + '</td>' +
            '</tr>';
     });
     h += '</tbody></table>';
-    // Cumulative totals
-    const tot   = rows.reduce((s, r) => s + Number(r.total || 0), 0);
-    const paid  = rows.reduce((s, r) => s + Number(r.paid  || 0), 0);
-    h += '<div style="margin-top:8px;font-size:11px;color:#5a5040;text-align:right;">' +
-         rows.length + ' invoice(s) · billed $' + tot.toFixed(2) +
-         ' · paid $' + paid.toFixed(2) +
-         ' · outstanding $' + (tot - paid).toFixed(2) + '</div>';
+
+    const totDebit  = events.reduce((s, e) => s + (e.debit  || 0), 0);
+    const totCredit = events.reduce((s, e) => s + (e.credit || 0), 0);
+    const outstanding = totDebit - totCredit;
+    h += '<div style="margin-top:10px;padding:8px 12px;background:#faf6ee;border-radius:4px;display:flex;justify-content:space-between;font-size:12px;">' +
+         '<span><strong>' + events.length + '</strong> entries · billed <strong>' + fmtMoney(totDebit) +
+         '</strong> · paid <strong>' + fmtMoney(totCredit) + '</strong></span>' +
+         '<span style="font-weight:600;color:' + (outstanding > 0 ? '#a22' : '#2c7a3f') + ';">' +
+         'Balance: ' + fmtMoney(outstanding) + '</span>' +
+         '</div>';
     box.innerHTML = h;
   }
 
