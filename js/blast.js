@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
+console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
 
 (function(){
   'use strict';
@@ -22,15 +22,22 @@ console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
   const _state = {
     subject:      '',
     body:         '',
-    categoryCode: 'other',         // 3B.6.3 — honors per-contact prefs at send
-    targetType:   'owners',        // 'owners' | 'residents' | 'all'
-    communityIds: [],              // empty = all communities
+    categoryCode: 'other',
+    targetType:   'owners',
+    communityIds: [],
     channels:     { sms: true, email: true, app: false },
-    recipients:   [],              // last resolved list
-    cats:         [],              // community catalog
-    notifCats:    [],              // notification-category catalog
+    recipients:   [],
+    cats:         [],
+    notifCats:    [],
     editingId:    null,
     notes:        '',
+    // 3B.6.4 test-mode safety valve. When checked, ALL outgoing emails/
+    // SMS are routed to the admin addresses below instead of each
+    // recipient's snapshot. Recipient rows still transition normally
+    // for audit.
+    testMode:          false,
+    testRedirectEmail: '',
+    testRedirectPhone: '',
   };
   let _resolveTimer = null;
   const PORTAL_API_BASE = 'https://app.willowpa.com/api/';
@@ -182,6 +189,38 @@ console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
               '<div style="font-size:11px;color:#9e9485;margin-top:2px;">' +
                 'Per-recipient subscription preferences (Alerts tab) override these at send time — if a contact has App off, they won\'t get App even if it\'s checked here.' +
               '</div>' +
+            '</div>' +
+
+            // 🧪 Test mode (3B.6.4)
+            '<div class="dash-panel" style="padding:16px;margin-top:12px;border:1px solid ' +
+              (_state.testMode ? '#d4a32b' : '#e5dfd4') + ';' +
+              (_state.testMode ? 'background:#fff8e7;' : '') + '">' +
+              '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;">' +
+                '<input type="checkbox"' + (_state.testMode ? ' checked' : '') +
+                  ' onchange="WPA_blastToggleTestMode()">' +
+                '🧪 Test mode — redirect all sends to me' +
+              '</label>' +
+              '<div style="font-size:11px;color:#6a5020;margin:6px 0 10px;">' +
+                'When on, every email/SMS is redirected to the addresses below regardless of recipient. Each recipient row is still marked <em>sent</em> so you can see who WOULD have received. A banner is prepended to the message identifying the intended recipient.' +
+              '</div>' +
+              (_state.testMode
+                ? '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">' +
+                    '<div>' +
+                      '<label style="font-size:11px;color:#7e7567;">Redirect email</label>' +
+                      '<input id="blastTestEmail" type="email" value="' + esc(_state.testRedirectEmail) + '" ' +
+                        'placeholder="your.email@example.com" ' +
+                        'oninput="WPA_blastSetTestEmail(this.value)" ' +
+                        'style="width:100%;padding:6px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:12px;margin-top:2px;">' +
+                    '</div>' +
+                    '<div>' +
+                      '<label style="font-size:11px;color:#7e7567;">Redirect phone (E.164)</label>' +
+                      '<input id="blastTestPhone" type="tel" value="' + esc(_state.testRedirectPhone) + '" ' +
+                        'placeholder="+15551234567" ' +
+                        'oninput="WPA_blastSetTestPhone(this.value)" ' +
+                        'style="width:100%;padding:6px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:12px;margin-top:2px;">' +
+                    '</div>' +
+                  '</div>'
+                : '') +
             '</div>' +
 
             // Message section
@@ -401,9 +440,12 @@ console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
     _state.channels[k] = !_state.channels[k];
     renderPreview();
   }
-  function setSubject(v)  { _state.subject = v; }
-  function setBody(v)     { _state.body = v; }
-  function setCategory(v) { _state.categoryCode = v || 'other'; }
+  function setSubject(v)      { _state.subject = v; }
+  function setBody(v)         { _state.body = v; }
+  function setCategory(v)     { _state.categoryCode = v || 'other'; }
+  function toggleTestMode()   { _state.testMode = !_state.testMode; renderComposer(); }
+  function setTestEmail(v)    { _state.testRedirectEmail = (v || '').trim(); }
+  function setTestPhone(v)    { _state.testRedirectPhone = (v || '').trim(); }
 
   // ── Save Draft ────────────────────────────────────────────────────────
   async function saveDraft() {
@@ -412,16 +454,22 @@ console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
     const s = await sb();
     const channels = Object.keys(_state.channels).filter(k => _state.channels[k]);
     const payload = {
-      subject:        _state.subject,
-      body:           _state.body,
-      created_by:     'admin-ui',
-      target_type:    _state.targetType,
-      target_filter:  { communities: _state.communityIds },
-      channels:       channels,
-      category_code:  _state.categoryCode || 'other',
-      status:         'draft',
-      total_count:    _state.recipients.length,
-      notes:          _state.notes || null,
+      subject:             _state.subject,
+      body:                _state.body,
+      created_by:          'admin-ui',
+      target_type:         _state.targetType,
+      target_filter:       { communities: _state.communityIds },
+      channels:            channels,
+      category_code:       _state.categoryCode || 'other',
+      status:              'draft',
+      total_count:         _state.recipients.length,
+      notes:               _state.notes || null,
+      // 3B.6.4 — test-mode redirect. Only set when testMode is on AND the
+      // corresponding field is populated. null for real sends.
+      test_redirect_email: _state.testMode && _state.testRedirectEmail
+        ? _state.testRedirectEmail : null,
+      test_redirect_phone: _state.testMode && _state.testRedirectPhone
+        ? _state.testRedirectPhone : null,
     };
     try {
       const r = _state.editingId
@@ -480,22 +528,44 @@ console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
             'For now only Email is sent; SMS recipients will be handled by that later pass.');
     }
 
-    // Confirmation dialog — include category, count, channels.
+    // Test-mode validation — require a redirect email if test mode + email channel.
+    if (_state.testMode) {
+      if (_state.channels.email && !_state.testRedirectEmail) {
+        toast('Test mode: fill in redirect email', 'error');
+        return;
+      }
+    }
+
+    // Confirmation dialog — include category, count, channels, test mode.
     const catName = (_state.notifCats.find(c => c.code === _state.categoryCode) || {}).name
                  || _state.categoryCode;
     const phones = _state.recipients.filter(r => r.phone_e164).length;
     const emails = _state.recipients.filter(r => r.email).length;
     const willEmail = _state.channels.email ? emails : 0;
-    const confirmMsg =
-      'Send this blast?\n\n' +
-      'Category:    ' + catName + '\n' +
-      'Subject:     ' + _state.subject.slice(0, 80) + '\n' +
-      'Recipients:  ' + _state.recipients.length + '\n' +
-      'Email:       ' + willEmail + ' will receive' +
-        (_state.channels.email ? '' : ' (channel off)') + '\n' +
-      'SMS:         ' + (_state.channels.sms ? phones + ' queued for 3B.6.4' : 'channel off') + '\n' +
-      'App:         not yet wired (3B.6.6)\n\n' +
-      'Per-recipient subscription preferences will override channels at send time.';
+    let confirmMsg;
+    if (_state.testMode) {
+      confirmMsg =
+        '🧪 TEST MODE — send this blast?\n\n' +
+        'Category:    ' + catName + '\n' +
+        'Subject:     ' + _state.subject.slice(0, 80) + '\n' +
+        'Recipients:  ' + _state.recipients.length + ' (all marked sent, none get real message)\n' +
+        'Email:       ' + willEmail + ' redirected to ' + (_state.testRedirectEmail || '—') + '\n' +
+        'SMS:         ' + (_state.channels.sms
+          ? phones + ' redirected to ' + (_state.testRedirectPhone || '—') + ' (queued for 3B.6.5)'
+          : 'channel off') + '\n' +
+        '\nYou will receive ' + willEmail + ' test emails.';
+    } else {
+      confirmMsg =
+        '⚠ REAL SEND — this goes to actual recipients.\n\n' +
+        'Category:    ' + catName + '\n' +
+        'Subject:     ' + _state.subject.slice(0, 80) + '\n' +
+        'Recipients:  ' + _state.recipients.length + '\n' +
+        'Email:       ' + willEmail + ' will receive' +
+          (_state.channels.email ? '' : ' (channel off)') + '\n' +
+        'SMS:         ' + (_state.channels.sms ? phones + ' queued for 3B.6.5' : 'channel off') + '\n' +
+        'App:         not yet wired (3B.6.6)\n\n' +
+        'Per-recipient subscription preferences will override channels at send time.';
+    }
     if (!confirm(confirmMsg)) return;
 
     // Persist as "sending" (saveDraft + flip status).
@@ -592,6 +662,9 @@ console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
   window.WPA_blastSetSubject   = setSubject;
   window.WPA_blastSetBody      = setBody;
   window.WPA_blastSetCategory  = setCategory;
+  window.WPA_blastToggleTestMode = toggleTestMode;
+  window.WPA_blastSetTestEmail   = setTestEmail;
+  window.WPA_blastSetTestPhone   = setTestPhone;
   window.WPA_blastSaveDraft    = saveDraft;
   window.WPA_blastSend         = sendBlast;
   window.WPA_blastOpenDrafts   = openDrafts;
