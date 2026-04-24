@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.15 — rental property targeting');
+console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
 
 (function(){
   'use strict';
@@ -114,17 +114,23 @@ console.log('[blast] loaded v20260424-phase3b.15 — rental property targeting')
     const page = document.getElementById('page-blast');
     if (!page) return;
 
+    // Chips are plain clickable spans (no nested checkbox) — we paint
+    // the check state ourselves with ☑ / ▢. The earlier label-wrapped
+    // checkbox pattern was flaky on Safari/iOS and occasionally
+    // swallowed the click in desktop Chrome too (phase3b.16 fix).
     const commChips = _state.cats.map(c => {
       const selected = _state.communityIds.includes(c.id);
-      return '<label class="blast-chip" data-id="' + esc(c.id) + '" ' +
-        'style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;margin-right:6px;margin-bottom:6px;' +
-               'border-radius:14px;cursor:pointer;font-size:12px;border:1px solid ' +
+      return '<span class="blast-chip" data-id="' + esc(c.id) + '" ' +
+        'role="button" tabindex="0" ' +
+        'onclick="WPA_blastToggleComm(\'' + esc(c.id) + '\')" ' +
+        'onkeydown="if(event.key===\' \'||event.key===\'Enter\'){event.preventDefault();WPA_blastToggleComm(\'' + esc(c.id) + '\');}" ' +
+        'style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;margin-right:6px;margin-bottom:6px;' +
+               'border-radius:14px;cursor:pointer;font-size:12px;user-select:none;' +
+               'border:1px solid ' +
                (selected ? '#7a9f75;background:#eaf4ea;color:#1a5a25;' : '#d9d3c5;background:#fff;color:#5a5040;') + '">' +
-        '<input type="checkbox" value="' + esc(c.id) + '"' + (selected ? ' checked' : '') +
-          ' onchange="WPA_blastToggleComm(\'' + esc(c.id) + '\')" ' +
-          'style="margin:0;">' +
+        '<span style="font-size:13px;line-height:1;">' + (selected ? '☑' : '▢') + '</span>' +
         esc(c.display_name || c.name) +
-        '</label>';
+        '</span>';
     }).join('');
 
     const targetRadio = (value, label, desc) => {
@@ -197,14 +203,17 @@ console.log('[blast] loaded v20260424-phase3b.15 — rental property targeting')
               const props = _state.rentalCatalog || [];
               const chips = props.map(p => {
                 const selected = _state.rentalProperties.indexOf(p) !== -1;
-                return '<label class="blast-pchip" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;margin-right:6px;margin-bottom:6px;' +
-                       'border-radius:14px;cursor:pointer;font-size:12px;border:1px solid ' +
+                const jsArg = p.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                return '<span class="blast-pchip" role="button" tabindex="0" ' +
+                       'onclick="WPA_blastToggleRentalProp(\'' + jsArg + '\')" ' +
+                       'onkeydown="if(event.key===\' \'||event.key===\'Enter\'){event.preventDefault();WPA_blastToggleRentalProp(\'' + jsArg + '\');}" ' +
+                       'style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;margin-right:6px;margin-bottom:6px;' +
+                       'border-radius:14px;cursor:pointer;font-size:12px;user-select:none;' +
+                       'border:1px solid ' +
                        (selected ? '#7a9f75;background:#eaf4ea;color:#1a5a25;' : '#d9d3c5;background:#fff;color:#5a5040;') + '">' +
-                  '<input type="checkbox" value="' + esc(p) + '"' + (selected ? ' checked' : '') +
-                    ' onchange="WPA_blastToggleRentalProp(\'' + esc(p.replace(/'/g, "\\'")) + '\')" ' +
-                    'style="margin:0;">' +
+                  '<span style="font-size:13px;line-height:1;">' + (selected ? '☑' : '▢') + '</span>' +
                   esc(p) +
-                  '</label>';
+                  '</span>';
               }).join('');
               return '<div class="dash-panel" style="padding:16px;margin-top:12px;' +
                        (_state.includeRentalTenants ? 'border:1px solid #7a9f75;' : '') + '">' +
@@ -544,9 +553,12 @@ console.log('[blast] loaded v20260424-phase3b.15 — rental property targeting')
   // ── State setters (wired to window.* for inline onclicks) ─────────────
   function setTarget(v)  { _state.targetType = v; scheduleResolve(); }
   function toggleComm(id) {
+    console.log('[blast] toggleComm fired · id=', JSON.stringify(id),
+                '· before=', _state.communityIds.slice());
     const i = _state.communityIds.indexOf(id);
     if (i === -1) _state.communityIds.push(id);
     else          _state.communityIds.splice(i, 1);
+    console.log('[blast] toggleComm after=', _state.communityIds.slice());
     renderComposer();
   }
   function toggleChannel(k) {
