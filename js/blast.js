@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
+console.log('[blast] loaded v20260424-phase3b.18 — rental property variant grouping');
 
 (function(){
   'use strict';
@@ -100,10 +100,38 @@ console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
       ]);
       _state.cats      = cr.data || [];
       _state.notifCats = ncr.data || [];
-      // Build distinct sorted property list.
-      const propSet = new Set();
-      (tpr.data || []).forEach(r => { if (r.property) propSet.add(r.property); });
-      _state.rentalCatalog = Array.from(propSet).sort();
+
+      // Build rental property catalog with variant grouping. The same
+      // building often has multiple string variants in tenants_lt
+      // ("46 Township Line Rd" vs "46 Township Line Rd, Elkins Park, PA 19027"),
+      // because different admins typed it differently over the years.
+      // We group by the canonical key = the segment before the first
+      // comma, lowercased + collapsed whitespace. The chip label is the
+      // shortest variant. Filtering expands the chip back out to every
+      // raw variant it covers, so .in('property', [...]) still matches.
+      const canonKey = (s) =>
+        String(s || '')
+          .split(',')[0]
+          .trim()
+          .replace(/\s+/g, ' ')
+          .toLowerCase();
+      const groups = new Map(); // key → { key, label, variants: [] }
+      (tpr.data || []).forEach(r => {
+        if (!r.property) return;
+        const k = canonKey(r.property);
+        if (!k) return;
+        let g = groups.get(k);
+        if (!g) { g = { key: k, label: r.property, variants: [] }; groups.set(k, g); }
+        if (!g.variants.includes(r.property)) g.variants.push(r.property);
+        // Keep the shortest variant as the display label.
+        if (r.property.length < g.label.length) g.label = r.property;
+      });
+      _state.rentalCatalog = Array.from(groups.values())
+        .sort((a, b) => a.label.localeCompare(b.label));
+      // Migrate any pre-existing selections from raw strings → canonical keys.
+      _state.rentalProperties = (_state.rentalProperties || [])
+        .map(p => canonKey(p))
+        .filter((v, i, a) => a.indexOf(v) === i);
       renderComposer();
     } catch (e) {
       page.innerHTML = '<div style="padding:24px;color:#a22;">Error: ' + esc(e.message || e) + '</div>';
@@ -194,17 +222,22 @@ console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
               '<div style="font-size:11px;color:#7e7567;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 4px;">Communities</div>' +
               '<div>' + (commChips || '<em style="color:#9e9485;">No active communities found.</em>') + '</div>' +
               '<div style="font-size:11px;color:#9e9485;margin-top:6px;">' +
-                'None selected = all communities. Tap a chip to add/remove. Leave the chips empty to skip HOA entirely.' +
+                'Tap a chip to add/remove. <strong>Empty = skip HOA entirely</strong> — no HOA contacts are added to the blast until at least one community is checked.' +
               '</div>' +
             '</div>' +
 
             // Target section · Rental properties (3B.6.5a)
             (function(){
               const props = _state.rentalCatalog || [];
-              const chips = props.map(p => {
-                const selected = _state.rentalProperties.indexOf(p) !== -1;
-                const jsArg = p.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                return '<span class="blast-pchip" role="button" tabindex="0" ' +
+              const chips = props.map(g => {
+                const selected = _state.rentalProperties.indexOf(g.key) !== -1;
+                const jsArg = g.key.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                // Variants-hint shown on hover when a chip collapses >1
+                // raw string from tenants_lt.
+                const hintAttr = g.variants.length > 1
+                  ? ' title="' + esc('Matches variants: ' + g.variants.join(' | ')) + '"'
+                  : '';
+                return '<span class="blast-pchip" role="button" tabindex="0"' + hintAttr + ' ' +
                        'onclick="WPA_blastToggleRentalProp(\'' + jsArg + '\')" ' +
                        'onkeydown="if(event.key===\' \'||event.key===\'Enter\'){event.preventDefault();WPA_blastToggleRentalProp(\'' + jsArg + '\');}" ' +
                        'style="display:inline-flex;align-items:center;gap:6px;padding:5px 12px;margin-right:6px;margin-bottom:6px;' +
@@ -212,7 +245,8 @@ console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
                        'border:1px solid ' +
                        (selected ? '#7a9f75;background:#eaf4ea;color:#1a5a25;' : '#d9d3c5;background:#fff;color:#5a5040;') + '">' +
                   '<span style="font-size:13px;line-height:1;">' + (selected ? '☑' : '▢') + '</span>' +
-                  esc(p) +
+                  esc(g.label) +
+                  (g.variants.length > 1 ? ' <span style="font-size:10px;color:#9e9485;">×' + g.variants.length + '</span>' : '') +
                   '</span>';
               }).join('');
               return '<div class="dash-panel" style="padding:16px;margin-top:12px;' +
@@ -353,80 +387,81 @@ console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
     try {
       const s = await sb();
 
-      // 1. Units in scope (filter by selected communities).
-      let unitQuery = s.from('hoa_units').select('id,unit_label,community_id,building_label');
+      let hoaRecipients = [];
+      let unitById      = {};
+
+      // HOA path is explicit now: zero communities selected = skip HOA
+      // entirely (matches the rental-tenants opt-in pattern and avoids
+      // surprise "blast to everyone" blasts when the admin expected an
+      // empty chip row to mean "nothing yet").
       if (_state.communityIds.length) {
-        unitQuery = unitQuery.in('community_id', _state.communityIds);
-      }
-      const { data: units, error: unitErr } = await unitQuery;
-      if (unitErr) throw unitErr;
-      if (!units || !units.length) {
-        _state.recipients = [];
-        renderPreview();
-        return;
-      }
-      const unitIds   = units.map(u => u.id);
-      const unitById  = {};
-      units.forEach(u => { unitById[u.id] = u; });
+        // 1. Units in scope.
+        const { data: units, error: unitErr } = await s.from('hoa_units')
+          .select('id,unit_label,community_id,building_label')
+          .in('community_id', _state.communityIds);
+        if (unitErr) throw unitErr;
 
-      // 2. Active unit_contacts for those units, filtered by relationship
-      //    per targetType.
-      const rels =
-        _state.targetType === 'owners'    ? ['owner', 'owner_resident']
-      : _state.targetType === 'residents' ? ['owner_resident', 'resident']
-      : /* all */                           ['owner','owner_resident','resident','other'];
+        if (units && units.length) {
+          const unitIds = units.map(u => u.id);
+          units.forEach(u => { unitById[u.id] = u; });
 
-      const { data: ucRows, error: ucErr } = await s.from('hoa_unit_contacts')
-        .select('contact_id,unit_id,relationship_type,is_primary,is_active')
-        .in('unit_id', unitIds)
-        .eq('is_active', true)
-        .in('relationship_type', rels);
-      if (ucErr) throw ucErr;
+          // 2. Active unit_contacts for those units, filtered by
+          //    relationship per targetType.
+          const rels =
+            _state.targetType === 'owners'    ? ['owner', 'owner_resident']
+          : _state.targetType === 'residents' ? ['owner_resident', 'resident']
+          : /* all */                           ['owner','owner_resident','resident','other'];
 
-      const contactIds = Array.from(new Set((ucRows || []).map(r => r.contact_id)));
-      if (!contactIds.length) {
-        _state.recipients = [];
-        renderPreview();
-        return;
-      }
+          const { data: ucRows, error: ucErr } = await s.from('hoa_unit_contacts')
+            .select('contact_id,unit_id,relationship_type,is_primary,is_active')
+            .in('unit_id', unitIds)
+            .eq('is_active', true)
+            .in('relationship_type', rels);
+          if (ucErr) throw ucErr;
 
-      // 3. Contacts — dedup happens here (one row per contact_id even
-      //    if they link to multiple units in scope).
-      const { data: contacts, error: contErr } = await s.from('hoa_contacts')
-        .select('id,full_name,first_name,last_name,email,phone,phone_e164,is_active')
-        .in('id', contactIds)
-        .eq('is_active', true);
-      if (contErr) throw contErr;
+          const contactIds = Array.from(new Set((ucRows || []).map(r => r.contact_id)));
 
-      // Build recipients with first-matching unit context (for reply threading).
-      const firstUnitByContact = {};
-      (ucRows || []).forEach(r => {
-        if (!firstUnitByContact[r.contact_id]) {
-          firstUnitByContact[r.contact_id] = r.unit_id;
+          if (contactIds.length) {
+            // 3. Contacts — dedup happens here (one row per contact_id
+            //    even if they link to multiple units in scope).
+            const { data: contacts, error: contErr } = await s.from('hoa_contacts')
+              .select('id,full_name,first_name,last_name,email,phone,phone_e164,is_active')
+              .in('id', contactIds)
+              .eq('is_active', true);
+            if (contErr) throw contErr;
+
+            // First-matching unit context (for reply threading).
+            const firstUnitByContact = {};
+            (ucRows || []).forEach(r => {
+              if (!firstUnitByContact[r.contact_id]) {
+                firstUnitByContact[r.contact_id] = r.unit_id;
+              }
+            });
+
+            hoaRecipients = (contacts || []).map(c => ({
+              kind:        'hoa_contact',
+              contact_id:  c.id,
+              name:        c.full_name
+                           || [c.first_name, c.last_name].filter(Boolean).join(' ')
+                           || c.email || c.phone_e164 || '(unnamed)',
+              phone_e164:  c.phone_e164 || '',
+              email:       c.email      || '',
+              phone_raw:   c.phone      || '',
+              unit_id:     firstUnitByContact[c.id] || null,
+              community_id: (() => {
+                const uid = firstUnitByContact[c.id];
+                const u = uid ? unitById[uid] : null;
+                return u ? u.community_id : null;
+              })(),
+              unit_label:  (() => {
+                const uid = firstUnitByContact[c.id];
+                const u = uid ? unitById[uid] : null;
+                return u ? u.unit_label : null;
+              })(),
+            }));
+          }
         }
-      });
-
-      const hoaRecipients = (contacts || []).map(c => ({
-        kind:        'hoa_contact',
-        contact_id:  c.id,
-        name:        c.full_name
-                     || [c.first_name, c.last_name].filter(Boolean).join(' ')
-                     || c.email || c.phone_e164 || '(unnamed)',
-        phone_e164:  c.phone_e164 || '',
-        email:       c.email      || '',
-        phone_raw:   c.phone      || '',
-        unit_id:     firstUnitByContact[c.id] || null,
-        community_id: (() => {
-          const uid = firstUnitByContact[c.id];
-          const u = uid ? unitById[uid] : null;
-          return u ? u.community_id : null;
-        })(),
-        unit_label:  (() => {
-          const uid = firstUnitByContact[c.id];
-          const u = uid ? unitById[uid] : null;
-          return u ? u.unit_label : null;
-        })(),
-      }));
+      }
 
       // ── Rental tenants (3B.6.5a) ───────────────────────────────────
       // If the admin opted in, union in matching rows from tenants_lt.
@@ -439,7 +474,17 @@ console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
           .order('name')
           .limit(2000);
         if (_state.rentalProperties.length) {
-          q = q.in('property', _state.rentalProperties);
+          // Expand canonical chip keys → every raw tenants_lt.property
+          // string they cover (so filtering "46 Township Line Rd" also
+          // catches "46 Township Line Rd, Elkins Park, PA 19027").
+          const groupByKey = {};
+          (_state.rentalCatalog || []).forEach(g => { groupByKey[g.key] = g; });
+          const rawVariants = [];
+          _state.rentalProperties.forEach(key => {
+            const g = groupByKey[key];
+            if (g) g.variants.forEach(v => rawVariants.push(v));
+          });
+          if (rawVariants.length) q = q.in('property', rawVariants);
         }
         const { data: tenants, error: tErr } = await q;
         if (tErr) console.warn('[blast] tenants_lt fetch error:', tErr);
@@ -523,8 +568,11 @@ console.log('[blast] loaded v20260424-phase3b.16 — comm-chip click fix');
       '</div>';
 
     if (!n) {
+      const hasAnySource = _state.communityIds.length || _state.includeRentalTenants;
       h += '<div style="padding:14px;background:#faf6ee;border-radius:4px;color:#9e9485;text-align:center;font-size:12px;">' +
-           'No recipients match the current target + community filter.' +
+           (hasAnySource
+             ? 'No recipients match the current target + community filter.'
+             : 'No recipients yet. Pick a <strong>community</strong> above, or toggle <strong>Include rental tenants</strong>, to start building your audience.') +
            '</div>';
       box.innerHTML = h;
       return;
