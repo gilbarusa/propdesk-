@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.18 — rental property variant grouping');
+console.log('[blast] loaded v20260424-phase3b.19 — branded email template + preview');
 
 (function(){
   'use strict';
@@ -347,6 +347,7 @@ console.log('[blast] loaded v20260424-phase3b.18 — rental property variant gro
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">' +
               '<button class="btn-subtle" onclick="WPA_blastClose()">Cancel</button>' +
               '<div style="display:flex;gap:8px;">' +
+                '<button class="btn-subtle" onclick="WPA_blastPreviewEmail()" title="Preview the branded email template with sample data">👁 Preview email</button>' +
                 '<button class="btn-subtle" onclick="WPA_blastSaveDraft()">💾 Save draft</button>' +
                 '<button class="btn-backup" onclick="WPA_blastSend()" ' +
                   'style="background:#c9404b;" title="Sending wired in Phase 3B.6.3">' +
@@ -630,6 +631,80 @@ console.log('[blast] loaded v20260424-phase3b.18 — rental property variant gro
   function setTestEmail(v)    { _state.testRedirectEmail = (v || '').trim(); }
   function setTestPhone(v)    { _state.testRedirectPhone = (v || '').trim(); }
 
+  // ── Email preview (3B.6.6) ────────────────────────────────────────────
+  // POSTs the current subject/body/category to blast_preview_email and
+  // renders the returned HTML in a modal iframe so the admin can see
+  // exactly what the branded email looks like before sending. Sample
+  // recipient context (Unit 120 · Chelbourne Plaza · owner) is baked in
+  // server-side unless caller overrides.
+  async function previewEmail() {
+    if (!_state.subject.trim() && !_state.body.trim()) {
+      toast('Add a subject or body first', 'error');
+      return;
+    }
+    // Pick a real recipient from the resolved preview as sample context
+    // when available — otherwise fall back to server defaults.
+    const sampleR = _state.recipients.find(r => r.kind === 'hoa_contact')
+                 || _state.recipients[0] || null;
+    const sample = sampleR ? {
+      name:         sampleR.name || '',
+      community:    (_state.cats.find(c => c.id === sampleR.community_id) || {}).display_name
+                    || (_state.cats.find(c => c.id === sampleR.community_id) || {}).name
+                    || '',
+      unit:         sampleR.unit_label || '',
+      relationship: _state.targetType === 'residents' ? 'resident' : 'owner',
+    } : {};
+
+    let html = '';
+    try {
+      const resp = await callPortalApi('blast_preview_email', {
+        subject:      _state.subject,
+        body:         _state.body,
+        sender_label: 'Willow Partnership',
+        category:     _state.categoryCode || 'other',
+        sample:       sample,
+      });
+      if (!resp.ok || !resp.data || !resp.data.ok) {
+        toast('Preview failed: ' + ((resp.data && resp.data.error) || resp.http), 'error');
+        return;
+      }
+      html = resp.data.html || '';
+    } catch (e) {
+      toast('Preview failed: ' + (e.message || e), 'error');
+      return;
+    }
+
+    // Modal with an iframe so the email's own HTML (<html><body>…) renders
+    // in isolation from the admin SPA's styles.
+    const existing = document.getElementById('blastEmailPreviewModal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'blastEmailPreviewModal';
+    modal.style.cssText =
+      'position:fixed;inset:0;background:rgba(24,20,14,0.55);z-index:9999;' +
+      'display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML =
+      '<div style="background:#fff;border-radius:6px;max-width:720px;width:100%;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">' +
+        '<div style="padding:12px 18px;border-bottom:1px solid #e5dfd4;display:flex;justify-content:space-between;align-items:center;">' +
+          '<div>' +
+            '<div style="font-size:14px;font-weight:600;color:#1a1410;">Email preview</div>' +
+            '<div style="font-size:11px;color:#7e7567;">Sample context: ' +
+              esc(sample.name || 'Sample Resident') + ' · Unit ' + esc(sample.unit || '120') +
+              ' · ' + esc(sample.community || 'Chelbourne Plaza') +
+            '</div>' +
+          '</div>' +
+          '<button class="btn-subtle" onclick="document.getElementById(\'blastEmailPreviewModal\').remove()">Close</button>' +
+        '</div>' +
+        '<iframe id="blastPreviewFrame" sandbox="allow-same-origin" ' +
+          'style="flex:1;min-height:560px;border:0;background:#f4f1ea;"></iframe>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    const iframe = document.getElementById('blastPreviewFrame');
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+  }
+
   // ── Save Draft ────────────────────────────────────────────────────────
   async function saveDraft() {
     if (!_state.subject.trim()) { toast('Subject required to save draft', 'error'); return; }
@@ -851,6 +926,8 @@ console.log('[blast] loaded v20260424-phase3b.18 — rental property variant gro
   // 3B.6.5a rental targeting
   window.WPA_blastToggleRental     = toggleRental;
   window.WPA_blastToggleRentalProp = toggleRentalProp;
+  // 3B.6.6 email HTML template polish
+  window.WPA_blastPreviewEmail = previewEmail;
   window.WPA_blastSaveDraft    = saveDraft;
   window.WPA_blastSend         = sendBlast;
   window.WPA_blastOpenDrafts   = openDrafts;
