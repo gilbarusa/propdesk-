@@ -13,24 +13,39 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260423-phase3b.12');
+console.log('[blast] loaded v20260424-phase3b.13 — email send wired');
 
 (function(){
   'use strict';
 
   // ── Module state (reset on each fresh render) ─────────────────────────
   const _state = {
-    subject:    '',
-    body:       '',
-    targetType: 'owners',        // 'owners' | 'residents' | 'all'
-    communityIds: [],            // empty = all communities
-    channels:   { sms: true, email: true, app: false },
-    recipients: [],              // last resolved list
-    cats:       [],              // community catalog
-    editingId:  null,            // if opened a draft
-    notes:      '',
+    subject:      '',
+    body:         '',
+    categoryCode: 'other',         // 3B.6.3 — honors per-contact prefs at send
+    targetType:   'owners',        // 'owners' | 'residents' | 'all'
+    communityIds: [],              // empty = all communities
+    channels:     { sms: true, email: true, app: false },
+    recipients:   [],              // last resolved list
+    cats:         [],              // community catalog
+    notifCats:    [],              // notification-category catalog
+    editingId:    null,
+    notes:        '',
   };
   let _resolveTimer = null;
+  const PORTAL_API_BASE = 'https://app.willowpa.com/api/';
+
+  async function callPortalApi(action, body) {
+    const resp = await fetch(PORTAL_API_BASE + '?action=' + encodeURIComponent(action), {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(body || {}),
+    });
+    const text = await resp.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch (_) { data = text; }
+    return { http: resp.status, ok: resp.ok, data };
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────
   async function sb() {
@@ -58,11 +73,18 @@ console.log('[blast] loaded v20260423-phase3b.12');
 
     try {
       const s = await sb();
-      const cr = await s.from('hoa_communities')
-        .select('id,name,display_name,is_active')
-        .eq('is_active', true)
-        .order('name');
-      _state.cats = cr.data || [];
+      const [cr, ncr] = await Promise.all([
+        s.from('hoa_communities')
+          .select('id,name,display_name,is_active')
+          .eq('is_active', true)
+          .order('name'),
+        s.from('hoa_notification_categories')
+          .select('id,code,name,description,has_cadence,sort_order,is_active')
+          .eq('is_active', true)
+          .order('sort_order'),
+      ]);
+      _state.cats      = cr.data || [];
+      _state.notifCats = ncr.data || [];
       renderComposer();
     } catch (e) {
       page.innerHTML = '<div style="padding:24px;color:#a22;">Error: ' + esc(e.message || e) + '</div>';
@@ -165,6 +187,16 @@ console.log('[blast] loaded v20260423-phase3b.12');
             // Message section
             '<div class="dash-panel" style="padding:16px;margin-top:12px;">' +
               '<h3 style="font-size:13px;margin:0 0 10px;">✍ Message</h3>' +
+              '<label style="font-size:11px;color:#7e7567;">Category</label>' +
+              '<select id="blastCategory" onchange="WPA_blastSetCategory(this.value)" ' +
+                'style="width:100%;padding:8px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:13px;margin:4px 0 12px;">' +
+                _state.notifCats.map(c =>
+                  '<option value="' + esc(c.code) + '"' +
+                    (c.code === _state.categoryCode ? ' selected' : '') + '>' +
+                    esc(c.name) +
+                  '</option>'
+                ).join('') +
+              '</select>' +
               '<label style="font-size:11px;color:#7e7567;">Subject</label>' +
               '<input id="blastSubject" type="text" value="' + esc(_state.subject) + '" ' +
                 'oninput="WPA_blastSetSubject(this.value)" ' +
@@ -175,7 +207,7 @@ console.log('[blast] loaded v20260423-phase3b.12');
                 esc(_state.body) +
               '</textarea>' +
               '<div style="font-size:11px;color:#9e9485;">' +
-                'Plain text for SMS (auto-converted to HTML for email). Future: template placeholders like {{name}}, {{unit}}.' +
+                'Plain text for SMS (auto-converted to HTML for email). Category is used at send time to honor each recipient\'s per-category channel preferences.' +
               '</div>' +
             '</div>' +
 
@@ -369,8 +401,9 @@ console.log('[blast] loaded v20260423-phase3b.12');
     _state.channels[k] = !_state.channels[k];
     renderPreview();
   }
-  function setSubject(v) { _state.subject = v; }
-  function setBody(v)    { _state.body = v; }
+  function setSubject(v)  { _state.subject = v; }
+  function setBody(v)     { _state.body = v; }
+  function setCategory(v) { _state.categoryCode = v || 'other'; }
 
   // ── Save Draft ────────────────────────────────────────────────────────
   async function saveDraft() {
@@ -379,15 +412,16 @@ console.log('[blast] loaded v20260423-phase3b.12');
     const s = await sb();
     const channels = Object.keys(_state.channels).filter(k => _state.channels[k]);
     const payload = {
-      subject:       _state.subject,
-      body:          _state.body,
-      created_by:    'admin-ui',
-      target_type:   _state.targetType,
-      target_filter: { communities: _state.communityIds },
-      channels:      channels,
-      status:        'draft',
-      total_count:   _state.recipients.length,
-      notes:         _state.notes || null,
+      subject:        _state.subject,
+      body:           _state.body,
+      created_by:     'admin-ui',
+      target_type:    _state.targetType,
+      target_filter:  { communities: _state.communityIds },
+      channels:       channels,
+      category_code:  _state.categoryCode || 'other',
+      status:         'draft',
+      total_count:    _state.recipients.length,
+      notes:          _state.notes || null,
     };
     try {
       const r = _state.editingId
@@ -423,13 +457,105 @@ console.log('[blast] loaded v20260423-phase3b.12');
     }
   }
 
-  // ── Stubs for features queued in later iterations ─────────────────────
-  function sendBlast() {
-    alert(
-      'Sending is wired in the next iteration (3B.6.3).\n\n' +
-      'For now, "Save draft" persists the blast + its resolved recipients. ' +
-      'Next iteration adds the actual SMS + Email dispatch + cost preview.'
-    );
+  // ── Real send flow (3B.6.3) ───────────────────────────────────────────
+  // 1. Require subject+body+recipients.
+  // 2. If no persisted draft yet, save one (so blast_recipients exist).
+  // 3. Confirm with a breakdown: X recipients · channels selected.
+  // 4. Loop `blast_send` endpoint in batches until remaining=0.
+  // 5. Show live progress in the Recipients sidebar.
+  async function sendBlast() {
+    if (!_state.subject.trim()) { toast('Subject required', 'error'); return; }
+    if (!_state.body.trim())    { toast('Body required',    'error'); return; }
+    if (!_state.recipients.length) {
+      toast('No recipients match the current filter', 'error');
+      return;
+    }
+    const channels = Object.keys(_state.channels).filter(k => _state.channels[k]);
+    if (!channels.length) {
+      toast('Pick at least one channel', 'error');
+      return;
+    }
+    if (channels.indexOf('sms') !== -1) {
+      alert('SMS dispatch is wired in Phase 3B.6.4 (cost-preview + confirm). ' +
+            'For now only Email is sent; SMS recipients will be handled by that later pass.');
+    }
+
+    // Confirmation dialog — include category, count, channels.
+    const catName = (_state.notifCats.find(c => c.code === _state.categoryCode) || {}).name
+                 || _state.categoryCode;
+    const phones = _state.recipients.filter(r => r.phone_e164).length;
+    const emails = _state.recipients.filter(r => r.email).length;
+    const willEmail = _state.channels.email ? emails : 0;
+    const confirmMsg =
+      'Send this blast?\n\n' +
+      'Category:    ' + catName + '\n' +
+      'Subject:     ' + _state.subject.slice(0, 80) + '\n' +
+      'Recipients:  ' + _state.recipients.length + '\n' +
+      'Email:       ' + willEmail + ' will receive' +
+        (_state.channels.email ? '' : ' (channel off)') + '\n' +
+      'SMS:         ' + (_state.channels.sms ? phones + ' queued for 3B.6.4' : 'channel off') + '\n' +
+      'App:         not yet wired (3B.6.6)\n\n' +
+      'Per-recipient subscription preferences will override channels at send time.';
+    if (!confirm(confirmMsg)) return;
+
+    // Persist as "sending" (saveDraft + flip status).
+    await saveDraft();
+    if (!_state.editingId) { toast('Could not save blast before send', 'error'); return; }
+
+    // Enter send-in-progress UI.
+    setSendingUI(true, 'Starting…');
+
+    let total = _state.recipients.length;
+    let sent = 0, failed = 0;
+    let safety = 0;
+    while (safety++ < 40) {   // ≤ 40 * 20 = 800 recipients max per session
+      const r = await callPortalApi('blast_send', {
+        blast_id: _state.editingId,
+        limit: 20,
+      });
+      if (r.http !== 200 || !r.data || !r.data.ok) {
+        setSendingUI(false,
+          'Send failed: ' + (r.data && r.data.error ? r.data.error : ('HTTP ' + r.http)));
+        toast('Send failed', 'error');
+        return;
+      }
+      sent   += r.data.batch_sent   || 0;
+      failed += r.data.batch_failed || 0;
+      setSendingUI(true,
+        'Sent ' + sent + ' / ' + total +
+        (failed ? ' · ' + failed + ' failed' : '') +
+        ' · ' + r.data.remaining + ' remaining');
+      if ((r.data.remaining || 0) === 0) break;
+    }
+    setSendingUI(false,
+      'Blast complete · ' + sent + ' sent' +
+      (failed ? ' · ' + failed + ' failed' : '') +
+      (failed ? ' (check Drafts to re-run failed recipients)' : ''));
+    toast(
+      failed ? ('Sent ' + sent + ' · ' + failed + ' failed') : ('Sent ' + sent + ' ✓'),
+      failed ? 'error' : 'success');
+  }
+
+  function setSendingUI(busy, msg) {
+    const box = document.getElementById('blastRecipientList');
+    if (!box) return;
+    if (busy) {
+      box.innerHTML =
+        '<div style="padding:10px;background:#eaf4ea;border:1px solid #7a9f75;border-radius:4px;font-size:13px;color:#1a5a25;">' +
+          '<div style="font-weight:600;margin-bottom:4px;">📤 Sending…</div>' +
+          '<div style="font-size:12px;">' + esc(msg) + '</div>' +
+        '</div>';
+    } else {
+      box.innerHTML =
+        '<div style="padding:10px;background:#f9f6f0;border:1px solid #d9d3c5;border-radius:4px;font-size:13px;color:#3a3428;">' +
+          '<div style="font-weight:600;margin-bottom:4px;">✅ Done</div>' +
+          '<div style="font-size:12px;">' + esc(msg) + '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<button class="btn-subtle" onclick="WPA_renderBlastPage()" ' +
+              'style="padding:6px 14px;font-size:12px;">Compose another</button>' +
+          '</div>' +
+        '</div>';
+    }
   }
 
   async function openDrafts() {
@@ -465,6 +591,7 @@ console.log('[blast] loaded v20260423-phase3b.12');
   window.WPA_blastToggleChannel= toggleChannel;
   window.WPA_blastSetSubject   = setSubject;
   window.WPA_blastSetBody      = setBody;
+  window.WPA_blastSetCategory  = setCategory;
   window.WPA_blastSaveDraft    = saveDraft;
   window.WPA_blastSend         = sendBlast;
   window.WPA_blastOpenDrafts   = openDrafts;
