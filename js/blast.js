@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.19 — branded email template + preview');
+console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future status filter');
 
 (function(){
   'use strict';
@@ -42,6 +42,11 @@ console.log('[blast] loaded v20260424-phase3b.19 — branded email template + pr
     includeRentalTenants:   false,
     rentalProperties:       [],    // selected property strings (from tenants_lt.property)
     rentalCatalog:          [],    // distinct property values available
+    // 3B.6.7 — tenants_lt.status filter. Table currently has 'Active' and
+    // 'Future' (signed lease, not yet moved in). Include Future by default
+    // since most blast categories (community_info, alerts) apply to them,
+    // but give the admin a toggle so payment-reminder blasts can exclude.
+    includeFutureTenants:   true,
   };
   let _resolveTimer = null;
   const PORTAL_API_BASE = 'https://app.willowpa.com/api/';
@@ -268,7 +273,18 @@ console.log('[blast] loaded v20260424-phase3b.19 — branded email template + pr
                            '<div style="font-size:11px;color:#9e9485;margin-top:6px;">' +
                              'None selected = all rental properties. ' + props.length + ' available.' +
                            '</div>')
-                        : '<em style="color:#9e9485;">No rental properties found in tenants_lt.</em>'))
+                        : '<em style="color:#9e9485;">No rental properties found in tenants_lt.</em>') +
+                     // 3B.6.7 · Future-tenant toggle. Active always included;
+                     // Future (signed but not moved in) is opt-out so payment
+                     // reminders can target only current residents.
+                     '<label style="display:flex;align-items:center;gap:8px;margin-top:12px;padding:8px 10px;border-top:1px solid #f0ebe2;font-size:12px;cursor:pointer;">' +
+                       '<input type="checkbox"' + (_state.includeFutureTenants ? ' checked' : '') +
+                         ' onchange="WPA_blastToggleFutureTenants()">' +
+                       '<div>' +
+                         '<div style="font-weight:500;color:#3a3428;">Include <em>Future</em> tenants</div>' +
+                         '<div style="font-size:11px;color:#9e9485;">Signed a lease but haven\'t moved in yet. Uncheck for payment reminders or move-in-only blasts. <em>Active</em> tenants are always included.</div>' +
+                       '</div>' +
+                     '</label>')
                   : '') +
               '</div>';
             })() +
@@ -470,8 +486,16 @@ console.log('[blast] loaded v20260424-phase3b.19 — branded email template + pr
       // since it has richer context).
       let rentalRecipients = [];
       if (_state.includeRentalTenants) {
+        // Status filter: always include Active; include Future only if
+        // the composer toggle is on (default ON). This defensively
+        // excludes any future Archived/Ended statuses someone might add
+        // later without us noticing.
+        const allowedStatuses = _state.includeFutureTenants
+          ? ['Active', 'Future']
+          : ['Active'];
         let q = s.from('tenants_lt')
           .select('id,name,email,phone,phone_e164,property,unit,status')
+          .in('status', allowedStatuses)
           .order('name')
           .limit(2000);
         if (_state.rentalProperties.length) {
@@ -617,6 +641,10 @@ console.log('[blast] loaded v20260424-phase3b.19 — branded email template + pr
   function toggleRental() {
     _state.includeRentalTenants = !_state.includeRentalTenants;
     renderComposer();
+  }
+  function toggleFutureTenants() {
+    _state.includeFutureTenants = !_state.includeFutureTenants;
+    scheduleResolve();
   }
   function toggleRentalProp(p) {
     const i = _state.rentalProperties.indexOf(p);
@@ -926,6 +954,8 @@ console.log('[blast] loaded v20260424-phase3b.19 — branded email template + pr
   // 3B.6.5a rental targeting
   window.WPA_blastToggleRental     = toggleRental;
   window.WPA_blastToggleRentalProp = toggleRentalProp;
+  // 3B.6.7 future-tenant filter
+  window.WPA_blastToggleFutureTenants = toggleFutureTenants;
   // 3B.6.6 email HTML template polish
   window.WPA_blastPreviewEmail = previewEmail;
   window.WPA_blastSaveDraft    = saveDraft;
