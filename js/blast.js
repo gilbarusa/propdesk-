@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
+console.log('[blast] loaded v20260424-phase3b.15 — rental property targeting');
 
 (function(){
   'use strict';
@@ -38,6 +38,10 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
     testMode:          false,
     testRedirectEmail: '',
     testRedirectPhone: '',
+    // 3B.6.5a — rental property targeting. Independent of HOA.
+    includeRentalTenants:   false,
+    rentalProperties:       [],    // selected property strings (from tenants_lt.property)
+    rentalCatalog:          [],    // distinct property values available
   };
   let _resolveTimer = null;
   const PORTAL_API_BASE = 'https://app.willowpa.com/api/';
@@ -80,7 +84,7 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
 
     try {
       const s = await sb();
-      const [cr, ncr] = await Promise.all([
+      const [cr, ncr, tpr] = await Promise.all([
         s.from('hoa_communities')
           .select('id,name,display_name,is_active')
           .eq('is_active', true)
@@ -89,9 +93,17 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
           .select('id,code,name,description,has_cadence,sort_order,is_active')
           .eq('is_active', true)
           .order('sort_order'),
+        // Distinct rental-property values from tenants_lt (3B.6.5a).
+        // No dedicated properties.name canonicalization yet — tenants_lt.property
+        // is the natural filter key since it's what the tenant row stores.
+        s.from('tenants_lt').select('property').limit(1000),
       ]);
       _state.cats      = cr.data || [];
       _state.notifCats = ncr.data || [];
+      // Build distinct sorted property list.
+      const propSet = new Set();
+      (tpr.data || []).forEach(r => { if (r.property) propSet.add(r.property); });
+      _state.rentalCatalog = Array.from(propSet).sort();
       renderComposer();
     } catch (e) {
       page.innerHTML = '<div style="padding:24px;color:#a22;">Error: ' + esc(e.message || e) + '</div>';
@@ -161,9 +173,9 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
           // ── LEFT: composer ────────────────────────────────────────────
           '<div>' +
 
-            // Target section
+            // Target section · HOA
             '<div class="dash-panel" style="padding:16px;">' +
-              '<h3 style="font-size:13px;margin:0 0 10px;">🎯 Target</h3>' +
+              '<h3 style="font-size:13px;margin:0 0 10px;">🎯 HOA target</h3>' +
 
               '<div style="font-size:11px;color:#7e7567;text-transform:uppercase;letter-spacing:0.5px;margin:6px 0 4px;">Who</div>' +
               targetRadio('owners',    'Owners',
@@ -176,9 +188,47 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
               '<div style="font-size:11px;color:#7e7567;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 4px;">Communities</div>' +
               '<div>' + (commChips || '<em style="color:#9e9485;">No active communities found.</em>') + '</div>' +
               '<div style="font-size:11px;color:#9e9485;margin-top:6px;">' +
-                'None selected = all communities. Tap a chip to add/remove.' +
+                'None selected = all communities. Tap a chip to add/remove. Leave the chips empty to skip HOA entirely.' +
               '</div>' +
             '</div>' +
+
+            // Target section · Rental properties (3B.6.5a)
+            (function(){
+              const props = _state.rentalCatalog || [];
+              const chips = props.map(p => {
+                const selected = _state.rentalProperties.indexOf(p) !== -1;
+                return '<label class="blast-pchip" style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;margin-right:6px;margin-bottom:6px;' +
+                       'border-radius:14px;cursor:pointer;font-size:12px;border:1px solid ' +
+                       (selected ? '#7a9f75;background:#eaf4ea;color:#1a5a25;' : '#d9d3c5;background:#fff;color:#5a5040;') + '">' +
+                  '<input type="checkbox" value="' + esc(p) + '"' + (selected ? ' checked' : '') +
+                    ' onchange="WPA_blastToggleRentalProp(\'' + esc(p.replace(/'/g, "\\'")) + '\')" ' +
+                    'style="margin:0;">' +
+                  esc(p) +
+                  '</label>';
+              }).join('');
+              return '<div class="dash-panel" style="padding:16px;margin-top:12px;' +
+                       (_state.includeRentalTenants ? 'border:1px solid #7a9f75;' : '') + '">' +
+                '<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;">' +
+                  '<input type="checkbox"' + (_state.includeRentalTenants ? ' checked' : '') +
+                    ' onchange="WPA_blastToggleRental()">' +
+                  '🏠 Include rental tenants' +
+                '</label>' +
+                '<div style="font-size:11px;color:#9e9485;margin:6px 0 10px;">' +
+                  'Adds long-term tenants from <code>tenants_lt</code> to the blast. Deduped across HOA + rental by phone / email.' +
+                '</div>' +
+                (_state.includeRentalTenants
+                  ? ('<div style="font-size:11px;color:#7e7567;text-transform:uppercase;letter-spacing:0.5px;margin:4px 0 4px;">' +
+                       'Rental properties' +
+                     '</div>' +
+                     (props.length
+                        ? ('<div>' + chips + '</div>' +
+                           '<div style="font-size:11px;color:#9e9485;margin-top:6px;">' +
+                             'None selected = all rental properties. ' + props.length + ' available.' +
+                           '</div>')
+                        : '<em style="color:#9e9485;">No rental properties found in tenants_lt.</em>'))
+                  : '') +
+              '</div>';
+            })() +
 
             // Channels section
             '<div class="dash-panel" style="padding:16px;margin-top:12px;">' +
@@ -347,7 +397,8 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
         }
       });
 
-      _state.recipients = (contacts || []).map(c => ({
+      const hoaRecipients = (contacts || []).map(c => ({
+        kind:        'hoa_contact',
         contact_id:  c.id,
         name:        c.full_name
                      || [c.first_name, c.last_name].filter(Boolean).join(' ')
@@ -366,7 +417,57 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
           const u = uid ? unitById[uid] : null;
           return u ? u.unit_label : null;
         })(),
-      })).sort((a, b) => a.name.localeCompare(b.name));
+      }));
+
+      // ── Rental tenants (3B.6.5a) ───────────────────────────────────
+      // If the admin opted in, union in matching rows from tenants_lt.
+      // Dedup across sources by phone_e164 then email (prefer HOA row
+      // since it has richer context).
+      let rentalRecipients = [];
+      if (_state.includeRentalTenants) {
+        let q = s.from('tenants_lt')
+          .select('id,name,email,phone,phone_e164,property,unit,status')
+          .order('name')
+          .limit(2000);
+        if (_state.rentalProperties.length) {
+          q = q.in('property', _state.rentalProperties);
+        }
+        const { data: tenants, error: tErr } = await q;
+        if (tErr) console.warn('[blast] tenants_lt fetch error:', tErr);
+        rentalRecipients = (tenants || []).map(t => ({
+          kind:         'tenant_lt',
+          contact_id:   null,
+          tenant_id:    t.id,
+          name:         t.name || t.email || t.phone_e164 || '(unnamed)',
+          phone_e164:   t.phone_e164 || '',
+          email:        t.email      || '',
+          phone_raw:    t.phone      || '',
+          unit_id:      null,
+          community_id: null,
+          unit_label:   t.unit || null,
+          property:     t.property || null,
+          tenant_status: t.status || null,
+        }));
+      }
+
+      // Dedup — HOA wins on phone match, email match. Key preference:
+      // phone_e164 (most unique), then email. Missing both = never dedupes.
+      const seenPhones = new Set();
+      const seenEmails = new Set();
+      const merged = [];
+      const add = (r) => {
+        const p = (r.phone_e164 || '').trim().toLowerCase();
+        const e = (r.email      || '').trim().toLowerCase();
+        if (p && seenPhones.has(p)) return;
+        if (e && seenEmails.has(e)) return;
+        if (p) seenPhones.add(p);
+        if (e) seenEmails.add(e);
+        merged.push(r);
+      };
+      hoaRecipients.forEach(add);
+      rentalRecipients.forEach(add);
+
+      _state.recipients = merged.sort((a, b) => a.name.localeCompare(b.name));
 
       renderPreview();
     } catch (e) {
@@ -389,11 +490,19 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
     const willSms   = smsRequested   ? phones : 0;
     const willEmail = emailRequested ? emails : 0;
 
+    const nHoa    = _state.recipients.filter(r => r.kind === 'hoa_contact').length;
+    const nRental = _state.recipients.filter(r => r.kind === 'tenant_lt').length;
+
     let h =
       '<div style="font-size:12px;color:#3a3428;margin-bottom:10px;">' +
         '<strong style="font-size:20px;color:#1a5a25;">' + n + '</strong>' +
         ' recipient' + (n === 1 ? '' : 's') +
-        ' <span style="color:#9e9485;font-size:11px;">· deduped by contact</span>' +
+        ' <span style="color:#9e9485;font-size:11px;">· deduped by phone / email</span>' +
+        (nRental
+          ? '<div style="font-size:11px;color:#7e7567;margin-top:4px;">' +
+              nHoa + ' HOA · ' + nRental + ' rental'
+            + '</div>'
+          : '') +
       '</div>' +
       '<div style="font-size:11px;color:#5a5040;margin-bottom:10px;">' +
         (smsRequested
@@ -414,9 +523,13 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
 
     h += '<div style="max-height:480px;overflow-y:auto;border:1px solid #e5dfd4;border-radius:4px;">';
     _state.recipients.forEach(r => {
+      const sourceBadge = r.kind === 'tenant_lt'
+        ? '<span style="font-size:10px;background:#e3eef5;color:#1a3a6b;padding:1px 6px;border-radius:8px;margin-left:4px;">rental</span>'
+        : '<span style="font-size:10px;background:#faf6ee;color:#8a6d3c;padding:1px 6px;border-radius:8px;margin-left:4px;">HOA</span>';
       h += '<div style="padding:8px 10px;border-bottom:1px solid #f0ebe2;font-size:12px;">' +
-           '<strong>' + esc(r.name) + '</strong>' +
+           '<strong>' + esc(r.name) + '</strong>' + sourceBadge +
              (r.unit_label ? ' <span style="color:#9e9485;">· Unit ' + esc(r.unit_label) + '</span>' : '') +
+             (r.property   ? ' <span style="color:#9e9485;">· ' + esc(r.property) + '</span>' : '') +
            '<div style="font-size:11px;color:#7e7567;margin-top:1px;">' +
              (r.phone_e164 ? '📱 ' + esc(r.phone_e164) + ' ' : '') +
              (r.email      ? '✉ '  + esc(r.email)           : '') +
@@ -439,6 +552,16 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
   function toggleChannel(k) {
     _state.channels[k] = !_state.channels[k];
     renderPreview();
+  }
+  function toggleRental() {
+    _state.includeRentalTenants = !_state.includeRentalTenants;
+    renderComposer();
+  }
+  function toggleRentalProp(p) {
+    const i = _state.rentalProperties.indexOf(p);
+    if (i === -1) _state.rentalProperties.push(p);
+    else          _state.rentalProperties.splice(i, 1);
+    renderComposer();
   }
   function setSubject(v)      { _state.subject = v; }
   function setBody(v)         { _state.body = v; }
@@ -487,13 +610,13 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
       if (_state.recipients.length) {
         const rows = _state.recipients.map(rec => ({
           blast_id:            _state.editingId,
-          contact_id:          rec.contact_id,
-          recipient_kind:      'hoa_contact',
+          contact_id:          rec.kind === 'hoa_contact' ? rec.contact_id : null,
+          recipient_kind:      rec.kind === 'tenant_lt' ? 'tenant_lt' : 'hoa_contact',
           name_snapshot:       rec.name,
           phone_e164_snapshot: rec.phone_e164 || null,
           email_snapshot:      rec.email      || null,
-          unit_id:             rec.unit_id,
-          community_id:        rec.community_id,
+          unit_id:             rec.unit_id    || null,
+          community_id:        rec.community_id || null,
           status:              'pending',
         }));
         const rr = await s.from('blast_recipients').insert(rows);
@@ -665,6 +788,9 @@ console.log('[blast] loaded v20260424-phase3b.14 — test-mode toggle');
   window.WPA_blastToggleTestMode = toggleTestMode;
   window.WPA_blastSetTestEmail   = setTestEmail;
   window.WPA_blastSetTestPhone   = setTestPhone;
+  // 3B.6.5a rental targeting
+  window.WPA_blastToggleRental     = toggleRental;
+  window.WPA_blastToggleRentalProp = toggleRentalProp;
   window.WPA_blastSaveDraft    = saveDraft;
   window.WPA_blastSend         = sendBlast;
   window.WPA_blastOpenDrafts   = openDrafts;
