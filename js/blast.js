@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future status filter');
+console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS teaser + web view)');
 
 (function(){
   'use strict';
@@ -47,6 +47,9 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
     // since most blast categories (community_info, alerts) apply to them,
     // but give the admin a toggle so payment-reminder blasts can exclude.
     includeFutureTenants:   true,
+    // 3B.6.7 — short_token for the public web view URL. Generated on
+    // first saveDraft, persisted across edits.
+    shortToken:             '',
   };
   let _resolveTimer = null;
   const PORTAL_API_BASE = 'https://app.willowpa.com/api/';
@@ -350,12 +353,20 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
                 'oninput="WPA_blastSetSubject(this.value)" ' +
                 'style="width:100%;padding:8px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:13px;margin:4px 0 12px;">' +
               '<label style="font-size:11px;color:#7e7567;">Body</label>' +
-              '<textarea id="blastBody" rows="6" oninput="WPA_blastSetBody(this.value)" ' +
+              '<textarea id="blastBody" rows="6" oninput="WPA_blastSetBody(this.value);WPA_blastUpdateCharCounter()" ' +
                 'style="width:100%;padding:8px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:13px;margin:4px 0 4px;resize:vertical;">' +
                 esc(_state.body) +
               '</textarea>' +
-              '<div style="font-size:11px;color:#9e9485;">' +
-                'Plain text for SMS (auto-converted to HTML for email). Category is used at send time to honor each recipient\'s per-category channel preferences.' +
+              // 3B.6.7 · live SMS char counter. Segments calc:
+              //   ≤ 160 → 1 SMS (green)
+              //   161–300 → 2 SMS, double charge (amber)
+              //   > 300 → SMS auto-skipped for this blast (red)
+              '<div id="blastCharCounter" style="font-size:11px;color:#9e9485;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;min-height:16px;">' +
+                '<div id="blastCharCounterMsg" style="flex:1;"></div>' +
+                '<div id="blastCharCounterNum" style="font-variant-numeric:tabular-nums;color:#7e7567;"></div>' +
+              '</div>' +
+              '<div style="font-size:11px;color:#9e9485;margin-top:4px;">' +
+                'Plain text for SMS (auto-converted to branded HTML for email). SMS limit: 160 chars per segment. Above 300 chars, SMS is skipped and only email/app deliver.' +
               '</div>' +
             '</div>' +
 
@@ -364,6 +375,7 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
               '<button class="btn-subtle" onclick="WPA_blastClose()">Cancel</button>' +
               '<div style="display:flex;gap:8px;">' +
                 '<button class="btn-subtle" onclick="WPA_blastPreviewEmail()" title="Preview the branded email template with sample data">👁 Preview email</button>' +
+                '<button class="btn-subtle" onclick="WPA_blastPreviewWebView()" title="Preview the public web view that long-blast SMS recipients tap into">🔗 Preview web view</button>' +
                 '<button class="btn-subtle" onclick="WPA_blastSaveDraft()">💾 Save draft</button>' +
                 '<button class="btn-backup" onclick="WPA_blastSend()" ' +
                   'style="background:#c9404b;" title="Sending wired in Phase 3B.6.3">' +
@@ -388,6 +400,59 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
 
     // Kick off initial recipient resolution.
     scheduleResolve();
+    // Populate char counter after the DOM exists.
+    updateCharCounter();
+  }
+
+  // ── SMS char counter (3B.6.7) ─────────────────────────────────────────
+  function updateCharCounter() {
+    const msgEl = document.getElementById('blastCharCounterMsg');
+    const numEl = document.getElementById('blastCharCounterNum');
+    if (!msgEl || !numEl) return;
+    const n = (_state.body || '').length;
+    const smsOn = !!_state.channels.sms;
+
+    let msg, color, numColor;
+    if (!smsOn) {
+      msg = '';
+      color = '#9e9485'; numColor = '#9e9485';
+    } else if (n === 0) {
+      msg = 'SMS: 1 segment (up to 160 chars)';
+      color = '#9e9485'; numColor = '#9e9485';
+    } else if (n <= 160) {
+      msg = '✓ Fits in 1 SMS';
+      color = '#1a5a25'; numColor = '#1a5a25';
+    } else if (n <= 300) {
+      msg = '⚠ 2 SMS segments — each recipient counts 2× for billing';
+      color = '#8a6d3c'; numColor = '#8a6d3c';
+    } else {
+      // Long-message-as-link mode (3B.6.7).
+      msg = '🔗 Too long for SMS body — recipients will get a short SMS with a tap-able link to the full message';
+      color = '#1a2874'; numColor = '#1a2874';
+    }
+    msgEl.textContent = msg;
+    msgEl.style.color = color;
+    numEl.textContent = n + (smsOn ? ' chars' : ' chars');
+    numEl.style.color = numColor;
+  }
+
+  // ── short_token generation (3B.6.7) ───────────────────────────────────
+  // Mirrors the server-side format (8-char lowercase hex) so a token
+  // generated here is collision-compatible with one generated by PHP's
+  // random_bytes path. Used in saveDraft so blasts always have a public
+  // view URL ready before send.
+  function generateShortToken() {
+    let s = '';
+    if (window.crypto && window.crypto.getRandomValues) {
+      const buf = new Uint8Array(4);
+      window.crypto.getRandomValues(buf);
+      s = Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+    } else {
+      // Fallback for ancient browsers — lower entropy but still
+      // unique-enough for our scale.
+      s = (Math.random().toString(36) + '00000000').substr(2, 8);
+    }
+    return s.slice(0, 8).toLowerCase();
   }
 
   // ── Recipient resolver ────────────────────────────────────────────────
@@ -637,6 +702,7 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
   function toggleChannel(k) {
     _state.channels[k] = !_state.channels[k];
     renderPreview();
+    updateCharCounter();  // SMS on/off changes the counter guidance
   }
   function toggleRental() {
     _state.includeRentalTenants = !_state.includeRentalTenants;
@@ -733,6 +799,80 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
     doc.open(); doc.write(html); doc.close();
   }
 
+  // ── Web-view preview (3B.6.7) ─────────────────────────────────────────
+  // Shows what an SMS recipient sees after tapping the short link in a
+  // long-blast SMS. Reuses the email template (no test banner, no
+  // recipient context — anyone with the link reads the same page) and
+  // also shows the SMS body that would be sent so the admin sees both
+  // halves of the user experience.
+  async function previewWebView() {
+    if (!_state.subject.trim() && !_state.body.trim()) {
+      toast('Add a subject or body first', 'error');
+      return;
+    }
+
+    let html = '';
+    try {
+      const resp = await callPortalApi('blast_preview_email', {
+        subject:      _state.subject,
+        body:         _state.body,
+        sender_label: 'Willow Partnership',
+        category:     _state.categoryCode || 'other',
+        sample:       {},  // empty → no recipient context, like the real public view
+      });
+      if (!resp.ok || !resp.data || !resp.data.ok) {
+        toast('Preview failed: ' + ((resp.data && resp.data.error) || resp.http), 'error');
+        return;
+      }
+      html = resp.data.html || '';
+    } catch (e) {
+      toast('Preview failed: ' + (e.message || e), 'error');
+      return;
+    }
+
+    // Compute the SMS body the recipient would actually receive when in
+    // teaser mode — purely for display alongside the web view.
+    const tokenSample = _state.shortToken || 'k7m2x9pq';
+    const viewUrl = 'https://app.willowpa.com/api/?action=blast_view&t=' + tokenSample;
+    let subjEx = _state.subject || '';
+    if (subjEx.length > 60) subjEx = subjEx.slice(0, 57).trimEnd() + '…';
+    const smsTeaser = '[Willow Partnership] ' + subjEx +
+                      (subjEx ? ' — Read: ' : 'New message: ') + viewUrl;
+
+    const existing = document.getElementById('blastEmailPreviewModal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'blastEmailPreviewModal';
+    modal.style.cssText =
+      'position:fixed;inset:0;background:rgba(24,20,14,0.55);z-index:9999;' +
+      'display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML =
+      '<div style="background:#fff;border-radius:6px;max-width:780px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">' +
+        '<div style="padding:12px 18px;border-bottom:1px solid #e5dfd4;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">' +
+          '<div>' +
+            '<div style="font-size:14px;font-weight:600;color:#1a1410;">🔗 Web view — what tappers see</div>' +
+            '<div style="font-size:11px;color:#7e7567;margin-top:2px;">No login required. Tokenized URL is the credential.</div>' +
+          '</div>' +
+          '<button class="btn-subtle" onclick="document.getElementById(\'blastEmailPreviewModal\').remove()">Close</button>' +
+        '</div>' +
+        // Show the SMS teaser side-by-side at the top so the admin sees
+        // exactly what's in the recipient's text app before they tap.
+        '<div style="padding:10px 18px;background:#f5f7fc;border-bottom:1px solid #e5eaf4;font-size:12px;">' +
+          '<div style="color:#1a2874;font-weight:600;margin-bottom:4px;">📱 The SMS recipients see:</div>' +
+          '<div style="background:#fff;padding:10px 12px;border-radius:8px;border:1px solid #e5eaf4;font-family:-apple-system,Menlo,monospace;font-size:12px;color:#1a1a2e;line-height:1.4;">' +
+            esc(smsTeaser) +
+          '</div>' +
+        '</div>' +
+        '<iframe id="blastPreviewFrame" sandbox="allow-same-origin" ' +
+          'style="flex:1;min-height:540px;border:0;background:#eef1f8;"></iframe>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    const iframe = document.getElementById('blastPreviewFrame');
+    const doc = iframe.contentDocument || iframe.contentWindow.document;
+    doc.open(); doc.write(html); doc.close();
+  }
+
   // ── Save Draft ────────────────────────────────────────────────────────
   async function saveDraft() {
     if (!_state.subject.trim()) { toast('Subject required to save draft', 'error'); return; }
@@ -756,6 +896,11 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
         ? _state.testRedirectEmail : null,
       test_redirect_phone: _state.testMode && _state.testRedirectPhone
         ? _state.testRedirectPhone : null,
+      // 3B.6.7 — short_token. Generated on first save, preserved on
+      // subsequent edits via _state.shortToken (server may also
+      // self-heal on send if missing). 8-char lowercase hex.
+      short_token: _state.shortToken
+        || (_state.shortToken = generateShortToken()),
     };
     try {
       const r = _state.editingId
@@ -809,15 +954,26 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
       toast('Pick at least one channel', 'error');
       return;
     }
-    if (channels.indexOf('sms') !== -1) {
-      alert('SMS dispatch is wired in Phase 3B.6.4 (cost-preview + confirm). ' +
-            'For now only Email is sent; SMS recipients will be handled by that later pass.');
+    // 3B.6.7 — SMS length gate. If body > 300 chars, warn that SMS
+    // will be silently skipped server-side and give the admin a chance
+    // to trim before committing.
+    if (channels.indexOf('sms') !== -1 && (_state.body || '').length > 300) {
+      const proceed = confirm(
+        'Your message is ' + _state.body.length + ' chars — too long for SMS.\n\n' +
+        'SMS will be skipped for this blast. Only email (and app, when wired) will deliver.\n\n' +
+        'Continue?'
+      );
+      if (!proceed) return;
     }
 
-    // Test-mode validation — require a redirect email if test mode + email channel.
+    // Test-mode validation — require a redirect for any channel that's on.
     if (_state.testMode) {
       if (_state.channels.email && !_state.testRedirectEmail) {
         toast('Test mode: fill in redirect email', 'error');
+        return;
+      }
+      if (_state.channels.sms && !_state.testRedirectPhone) {
+        toast('Test mode: fill in redirect phone', 'error');
         return;
       }
     }
@@ -829,6 +985,14 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
     const emails = _state.recipients.filter(r => r.email).length;
     const willEmail = _state.channels.email ? emails : 0;
     let confirmMsg;
+    const willSms     = _state.channels.sms ? phones : 0;
+    const smsTooLong  = (_state.body || '').length > 300;
+    const smsLine     = !_state.channels.sms
+      ? 'channel off'
+      : smsTooLong
+        ? '0 (body > 300 chars — SMS will be skipped)'
+        : willSms + ' will receive';
+
     if (_state.testMode) {
       confirmMsg =
         '🧪 TEST MODE — send this blast?\n\n' +
@@ -837,9 +1001,12 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
         'Recipients:  ' + _state.recipients.length + ' (all marked sent, none get real message)\n' +
         'Email:       ' + willEmail + ' redirected to ' + (_state.testRedirectEmail || '—') + '\n' +
         'SMS:         ' + (_state.channels.sms
-          ? phones + ' redirected to ' + (_state.testRedirectPhone || '—') + ' (queued for 3B.6.5)'
+          ? (smsTooLong
+              ? 'skipped (body > 300 chars)'
+              : willSms + ' redirected to ' + (_state.testRedirectPhone || '—'))
           : 'channel off') + '\n' +
-        '\nYou will receive ' + willEmail + ' test emails.';
+        '\nYou will receive ' + willEmail + ' test emails' +
+        (_state.channels.sms && !smsTooLong ? ' and ' + willSms + ' test SMS' : '') + '.';
     } else {
       confirmMsg =
         '⚠ REAL SEND — this goes to actual recipients.\n\n' +
@@ -848,8 +1015,8 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
         'Recipients:  ' + _state.recipients.length + '\n' +
         'Email:       ' + willEmail + ' will receive' +
           (_state.channels.email ? '' : ' (channel off)') + '\n' +
-        'SMS:         ' + (_state.channels.sms ? phones + ' queued for 3B.6.5' : 'channel off') + '\n' +
-        'App:         not yet wired (3B.6.6)\n\n' +
+        'SMS:         ' + smsLine + '\n' +
+        'App:         not yet wired (3B.6.8)\n\n' +
         'Per-recipient subscription preferences will override channels at send time.';
     }
     if (!confirm(confirmMsg)) return;
@@ -863,6 +1030,7 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
 
     let total = _state.recipients.length;
     let sent = 0, failed = 0;
+    let smsSkippedForLength = false;
     let safety = 0;
     while (safety++ < 40) {   // ≤ 40 * 20 = 800 recipients max per session
       const r = await callPortalApi('blast_send', {
@@ -877,6 +1045,7 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
       }
       sent   += r.data.batch_sent   || 0;
       failed += r.data.batch_failed || 0;
+      if (r.data.sms_skipped_for_length) smsSkippedForLength = true;
       setSendingUI(true,
         'Sent ' + sent + ' / ' + total +
         (failed ? ' · ' + failed + ' failed' : '') +
@@ -886,6 +1055,7 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
     setSendingUI(false,
       'Blast complete · ' + sent + ' sent' +
       (failed ? ' · ' + failed + ' failed' : '') +
+      (smsSkippedForLength ? ' · SMS skipped (body > 300 chars)' : '') +
       (failed ? ' (check Drafts to re-run failed recipients)' : ''));
     toast(
       failed ? ('Sent ' + sent + ' · ' + failed + ' failed') : ('Sent ' + sent + ' ✓'),
@@ -958,6 +1128,9 @@ console.log('[blast] loaded v20260424-phase3b.20 — tenants_lt Active/Future st
   window.WPA_blastToggleFutureTenants = toggleFutureTenants;
   // 3B.6.6 email HTML template polish
   window.WPA_blastPreviewEmail = previewEmail;
+  // 3B.6.7 SMS send + char counter + long-message-as-link
+  window.WPA_blastUpdateCharCounter = updateCharCounter;
+  window.WPA_blastPreviewWebView    = previewWebView;
   window.WPA_blastSaveDraft    = saveDraft;
   window.WPA_blastSend         = sendBlast;
   window.WPA_blastOpenDrafts   = openDrafts;
