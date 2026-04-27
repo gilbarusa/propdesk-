@@ -13,7 +13,7 @@
 //
 // Renders into #page-blast.
 
-console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS teaser + web view)');
+console.log('[blast] loaded v20260424-phase3b.23 — Claude AI assist + SMS-teaser dialog clarified');
 
 (function(){
   'use strict';
@@ -352,7 +352,14 @@ console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS t
               '<input id="blastSubject" type="text" value="' + esc(_state.subject) + '" ' +
                 'oninput="WPA_blastSetSubject(this.value)" ' +
                 'style="width:100%;padding:8px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:13px;margin:4px 0 12px;">' +
-              '<label style="font-size:11px;color:#7e7567;">Body</label>' +
+              '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+                '<label style="font-size:11px;color:#7e7567;">Body</label>' +
+                '<button type="button" onclick="WPA_blastOpenAi()" ' +
+                  'style="font-size:11px;padding:3px 10px;border:1px solid #d6d2e0;border-radius:12px;background:#f5f7fc;color:#1a2874;cursor:pointer;font:inherit;font-weight:500;" ' +
+                  'title="Use Claude AI to rephrase, shorten, or generate this message">' +
+                  '✨ AI assist' +
+                '</button>' +
+              '</div>' +
               '<textarea id="blastBody" rows="6" oninput="WPA_blastSetBody(this.value);WPA_blastUpdateCharCounter()" ' +
                 'style="width:100%;padding:8px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:13px;margin:4px 0 4px;resize:vertical;">' +
                 esc(_state.body) +
@@ -799,6 +806,144 @@ console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS t
     doc.open(); doc.write(html); doc.close();
   }
 
+  // ── AI assist (3B.6.8) ────────────────────────────────────────────────
+  // Modal-driven Claude integration. Lets the admin rephrase, shorten,
+  // formalize, warm-up, or generate-from-prompt the blast body. Calls
+  // server-side blast_ai_assist endpoint so the API key stays out of
+  // the browser. Result is shown side-by-side with the current body so
+  // the admin can compare before accepting.
+  function openAi() {
+    const existing = document.getElementById('blastAiModal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'blastAiModal';
+    modal.style.cssText =
+      'position:fixed;inset:0;background:rgba(24,20,14,0.55);z-index:9999;' +
+      'display:flex;align-items:center;justify-content:center;padding:24px;';
+    modal.innerHTML =
+      '<div style="background:#fff;border-radius:8px;max-width:780px;width:100%;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">' +
+        '<div style="padding:14px 20px;background:linear-gradient(135deg,#2d4494,#1a2874);color:#fff;display:flex;justify-content:space-between;align-items:center;">' +
+          '<div>' +
+            '<div style="font-size:15px;font-weight:600;">✨ AI assist · Claude</div>' +
+            '<div style="font-size:11px;color:#c5cde8;margin-top:2px;">Rephrase, shorten, or generate. You always review before it lands in the message.</div>' +
+          '</div>' +
+          '<button class="btn-subtle" onclick="document.getElementById(\'blastAiModal\').remove()" style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3);">Close</button>' +
+        '</div>' +
+        '<div id="blastAiBody" style="padding:18px 20px;overflow-y:auto;">' +
+          '<div style="margin-bottom:14px;">' +
+            '<div style="font-size:12px;font-weight:600;color:#3a3428;margin-bottom:6px;">Quick actions on current body</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+              '<button onclick="WPA_blastRunAi(\'rephrase\')" class="btn-subtle">Rephrase</button>' +
+              '<button onclick="WPA_blastRunAi(\'shorten\')"  class="btn-subtle">Shorten (SMS-friendly)</button>' +
+              '<button onclick="WPA_blastRunAi(\'formal\')"   class="btn-subtle">More formal</button>' +
+              '<button onclick="WPA_blastRunAi(\'friendly\')" class="btn-subtle">Friendlier</button>' +
+              '<button onclick="WPA_blastRunAi(\'subject_suggest\')" class="btn-subtle">Suggest subject</button>' +
+            '</div>' +
+            '<div style="font-size:11px;color:#9e9485;margin-top:6px;">Uses your current body text as input.</div>' +
+          '</div>' +
+          '<div style="margin-top:14px;padding-top:14px;border-top:1px solid #e5eaf4;">' +
+            '<div style="font-size:12px;font-weight:600;color:#3a3428;margin-bottom:6px;">Generate from a brief</div>' +
+            '<textarea id="blastAiPrompt" rows="3" placeholder="e.g. Bingo Night this Saturday at 7pm in the community room. Free pizza, prizes, bring a friend. RSVP not required." ' +
+              'style="width:100%;padding:8px 10px;border:1px solid #d9d3c5;border-radius:4px;font:inherit;font-size:13px;resize:vertical;"></textarea>' +
+            '<button onclick="WPA_blastRunAi(\'generate\')" class="btn-primary" style="margin-top:6px;">✨ Generate message</button>' +
+          '</div>' +
+          '<div id="blastAiResult" style="margin-top:18px;display:none;"></div>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+  }
+
+  async function runAi(mode) {
+    const resultEl = document.getElementById('blastAiResult');
+    if (!resultEl) return;
+    const promptEl = document.getElementById('blastAiPrompt');
+    const userPrompt = promptEl ? promptEl.value.trim() : '';
+
+    if (mode === 'generate' && !userPrompt) {
+      toast('Type a brief first', 'error');
+      return;
+    }
+    if (mode !== 'generate' && !(_state.body || '').trim()) {
+      toast('Add some body text first', 'error');
+      return;
+    }
+
+    resultEl.style.display = 'block';
+    resultEl.innerHTML =
+      '<div style="padding:14px;background:#f5f7fc;border-radius:6px;color:#1a2874;font-size:13px;">' +
+        '⏳ Asking Claude…' +
+      '</div>';
+
+    let resp;
+    try {
+      resp = await callPortalApi('blast_ai_assist', {
+        mode:    mode,
+        body:    _state.body || '',
+        subject: _state.subject || '',
+        prompt:  userPrompt,
+        context: _state.categoryCode || '',
+      });
+    } catch (e) {
+      resultEl.innerHTML = '<div style="color:#a22;font-size:12px;">Network error: ' + esc(e.message || e) + '</div>';
+      return;
+    }
+    if (!resp.ok || !resp.data || !resp.data.ok) {
+      const errMsg = (resp.data && (resp.data.error || resp.data.upstream)) || ('HTTP ' + resp.http);
+      resultEl.innerHTML = '<div style="color:#a22;font-size:12px;">AI request failed: ' + esc(errMsg) + '</div>';
+      return;
+    }
+    const text = resp.data.text || '';
+    if (!text) {
+      resultEl.innerHTML = '<div style="color:#a22;font-size:12px;">Empty response from Claude.</div>';
+      return;
+    }
+    // Special-case: subject_suggest returns 3 candidate lines.
+    if (mode === 'subject_suggest') {
+      const lines = text.split(/\n+/).map(s => s.replace(/^[-•\d.\s"]+|"$/g,'').trim()).filter(Boolean).slice(0, 5);
+      resultEl.innerHTML =
+        '<div style="font-size:12px;font-weight:600;color:#3a3428;margin-bottom:8px;">Suggested subjects (click to use):</div>' +
+        lines.map(s =>
+          '<button class="btn-subtle" style="display:block;width:100%;text-align:left;margin-bottom:4px;" ' +
+                  'onclick="WPA_blastApplySubject(' + JSON.stringify(s).replace(/"/g, '&quot;') + ')">' +
+            esc(s) +
+          '</button>'
+        ).join('') +
+        '<div style="font-size:11px;color:#9e9485;margin-top:8px;">' + esc(resp.data.model || '') + '</div>';
+      return;
+    }
+    // Default: show diff-ish view with Accept / Try again.
+    resultEl.innerHTML =
+      '<div style="font-size:12px;font-weight:600;color:#3a3428;margin-bottom:8px;">Suggested rewrite (' + mode + ')</div>' +
+      '<div style="background:#eef1f8;border:1px solid #c5cde8;border-radius:6px;padding:12px 14px;font-size:13px;line-height:1.5;color:#1a1a2e;white-space:pre-wrap;">' +
+        esc(text) +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-top:10px;">' +
+        '<button class="btn-primary" onclick="WPA_blastApplyAi(' + JSON.stringify(text).replace(/"/g, '&quot;') + ')">✓ Use this</button>' +
+        '<button class="btn-subtle" onclick="WPA_blastRunAi(\'' + mode + '\')">Try again</button>' +
+        '<div style="flex:1;"></div>' +
+        '<div style="font-size:11px;color:#9e9485;align-self:center;">' + esc(resp.data.model || '') + '</div>' +
+      '</div>';
+  }
+
+  function applyAi(text) {
+    _state.body = text;
+    const ta = document.getElementById('blastBody');
+    if (ta) ta.value = text;
+    updateCharCounter();
+    const modal = document.getElementById('blastAiModal');
+    if (modal) modal.remove();
+    toast('Body updated from AI suggestion', 'success');
+  }
+
+  function applySubject(text) {
+    _state.subject = text;
+    const inp = document.getElementById('blastSubject');
+    if (inp) inp.value = text;
+    const modal = document.getElementById('blastAiModal');
+    if (modal) modal.remove();
+    toast('Subject updated', 'success');
+  }
+
   // ── Web-view preview (3B.6.7) ─────────────────────────────────────────
   // Shows what an SMS recipient sees after tapping the short link in a
   // long-blast SMS. Reuses the email template (no test banner, no
@@ -954,14 +1099,15 @@ console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS t
       toast('Pick at least one channel', 'error');
       return;
     }
-    // 3B.6.7 — SMS length gate. If body > 300 chars, warn that SMS
-    // will be silently skipped server-side and give the admin a chance
-    // to trim before committing.
+    // 3B.6.7 — Long-body confirmation. SMS still goes out, but as a
+    // teaser + tap-able link instead of the full body. Confirm so the
+    // admin knows what the recipient will see in their messages app.
     if (channels.indexOf('sms') !== -1 && (_state.body || '').length > 300) {
       const proceed = confirm(
-        'Your message is ' + _state.body.length + ' chars — too long for SMS.\n\n' +
-        'SMS will be skipped for this blast. Only email (and app, when wired) will deliver.\n\n' +
-        'Continue?'
+        'Your message is ' + _state.body.length + ' chars — too long for a single SMS.\n\n' +
+        'SMS recipients will receive a SHORT teaser with a tap-able link to the full branded message:\n\n' +
+        '  [Willow Partnership] ' + (_state.subject || '').slice(0, 50) + '… — Read: https://app.willowpa.com/api/?action=blast_view&t=…\n\n' +
+        'Email recipients always get the full body. Continue?'
       );
       if (!proceed) return;
     }
@@ -990,7 +1136,7 @@ console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS t
     const smsLine     = !_state.channels.sms
       ? 'channel off'
       : smsTooLong
-        ? '0 (body > 300 chars — SMS will be skipped)'
+        ? willSms + ' will receive a teaser SMS with a tap-to-read link'
         : willSms + ' will receive';
 
     if (_state.testMode) {
@@ -1002,7 +1148,7 @@ console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS t
         'Email:       ' + willEmail + ' redirected to ' + (_state.testRedirectEmail || '—') + '\n' +
         'SMS:         ' + (_state.channels.sms
           ? (smsTooLong
-              ? 'skipped (body > 300 chars)'
+              ? willSms + ' teaser SMS (with link) redirected to ' + (_state.testRedirectPhone || '—')
               : willSms + ' redirected to ' + (_state.testRedirectPhone || '—'))
           : 'channel off') + '\n' +
         '\nYou will receive ' + willEmail + ' test emails' +
@@ -1055,7 +1201,6 @@ console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS t
     setSendingUI(false,
       'Blast complete · ' + sent + ' sent' +
       (failed ? ' · ' + failed + ' failed' : '') +
-      (smsSkippedForLength ? ' · SMS skipped (body > 300 chars)' : '') +
       (failed ? ' (check Drafts to re-run failed recipients)' : ''));
     toast(
       failed ? ('Sent ' + sent + ' · ' + failed + ' failed') : ('Sent ' + sent + ' ✓'),
@@ -1131,6 +1276,11 @@ console.log('[blast] loaded v20260424-phase3b.22 — long-message-as-link (SMS t
   // 3B.6.7 SMS send + char counter + long-message-as-link
   window.WPA_blastUpdateCharCounter = updateCharCounter;
   window.WPA_blastPreviewWebView    = previewWebView;
+  // 3B.6.8 Claude AI assist
+  window.WPA_blastOpenAi       = openAi;
+  window.WPA_blastRunAi        = runAi;
+  window.WPA_blastApplyAi      = applyAi;
+  window.WPA_blastApplySubject = applySubject;
   window.WPA_blastSaveDraft    = saveDraft;
   window.WPA_blastSend         = sendBlast;
   window.WPA_blastOpenDrafts   = openDrafts;
